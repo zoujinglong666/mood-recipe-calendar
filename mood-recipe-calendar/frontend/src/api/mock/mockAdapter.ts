@@ -37,8 +37,8 @@ const mockAdapter = createAlovaMockAdapter(allMocks, {
   // 使用uniapp mock响应适配器
   onMockResponse: uniappMockResponse,
 
-  // 根据环境变量启用/禁用mock
-  enable: true,
+  // 根据环境变量启用/禁用mock（已全面接入真实后端，默认关闭 mock）
+  enable: false,
 
   // 添加延迟以模拟网络延迟 (200-600ms)
   delay: Math.random() * 400 + 200,

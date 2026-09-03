@@ -7,6 +7,7 @@ import { fetchStats, fetchRecords, type RecordItem } from '../../api/records'
 import { updateUserInfo } from '../../api/auth'
 import { uploadFile } from '../../api/request'
 import { useUserStore } from '../../stores/user'
+import { useNavBar } from '@/composables/useNavBar'
 
 definePage({
   name: 'profile',
@@ -19,6 +20,8 @@ definePage({
 
 const router = useRouter()
 const userStore = useUserStore()
+// 顶部用户信息卡适配状态栏 + 右侧齿轮避让胶囊
+const nav = useNavBar()
 
 const loading = ref(true)
 const stats = ref({ totalRecords: 0, totalDays: 0, currentStreak: 0, topDishes: [] as { name: string; count: number }[] })
@@ -113,8 +116,8 @@ function goSettings() {
 
     <!-- 内容 -->
     <template v-else>
-      <!-- 顶部用户信息 -->
-      <view class="profile-header">
+      <!-- 顶部用户信息（paddingTop 避开状态栏，右侧齿轮避开胶囊） -->
+      <view class="profile-header" :style="{ paddingTop: nav.statusBarHeight + 24 + 'px' }">
         <view class="profile-header__left">
           <!-- 微信小程序：头像昵称填写能力 -->
           <!-- #ifdef MP-WEIXIN -->
@@ -157,7 +160,7 @@ function goSettings() {
           <text class="profile-name">{{ userStore.userInfo?.nickname || '小圆' }}</text>
           <!-- #endif -->
         </view>
-        <view class="profile-header__right" @click="goSettings">
+        <view class="profile-header__right" :style="{ marginRight: nav.capsuleRightGap + 8 + 'px' }" @click="goSettings">
           <Icon name="gear" :size="44" color="var(--mrc-text-deep)" />
         </view>
       </view>
@@ -194,11 +197,11 @@ function goSettings() {
       <!-- 功能按钮 -->
       <view class="profile-actions">
         <view class="profile-action" @click="goReport">
-          <Icon name="camera" :size="44" color="#C9A87C" />
+          <Icon name="camera" :size="44" color="var(--mrc-primary)" />
           <text class="profile-action__text">我的年度报告</text>
         </view>
         <view class="profile-action" @click="router.push({ name: 'calendar' })">
-          <Icon name="list" :size="44" color="#C9A87C" />
+          <Icon name="list" :size="44" color="var(--mrc-primary)" />
           <text class="profile-action__text">历史记录</text>
         </view>
       </view>
@@ -240,7 +243,7 @@ function goSettings() {
 <style lang="scss" scoped>
 .profile-page {
   min-height: 100vh;
-  background: #FDF6EC;
+  background: var(--mrc-bg);
   padding: 0 32rpx;
   padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
@@ -263,7 +266,7 @@ function goSettings() {
   height: 120rpx;
   border-radius: 50%;
   background: var(--mrc-bg-soft);
-  border: 4rpx solid #EDD4C0;
+  border: 4rpx solid var(--mrc-border-light);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -337,7 +340,7 @@ function goSettings() {
 .profile-stats__divider {
   width: 2rpx;
   height: 80rpx;
-  background: #EDD4C0;
+  background: var(--mrc-border-light);
 }
 
 /* 锅仔形象馆入口 */

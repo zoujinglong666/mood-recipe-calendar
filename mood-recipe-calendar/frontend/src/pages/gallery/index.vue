@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import Icon from '../../components/common/Icon.vue'
+import AppNav from '../../components/common/AppNav.vue'
 import LoadingState from '../../components/guozai/LoadingState.vue'
 import ErrorState from '../../components/guozai/ErrorState.vue'
 import { ensureLogin } from '../../utils/login'
@@ -183,10 +184,6 @@ async function onBuy() {
   }
 }
 
-function goBack() {
-  router.back()
-}
-
 const orderStatusText: Record<string, string> = {
   pending: '待支付',
   paid: '已支付',
@@ -200,15 +197,8 @@ const orderTypeText: Record<string, string> = {
 
 <template>
   <view class="gallery-page">
-    <!-- 顶部导航 -->
-    <view class="gallery-nav">
-      <view class="gallery-nav__back" @click="goBack">
-        <Icon name="back" :size="40" color="var(--mrc-text-deep)" />
-      </view>
-      <text class="gallery-nav__title">锅仔形象馆</text>
-      <image class="gallery-nav__guozai" src="/static/guozai/mood_01_happy.png" mode="aspectFit" />
-    </view>
-
+    <!-- 顶部导航（通用组件：状态栏 + 胶囊避让） -->
+    <AppNav title="锅仔形象馆" /> 
     <!-- Loading / Error -->
     <LoadingState v-if="loading" text="锅仔正在布置形象馆..." />
     <ErrorState v-else-if="error" :text="error" @retry="loadData" />
@@ -395,33 +385,6 @@ const orderTypeText: Record<string, string> = {
   padding: 0 32rpx;
   padding-bottom: calc(60rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
-}
-
-/* 顶部导航 */
-.gallery-nav {
-  display: flex;
-  align-items: center;
-  padding: 24rpx 0 20rpx;
-  position: relative;
-}
-.gallery-nav__back {
-  width: 72rpx;
-  height: 72rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.gallery-nav__title {
-  flex: 1;
-  text-align: center;
-  font-size: 36rpx;
-  font-weight: 700;
-  color: var(--mrc-text-deep);
-}
-.gallery-nav__guozai {
-  width: 72rpx;
-  height: 72rpx;
-  animation: guozai-breathe 3s ease-in-out infinite;
 }
 
 /* 签到卡片 */

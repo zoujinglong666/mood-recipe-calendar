@@ -12,7 +12,9 @@ import { defineUniPages } from '@uni-helper/vite-plugin-uni-pages'
 export default defineUniPages({
   pages: [],
   globalStyle: {
-    // 导航栏配置
+    // 关闭原生导航栏，统一使用自定义 AppNav 组件（含状态栏/胶囊适配）
+    navigationStyle: 'custom',
+    // 导航栏配置（原生已关闭，以下作为兜底背景色）
     navigationBarBackgroundColor: '@navBgColor',
     navigationBarTextStyle: '@navTxtStyle',
     navigationBarTitleText: '心情菜谱日历',

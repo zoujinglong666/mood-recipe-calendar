@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { useUserStore } from './stores/user'
+import { refreshNavMetrics } from './composables/useNavBar'
 
 onLaunch(() => {
+  // 适配微信状态栏与胶囊按钮
+  refreshNavMetrics()
   // 恢复登录状态
   const userStore = useUserStore()
   userStore.restoreFromStorage()

@@ -94,56 +94,77 @@ const moodClass = computed(() => MOOD_CLASS[props.mood] ?? props.mood)
   position: relative;
   display: inline-block;
 }
-
-/* ---- 锅身 ---- */
-.gz-body {
+/* 落地柔影：让锅仔"站"在页面上 */
+.gz::after {
+  content: '';
   position: absolute;
-  left: 12%;
-  top: 22%;
-  width: 76%;
-  height: 66%;
-  background: #ffffff;
-  border: 4rpx solid #ff8b6a;
-  border-radius: 50% 50% 46% 46% / 42% 42% 52% 52%;
-  box-shadow: 0 6rpx 0 rgba(233, 137, 91, 0.25);
-  overflow: hidden;
-  box-sizing: border-box;
+  left: 18%;
+  right: 18%;
+  bottom: 1%;
+  height: 5%;
+  background: rgba(120, 70, 45, 0.18);
+  border-radius: 50%;
+  z-index: 0;
 }
 
-/* 锅沿红色描边加重（底部红边） */
+/* ---- 锅身（带体积渐变 + 珊瑚描边 + 底部红边） ---- */
+.gz-body {
+  position: absolute;
+  left: 11%;
+  top: 21%;
+  width: 78%;
+  height: 67%;
+  background: linear-gradient(165deg, #ffffff 0%, #fff1e6 100%);
+  border: 5rpx solid #ff7a5c;
+  border-radius: 50% 50% 46% 46% / 42% 42% 54% 54%;
+  box-shadow: 0 8rpx 0 rgba(255, 122, 92, 0.18), var(--mrc-shadow-soft);
+  overflow: hidden;
+  box-sizing: border-box;
+  z-index: 1;
+}
 .gz-body::after {
   content: '';
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  height: 14%;
-  background: #ff8b6a;
-  border-radius: 0 0 46% 46% / 0 0 52% 52%;
-  opacity: 0.9;
+  height: 15%;
+  background: #ff7a5c;
+  border-radius: 0 0 46% 46% / 0 0 54% 54%;
+  opacity: 0.92;
 }
 
-/* ---- 锅盖 ---- */
+/* ---- 锅盖（带高光） ---- */
 .gz-lid {
   position: absolute;
-  left: 12%;
-  top: 8%;
-  width: 76%;
-  height: 22%;
-  background: #fff6ef;
-  border: 4rpx solid #ff8b6a;
+  left: 11%;
+  top: 7%;
+  width: 78%;
+  height: 23%;
+  background: linear-gradient(165deg, #fff7f0, #ffe7d6);
+  border: 5rpx solid #ff7a5c;
   border-radius: 50%;
   box-sizing: border-box;
   z-index: 2;
 }
+.gz-lid::after {
+  content: '';
+  position: absolute;
+  left: 16%;
+  top: 14%;
+  width: 42%;
+  height: 32%;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 50%;
+}
 .gz-lid-knob {
   position: absolute;
   left: 50%;
-  top: -40%;
+  top: -42%;
   transform: translateX(-50%);
-  width: 18%;
-  height: 40%;
-  background: #ff8b6a;
+  width: 20%;
+  height: 42%;
+  background: #ff7a5c;
   border-radius: 50%;
 }
 
@@ -151,93 +172,105 @@ const moodClass = computed(() => MOOD_CLASS[props.mood] ?? props.mood)
 .gz-heart {
   position: absolute;
   left: 50%;
-  bottom: 16%;
+  bottom: 17%;
   transform: translateX(-50%);
-  width: 16%;
-  height: 14%;
-  background: #ff5a5a;
-  transform-origin: center;
+  width: 17%;
+  height: 15%;
+  background: var(--mrc-accent, #ef5a3c);
   clip-path: polygon(50% 100%, 0 40%, 0 30%, 20% 12%, 50% 28%, 80% 12%, 100% 30%, 100% 40%);
   transition: all 0.3s;
 }
 
-/* ---- 眼睛 ---- */
+/* ---- 眼睛（大而亮，带高光点） ---- */
 .gz-eye {
   position: absolute;
-  top: 34%;
-  width: 9%;
-  height: 14%;
-  background: #5a3e2b;
+  top: 33%;
+  width: 13%;
+  height: 19%;
+  background: #3a2418;
+  border-radius: 50%;
+  z-index: 2;
+}
+.gz-eye::after {
+  content: '';
+  position: absolute;
+  top: 16%;
+  left: 22%;
+  width: 40%;
+  height: 40%;
+  background: #fff;
   border-radius: 50%;
 }
 .gz-eye--l {
-  left: 26%;
+  left: 25%;
 }
 .gz-eye--r {
-  right: 26%;
+  right: 25%;
 }
 
 /* ---- 腮红 ---- */
 .gz-cheek {
   position: absolute;
-  top: 56%;
-  width: 16%;
-  height: 9%;
-  background: #ffc4d0;
+  top: 53%;
+  width: 17%;
+  height: 11%;
+  background: #ff9db6;
   border-radius: 50%;
-  opacity: 0.85;
+  opacity: 0.9;
+  z-index: 2;
 }
 .gz-cheek--l {
-  left: 8%;
+  left: 7%;
 }
 .gz-cheek--r {
-  right: 8%;
+  right: 7%;
 }
 
-/* ---- 嘴 ---- */
+/* ---- 嘴（默认：张开的小笑嘴） ---- */
 .gz-mouth {
   position: absolute;
   left: 50%;
-  bottom: 34%;
+  bottom: 31%;
   transform: translateX(-50%);
-  width: 18%;
-  height: 10%;
-  border-bottom: 4rpx solid #5a3e2b;
-  border-radius: 0 0 50% 50%;
+  width: 15%;
+  height: 9%;
+  background: #ff7a5c;
+  border-radius: 0 0 60% 60%;
+  z-index: 2;
 }
 
 /* ---- 小手 ---- */
 .gz-hand {
   position: absolute;
   top: 52%;
-  width: 16%;
-  height: 16%;
-  background: #ffffff;
-  border: 4rpx solid #ff8b6a;
+  width: 15%;
+  height: 15%;
+  background: #fffcf7;
+  border: 5rpx solid #ff7a5c;
   border-radius: 50%;
   z-index: 3;
 }
 .gz-hand--l {
-  left: -2%;
+  left: -1%;
 }
 .gz-hand--r {
-  right: -2%;
+  right: -1%;
 }
 
 /* ---- 气泡 ---- */
 .gz-bubble {
   position: absolute;
-  top: -38%;
+  top: -36%;
   left: 50%;
   transform: translateX(-50%);
-  background: #ffffff;
-  border: 3rpx solid var(--mrc-border, #edd4c0);
+  background: #fffcf7;
+  border: 3rpx solid var(--mrc-border, #ead2b6);
   border-radius: 24rpx;
   padding: 10rpx 22rpx;
   font-size: 22rpx;
-  color: var(--mrc-text, #5a3e2b);
+  color: var(--mrc-text-deep, #3d2519);
   white-space: nowrap;
-  box-shadow: 0 4rpx 12rpx rgba(232, 131, 107, 0.12);
+  box-shadow: var(--mrc-shadow-sm);
   z-index: 5;
 }
 .gz-bubble-tail {
@@ -249,16 +282,16 @@ const moodClass = computed(() => MOOD_CLASS[props.mood] ?? props.mood)
   height: 0;
   border-left: 12rpx solid transparent;
   border-right: 12rpx solid transparent;
-  border-top: 12rpx solid #ffffff;
+  border-top: 12rpx solid #fffcf7;
 }
 
 /* ---- 头顶装饰 ---- */
 .gz-deco {
   position: absolute;
-  top: -6%;
-  right: 2%;
+  top: -4%;
+  right: 0;
   z-index: 4;
-  font-size: 30rpx;
+  font-size: 34rpx;
   animation: gz-float 2s ease-in-out infinite;
 }
 .gz-deco-text {
@@ -277,78 +310,89 @@ const moodClass = computed(() => MOOD_CLASS[props.mood] ?? props.mood)
 
 /* ================= 8 种心情差异 ================= */
 
-/* 开心：月牙眼 + 大笑 */
+/* 开心：月牙眼 + 大笑 + 亮腮红 */
 .gz--happy .gz-eye {
-  height: 8%;
-  border-radius: 0 0 100% 100%;
+  height: 9%;
+  top: 38%;
+  border-radius: 0 0 100% 100% / 0 0 100% 100%;
+}
+.gz--happy .gz-eye::after {
+  display: none;
 }
 .gz--happy .gz-mouth {
-  width: 24%;
-  height: 12%;
-  border-bottom: 5rpx solid #5a3e2b;
+  width: 21%;
+  height: 11%;
+  background: #ff7a5c;
   border-radius: 0 0 60% 60%;
 }
 .gz--happy .gz-cheek {
-  background: #ff9eb8;
+  background: #ff8fb0;
   opacity: 1;
 }
 
 /* 平静：圆眼微笑 */
 .gz--calm .gz-eye {
-  width: 8%;
-  height: 12%;
+  width: 12%;
+  height: 16%;
 }
 .gz--calm .gz-mouth {
-  width: 14%;
+  width: 13%;
   height: 8%;
 }
 
-/* 疲惫：半闭眼 + 淡腮红 */
+/* 疲惫：半闭眼 + 淡腮红 + 小嘴 */
 .gz--tired .gz-eye {
-  height: 4%;
-  border-radius: 4rpx;
-  background: #8b6b55;
+  height: 5%;
+  top: 40%;
+  border-radius: 6rpx;
+  background: #6b4a37;
+}
+.gz--tired .gz-eye::after {
+  display: none;
 }
 .gz--tired .gz-cheek {
-  opacity: 0.35;
+  opacity: 0.4;
 }
 .gz--tired .gz-mouth {
-  width: 12%;
+  width: 11%;
   height: 6%;
-  border-bottom: 3rpx solid #8b6b55;
+  background: #ff7a5c;
+  border-radius: 0 0 50% 50%;
 }
 
 /* 焦虑：瞪大眼 + 波浪嘴 */
 .gz--anxious .gz-eye {
-  width: 12%;
-  height: 18%;
-  background: #3f2c1e;
+  width: 15%;
+  height: 22%;
+  background: #2c1810;
 }
 .gz--anxious .gz-mouth {
-  width: 22%;
-  height: 8%;
-  border: none;
-  border-bottom: 3rpx dashed #5a3e2b;
+  width: 17%;
+  height: 7%;
+  background: transparent;
+  border-bottom: 4rpx solid #5a3e2b;
   border-radius: 0;
 }
 
-/* 难过：下垂眼 + 下弯嘴 */
+/* 难过：下垂眼 + 下弯嘴 + 泪 */
 .gz--sad .gz-eye {
-  height: 6%;
-  border-radius: 50%;
-  background: #6b5645;
+  height: 9%;
+  background: #5a3e2b;
 }
 .gz--sad .gz-eye--l {
-  transform: rotate(18deg);
+  transform: rotate(16deg);
 }
 .gz--sad .gz-eye--r {
-  transform: rotate(-18deg);
+  transform: rotate(-16deg);
+}
+.gz--sad .gz-eye::after {
+  opacity: 0.5;
 }
 .gz--sad .gz-mouth {
-  width: 16%;
-  height: 10%;
-  border: none;
-  border-top: 4rpx solid #5a3e2b;
+  width: 15%;
+  height: 9%;
+  background: transparent;
+  border-top: 5rpx solid #5a3e2b;
   border-radius: 50% 50% 0 0;
 }
 .gz--sad .gz-cheek {
@@ -383,38 +427,40 @@ const moodClass = computed(() => MOOD_CLASS[props.mood] ?? props.mood)
   }
 }
 
-/* 嘴馋：亮眼 + 流口水 */
+/* 嘴馋：亮黄眼 + 大笑 + 亮腮红 */
 .gz--hungry .gz-eye {
-  background: #ffd93d;
-  border: 2rpx solid #5a3e2b;
+  background: #ffc53d;
+  border: 2rpx solid #3a2418;
+}
+.gz--hungry .gz-eye::after {
+  background: #fff;
 }
 .gz--hungry .gz-mouth {
   width: 20%;
-  height: 10%;
-  border-bottom: 5rpx solid #ff8b6a;
+  height: 12%;
+  background: #ff7a5c;
+  border-radius: 0 0 60% 60%;
 }
 .gz--hungry .gz-cheek {
-  background: #ff9eb8;
+  background: #ff8fb0;
   opacity: 1;
 }
 
-/* 低落：耷拉眼 + 平嘴 */
+/* 低落：耷拉灰眼 + 平嘴 */
 .gz--low .gz-eye {
-  height: 5%;
-  border-radius: 4rpx;
+  height: 6%;
+  top: 40%;
+  border-radius: 6rpx;
   background: #9aa0ad;
 }
-.gz--low .gz-eye--l {
-  transform: rotate(12deg);
-}
-.gz--low .gz-eye--r {
-  transform: rotate(-12deg);
+.gz--low .gz-eye::after {
+  display: none;
 }
 .gz--low .gz-mouth {
-  width: 14%;
+  width: 13%;
   height: 4%;
-  border: none;
-  border-bottom: 3rpx solid #9aa0ad;
+  background: transparent;
+  border-bottom: 4rpx solid #9aa0ad;
   border-radius: 0;
 }
 .gz--low .gz-cheek {
@@ -423,16 +469,16 @@ const moodClass = computed(() => MOOD_CLASS[props.mood] ?? props.mood)
 
 /* 想家：心形发暖光 + 温柔眼 */
 .gz--homesick .gz-eye {
-  width: 8%;
-  height: 12%;
+  width: 12%;
+  height: 16%;
   background: #4a3628;
 }
 .gz--homesick .gz-heart {
   background: #ffb366;
-  box-shadow: 0 0 12rpx 4rpx rgba(255, 179, 102, 0.6);
+  box-shadow: 0 0 14rpx 5rpx rgba(255, 179, 102, 0.6);
 }
 .gz--homesick .gz-mouth {
-  width: 14%;
-  height: 7%;
+  width: 13%;
+  height: 8%;
 }
 </style>

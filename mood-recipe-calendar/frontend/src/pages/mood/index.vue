@@ -73,7 +73,7 @@ function pickMood(key: string) {
 .mood-page {
   min-height: 100vh;
   box-sizing: border-box;
-  background: #FDFAEC;
+  background: var(--mrc-bg);
   padding: 0 32rpx 60rpx;
 }
 
@@ -94,7 +94,7 @@ function pickMood(key: string) {
   display: block;
   text-align: center;
   font-size: 30rpx;
-  color: #A08672;
+  color: var(--mrc-text-sub);
   margin-bottom: 56rpx;
   letter-spacing: 2rpx;
 }
@@ -114,18 +114,18 @@ function pickMood(key: string) {
   justify-content: center;
   gap: 12rpx;
   padding: 28rpx 0 24rpx;
-  background: #FEF8E0;
+  background: var(--mrc-surface);
   border-radius: 28rpx;
-  box-shadow: 0 4rpx 12rpx rgba(121, 73, 53, 0.06);
+  box-shadow: var(--mrc-shadow-sm);
   transition: transform 0.2s ease, background 0.2s ease;
 }
 .mood-card:active {
   transform: scale(0.94);
 }
 .mood-card--active {
-  background: linear-gradient(135deg, #FFCF97 0%, #FEC496 100%);
+  background: linear-gradient(135deg, #FF9D6E 0%, #FF6B5B 100%);
   transform: scale(1.05);
-  box-shadow: 0 8rpx 20rpx rgba(255, 180, 120, 0.35);
+  box-shadow: var(--mrc-shadow-coral);
 }
 .mood-card__icon {
   width: 88rpx;

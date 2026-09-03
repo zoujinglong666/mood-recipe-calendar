@@ -7,7 +7,7 @@ export interface LoginResult {
   isNew: boolean
 }
 
-/** 微信登录（H5 用 mock code，小程序用 wx.login 获取的 code） */
+/** 微信登录（小程序/H5 均使用 wx.login 获取的真实 code，后端 code2session 换 openid） */
 export function login(code: string, nickname?: string, avatarUrl?: string) {
   return post<LoginResult>('/auth/login', { code, nickname, avatarUrl })
 }

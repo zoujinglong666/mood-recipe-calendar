@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { useTeam } from '@/composables/useTeam'
+import AppNav from '@/components/common/AppNav.vue'
 
 definePage({
   name: 'about',
   layout: 'tabbar',
   style: {
+    navigationStyle: 'custom',
     navigationBarTitleText: '关于',
   },
 })
@@ -36,6 +38,9 @@ function donate() {
 
 <template>
   <view class="min-h-screen py-3">
+    <!-- 顶部导航（状态栏 + 胶囊适配） -->
+    <AppNav title="关于" />
+
     <!-- 头部介绍 -->
     <view class="mx-3 mb-3 flex flex-col gap-2">
       <text class="text-6 font-bold wot-text-text-main">

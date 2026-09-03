@@ -118,7 +118,7 @@ function onShare() { uni.showToast({ title: '分享功能', icon: 'none' }) }
         </view>
         <view v-if="showSteps" class="recipe-steps">
           <view v-for="(step, i) in steps" :key="i" class="recipe-steps__item">
-            <text class="recipe-steps__num">{{ i + 1 }}</text>
+            <text class="recipe-steps__num">{{ Number(i) + 1 }}</text>
             <text class="recipe-steps__text">{{ step }}</text>
           </view>
         </view>
@@ -172,7 +172,7 @@ function onShare() { uni.showToast({ title: '分享功能', icon: 'none' }) }
   border-radius: 32rpx;
   padding: 24rpx;
   margin-bottom: 32rpx;
-  box-shadow: 0 4rpx 16rpx rgba(121, 73, 53, 0.06);
+  box-shadow: var(--mrc-shadow-sm);
 }
 .recipe-card__img {
   width: 160rpx;
@@ -214,7 +214,7 @@ function onShare() { uni.showToast({ title: '分享功能', icon: 'none' }) }
 .recipe-card__tag {
   font-size: 22rpx;
   color: var(--mrc-text-deep);
-  background: #F6E5C9;
+  background: var(--mrc-surface-2);
   padding: 6rpx 16rpx;
   border-radius: 20rpx;
 }
@@ -306,7 +306,7 @@ function onShare() { uni.showToast({ title: '分享功能', icon: 'none' }) }
 .recipe-btn--primary {
   background: linear-gradient(135deg, var(--mrc-primary), var(--mrc-primary-deep));
   color: #fff;
-  box-shadow: 0 8rpx 20rpx rgba(253, 145, 132, 0.35);
+  box-shadow: var(--mrc-shadow-coral);
 }
 .recipe-btn--ghost {
   background: var(--mrc-bg-warm);

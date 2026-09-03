@@ -1,56 +1,77 @@
 // ============================================================
-// 心情菜谱日历 · 公共样式主题（PRD V3.0 配色系统）
+// 心情菜谱日历 · 公共样式主题（配色系统 V4 · 高级萌感）
 // 全局 CSS 变量 + 通用工具类，供所有页面/组件复用
+// 注意：WXSS 不支持中文选择器、view 上慎用 filter(blur)
 // ============================================================
 
 :root,
 page {
-  /* ---- 品牌配色（治愈系暖色盘 · 从设计稿实际取色） ---- */
-  --mrc-bg: #FDF9EC;            /* 主背景 暖米白（设计稿实测） */
-  --mrc-bg-card: #F5ECD9;       /* 卡片背景 奶油杏（设计稿实测） */
-  --mrc-bg-bar: #F6E5C9;        /* 功能条背景（设计稿实测） */
-  --mrc-primary: #F9B795;       /* 主按钮 蜜桃浅（设计稿实测） */
-  --mrc-primary-deep: #FD9184;  /* 主按钮渐变深 珊瑚粉（设计稿实测） */
-  --mrc-accent: #E07A5F;        /* 强调 暖陶红 */
-  --mrc-accent-deep: #C9604A;   /* 强调深 */
-  --mrc-warm: #FBE1C9;          /* 浅橙高亮底（设计稿实测） */
-  --mrc-warm-light: #FDEDD8;    /* 浅米高亮底（设计稿实测） */
-  --mrc-yellow: #FFD93D;        /* 暖阳黄 */
-  --mrc-green: #6BCB77;         /* 草芽绿 */
-  --mrc-blue: #B5D4E8;          /* 淡雾蓝 */
-  --mrc-text: #6B4F3E;          /* 文字主 深暖褐（柔和版） */
-  --mrc-text-deep: #794935;     /* 文字深 标题/强调（设计稿实测） */
-  --mrc-text-sub: #A08672;      /* 文字辅助 中褐 */
-  --mrc-text-light: #C4A88A;    /* 文字浅 占位/次要 */
-  --mrc-border: #E8D5C0;        /* 边框 淡杏 */
-  --mrc-border-light: #EDD4C0;  /* 边框浅 输入框 */
-  --mrc-border-soft: #E8C9A8;   /* 日历边框 淡橙 */
-  --mrc-bg-soft: #FEF3E0;       /* 浅橙底 输入框/标签 */
-  --mrc-bg-warm: #FEF8E0;       /* 浅黄底 卡片 */
-  --mrc-bg-alt: #FDF6EC;        /* 备选背景 画册/年报用 */
-  --mrc-text-strong: #5A3E2B;   /* 文字最深 大标题 */
-  --mrc-text-mid: #8B6B55;      /* 文字中深 辅助 */
-  --mrc-brown: #C4956A;         /* 棕色 装饰 */
-  --mrc-mood-sad: #8BA8C4;      /* 难过心情色 */
-  --mrc-mood-anxious: #FFB88C;  /* 焦虑心情色 */
-  --mrc-white: #FFFBF5;         /* 暖白（非纯白，带暖调） */
+  /* ---- 表面层级（清晰对比，根治"灰脏"） ---- */
+  --mrc-bg: #F8ECDA;            /* 页面底：温暖奶油（比卡片深，制造层次） */
+  --mrc-surface: #FFFCF7;       /* 卡片：近白暖调，明显浮起 */
+  --mrc-surface-2: #FBEBD6;     /* 次级面 / 功能条 */
+  --mrc-surface-3: #F4E0C5;     /* 内嵌深一层 */
+
+  /* ---- 品牌珊瑚（更饱和、更敢用） ---- */
+  --mrc-primary: #FF9D82;       /* 浅珊瑚 */
+  --mrc-primary-deep: #FF6B5B;  /* 深珊瑚红（行动主色） */
+  --mrc-primary-grad: linear-gradient(135deg, #FFB98C 0%, #FF6B5B 100%);
+  --mrc-accent: #EF5A3C;        /* 强调深珊瑚 */
+  --mrc-accent-soft: rgba(239, 90, 60, 0.14);
+
+  /* ---- 吸睛点缀（克制使用） ---- */
+  --mrc-pop: #FFC53D;           /* 暖阳黄 */
+  --mrc-mint: #28C2A0;          /* 清新薄荷（强对比） */
+  --mrc-blue: #6FB4EA;          /* 雾蓝 */
+
+  /* ---- 文字 ---- */
+  --mrc-text: #6A4A37;          /* 正文 暖褐 */
+  --mrc-text-deep: #3D2519;     /* 标题 深咖 */
+  --mrc-text-strong: #2C1810;   /* 大标题 最深 */
+  --mrc-text-sub: #A1826A;      /* 辅助 */
+  --mrc-text-light: #C4A88A;    /* 占位 / 次要 */
+
+  /* ---- 描边 ---- */
+  --mrc-border: #EAD2B6;        /* 常规 */
+  --mrc-border-light: #F0DCC2;  /* 浅 */
+  --mrc-border-strong: #E2BD98; /* 强 */
+
+  /* ---- 阴影（上色 + 分层 = 高级感） ---- */
+  --mrc-shadow-sm: 0 4rpx 12rpx rgba(176, 116, 74, 0.10);
+  --mrc-shadow: 0 10rpx 28rpx rgba(176, 116, 74, 0.14);
+  --mrc-shadow-soft: 0 6rpx 18rpx rgba(176, 116, 74, 0.08);
+  --mrc-shadow-coral: 0 12rpx 26rpx rgba(255, 107, 91, 0.40);
+  --mrc-gloss: inset 0 1rpx 0 rgba(255, 255, 255, 0.7);
 
   /* ---- 字号（rpx） ---- */
-  --mrc-fs-lg: 40rpx;
-  --mrc-fs-title: 32rpx;
+  --mrc-fs-lg: 44rpx;
+  --mrc-fs-title: 34rpx;
   --mrc-fs-body: 28rpx;
   --mrc-fs-sub: 24rpx;
   --mrc-fs-xs: 20rpx;
 
   /* ---- 圆角 ---- */
-  --mrc-radius-lg: 24rpx;
-  --mrc-radius-md: 16rpx;
+  --mrc-radius-lg: 28rpx;
+  --mrc-radius-md: 18rpx;
   --mrc-radius-pill: 50rpx;
 
   /* ---- 间距 ---- */
   --mrc-space-lg: 32rpx;
   --mrc-space-md: 24rpx;
   --mrc-space-sm: 16rpx;
+
+  /* ---- 旧别名兼容映射（既有页面引用，保持可用） ---- */
+  --mrc-bg-card: var(--mrc-surface);
+  --mrc-bg-bar: var(--mrc-surface-2);
+  --mrc-bg-soft: var(--mrc-surface-2);
+  --mrc-bg-warm: #FFF6E6;       /* 暖色卡片（轻于底色，仍有暖意） */
+  --mrc-bg-alt: #F2E6D2;
+  --mrc-warm: #FBE5CC;
+  --mrc-warm-light: #FCEFD9;
+  --mrc-brown: #C4956A;
+  --mrc-white: #FFFCF7;
+  --mrc-border-soft: var(--mrc-border-light);
+  --mrc-text-mid: #8B6B55;
 }
 
 /* ---------- 页面骨架 ---------- */
@@ -64,32 +85,42 @@ page {
   font-family: 'Resource Han Rounded', 'Yuanti SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
 
+/* 整页暖色光晕背景（hero 区可用，制造氛围与深度） */
+.mrc-hero {
+  background:
+    radial-gradient(110% 80% at 12% -10%, #FFE6C9 0%, rgba(255, 230, 201, 0) 55%),
+    radial-gradient(100% 80% at 105% 0%, #FFD8D2 0%, rgba(255, 216, 210, 0) 50%),
+    var(--mrc-bg);
+}
+
 /* ---------- 卡片 ---------- */
 .mrc-card {
-  background: var(--mrc-bg-card);
+  background: var(--mrc-surface);
   border-radius: var(--mrc-radius-lg);
   padding: var(--mrc-space-md);
+  border: 1rpx solid var(--mrc-border-light);
+  box-shadow: var(--mrc-shadow), var(--mrc-gloss);
   box-sizing: border-box;
 }
 
-/* ---------- 主按钮（蜜桃渐变胶囊） ---------- */
+/* ---------- 主按钮（珊瑚渐变胶囊 + 上色投影） ---------- */
 .mrc-btn-primary {
   display: flex;
   align-items: center;
   justify-content: center;
   height: 96rpx;
   border-radius: var(--mrc-radius-pill);
-  background: linear-gradient(135deg, var(--mrc-primary), var(--mrc-primary-deep));
+  background: var(--mrc-primary-grad);
   color: #fff;
   font-size: var(--mrc-fs-title);
-  font-weight: 600;
-  box-shadow: 0 8rpx 20rpx rgba(255, 158, 110, 0.35);
+  font-weight: 700;
+  box-shadow: var(--mrc-shadow-coral), var(--mrc-gloss);
   letter-spacing: 2rpx;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 .mrc-btn-primary:active {
   transform: scale(0.97);
-  box-shadow: 0 4rpx 10rpx rgba(255, 158, 110, 0.3);
+  box-shadow: 0 6rpx 14rpx rgba(255, 107, 91, 0.32);
 }
 
 /* 次按钮（描边） */
@@ -99,15 +130,15 @@ page {
   justify-content: center;
   height: 96rpx;
   border-radius: var(--mrc-radius-pill);
-  background: var(--mrc-white);
+  background: var(--mrc-surface);
   border: 2rpx solid var(--mrc-primary);
   color: var(--mrc-accent);
   font-size: var(--mrc-fs-title);
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 2rpx;
 }
 .mrc-btn-outline:active {
-  background: #fff7f0;
+  background: #fff3ec;
 }
 
 /* ---------- 标签 chip ---------- */
@@ -116,36 +147,43 @@ page {
   align-items: center;
   padding: 6rpx 20rpx;
   border-radius: var(--mrc-radius-pill);
-  background: var(--mrc-bg-card);
+  background: var(--mrc-surface-2);
   color: var(--mrc-text-sub);
   font-size: var(--mrc-fs-xs);
   margin-right: var(--mrc-space-sm);
 }
 .mrc-tag--accent {
-  background: rgba(232, 131, 107, 0.15);
+  background: var(--mrc-accent-soft);
   color: var(--mrc-accent);
 }
 
-/* ---------- 区块标题 ---------- */
+/* ---------- 区块标题（左侧珊瑚色条） ---------- */
 .mrc-section-title {
   font-size: var(--mrc-fs-title);
-  font-weight: 600;
-  color: var(--mrc-text);
+  font-weight: 700;
+  color: var(--mrc-text-deep);
   margin: var(--mrc-space-lg) 0 var(--mrc-space-md);
   display: flex;
   align-items: center;
   gap: 12rpx;
 }
+.mrc-section-title::before {
+  content: '';
+  width: 8rpx;
+  height: 32rpx;
+  border-radius: 8rpx;
+  background: var(--mrc-primary-grad);
+}
 
 /* ---------- 心情色映射（类名用英文字尾，避免 WXSS 编译报错） ---------- */
-.mrc-mood--happy { --mrc-mood: #FFD93D; }   /* 开心 */
-.mrc-mood--calm { --mrc-mood: #6BCB77; }     /* 平静 */
-.mrc-mood--tired { --mrc-mood: #B5D4E8; }    /* 疲惫 */
-.mrc-mood--anxious { --mrc-mood: #FFB88C; }  /* 焦虑 */
-.mrc-mood--sad { --mrc-mood: #8FB3D9; }       /* 难过 */
-.mrc-mood--hungry { --mrc-mood: #FF9E6E; }   /* 嘴馋 */
-.mrc-mood--low { --mrc-mood: #B0B7C6; }       /* 低落 */
-.mrc-mood--homesick { --mrc-mood: #FFB366; } /* 想家 */
+.mrc-mood--happy { --mrc-mood: #FFC53D; }    /* 开心 */
+.mrc-mood--calm { --mrc-mood: #28C2A0; }      /* 平静 */
+.mrc-mood--tired { --mrc-mood: #8FB8E0; }     /* 疲惫 */
+.mrc-mood--anxious { --mrc-mood: #FF9D6E; }   /* 焦虑 */
+.mrc-mood--sad { --mrc-mood: #7FA9D6; }       /* 难过 */
+.mrc-mood--hungry { --mrc-mood: #FF7A5C; }    /* 嘴馋 */
+.mrc-mood--low { --mrc-mood: #A9B0BD; }       /* 低落 */
+.mrc-mood--homesick { --mrc-mood: #FFB366; }  /* 想家 */
 
 /* ============================================================
    设计稿整页模式（页面视觉主体 = 高保真设计稿 PNG）
@@ -166,10 +204,10 @@ page {
   display: flex;
   gap: 16rpx;
   padding: 16rpx;
-  background: var(--mrc-bg-card);
+  background: var(--mrc-surface);
   border: 2rpx solid var(--mrc-border);
   border-radius: 48rpx;
-  box-shadow: 0 10rpx 30rpx rgba(90, 62, 43, 0.16);
+  box-shadow: var(--mrc-shadow);
   z-index: 30;
 }
 .dbar__btn {
@@ -179,8 +217,8 @@ page {
   align-items: center;
   justify-content: center;
   border-radius: 44rpx;
-  background: var(--mrc-white);
-  color: var(--mrc-text);
+  background: var(--mrc-surface-2);
+  color: var(--mrc-text-deep);
   font-size: 26rpx;
   font-weight: 600;
   gap: 8rpx;
@@ -191,9 +229,9 @@ page {
   transform: scale(0.96);
 }
 .dbar__btn--primary {
-  background: linear-gradient(135deg, var(--mrc-primary), var(--mrc-primary-deep));
+  background: var(--mrc-primary-grad);
   color: #fff;
-  box-shadow: 0 6rpx 16rpx rgba(255, 139, 106, 0.4);
+  box-shadow: var(--mrc-shadow-coral), var(--mrc-gloss);
 }
 .dbar__btn--ghost {
   background: rgba(255, 255, 255, 0.7);
