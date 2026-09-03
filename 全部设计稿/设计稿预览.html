@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>心情菜谱日历 · 全部设计稿</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #FDF6F0;
+    font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #5A3E2B;
+    padding: 40px 20px;
+  }
+  .header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+  .header h1 {
+    font-size: 32px;
+    color: #5A3E2B;
+    margin-bottom: 8px;
+  }
+  .header p {
+    color: #8B6B55;
+    font-size: 15px;
+  }
+  .section-title {
+    font-size: 20px;
+    color: #E8836B;
+    margin: 36px 0 16px;
+    padding-left: 12px;
+    border-left: 4px solid #FFB88C;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 24px;
+    margin-bottom: 20px;
+  }
+  .card {
+    background: #FDE6D4;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(232,131,107,0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+  }
+  .card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 6px 20px rgba(232,131,107,0.2);
+  }
+  .card img {
+    width: 100%;
+    display: block;
+    aspect-ratio: 9/16;
+    object-fit: cover;
+  }
+  .card.core-ip img {
+    aspect-ratio: 1/1;
+  }
+  .card-label {
+    padding: 10px 12px;
+    font-size: 13px;
+    color: #5A3E2B;
+    text-align: center;
+    font-weight: 500;
+  }
+  .modal {
+    display: none;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(90,62,43,0.85);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+  }
+  .modal.active { display: flex; }
+  .modal img {
+    max-height: 90vh;
+    max-width: 90vw;
+    border-radius: 12px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.3);
+  }
+  .modal-close {
+    position: absolute;
+    top: 20px; right: 28px;
+    color: #fff;
+    font-size: 32px;
+    cursor: pointer;
+    background: none;
+    border: none;
+  }
+  .footer {
+    text-align: center;
+    margin-top: 48px;
+    color: #8B6B55;
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🍲 心情菜谱日历 · 全部设计稿</h1>
+  <p>共 20 张 · 治愈系暖色风格 · 锅仔 IP 全产品统一</p>
+</div>
+
+<div class="section-title">核心资产</div>
+<div class="grid">
+  <div class="card core-ip" onclick="openModal('00_锅仔_coreIP.png')">
+    <img src="00_锅仔_coreIP.png" alt="锅仔核心形象">
+    <div class="card-label">锅仔 Core-IP</div>
+  </div>
+</div>
+
+<div class="section-title">V1.0 核心功能页</div>
+<div class="grid">
+  <div class="card" onclick="openModal('01_首页设计稿.png')"><img src="01_首页设计稿.png" alt=""><div class="card-label">01 首页</div></div>
+  <div class="card" onclick="openModal('02_心情选择面板.png')"><img src="02_心情选择面板.png" alt=""><div class="card-label">02 心情选择面板</div></div>
+  <div class="card" onclick="openModal('03_推荐结果页.png')"><img src="03_推荐结果页.png" alt=""><div class="card-label">03 推荐结果页</div></div>
+  <div class="card" onclick="openModal('04_每日记录页.png')"><img src="04_每日记录页.png" alt=""><div class="card-label">04 每日记录页</div></div>
+  <div class="card" onclick="openModal('05_月视图日历页.png')"><img src="05_月视图日历页.png" alt=""><div class="card-label">05 月视图日历页</div></div>
+  <div class="card" onclick="openModal('11_个人主页.png')"><img src="11_个人主页.png" alt=""><div class="card-label">11 个人主页</div></div>
+</div>
+
+<div class="section-title">月度画册（5页）</div>
+<div class="grid">
+  <div class="card" onclick="openModal('06_月度画册_封面.png')"><img src="06_月度画册_封面.png" alt=""><div class="card-label">06 画册·封面</div></div>
+  <div class="card" onclick="openModal('07_月度画册_月度盘点.png')"><img src="07_月度画册_月度盘点.png" alt=""><div class="card-label">07 画册·月度盘点</div></div>
+  <div class="card" onclick="openModal('08_月度画册_每日记录.png')"><img src="08_月度画册_每日记录.png" alt=""><div class="card-label">08 画册·每日记录</div></div>
+  <div class="card" onclick="openModal('09_月度画册_AI寄语.png')"><img src="09_月度画册_AI寄语.png" alt=""><div class="card-label">09 画册·AI寄语</div></div>
+  <div class="card" onclick="openModal('10_月度画册_分享页.png')"><img src="10_月度画册_分享页.png" alt=""><div class="card-label">10 画册·分享页</div></div>
+</div>
+
+<div class="section-title">年度报告（8页）</div>
+<div class="grid">
+  <div class="card" onclick="openModal('12_年度报告_封面.png')"><img src="12_年度报告_封面.png" alt=""><div class="card-label">12 年报·封面</div></div>
+  <div class="card" onclick="openModal('13_年度报告_年度总览.png')"><img src="13_年度报告_年度总览.png" alt=""><div class="card-label">13 年报·年度总览</div></div>
+  <div class="card" onclick="openModal('14_年度报告_最常做菜TOP3.png')"><img src="14_年度报告_最常做菜TOP3.png" alt=""><div class="card-label">14 年报·最常做菜TOP3</div></div>
+  <div class="card" onclick="openModal('15_年度报告_心情分布.png')"><img src="15_年度报告_心情分布.png" alt=""><div class="card-label">15 年报·心情分布</div></div>
+  <div class="card" onclick="openModal('16_年度报告_月度热力图.png')"><img src="16_年度报告_月度热力图.png" alt=""><div class="card-label">16 年报·月度热力图</div></div>
+  <div class="card" onclick="openModal('17_年度报告_年度之最.png')"><img src="17_年度报告_年度之最.png" alt=""><div class="card-label">17 年报·年度之最</div></div>
+  <div class="card" onclick="openModal('18_年度报告_AI寄语.png')"><img src="18_年度报告_AI寄语.png" alt=""><div class="card-label">18 年报·AI寄语</div></div>
+  <div class="card" onclick="openModal('19_年度报告_分享页.png')"><img src="19_年度报告_分享页.png" alt=""><div class="card-label">19 年报·分享页</div></div>
+</div>
+
+<div class="footer">
+  心情菜谱日历 · PRD V3.0 设计稿 · 点击任意图片可放大查看
+</div>
+
+<div class="modal" id="modal" onclick="closeModal()">
+  <button class="modal-close" onclick="closeModal()">&times;</button>
+  <img id="modalImg" src="" alt="">
+</div>
+
+<script>
+  function openModal(src) {
+    document.getElementById('modalImg').src = src;
+    document.getElementById('modal').classList.add('active');
+  }
+  function closeModal() {
+    document.getElementById('modal').classList.remove('active');
+  }
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeModal();
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>锅仔专属动态表情包</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#FDF6F0;font-family:"PingFang SC","Microsoft YaHei",sans-serif;color:#5A3E2B;padding:40px 20px}
+.header{text-align:center;margin-bottom:40px}
+.header h1{font-size:32px;color:#5A3E2B;margin-bottom:8px}
+.header p{color:#8B6B55;font-size:15px}
+.section-title{font-size:20px;color:#E8836B;margin:36px 0 16px;padding-left:12px;border-left:4px solid #FFB88C}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:20px}
+.card{background:#FDE6D4;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(232,131,107,0.1);transition:transform .2s;cursor:pointer}
+.card:hover{transform:translateY(-3px)}
+.card img{width:100%;display:block;aspect-ratio:1/1;object-fit:cover}
+.card-label{padding:8px 10px;font-size:12px;color:#5A3E2B;text-align:center;font-weight:600}
+.card-sub{padding:0 10px 10px;font-size:11px;color:#8B6B55;text-align:center}
+.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(90,62,43,0.9);z-index:1000;justify-content:center;align-items:center;padding:20px}
+.modal.active{display:flex}
+.modal img{max-height:80vh;max-width:80vw;border-radius:12px;background:#fff}
+.modal-close{position:absolute;top:20px;right:28px;color:#fff;font-size:32px;cursor:pointer;background:none;border:none}
+.footer{text-align:center;margin-top:48px;color:#8B6B55;font-size:13px}
+</style>
+</head>
+<body>
+<div class="header"><h1>🍲 锅仔专属动态表情包（24 张 GIF）</h1><p>每个表情独立设计动效 · 240×240 · 14帧循环 · 统一 IP 风格</p></div>
+<div class="section-title">专属动态表情</div>
+<div class="grid"><div class="card" onclick="openModal('A01_害羞捂脸.gif')"><img src="A01_害羞捂脸.gif"><div class="card-label">A01_害羞捂脸</div><div class="card-sub">害羞摇摆 · 爱心飘起</div></div>
+<div class="card" onclick="openModal('A02_托腮思考.gif')"><img src="A02_托腮思考.gif"><div class="card-label">A02_托腮思考</div><div class="card-sub">左右摇摆 · 思考气泡</div></div>
+<div class="card" onclick="openModal('A03_惊讶瞪眼.gif')"><img src="A03_惊讶瞪眼.gif"><div class="card-label">A03_惊讶瞪眼</div><div class="card-sub">惊吓抖动 · 冒汗珠</div></div>
+<div class="card" onclick="openModal('A04_生气嘟嘴.gif')"><img src="A04_生气嘟嘴.gif"><div class="card-label">A04_生气嘟嘴</div><div class="card-sub">弹跳 · 头顶冒气</div></div>
+<div class="card" onclick="openModal('A05_大哭流泪.gif')"><img src="A05_大哭流泪.gif"><div class="card-label">A05_大哭流泪</div><div class="card-sub">抽泣抖动 · 泪滴滑落</div></div>
+<div class="card" onclick="openModal('A06_飞吻亲亲.gif')"><img src="A06_飞吻亲亲.gif"><div class="card-label">A06_飞吻亲亲</div><div class="card-sub">前倾 · 爱心飞出</div></div>
+<div class="card" onclick="openModal('A07_得意挑眉.gif')"><img src="A07_得意挑眉.gif"><div class="card-label">A07_得意挑眉</div><div class="card-sub">得意摇摆 · 闪光</div></div>
+<div class="card" onclick="openModal('A08_打哈欠困.gif')"><img src="A08_打哈欠困.gif"><div class="card-label">A08_打哈欠困</div><div class="card-sub">犯困下沉 · Zzz</div></div>
+<div class="card" onclick="openModal('A09_戴墨镜酷.gif')"><img src="A09_戴墨镜酷.gif"><div class="card-label">A09_戴墨镜酷</div><div class="card-sub">酷酷上浮 · 闪光</div></div>
+<div class="card" onclick="openModal('B01_星星眼馋.gif')"><img src="B01_星星眼馋.gif"><div class="card-label">B01_星星眼馋</div><div class="card-sub">呼吸 · 眼冒星星</div></div>
+<div class="card" onclick="openModal('B02_拜托求求.gif')"><img src="B02_拜托求求.gif"><div class="card-label">B02_拜托求求</div><div class="card-sub">恳求摇摆 · 泪光</div></div>
+<div class="card" onclick="openModal('B03_干饭真香.gif')"><img src="B03_干饭真香.gif"><div class="card-label">B03_干饭真香</div><div class="card-sub">弹跳 · 冒热气</div></div>
+<div class="card" onclick="openModal('B04_胜利V.gif')"><img src="B04_胜利V.gif"><div class="card-label">B04_胜利V</div><div class="card-sub">开心弹跳 · 金星迸发</div></div>
+<div class="card" onclick="openModal('B05_求抱抱.gif')"><img src="B05_求抱抱.gif"><div class="card-label">B05_求抱抱</div><div class="card-sub">撒娇摇摆 · 爱心脉冲</div></div>
+<div class="card" onclick="openModal('B06_累倒瘫坐.gif')"><img src="B06_累倒瘫坐.gif"><div class="card-label">B06_累倒瘫坐</div><div class="card-sub">瘫坐下沉 · 冒汗</div></div>
+<div class="card" onclick="openModal('B07_叉腰理直.gif')"><img src="B07_叉腰理直.gif"><div class="card-label">B07_叉腰理直</div><div class="card-sub">理直摇摆 · 小火焰</div></div>
+<div class="card" onclick="openModal('B08_嗯嗯点头.gif')"><img src="B08_嗯嗯点头.gif"><div class="card-label">B08_嗯嗯点头</div><div class="card-sub">点头确认</div></div>
+<div class="card" onclick="openModal('B09_疯狂安利.gif')"><img src="B09_疯狂安利.gif"><div class="card-label">B09_疯狂安利</div><div class="card-sub">疯狂抖动 · 星星迸发</div></div>
+<div class="card" onclick="openModal('C01_头顶问号.gif')"><img src="C01_头顶问号.gif"><div class="card-label">C01_头顶问号</div><div class="card-sub">呼吸 · 问号脉冲</div></div>
+<div class="card" onclick="openModal('C02_闭眼装睡.gif')"><img src="C02_闭眼装睡.gif"><div class="card-label">C02_闭眼装睡</div><div class="card-sub">平稳呼吸 · 慢Zzz</div></div>
+<div class="card" onclick="openModal('C03_比OK.gif')"><img src="C03_比OK.gif"><div class="card-label">C03_比OK</div><div class="card-sub">弹跳 · 光环</div></div>
+<div class="card" onclick="openModal('C04_转圈撒星.gif')"><img src="C04_转圈撒星.gif"><div class="card-label">C04_转圈撒星</div><div class="card-sub">旋转 · 星星环绕</div></div>
+<div class="card" onclick="openModal('C06_发射爱心.gif')"><img src="C06_发射爱心.gif"><div class="card-label">C06_发射爱心</div><div class="card-sub">前倾 · 爱心射出</div></div>
+<div class="card" onclick="openModal('C08_扭动跳舞.gif')"><img src="C08_扭动跳舞.gif"><div class="card-label">C08_扭动跳舞</div><div class="card-sub">摇摆旋转 · 音符</div></div>
+</div>
+<div class="footer">锅仔专属动态表情包 · 点击任意 GIF 播放动画</div>
+<div class="modal" id="modal" onclick="closeModal()"><button class="modal-close" onclick="closeModal()">&times;</button><img id="modalImg" src=""></div>
+<script>
+function openModal(s){document.getElementById("modalImg").src=s;document.getElementById("modal").classList.add("active")}
+function closeModal(){document.getElementById("modal").classList.remove("active")}
+document.addEventListener("keydown",function(e){if(e.key==="Escape")closeModal()})
+</script>
+</body>
+</html>

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>锅仔 IP 视觉资产包</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #FDF6F0;
+    font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #5A3E2B;
+    padding: 40px 20px;
+  }
+  .header { text-align: center; margin-bottom: 40px; }
+  .header h1 { font-size: 32px; color: #5A3E2B; margin-bottom: 8px; }
+  .header p { color: #8B6B55; font-size: 15px; }
+  .section-title {
+    font-size: 20px; color: #E8836B;
+    margin: 36px 0 16px; padding-left: 12px;
+    border-left: 4px solid #FFB88C;
+  }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 24px; }
+  .card {
+    background: #FDE6D4; border-radius: 16px; overflow: hidden;
+    box-shadow: 0 2px 12px rgba(232,131,107,0.1);
+    transition: transform 0.2s, box-shadow 0.2s; cursor: pointer;
+  }
+  .card:hover { transform: translateY(-4px); box-shadow: 0 6px 20px rgba(232,131,107,0.2); }
+  .card img { width: 100%; display: block; aspect-ratio: 1/1; object-fit: cover; }
+  .card.wide img { aspect-ratio: 16/9; }
+  .card.portrait img { aspect-ratio: 4/5; }
+  .card-label { padding: 10px 12px; font-size: 13px; color: #5A3E2B; text-align: center; font-weight: 500; }
+  .modal {
+    display: none; position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%; background: rgba(90,62,43,0.85);
+    z-index: 1000; justify-content: center; align-items: center; padding: 20px;
+  }
+  .modal.active { display: flex; }
+  .modal img { max-height: 90vh; max-width: 90vw; border-radius: 12px; box-shadow: 0 8px 40px rgba(0,0,0,0.3); }
+  .modal-close { position: absolute; top: 20px; right: 28px; color: #fff; font-size: 32px; cursor: pointer; background: none; border: none; }
+  .footer { text-align: center; margin-top: 48px; color: #8B6B55; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🍲 锅仔 IP 视觉资产包</h1>
+  <p>共 9 张 · 治愈系暖色 · 基于统一 Core-IP 生成，全资产风格一致</p>
+</div>
+
+<div class="section-title">核心形象</div>
+<div class="grid">
+  <div class="card" onclick="openModal('00_锅仔_coreIP.png')"><img src="00_锅仔_coreIP.png" alt=""><div class="card-label">00 锅仔 Core-IP</div></div>
+</div>
+
+<div class="section-title">基础设定</div>
+<div class="grid">
+  <div class="card portrait" onclick="openModal('01_IP主视觉.png')"><img src="01_IP主视觉.png" alt=""><div class="card-label">01 主视觉</div></div>
+  <div class="card wide" onclick="openModal('02_三视图.png')"><img src="02_三视图.png" alt=""><div class="card-label">02 三视图</div></div>
+  <div class="card portrait" onclick="openModal('03_角色设定卡.png')"><img src="03_角色设定卡.png" alt=""><div class="card-label">03 角色设定卡</div></div>
+</div>
+
+<div class="section-title">表情与动作</div>
+<div class="grid">
+  <div class="card wide" onclick="openModal('04_表情设定页.png')"><img src="04_表情设定页.png" alt=""><div class="card-label">04 表情设定页（8种心情）</div></div>
+  <div class="card" onclick="openModal('05_表情包贴纸.png')"><img src="05_表情包贴纸.png" alt=""><div class="card-label">05 表情包贴纸九宫格</div></div>
+  <div class="card wide" onclick="openModal('06_动作延展.png')"><img src="06_动作延展.png" alt=""><div class="card-label">06 动作延展</div></div>
+</div>
+
+<div class="section-title">品牌应用</div>
+<div class="grid">
+  <div class="card wide" onclick="openModal('07_IP与Logo组合.png')"><img src="07_IP与Logo组合.png" alt=""><div class="card-label">07 IP+Logo 组合</div></div>
+  <div class="card wide" onclick="openModal('08_周边套组.png')"><img src="08_周边套组.png" alt=""><div class="card-label">08 周边套组</div></div>
+</div>
+
+<div class="footer">
+  锅仔 IP 视觉资产 · 全部基于同一 Core-IP 生成 · 点击任意图片放大
+</div>
+
+<div class="modal" id="modal" onclick="closeModal()">
+  <button class="modal-close" onclick="closeModal()">&times;</button>
+  <img id="modalImg" src="" alt="">
+</div>
+
+<script>
+  function openModal(src) { document.getElementById('modalImg').src = src; document.getElementById('modal').classList.add('active'); }
+  function closeModal() { document.getElementById('modal').classList.remove('active'); }
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeModal(); });
+</script>
+</body>
+</html>

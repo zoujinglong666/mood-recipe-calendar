@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>锅仔表情包</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#FDF6F0;font-family:"PingFang SC","Microsoft YaHei",sans-serif;color:#5A3E2B;padding:40px 20px}
+.header{text-align:center;margin-bottom:40px}
+.header h1{font-size:32px;color:#5A3E2B;margin-bottom:8px}
+.header p{color:#8B6B55;font-size:15px}
+.section-title{font-size:20px;color:#E8836B;margin:36px 0 16px;padding-left:12px;border-left:4px solid #FFB88C}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:24px}
+.card{background:#FDE6D4;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(232,131,107,0.1);transition:transform .2s;cursor:pointer}
+.card:hover{transform:translateY(-4px)}
+.card img{width:100%;display:block;aspect-ratio:1/1;object-fit:cover}
+.card-label{padding:10px 12px;font-size:13px;color:#5A3E2B;text-align:center;font-weight:500}
+.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(90,62,43,0.85);z-index:1000;justify-content:center;align-items:center;padding:20px}
+.modal.active{display:flex}
+.modal img{max-height:90vh;max-width:90vw;border-radius:12px;background:#fff}
+.modal-close{position:absolute;top:20px;right:28px;color:#fff;font-size:32px;cursor:pointer;background:none;border:none}
+.footer{text-align:center;margin-top:48px;color:#8B6B55;font-size:13px}
+</style>
+</head>
+<body>
+<div class="header"><h1>🍲 锅仔表情包（27 张）</h1><p>三组 · 纯白底 · 统一 Core-IP 风格 · 已裁切为 800×800 单张 PNG</p></div>
+<div class="section-title">拼图总览</div>
+<div class="grid"><div class="card" onclick="openModal('A组_害羞思考惊讶生气大哭飞吻得意哈欠酷.png')"><img src="A组_害羞思考惊讶生气大哭飞吻得意哈欠酷.png"><div class="card-label">A组 组拼图 · 9 表情</div></div>
+<div class="card" onclick="openModal('B组_星星眼拜托干饭胜利抱抱累倒叉腰点头安利.png')"><img src="B组_星星眼拜托干饭胜利抱抱累倒叉腰点头安利.png"><div class="card-label">B组 组拼图 · 9 表情</div></div>
+<div class="card" onclick="openModal('C组_问号装睡OK转圈托腮爱心举手跳舞发抖.png')"><img src="C组_问号装睡OK转圈托腮爱心举手跳舞发抖.png"><div class="card-label">C组 组拼图 · 9 表情</div></div>
+</div>
+<div class="section-title">单张表情（可直接用于微信表情包素材）</div>
+<div class="grid"><div class="card" onclick="openModal('单张表情/A01_害羞捂脸.png')"><img src="单张表情/A01_害羞捂脸.png"><div class="card-label">A01_害羞捂脸</div></div>
+<div class="card" onclick="openModal('单张表情/A02_托腮思考.png')"><img src="单张表情/A02_托腮思考.png"><div class="card-label">A02_托腮思考</div></div>
+<div class="card" onclick="openModal('单张表情/A03_惊讶瞪眼.png')"><img src="单张表情/A03_惊讶瞪眼.png"><div class="card-label">A03_惊讶瞪眼</div></div>
+<div class="card" onclick="openModal('单张表情/A04_生气嘟嘴.png')"><img src="单张表情/A04_生气嘟嘴.png"><div class="card-label">A04_生气嘟嘴</div></div>
+<div class="card" onclick="openModal('单张表情/A05_大哭流泪.png')"><img src="单张表情/A05_大哭流泪.png"><div class="card-label">A05_大哭流泪</div></div>
+<div class="card" onclick="openModal('单张表情/A06_飞吻亲亲.png')"><img src="单张表情/A06_飞吻亲亲.png"><div class="card-label">A06_飞吻亲亲</div></div>
+<div class="card" onclick="openModal('单张表情/A07_得意挑眉.png')"><img src="单张表情/A07_得意挑眉.png"><div class="card-label">A07_得意挑眉</div></div>
+<div class="card" onclick="openModal('单张表情/A08_打哈欠困.png')"><img src="单张表情/A08_打哈欠困.png"><div class="card-label">A08_打哈欠困</div></div>
+<div class="card" onclick="openModal('单张表情/A09_戴墨镜酷.png')"><img src="单张表情/A09_戴墨镜酷.png"><div class="card-label">A09_戴墨镜酷</div></div>
+<div class="card" onclick="openModal('单张表情/B01_星星眼馋.png')"><img src="单张表情/B01_星星眼馋.png"><div class="card-label">B01_星星眼馋</div></div>
+<div class="card" onclick="openModal('单张表情/B02_拜托求求.png')"><img src="单张表情/B02_拜托求求.png"><div class="card-label">B02_拜托求求</div></div>
+<div class="card" onclick="openModal('单张表情/B03_干饭真香.png')"><img src="单张表情/B03_干饭真香.png"><div class="card-label">B03_干饭真香</div></div>
+<div class="card" onclick="openModal('单张表情/B04_胜利V.png')"><img src="单张表情/B04_胜利V.png"><div class="card-label">B04_胜利V</div></div>
+<div class="card" onclick="openModal('单张表情/B05_求抱抱.png')"><img src="单张表情/B05_求抱抱.png"><div class="card-label">B05_求抱抱</div></div>
+<div class="card" onclick="openModal('单张表情/B06_累倒瘫坐.png')"><img src="单张表情/B06_累倒瘫坐.png"><div class="card-label">B06_累倒瘫坐</div></div>
+<div class="card" onclick="openModal('单张表情/B07_叉腰理直.png')"><img src="单张表情/B07_叉腰理直.png"><div class="card-label">B07_叉腰理直</div></div>
+<div class="card" onclick="openModal('单张表情/B08_嗯嗯点头.png')"><img src="单张表情/B08_嗯嗯点头.png"><div class="card-label">B08_嗯嗯点头</div></div>
+<div class="card" onclick="openModal('单张表情/B09_疯狂安利.png')"><img src="单张表情/B09_疯狂安利.png"><div class="card-label">B09_疯狂安利</div></div>
+<div class="card" onclick="openModal('单张表情/C01_头顶问号.png')"><img src="单张表情/C01_头顶问号.png"><div class="card-label">C01_头顶问号</div></div>
+<div class="card" onclick="openModal('单张表情/C02_闭眼装睡.png')"><img src="单张表情/C02_闭眼装睡.png"><div class="card-label">C02_闭眼装睡</div></div>
+<div class="card" onclick="openModal('单张表情/C03_比OK.png')"><img src="单张表情/C03_比OK.png"><div class="card-label">C03_比OK</div></div>
+<div class="card" onclick="openModal('单张表情/C04_转圈撒星.png')"><img src="单张表情/C04_转圈撒星.png"><div class="card-label">C04_转圈撒星</div></div>
+<div class="card" onclick="openModal('单张表情/C05_托腮发呆.png')"><img src="单张表情/C05_托腮发呆.png"><div class="card-label">C05_托腮发呆</div></div>
+<div class="card" onclick="openModal('单张表情/C06_发射爱心.png')"><img src="单张表情/C06_发射爱心.png"><div class="card-label">C06_发射爱心</div></div>
+<div class="card" onclick="openModal('单张表情/C07_举手抢答.png')"><img src="单张表情/C07_举手抢答.png"><div class="card-label">C07_举手抢答</div></div>
+<div class="card" onclick="openModal('单张表情/C08_扭动跳舞.png')"><img src="单张表情/C08_扭动跳舞.png"><div class="card-label">C08_扭动跳舞</div></div>
+<div class="card" onclick="openModal('单张表情/C09_瑟瑟发抖.png')"><img src="单张表情/C09_瑟瑟发抖.png"><div class="card-label">C09_瑟瑟发抖</div></div>
+</div>
+<div class="footer">锅仔表情包 · 点击任意图片放大</div>
+<div class="modal" id="modal" onclick="closeModal()"><button class="modal-close" onclick="closeModal()">&times;</button><img id="modalImg" src=""></div>
+<script>
+function openModal(s){document.getElementById("modalImg").src=s;document.getElementById("modal").classList.add("active")}
+function closeModal(){document.getElementById("modal").classList.remove("active")}
+document.addEventListener("keydown",function(e){if(e.key==="Escape")closeModal()})
+</script>
+</body>
+</html>

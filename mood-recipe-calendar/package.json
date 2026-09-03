@@ -1,0 +1,15 @@
+{
+  "name": "mood-recipe-calendar",
+  "version": "0.1.0",
+  "private": true,
+  "description": "心情菜谱日历小程序 - 前后端一体项目（frontend: uni-app + Wot Design Uni / backend: Spring Boot）",
+  "scripts": {
+    "dev:h5": "pnpm --dir frontend dev",
+    "dev:mp-weixin": "pnpm --dir frontend dev:mp-weixin",
+    "dev:app": "pnpm --dir frontend dev:app",
+    "build:h5": "pnpm --dir frontend build",
+    "dev:backend": "cd backend && mvnw.cmd spring-boot:run",
+    "build:backend": "cd backend && mvnw.cmd package",
+    "wot": "wot"
+  }
+}

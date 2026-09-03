@@ -1,0 +1,282 @@
+// ============================================================
+// 心情菜谱日历 · 公共样式主题（PRD V3.0 配色系统）
+// 全局 CSS 变量 + 通用工具类，供所有页面/组件复用
+// ============================================================
+
+:root,
+page {
+  /* ---- 品牌配色（治愈系暖色盘 · 从设计稿实际取色） ---- */
+  --mrc-bg: #FDF9EC;            /* 主背景 暖米白（设计稿实测） */
+  --mrc-bg-card: #F5ECD9;       /* 卡片背景 奶油杏（设计稿实测） */
+  --mrc-bg-bar: #F6E5C9;        /* 功能条背景（设计稿实测） */
+  --mrc-primary: #F9B795;       /* 主按钮 蜜桃浅（设计稿实测） */
+  --mrc-primary-deep: #FD9184;  /* 主按钮渐变深 珊瑚粉（设计稿实测） */
+  --mrc-accent: #E07A5F;        /* 强调 暖陶红 */
+  --mrc-accent-deep: #C9604A;   /* 强调深 */
+  --mrc-warm: #FBE1C9;          /* 浅橙高亮底（设计稿实测） */
+  --mrc-warm-light: #FDEDD8;    /* 浅米高亮底（设计稿实测） */
+  --mrc-yellow: #FFD93D;        /* 暖阳黄 */
+  --mrc-green: #6BCB77;         /* 草芽绿 */
+  --mrc-blue: #B5D4E8;          /* 淡雾蓝 */
+  --mrc-text: #6B4F3E;          /* 文字主 深暖褐（柔和版） */
+  --mrc-text-deep: #794935;     /* 文字深 标题/强调（设计稿实测） */
+  --mrc-text-sub: #A08672;      /* 文字辅助 中褐 */
+  --mrc-text-light: #C4A88A;    /* 文字浅 占位/次要 */
+  --mrc-border: #E8D5C0;        /* 边框 淡杏 */
+  --mrc-border-light: #EDD4C0;  /* 边框浅 输入框 */
+  --mrc-border-soft: #E8C9A8;   /* 日历边框 淡橙 */
+  --mrc-bg-soft: #FEF3E0;       /* 浅橙底 输入框/标签 */
+  --mrc-bg-warm: #FEF8E0;       /* 浅黄底 卡片 */
+  --mrc-bg-alt: #FDF6EC;        /* 备选背景 画册/年报用 */
+  --mrc-text-strong: #5A3E2B;   /* 文字最深 大标题 */
+  --mrc-text-mid: #8B6B55;      /* 文字中深 辅助 */
+  --mrc-brown: #C4956A;         /* 棕色 装饰 */
+  --mrc-mood-sad: #8BA8C4;      /* 难过心情色 */
+  --mrc-mood-anxious: #FFB88C;  /* 焦虑心情色 */
+  --mrc-white: #FFFBF5;         /* 暖白（非纯白，带暖调） */
+
+  /* ---- 字号（rpx） ---- */
+  --mrc-fs-lg: 40rpx;
+  --mrc-fs-title: 32rpx;
+  --mrc-fs-body: 28rpx;
+  --mrc-fs-sub: 24rpx;
+  --mrc-fs-xs: 20rpx;
+
+  /* ---- 圆角 ---- */
+  --mrc-radius-lg: 24rpx;
+  --mrc-radius-md: 16rpx;
+  --mrc-radius-pill: 50rpx;
+
+  /* ---- 间距 ---- */
+  --mrc-space-lg: 32rpx;
+  --mrc-space-md: 24rpx;
+  --mrc-space-sm: 16rpx;
+}
+
+/* ---------- 页面骨架 ---------- */
+.mrc-page {
+  min-height: 100vh;
+  background: var(--mrc-bg);
+  color: var(--mrc-text);
+  padding: 0 var(--mrc-space-lg);
+  padding-bottom: calc(var(--mrc-space-lg) * 2 + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  font-family: 'Resource Han Rounded', 'Yuanti SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+/* ---------- 卡片 ---------- */
+.mrc-card {
+  background: var(--mrc-bg-card);
+  border-radius: var(--mrc-radius-lg);
+  padding: var(--mrc-space-md);
+  box-sizing: border-box;
+}
+
+/* ---------- 主按钮（蜜桃渐变胶囊） ---------- */
+.mrc-btn-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 96rpx;
+  border-radius: var(--mrc-radius-pill);
+  background: linear-gradient(135deg, var(--mrc-primary), var(--mrc-primary-deep));
+  color: #fff;
+  font-size: var(--mrc-fs-title);
+  font-weight: 600;
+  box-shadow: 0 8rpx 20rpx rgba(255, 158, 110, 0.35);
+  letter-spacing: 2rpx;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.mrc-btn-primary:active {
+  transform: scale(0.97);
+  box-shadow: 0 4rpx 10rpx rgba(255, 158, 110, 0.3);
+}
+
+/* 次按钮（描边） */
+.mrc-btn-outline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 96rpx;
+  border-radius: var(--mrc-radius-pill);
+  background: var(--mrc-white);
+  border: 2rpx solid var(--mrc-primary);
+  color: var(--mrc-accent);
+  font-size: var(--mrc-fs-title);
+  font-weight: 600;
+  letter-spacing: 2rpx;
+}
+.mrc-btn-outline:active {
+  background: #fff7f0;
+}
+
+/* ---------- 标签 chip ---------- */
+.mrc-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 6rpx 20rpx;
+  border-radius: var(--mrc-radius-pill);
+  background: var(--mrc-bg-card);
+  color: var(--mrc-text-sub);
+  font-size: var(--mrc-fs-xs);
+  margin-right: var(--mrc-space-sm);
+}
+.mrc-tag--accent {
+  background: rgba(232, 131, 107, 0.15);
+  color: var(--mrc-accent);
+}
+
+/* ---------- 区块标题 ---------- */
+.mrc-section-title {
+  font-size: var(--mrc-fs-title);
+  font-weight: 600;
+  color: var(--mrc-text);
+  margin: var(--mrc-space-lg) 0 var(--mrc-space-md);
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+
+/* ---------- 心情色映射（类名用英文字尾，避免 WXSS 编译报错） ---------- */
+.mrc-mood--happy { --mrc-mood: #FFD93D; }   /* 开心 */
+.mrc-mood--calm { --mrc-mood: #6BCB77; }     /* 平静 */
+.mrc-mood--tired { --mrc-mood: #B5D4E8; }    /* 疲惫 */
+.mrc-mood--anxious { --mrc-mood: #FFB88C; }  /* 焦虑 */
+.mrc-mood--sad { --mrc-mood: #8FB3D9; }       /* 难过 */
+.mrc-mood--hungry { --mrc-mood: #FF9E6E; }   /* 嘴馋 */
+.mrc-mood--low { --mrc-mood: #B0B7C6; }       /* 低落 */
+.mrc-mood--homesick { --mrc-mood: #FFB366; } /* 想家 */
+
+/* ============================================================
+   设计稿整页模式（页面视觉主体 = 高保真设计稿 PNG）
+   ============================================================ */
+.dpage {
+  min-height: 100vh;
+  background: var(--mrc-bg);
+  padding-bottom: calc(150rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+/* 底部悬浮操作条（奶油磨砂） */
+.dbar {
+  position: fixed;
+  left: 24rpx;
+  right: 24rpx;
+  bottom: calc(16rpx + env(safe-area-inset-bottom));
+  display: flex;
+  gap: 16rpx;
+  padding: 16rpx;
+  background: var(--mrc-bg-card);
+  border: 2rpx solid var(--mrc-border);
+  border-radius: 48rpx;
+  box-shadow: 0 10rpx 30rpx rgba(90, 62, 43, 0.16);
+  z-index: 30;
+}
+.dbar__btn {
+  flex: 1;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 44rpx;
+  background: var(--mrc-white);
+  color: var(--mrc-text);
+  font-size: 26rpx;
+  font-weight: 600;
+  gap: 8rpx;
+  transition: transform 0.12s ease;
+  cursor: pointer;
+}
+.dbar__btn:active {
+  transform: scale(0.96);
+}
+.dbar__btn--primary {
+  background: linear-gradient(135deg, var(--mrc-primary), var(--mrc-primary-deep));
+  color: #fff;
+  box-shadow: 0 6rpx 16rpx rgba(255, 139, 106, 0.4);
+}
+.dbar__btn--ghost {
+  background: rgba(255, 255, 255, 0.7);
+}
+.dbar__btn--slim {
+  flex: 0 0 auto;
+  padding: 0 32rpx;
+}
+
+/* ============================================================
+   锅仔动画系统
+   ============================================================ */
+
+/* 呼吸浮动 — 常驻，给锅仔生命感 */
+@keyframes guozai-breathe {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-8rpx) scale(1.02); }
+}
+.guozai-breathe {
+  animation: guozai-breathe 3s ease-in-out infinite;
+}
+
+/* 点击弹跳 — 交互反馈 */
+@keyframes guozai-bounce {
+  0% { transform: scale(1); }
+  30% { transform: scale(0.9); }
+  50% { transform: scale(1.1); }
+  70% { transform: scale(0.97); }
+  100% { transform: scale(1); }
+}
+.guozai-bounce {
+  animation: guozai-bounce 0.5s ease;
+}
+
+/* 开心转圈 — 成功态 */
+@keyframes guozai-spin {
+  0% { transform: rotate(0deg) scale(1); }
+  25% { transform: rotate(90deg) scale(1.1); }
+  50% { transform: rotate(180deg) scale(1); }
+  75% { transform: rotate(270deg) scale(1.1); }
+  100% { transform: rotate(360deg) scale(1); }
+}
+.guozai-spin {
+  animation: guozai-spin 0.8s ease-in-out;
+}
+
+/* 星星浮动 — 成功态装饰 */
+@keyframes star-float {
+  0% { opacity: 0; transform: translateY(0) scale(0.5); }
+  50% { opacity: 1; transform: translateY(-20rpx) scale(1); }
+  100% { opacity: 0; transform: translateY(-40rpx) scale(0.8); }
+}
+.star-float {
+  animation: star-float 1.5s ease-in-out infinite;
+}
+
+/* 淡入上移 — 弹窗/页面入场 */
+@keyframes fade-up {
+  0% { opacity: 0; transform: translateY(20rpx); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.fade-up {
+  animation: fade-up 0.4s ease-out;
+}
+
+/* 缩放入场 — 弹窗 */
+@keyframes pop-in {
+  0% { opacity: 0; transform: scale(0.8); }
+  70% { transform: scale(1.05); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.pop-in {
+  animation: pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* 减少动画偏好 */
+@media (prefers-reduced-motion: reduce) {
+  .guozai-breathe,
+  .guozai-bounce,
+  .guozai-spin,
+  .star-float,
+  .fade-up,
+  .pop-in {
+    animation: none !important;
+  }
+}

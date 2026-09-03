@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>锅仔表情包 · 微信上架包</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#FDF6F0;font-family:"PingFang SC","Microsoft YaHei",sans-serif;color:#5A3E2B;padding:40px 20px}
+.header{text-align:center;margin-bottom:40px}
+.header h1{font-size:32px;color:#5A3E2B;margin-bottom:8px}
+.header p{color:#8B6B55;font-size:15px}
+.section-title{font-size:20px;color:#E8836B;margin:36px 0 16px;padding-left:12px;border-left:4px solid #FFB88C}
+.banner{max-width:900px;margin:0 auto 20px;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(232,131,107,0.15);cursor:pointer}
+.banner img{width:100%;display:block}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:20px}
+.card{background:#FDE6D4;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(232,131,107,0.1);transition:transform .2s;cursor:pointer}
+.card:hover{transform:translateY(-3px)}
+.card img{width:100%;display:block;aspect-ratio:1/1;object-fit:cover}
+.card-label{padding:8px;font-size:12px;color:#5A3E2B;text-align:center;font-weight:500}
+.modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(90,62,43,0.85);z-index:1000;justify-content:center;align-items:center;padding:20px}
+.modal.active{display:flex}
+.modal img{max-height:90vh;max-width:90vw;border-radius:12px;background:#fff}
+.modal-close{position:absolute;top:20px;right:28px;color:#fff;font-size:32px;cursor:pointer;background:none;border:none}
+.footer{text-align:center;margin-top:48px;color:#8B6B55;font-size:13px}
+</style>
+</head>
+<body>
+<div class="header"><h1>🍲 锅仔表情包 · 微信上架包</h1><p>24 张主图 240×240 · 缩略图 120×120 · 封面 · 聊天图标 · 详情页横幅 750×400</p></div>
+<div class="section-title">详情页横幅（750×400）</div>
+<div class="banner" onclick="openModal('详情页横幅_750x400.png')"><img src="详情页横幅_750x400.png"></div>
+<div class="section-title">封面图（240×240）与聊天面板图标（50×50）</div>
+<div class="grid">
+<div class="card" onclick="openModal('封面图_240.png')"><img src="封面图_240.png"><div class="card-label">封面图 240×240</div></div>
+<div class="card" onclick="openModal('聊天面板图标_50.png')"><img src="聊天面板图标_50.png"><div class="card-label">聊天图标 50×50</div></div>
+</div>
+<div class="section-title">24 张表情主图（240×240）</div>
+<div class="grid"><div class="card" onclick="openModal('主图240/A01_害羞捂脸.png')"><img src="主图240/A01_害羞捂脸.png"><div class="card-label">A01_害羞捂脸</div></div>
+<div class="card" onclick="openModal('主图240/A02_托腮思考.png')"><img src="主图240/A02_托腮思考.png"><div class="card-label">A02_托腮思考</div></div>
+<div class="card" onclick="openModal('主图240/A03_惊讶瞪眼.png')"><img src="主图240/A03_惊讶瞪眼.png"><div class="card-label">A03_惊讶瞪眼</div></div>
+<div class="card" onclick="openModal('主图240/A04_生气嘟嘴.png')"><img src="主图240/A04_生气嘟嘴.png"><div class="card-label">A04_生气嘟嘴</div></div>
+<div class="card" onclick="openModal('主图240/A05_大哭流泪.png')"><img src="主图240/A05_大哭流泪.png"><div class="card-label">A05_大哭流泪</div></div>
+<div class="card" onclick="openModal('主图240/A06_飞吻亲亲.png')"><img src="主图240/A06_飞吻亲亲.png"><div class="card-label">A06_飞吻亲亲</div></div>
+<div class="card" onclick="openModal('主图240/A07_得意挑眉.png')"><img src="主图240/A07_得意挑眉.png"><div class="card-label">A07_得意挑眉</div></div>
+<div class="card" onclick="openModal('主图240/A08_打哈欠困.png')"><img src="主图240/A08_打哈欠困.png"><div class="card-label">A08_打哈欠困</div></div>
+<div class="card" onclick="openModal('主图240/A09_戴墨镜酷.png')"><img src="主图240/A09_戴墨镜酷.png"><div class="card-label">A09_戴墨镜酷</div></div>
+<div class="card" onclick="openModal('主图240/B01_星星眼馋.png')"><img src="主图240/B01_星星眼馋.png"><div class="card-label">B01_星星眼馋</div></div>
+<div class="card" onclick="openModal('主图240/B02_拜托求求.png')"><img src="主图240/B02_拜托求求.png"><div class="card-label">B02_拜托求求</div></div>
+<div class="card" onclick="openModal('主图240/B03_干饭真香.png')"><img src="主图240/B03_干饭真香.png"><div class="card-label">B03_干饭真香</div></div>
+<div class="card" onclick="openModal('主图240/B04_胜利V.png')"><img src="主图240/B04_胜利V.png"><div class="card-label">B04_胜利V</div></div>
+<div class="card" onclick="openModal('主图240/B05_求抱抱.png')"><img src="主图240/B05_求抱抱.png"><div class="card-label">B05_求抱抱</div></div>
+<div class="card" onclick="openModal('主图240/B06_累倒瘫坐.png')"><img src="主图240/B06_累倒瘫坐.png"><div class="card-label">B06_累倒瘫坐</div></div>
+<div class="card" onclick="openModal('主图240/B07_叉腰理直.png')"><img src="主图240/B07_叉腰理直.png"><div class="card-label">B07_叉腰理直</div></div>
+<div class="card" onclick="openModal('主图240/B08_嗯嗯点头.png')"><img src="主图240/B08_嗯嗯点头.png"><div class="card-label">B08_嗯嗯点头</div></div>
+<div class="card" onclick="openModal('主图240/B09_疯狂安利.png')"><img src="主图240/B09_疯狂安利.png"><div class="card-label">B09_疯狂安利</div></div>
+<div class="card" onclick="openModal('主图240/C01_头顶问号.png')"><img src="主图240/C01_头顶问号.png"><div class="card-label">C01_头顶问号</div></div>
+<div class="card" onclick="openModal('主图240/C02_闭眼装睡.png')"><img src="主图240/C02_闭眼装睡.png"><div class="card-label">C02_闭眼装睡</div></div>
+<div class="card" onclick="openModal('主图240/C03_比OK.png')"><img src="主图240/C03_比OK.png"><div class="card-label">C03_比OK</div></div>
+<div class="card" onclick="openModal('主图240/C04_转圈撒星.png')"><img src="主图240/C04_转圈撒星.png"><div class="card-label">C04_转圈撒星</div></div>
+<div class="card" onclick="openModal('主图240/C06_发射爱心.png')"><img src="主图240/C06_发射爱心.png"><div class="card-label">C06_发射爱心</div></div>
+<div class="card" onclick="openModal('主图240/C08_扭动跳舞.png')"><img src="主图240/C08_扭动跳舞.png"><div class="card-label">C08_扭动跳舞</div></div>
+</div>
+<div class="footer">锅仔表情包微信上架包 · 点击任意图片放大</div>
+<div class="modal" id="modal" onclick="closeModal()"><button class="modal-close" onclick="closeModal()">&times;</button><img id="modalImg" src=""></div>
+<script>
+function openModal(s){document.getElementById("modalImg").src=s;document.getElementById("modal").classList.add("active")}
+function closeModal(){document.getElementById("modal").classList.remove("active")}
+document.addEventListener("keydown",function(e){if(e.key==="Escape")closeModal()})
+</script>
+</body>
+</html>

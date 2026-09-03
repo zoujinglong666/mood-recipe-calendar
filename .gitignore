@@ -1,0 +1,39 @@
+# ===== 心情菜谱日历 · 根目录 .gitignore =====
+# 视觉资产（设计稿 / IP资产 / 表情包 / GIF / 资源库zip）全部保留上传
+
+# 依赖与构建产物
+**/node_modules/
+**/dist/
+**/target/
+**/unpackage/
+**/.output/
+**/uploads/
+
+# 日志
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# 环境变量
+.env
+.env.local
+.env.*.local
+
+# IDE / 本地工具
+.idea/
+.vscode/
+.codebuddy/
+**/.idea/
+**/.vscode/
+**/.codebuddy/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 临时
+*.tmp
+
+# uni-pages 自动生成的路由文件（由 pages.config.ts + definePage 生成，勿提交）
+**/src/pages.json
+**/src/pages.json.bak
