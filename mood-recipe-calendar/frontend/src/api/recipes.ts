@@ -1,4 +1,4 @@
-import { get } from './request'
+import { get, post } from './request'
 
 export interface RecipeItem {
   id: number
@@ -18,9 +18,20 @@ export function fetchAllRecipes() {
   return get<RecipeItem[]>('/recipes')
 }
 
-/** 按心情随机推荐一道 */
+/** 按心情优先获取 AI 生成的菜谱；服务端不可用时自动回退到菜谱库 */
 export function recommendRecipe(mood: string) {
   return get<RecipeItem>('/recipes/recommend', { mood })
+}
+
+/** 已解锁 AI 私人菜单后，按食材、时长与口味生成菜谱。 */
+export function requestDeepRecipe(payload: {
+  openid: string
+  mood: string
+  ingredients?: string
+  maxMinutes?: string
+  preference?: string
+}) {
+  return post<RecipeItem>('/recipes/deep-recommend', payload)
 }
 
 /** 按心情列表 */

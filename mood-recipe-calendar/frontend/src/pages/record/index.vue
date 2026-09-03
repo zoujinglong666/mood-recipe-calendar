@@ -118,7 +118,7 @@ function onSuccessConfirm() {
       <template v-else>
         <image class="record-photo__guozai guozai-breathe" src="/static/guozai/action_03_camera.png" mode="aspectFit" />
         <view class="record-photo__camera">
-          <Icon name="camera" :size="80" color="#C9A87C" />
+          <Icon name="camera" :size="64" color="var(--mrc-accent)" />
         </view>
         <text class="record-photo__tip">点击拍照 / 从相册选择</text>
       </template>
@@ -159,7 +159,7 @@ function onSuccessConfirm() {
         v-model="note"
         placeholder="一句话记录今天的心情（限50字）"
         placeholder-class="record-textarea__placeholder"
-        maxlength="50"
+        :maxlength="50"
         :auto-height="true"
       />
     </view>
@@ -188,7 +188,7 @@ function onSuccessConfirm() {
 <style lang="scss" scoped>
 .record-page {
   min-height: 100vh;
-  background: #FDFAEC;
+  background: var(--mrc-bg);
   padding: 0 32rpx;
   padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
@@ -199,7 +199,8 @@ function onSuccessConfirm() {
   position: relative;
   width: 100%;
   height: 400rpx;
-  background: var(--mrc-bg-soft);
+  background: radial-gradient(circle at 78% 18%, rgba(255, 197, 61, 0.25), transparent 22%), var(--mrc-surface-peach);
+  border: 2rpx dashed var(--mrc-border-strong);
   border-radius: 36rpx;
   display: flex;
   flex-direction: column;
@@ -221,18 +222,27 @@ function onSuccessConfirm() {
   z-index: 2;
 }
 .record-photo__camera {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 112rpx;
+  height: 112rpx;
+  background: var(--mrc-surface);
+  border-radius: 32rpx;
+  box-shadow: var(--mrc-shadow-sm);
   margin-bottom: 20rpx;
 }
 .record-photo__tip {
-  font-size: 30rpx;
-  color: #A08672;
+  font-size: 27rpx;
+  color: var(--mrc-text-sub);
 }
 
 /* 输入框 */
 .record-input {
   display: flex;
   align-items: center;
-  background: var(--mrc-bg-soft);
+  background: var(--mrc-surface);
+  border: 2rpx solid var(--mrc-border-light);
   border-radius: 48rpx;
   padding: 0 32rpx;
   height: 96rpx;
@@ -264,7 +274,9 @@ function onSuccessConfirm() {
   font-size: 34rpx;
   font-weight: 700;
   color: var(--mrc-text-deep);
-  margin-bottom: 24rpx;
+  margin-bottom: 20rpx;
+  padding-left: 14rpx;
+  border-left: 8rpx solid var(--mrc-primary);
 }
 .record-mood__grid {
   display: grid;
@@ -277,15 +289,17 @@ function onSuccessConfirm() {
   align-items: center;
   justify-content: center;
   gap: 6rpx;
-  width: 130rpx;
-  height: 130rpx;
-  border-radius: 50%;
-  background: var(--mrc-bg-soft);
+  width: 136rpx;
+  height: 136rpx;
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 28rpx;
+  background: var(--mrc-surface);
   margin: 0 auto;
   transition: all 0.2s ease;
 }
 .record-mood__item--active {
-  background: linear-gradient(135deg, var(--mrc-primary), var(--mrc-primary-deep));
+  background: var(--mrc-primary-grad);
+  border-color: transparent;
   transform: scale(1.08);
   box-shadow: 0 6rpx 16rpx rgba(253, 145, 132, 0.35);
 }
@@ -305,7 +319,8 @@ function onSuccessConfirm() {
 
 /* 心情日记 */
 .record-textarea {
-  background: var(--mrc-bg-soft);
+  background: var(--mrc-surface);
+  border: 2rpx solid var(--mrc-border-light);
   border-radius: 28rpx;
   padding: 28rpx;
   margin-bottom: 28rpx;
@@ -336,7 +351,7 @@ function onSuccessConfirm() {
 .record-time__tag {
   font-size: 28rpx;
   color: var(--mrc-text-deep);
-  background: var(--mrc-bg-soft);
+  background: var(--mrc-surface-sun);
   padding: 12rpx 32rpx;
   border-radius: 32rpx;
   border: 2rpx solid var(--mrc-border-light);
@@ -349,7 +364,7 @@ function onSuccessConfirm() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--mrc-primary), var(--mrc-primary-deep));
+  background: var(--mrc-primary-grad);
   color: #fff;
   font-size: 36rpx;
   font-weight: 700;

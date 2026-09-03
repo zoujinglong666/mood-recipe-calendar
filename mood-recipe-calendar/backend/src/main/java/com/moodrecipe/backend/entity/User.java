@@ -22,6 +22,13 @@ public class User {
     @Column(name = "avatar_url")
     private String avatarUrl;
 
+    /**
+     * code2session 返回的 session_key，经服务端密钥加密后保存。
+     * 仅用于生成微信虚拟支付的用户态签名，绝不下发给小程序。
+     */
+    @Column(name = "session_key_encrypted", length = 512)
+    private String sessionKeyEncrypted;
+
     @Column(name = "first_use_date")
     private LocalDate firstUseDate;
 

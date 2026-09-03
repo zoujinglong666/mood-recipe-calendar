@@ -73,7 +73,7 @@ function onShare() { uni.showToast({ title: '分享功能', icon: 'none' }) }
 
 <template>
   <view class="recipe-page">
-    <AppNav title="今日推荐" right-icon="share" @nav-right="onShare" />
+    <AppNav title="AI 今日推荐" right-icon="share" @nav-right="onShare" />
 
     <!-- Loading -->
     <LoadingState v-if="loading" text="锅仔正在挑菜..." />
@@ -83,6 +83,7 @@ function onShare() { uni.showToast({ title: '分享功能', icon: 'none' }) }
 
     <!-- 内容 -->
     <template v-else-if="recipe">
+      <text class="recipe-kicker">锅仔 AI 为你配的这一餐</text>
       <text class="recipe-healing">{{ healingText }}</text>
 
       <view class="recipe-hero">
@@ -148,36 +149,52 @@ function onShare() { uni.showToast({ title: '分享功能', icon: 'none' }) }
 }
 .recipe-healing {
   display: block;
-  font-size: 38rpx;
+  font-size: 36rpx;
   font-weight: 700;
   color: var(--mrc-text-deep);
   line-height: 1.5;
-  margin: 8rpx 0 16rpx;
+  margin: 16rpx 8rpx 12rpx;
   letter-spacing: 1rpx;
 }
+.recipe-kicker {
+  display: block;
+  margin: 16rpx 8rpx 4rpx;
+  color: var(--mrc-accent);
+  font-size: 21rpx;
+  font-weight: 700;
+  letter-spacing: 2rpx;
+}
 .recipe-hero {
+  position: relative;
   display: flex;
   justify-content: center;
-  margin-bottom: 24rpx;
+  height: 224rpx;
+  margin-bottom: 20rpx;
+  overflow: hidden;
+  border-radius: 32rpx;
+  background: var(--mrc-surface-peach);
+  border: 2rpx solid var(--mrc-border-light);
 }
 .recipe-hero__img {
-  width: 360rpx;
-  height: 300rpx;
+  width: 310rpx;
+  height: 270rpx;
+  margin-top: 4rpx;
 }
 .recipe-card {
   display: flex;
   align-items: center;
   gap: 24rpx;
-  background: var(--mrc-bg-warm);
+  background: var(--mrc-surface);
+  border: 2rpx solid var(--mrc-border-light);
   border-radius: 32rpx;
   padding: 24rpx;
   margin-bottom: 32rpx;
-  box-shadow: var(--mrc-shadow-sm);
+  box-shadow: var(--mrc-shadow);
 }
 .recipe-card__img {
   width: 160rpx;
   height: 160rpx;
-  border-radius: 20rpx;
+  border-radius: 24rpx;
   flex-shrink: 0;
 }
 .recipe-card__info {
@@ -214,7 +231,7 @@ function onShare() { uni.showToast({ title: '分享功能', icon: 'none' }) }
 .recipe-card__tag {
   font-size: 22rpx;
   color: var(--mrc-text-deep);
-  background: var(--mrc-surface-2);
+  background: var(--mrc-surface-peach);
   padding: 6rpx 16rpx;
   border-radius: 20rpx;
 }
@@ -231,6 +248,8 @@ function onShare() { uni.showToast({ title: '分享功能', icon: 'none' }) }
   font-size: 34rpx;
   font-weight: 700;
   color: var(--mrc-text-deep);
+  padding-left: 14rpx;
+  border-left: 8rpx solid var(--mrc-primary);
 }
 .recipe-section__toggle {
   font-size: 26rpx;
@@ -242,7 +261,8 @@ function onShare() { uni.showToast({ title: '分享功能', icon: 'none' }) }
   gap: 16rpx;
 }
 .recipe-ingredients__item {
-  background: var(--mrc-bg-warm);
+  background: var(--mrc-surface);
+  border: 2rpx solid var(--mrc-border-light);
   border-radius: 16rpx;
   padding: 20rpx 24rpx;
   font-size: 28rpx;
@@ -257,7 +277,8 @@ function onShare() { uni.showToast({ title: '分享功能', icon: 'none' }) }
   display: flex;
   align-items: flex-start;
   gap: 16rpx;
-  background: var(--mrc-bg-warm);
+  background: var(--mrc-surface);
+  border: 2rpx solid var(--mrc-border-light);
   border-radius: 16rpx;
   padding: 20rpx 24rpx;
 }
@@ -288,7 +309,7 @@ function onShare() { uni.showToast({ title: '分享功能', icon: 'none' }) }
   display: flex;
   gap: 20rpx;
   padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom));
-  background: var(--mrc-bg);
+  background: rgba(248, 236, 218, 0.96);
   border-top: 2rpx solid var(--mrc-border);
   z-index: 30;
 }
@@ -304,12 +325,13 @@ function onShare() { uni.showToast({ title: '分享功能', icon: 'none' }) }
   font-weight: 600;
 }
 .recipe-btn--primary {
-  background: linear-gradient(135deg, var(--mrc-primary), var(--mrc-primary-deep));
+  background: var(--mrc-primary-grad);
   color: #fff;
   box-shadow: var(--mrc-shadow-coral);
 }
 .recipe-btn--ghost {
-  background: var(--mrc-bg-warm);
+  background: var(--mrc-surface);
+  border: 2rpx solid var(--mrc-border);
   color: var(--mrc-text-deep);
 }
 .recipe-btn:active {

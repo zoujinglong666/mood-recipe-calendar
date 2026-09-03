@@ -15,6 +15,7 @@ import java.util.Map;
 public class WechatService {
 
     private final UserRepository userRepository;
+    private final SessionKeyCipher sessionKeyCipher;
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -24,8 +25,9 @@ public class WechatService {
     @Value("${wechat.secret:}")
     private String secret;
 
-    public WechatService(UserRepository userRepository) {
+    public WechatService(UserRepository userRepository, SessionKeyCipher sessionKeyCipher) {
         this.userRepository = userRepository;
+        this.sessionKeyCipher = sessionKeyCipher;
     }
 
     /**
@@ -45,6 +47,7 @@ public class WechatService {
      */
     public Map<String, Object> login(String code, String nickname, String avatarUrl) {
         String openid;
+        String sessionKey = null;
 
         if (isMockCode(code)) {
             // Mock 模式（H5 开发调试）：用 code 作为 openid
@@ -65,6 +68,7 @@ public class WechatService {
                 if (openid == null || openid.isEmpty()) {
                     throw new RuntimeException("微信登录失败: 未获取到 openid");
                 }
+                sessionKey = root.path("session_key").asText(null);
             } catch (RuntimeException e) {
                 throw e;
             } catch (Exception e) {
@@ -80,6 +84,12 @@ public class WechatService {
             u.setAvatarUrl(avatarUrl);
             return userRepository.save(u);
         });
+
+        // session_key 每次登录都可能变化。未配置加密密钥时保留登录能力，虚拟支付接口会明确拒绝。
+        if (sessionKey != null && !sessionKey.isBlank() && sessionKeyCipher.isConfigured()) {
+            user.setSessionKeyEncrypted(sessionKeyCipher.encrypt(sessionKey));
+            user = userRepository.save(user);
+        }
 
         Map<String, Object> result = new HashMap<>();
         result.put("openid", openid);

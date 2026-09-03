@@ -84,6 +84,21 @@ $env:JAVA_HOME = "C:\Program Files\Microsoft\jdk-21.0.11.10-hotspot"   # 覆盖�
 
 后端默认运行在 http://localhost:8080 ，启动时 JPA 自动建表（ddl-auto=update）。
 
+### 启用 AI 菜谱推荐
+
+推荐接口会优先调用 **OpenAI 兼容的 Chat Completions API**，生成包含食材、步骤、时长和难度的完整菜谱；未配置密钥或模型调用失败时，会自动回退到本地菜谱库。
+
+在启动后端的同一个 PowerShell 会话中设置：
+
+```powershell
+$env:AI_RECIPE_API_KEY = "你的密钥"
+$env:AI_RECIPE_MODEL = "你的模型名"
+# 可选：接入其他兼容服务时覆盖默认地址
+$env:AI_RECIPE_BASE_URL = "https://你的服务地址/v1/chat/completions"
+```
+
+密钥不会保存在 `application.properties` 或提交到仓库。
+
 ### 3. 前端（H5 开发模式）
 
 ```
@@ -100,7 +115,12 @@ pnpm dev                             # http://localhost:5173/（被占用则 517
 | 方法 | 路径 | 说明 |
 | ---- | ---- | ---- |
 | GET  | `/api/health` | 健康检查 |
-| GET  | `/api/recipes/today?mood=疲惫` | 今日推荐菜（示例数据） |
+| GET  | `/api/recipes/recommend?mood=疲惫` | AI 优先生成今日菜谱，失败时回退菜谱库 |
+| POST | `/api/recipes/deep-recommend` | 消耗已购 AI 次数权益，按食材/时长/口味深度生成 |
+| GET  | `/api/virtual-commerce/products` | 可售虚拟商品 SKU 列表 |
+| POST | `/api/virtual-commerce/orders` | 创建虚拟商品待支付订单（只接受 `openid` 和 `sku`） |
+| POST | `/api/virtual-commerce/orders/{orderNo}/payment-params` | 服务端生成 `wx.requestVirtualPayment` 所需的 `signData`、`paySig`、`signature` |
+| GET  | `/api/virtual-commerce/entitlements?openid=` | 当前有效数字权益 |
 | POST | `/api/records` | 保存每日记录（JSON 落 MySQL） |
 | GET  | `/api/records?openid=demo-user` | 用户全部记录（倒序） |
 | GET  | `/api/records/month?openid=&month=2026-09` | 某月记录 |
@@ -108,6 +128,19 @@ pnpm dev                             # http://localhost:5173/（被占用则 517
 | GET  | `/api/records/stats?openid=demo-user` | 统计（总条数/天数/心情分布） |
 
 前端已封装 `src/api/record.ts`：记录发布时**本地存储兜底 + 同步写入 MySQL**（后端未启动时静默降级，前端演示不断）。
+
+### 虚拟支付接入状态
+
+仓库已包含虚拟商品目录、待支付订单和权益发放模型，初始 SKU 为 `AI_MENU_7D`、`ALBUM_HD_EXPORT`、`GUOZAI_MEMBER_30D`。订单只有在微信虚拟支付服务端回调完成**签名验签和商品/金额核验**后，才允许调用 `VirtualCommerceService#fulfillPaidOrder` 发货；客户端没有可伪造的“支付成功”接口。
+
+### 个人小程序虚拟支付上线清单
+
+1. 在小程序后台开通虚拟支付、创建三个“道具直购”商品，并将每个后台道具 ID 写入 `virtual_products.platform_item_id`；金额必须与 `price_fen` 一致。
+2. 只在部署环境设置 `WECHAT_VIRTUAL_PAYMENT_OFFER_ID`、`WECHAT_VIRTUAL_PAYMENT_APP_KEY`、`WECHAT_SESSION_KEY_ENCRYPTION_KEY`（Base64 编码的 32 字节随机值）和 `WECHAT_MESSAGE_PUSH_TOKEN`。这些值均不可写入前端或提交到仓库。
+3. 小程序端顺序为：创建业务订单 → 请求 `/payment-params` → 调用 `uni.requestVirtualPayment`。支付弹窗的成功回调只能刷新订单状态，**不能**直接发放权益。
+4. 在小程序后台“消息推送”配置 `GET/POST https://你的域名/api/wechat/virtual-payment/callback` 和相同 Token。当前适配器接收通过 Token 校验的明文 `xpay_goods_deliver_notify`，并以 `OutTradeNo`、`ProductId`、实际金额、`OpenId` 四重核验后幂等发货；若后台启用安全模式加密消息，需要先补充 EncodingAESKey 解密适配后再切换。
+
+接入真实支付前需完成：在小程序管理后台开通虚拟支付、逐个录入 SKU 对应道具、配置回调地址/证书/密钥，并实现微信支付参数调起与验签适配器。实物周边继续沿用 `products` / `shop_orders`，不要接入这一套虚拟商品订单。
 
 ## wot-cli（Wot Design Uni CLI）接入
 

@@ -6,17 +6,22 @@
 export {}
 declare global {
   const $$userConfigMap: typeof import('./api/index')['$$userConfigMap']
+  const ALBUM_PAGE_SIZE: typeof import('./utils/albumLayout')['ALBUM_PAGE_SIZE']
   const Apis: typeof import('./api/index')['Apis']
   const BASE_URL: typeof import('./api/request')['BASE_URL']
   const CommonUtil: typeof import('@wot-ui/ui')['CommonUtil']
   const DEMO_OPENID: typeof import('./api/record')['DEMO_OPENID']
   const EffectScope: typeof import('vue')['EffectScope']
+  const MOOD_COLOR: typeof import('./utils/albumLayout')['MOOD_COLOR']
+  const MOOD_EMOJI: typeof import('./utils/albumLayout')['MOOD_EMOJI']
   const acceptHMRUpdate: typeof import('pinia')['acceptHMRUpdate']
   const alovaInstance: typeof import('./api/index')['alovaInstance']
   const api: typeof import('./api/index')['default']
   const apiDefinitions: typeof import('./api/apiDefinitions')['default']
   const asyncComputed: typeof import('@vueuse/core')['asyncComputed']
+  const autoLayout: typeof import('./utils/albumLayout')['autoLayout']
   const autoResetRef: typeof import('@vueuse/core')['autoResetRef']
+  const chunkPages: typeof import('./utils/albumLayout')['chunkPages']
   const computed: typeof import('vue')['computed']
   const computedAsync: typeof import('@vueuse/core')['computedAsync']
   const computedEager: typeof import('@vueuse/core')['computedEager']
@@ -49,6 +54,7 @@ declare global {
   const eagerComputed: typeof import('@vueuse/core')['eagerComputed']
   const effectScope: typeof import('vue')['effectScope']
   const ensureLogin: typeof import('./utils/login')['ensureLogin']
+  const exportAlbumShare: typeof import('./utils/albumShare')['exportAlbumShare']
   const extendRef: typeof import('@vueuse/core')['extendRef']
   const fetchAllRecipes: typeof import('./api/recipes')['fetchAllRecipes']
   const fetchCheckinStatus: typeof import('./api/gallery')['fetchCheckinStatus']
@@ -391,16 +397,21 @@ declare module 'vue' {
   interface GlobalComponents {}
   interface ComponentCustomProperties {
     readonly $$userConfigMap: UnwrapRef<typeof import('./api/index')['$$userConfigMap']>
+    readonly ALBUM_PAGE_SIZE: UnwrapRef<typeof import('./utils/albumLayout')['ALBUM_PAGE_SIZE']>
     readonly Apis: UnwrapRef<typeof import('./api/index')['Apis']>
     readonly BASE_URL: UnwrapRef<typeof import('./api/request')['BASE_URL']>
     readonly CommonUtil: UnwrapRef<typeof import('@wot-ui/ui')['CommonUtil']>
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
+    readonly MOOD_COLOR: UnwrapRef<typeof import('./utils/albumLayout')['MOOD_COLOR']>
+    readonly MOOD_EMOJI: UnwrapRef<typeof import('./utils/albumLayout')['MOOD_EMOJI']>
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>
     readonly alovaInstance: UnwrapRef<typeof import('./api/index')['alovaInstance']>
     readonly api: UnwrapRef<typeof import('./api/index')['default']>
     readonly apiDefinitions: UnwrapRef<typeof import('./api/apiDefinitions')['default']>
     readonly asyncComputed: UnwrapRef<typeof import('@vueuse/core')['asyncComputed']>
+    readonly autoLayout: UnwrapRef<typeof import('./utils/albumLayout')['autoLayout']>
     readonly autoResetRef: UnwrapRef<typeof import('@vueuse/core')['autoResetRef']>
+    readonly chunkPages: UnwrapRef<typeof import('./utils/albumLayout')['chunkPages']>
     readonly computed: UnwrapRef<typeof import('vue')['computed']>
     readonly computedAsync: UnwrapRef<typeof import('@vueuse/core')['computedAsync']>
     readonly computedEager: UnwrapRef<typeof import('@vueuse/core')['computedEager']>
@@ -433,6 +444,7 @@ declare module 'vue' {
     readonly eagerComputed: UnwrapRef<typeof import('@vueuse/core')['eagerComputed']>
     readonly effectScope: UnwrapRef<typeof import('vue')['effectScope']>
     readonly ensureLogin: UnwrapRef<typeof import('./utils/login')['ensureLogin']>
+    readonly exportAlbumShare: UnwrapRef<typeof import('./utils/albumShare')['exportAlbumShare']>
     readonly extendRef: UnwrapRef<typeof import('@vueuse/core')['extendRef']>
     readonly fetchAllRecipes: UnwrapRef<typeof import('./api/recipes')['fetchAllRecipes']>
     readonly fetchCheckinStatus: UnwrapRef<typeof import('./api/gallery')['fetchCheckinStatus']>

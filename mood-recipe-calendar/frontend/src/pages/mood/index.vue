@@ -79,31 +79,38 @@ function pickMood(key: string) {
 
 /* 大锅仔 */
 .mood-hero {
+  position: relative;
   display: flex;
   justify-content: center;
-  margin-top: 20rpx;
-  margin-bottom: 8rpx;
+  height: 294rpx;
+  margin: 12rpx 0 16rpx;
+  overflow: hidden;
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 36rpx;
+  background: radial-gradient(circle at 75% 20%, rgba(255, 197, 61, 0.28), transparent 24%), var(--mrc-surface-peach);
+  box-shadow: var(--mrc-shadow-soft);
 }
 .mood-hero__img {
-  width: 380rpx;
-  height: 380rpx;
+  width: 330rpx;
+  height: 330rpx;
+  margin-top: 12rpx;
 }
 
 /* 副标题 */
 .mood-subtitle {
   display: block;
   text-align: center;
-  font-size: 30rpx;
+  font-size: 27rpx;
   color: var(--mrc-text-sub);
-  margin-bottom: 56rpx;
-  letter-spacing: 2rpx;
+  margin-bottom: 32rpx;
+  letter-spacing: 1rpx;
 }
 
 /* 心情网格 */
 .mood-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 20rpx;
+  gap: 16rpx;
 }
 
 /* 心情卡片 */
@@ -113,9 +120,11 @@ function pickMood(key: string) {
   align-items: center;
   justify-content: center;
   gap: 12rpx;
-  padding: 28rpx 0 24rpx;
+  min-height: 154rpx;
+  padding: 18rpx 0;
   background: var(--mrc-surface);
-  border-radius: 28rpx;
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 24rpx;
   box-shadow: var(--mrc-shadow-sm);
   transition: transform 0.2s ease, background 0.2s ease;
 }
@@ -123,13 +132,14 @@ function pickMood(key: string) {
   transform: scale(0.94);
 }
 .mood-card--active {
-  background: linear-gradient(135deg, #FF9D6E 0%, #FF6B5B 100%);
+  background: var(--mrc-primary-grad);
+  border-color: transparent;
   transform: scale(1.05);
   box-shadow: var(--mrc-shadow-coral);
 }
 .mood-card__icon {
-  width: 88rpx;
-  height: 88rpx;
+  width: 82rpx;
+  height: 82rpx;
 }
 .mood-card__label {
   font-size: 28rpx;

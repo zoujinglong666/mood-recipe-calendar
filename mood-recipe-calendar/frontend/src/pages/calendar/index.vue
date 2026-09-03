@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import AppNav from '../../components/common/AppNav.vue'
+import Icon from '../../components/common/Icon.vue'
 import LoadingState from '../../components/guozai/LoadingState.vue'
 import ErrorState from '../../components/guozai/ErrorState.vue'
 import { ensureLogin } from '../../utils/login'
@@ -123,8 +124,8 @@ function goRecordFromEmpty() {
     <template v-else>
       <!-- 统计条 -->
       <view class="cal-stat">
-        <text class="cal-stat__text">本月已记录 {{ stats.totalDays }} 天 · 连续记录 {{ stats.currentStreak }} 天</text>
-        <text class="cal-stat__fire">🔥</text>
+        <view><text class="cal-stat__eyebrow">本月食光</text><text class="cal-stat__text">已记录 {{ stats.totalDays }} 天 · 连续 {{ stats.currentStreak }} 天</text></view>
+        <view class="cal-stat__icon"><Icon name="flame" :size="38" color="var(--mrc-accent)" /></view>
       </view>
 
       <!-- 日历 -->
@@ -199,28 +200,47 @@ function goRecordFromEmpty() {
 .cal-stat {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   gap: 12rpx;
-  background: var(--mrc-bg-soft);
-  border-radius: 48rpx;
-  padding: 24rpx 32rpx;
+  background: var(--mrc-surface);
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 28rpx;
+  padding: 22rpx 28rpx;
+  box-shadow: var(--mrc-shadow-soft);
   margin-bottom: 28rpx;
 }
 .cal-stat__text {
+  display: block;
   font-size: 30rpx;
   color: var(--mrc-text-deep);
   font-weight: 600;
 }
-.cal-stat__fire {
-  font-size: 32rpx;
+.cal-stat__eyebrow {
+  display: block;
+  margin-bottom: 4rpx;
+  font-size: 21rpx;
+  color: var(--mrc-accent);
+  font-weight: 700;
+  letter-spacing: 2rpx;
+}
+.cal-stat__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 68rpx;
+  height: 68rpx;
+  border-radius: 22rpx;
+  background: var(--mrc-surface-peach);
 }
 
 /* 日历板 */
 .cal-board {
   position: relative;
-  background: var(--mrc-bg-warm);
+  background: var(--mrc-surface);
+  border: 2rpx solid var(--mrc-border-light);
   border-radius: 32rpx;
-  padding: 24rpx 20rpx 0;
+  padding: 24rpx 20rpx 150rpx;
+  box-shadow: var(--mrc-shadow);
   margin-bottom: 32rpx;
   overflow: hidden;
 }
@@ -249,7 +269,7 @@ function goRecordFromEmpty() {
   justify-content: center;
   border-radius: 16rpx;
   position: relative;
-  background: rgba(255, 255, 255, 0.5);
+  background: var(--mrc-surface-sun);
 }
 .cal-cell--today {
   border: 3rpx solid var(--mrc-accent);
@@ -282,11 +302,12 @@ function goRecordFromEmpty() {
 }
 .cal-board__guozai {
   position: absolute;
-  bottom: -20rpx;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 200rpx;
-  height: 200rpx;
+  bottom: -14rpx;
+  right: 24rpx;
+  left: auto;
+  transform: none;
+  width: 180rpx;
+  height: 180rpx;
   z-index: 3;
 }
 
@@ -297,9 +318,9 @@ function goRecordFromEmpty() {
   align-items: center;
   justify-content: center;
   height: 120rpx;
-  background: linear-gradient(135deg, var(--mrc-primary), var(--mrc-primary-deep));
-  border-radius: 60rpx;
-  box-shadow: 0 10rpx 24rpx rgba(253, 145, 132, 0.35);
+  background: var(--mrc-primary-grad);
+  border-radius: 32rpx;
+  box-shadow: var(--mrc-shadow-coral);
 }
 .cal-album__guozai {
   position: absolute;

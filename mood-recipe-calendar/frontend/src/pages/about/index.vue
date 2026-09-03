@@ -1,115 +1,44 @@
 <script setup lang="ts">
-import { useTeam } from '@/composables/useTeam'
 import AppNav from '@/components/common/AppNav.vue'
+import Icon from '@/components/common/Icon.vue'
 
 definePage({
   name: 'about',
   layout: 'tabbar',
-  style: {
-    navigationStyle: 'custom',
-    navigationBarTitleText: '关于',
-  },
+  style: { navigationStyle: 'custom', navigationBarTitleText: '关于' },
 })
-
-const { data: coreTeam } = useTeam()
-
-function openUrl(url?: string) {
-  if (!url) {
-    return
-  }
-
-  window.open(url, '_blank')
-}
-
-// 打开公众号二维码
-function openWeChat() {
-  uni.previewImage({
-    urls: ['https://wot-ui.cn/wechatPublicAccount.png'],
-  })
-}
-
-// 打开捐赠二维码
-function donate() {
-  uni.previewImage({
-    urls: ['https://wot-ui.cn/weixinQrcode.jpg'],
-  })
-}
 </script>
 
 <template>
-  <view class="min-h-screen py-3">
-    <!-- 顶部导航（状态栏 + 胶囊适配） -->
-    <AppNav title="关于" />
-
-    <!-- 头部介绍 -->
-    <view class="mx-3 mb-3 flex flex-col gap-2">
-      <text class="text-6 font-bold wot-text-text-main">
-        关于我们
-      </text>
-      <text class="text-3.5 leading-snug wot-text-text-secondary">
-        我是不如摸鱼去，一个前端打工仔，我和我的小伙伴们正在致力于开发轻量、高效的uni-app组件库和高效、易用的uni-app快速开发模板。
-      </text>
+  <view class="about-page mrc-hero">
+    <AppNav title="关于锅仔" />
+    <view class="about-hero">
+      <view class="about-hero__copy">
+        <text class="about-hero__eyebrow">GUOZAI'S KITCHEN</text>
+        <text class="about-hero__title">把每一餐，<br />留成温柔的日常。</text>
+        <text class="about-hero__sub">锅仔陪你记录心情，也提醒你认真吃饭。</text>
+      </view>
+      <image class="about-hero__img guozai-breathe" src="/static/guozai/action_06_glasses.png" mode="aspectFit" />
     </view>
 
-    <!-- 核心团队 -->
-    <demo-block title="核心团队" transparent>
-      <view class="grid grid-cols-2 gap-3">
-        <view
-          v-for="member in coreTeam"
-          :key="member.name"
-          class="rounded-2 p-4 text-center wot-bg-filled-oppo"
-          @click="openUrl(member.github)"
-        >
-          <image
-            :src="member.avatar"
-            class="mx-auto mb-2 h-16 w-16 border-2 border-blue-200 rounded-full dark:border-blue-800"
-          />
-          <view class="mb-1 text-3.5 font-bold wot-text-text-main">
-            {{ member.name }}
-          </view>
-          <view class="mb-2 text-2.5 text-blue-600 dark:text-blue-400">
-            {{ member.title }}
-          </view>
-          <view class="text-2.5 leading-snug wot-text-text-secondary">
-            {{ member.desc }}
-          </view>
-        </view>
-      </view>
-    </demo-block>
+    <view class="about-card">
+      <text class="about-card__title">心情菜谱日历</text>
+      <text class="about-card__text">一个把心情、好好吃饭与生活记录放在一起的小角落。每一次记录，都不是任务，而是对自己的照顾。</text>
+    </view>
 
-    <!-- 关于 uni-helper -->
-    <demo-block title="关于 uni-helper 团队" transparent>
-      <view class="rounded-3 p-5 wot-bg-filled-oppo">
-        <text class="mb-3 block text-3.5 leading-relaxed wot-text-text-secondary">
-          <text class="text-blue-600" @click="openUrl('https://uni-helper.cn/')">
-            uni-helper
-          </text>
-          是一个旨在增强 uni-app 系列产品的开发体验为爱发电的非官方组织。作为靠爱发电的非官方项目，uni-helper 提供了打包工具插件支持、编辑器扩展支持、NPM 包等并尽力维护它们。
-        </text>
-        <text class="text-3.5 leading-relaxed wot-text-text-secondary">
-          在此我们特别向 uni-helper 团队表示感谢，他们为 uni-app 系列产品提供了强大的支持，包括打包工具插件支持、编辑器扩展支持等，这使我们得以站在巨人的巨人的肩膀上完成此项目。
-        </text>
-      </view>
-    </demo-block>
+    <view class="about-points">
+      <view class="about-point"><view class="about-point__icon"><Icon name="heart" :size="36" color="var(--mrc-accent)" /></view><view><text class="about-point__title">跟着心情吃饭</text><text class="about-point__text">让每一道推荐，更贴近今天的你</text></view></view>
+      <view class="about-point"><view class="about-point__icon"><Icon name="calendar" :size="36" color="var(--mrc-accent)" /></view><view><text class="about-point__title">把日子装订成册</text><text class="about-point__text">收藏每一餐，也看见生活的变化</text></view></view>
+    </view>
 
-    <!-- 更多信息 -->
-    <demo-block title="更多信息" transparent>
-      <wd-cell-group border custom-class="rounded-2! overflow-hidden">
-        <wd-cell
-          title="关注公众号"
-          title-width="200px"
-          label="uni-app教程、组件库讯息一手掌握！"
-          is-link
-          @click="openWeChat"
-        />
-        <wd-cell
-          title="捐赠"
-          title-width="200px"
-          label="每一份捐赠都是对我们莫大的鼓励！"
-          is-link
-          @click="donate"
-        />
-      </wd-cell-group>
-    </demo-block>
+    <view class="about-footer"><text>心情菜谱日历 · v1.0</text><text>好好吃饭，也好好生活</text></view>
   </view>
 </template>
+
+<style lang="scss" scoped>
+.about-page { min-height: 100vh; padding: 0 32rpx calc(60rpx + env(safe-area-inset-bottom)); box-sizing: border-box; }
+.about-hero { position: relative; min-height: 410rpx; margin-top: 12rpx; overflow: hidden; border: 2rpx solid var(--mrc-border-light); border-radius: 40rpx; background: radial-gradient(circle at 72% 22%, rgba(255, 197, 61, .28), transparent 20%), var(--mrc-surface-peach); box-shadow: var(--mrc-shadow-soft); }
+.about-hero__copy { position: relative; z-index: 1; display: flex; flex-direction: column; width: 65%; padding: 46rpx 0 0 32rpx; }.about-hero__eyebrow { color: var(--mrc-accent); font-size: 20rpx; font-weight: 700; letter-spacing: 2rpx; }.about-hero__title { margin-top: 14rpx; color: var(--mrc-text-strong); font-size: 40rpx; font-weight: 700; line-height: 1.35; }.about-hero__sub { margin-top: 16rpx; color: var(--mrc-text-sub); font-size: 23rpx; line-height: 1.6; }.about-hero__img { position: absolute; right: -42rpx; bottom: -12rpx; width: 380rpx; height: 380rpx; }
+.about-card { margin-top: 24rpx; padding: 30rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); }.about-card__title { display: block; color: var(--mrc-text-deep); font-size: 34rpx; font-weight: 700; }.about-card__text { display: block; margin-top: 14rpx; color: var(--mrc-text-sub); font-size: 27rpx; line-height: 1.7; }
+.about-points { display: flex; flex-direction: column; gap: 16rpx; margin-top: 24rpx; }.about-point { display: flex; align-items: center; gap: 18rpx; padding: 24rpx; border-radius: 26rpx; background: var(--mrc-surface); border: 2rpx solid var(--mrc-border-light); }.about-point__icon { display: flex; align-items: center; justify-content: center; width: 72rpx; height: 72rpx; border-radius: 22rpx; background: var(--mrc-surface-peach); }.about-point__title, .about-point__text { display: block; }.about-point__title { color: var(--mrc-text-deep); font-size: 30rpx; font-weight: 700; }.about-point__text { margin-top: 6rpx; color: var(--mrc-text-sub); font-size: 23rpx; }.about-footer { display: flex; flex-direction: column; align-items: center; gap: 10rpx; padding: 48rpx 0 16rpx; color: var(--mrc-text-light); font-size: 22rpx; letter-spacing: 1rpx; }
+</style>

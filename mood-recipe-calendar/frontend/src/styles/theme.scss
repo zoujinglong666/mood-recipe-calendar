@@ -11,6 +11,9 @@ page {
   --mrc-surface: #FFFCF7;       /* 卡片：近白暖调，明显浮起 */
   --mrc-surface-2: #FBEBD6;     /* 次级面 / 功能条 */
   --mrc-surface-3: #F4E0C5;     /* 内嵌深一层 */
+  --mrc-surface-peach: #FFF1E7; /* 角色引导 / 轻强调表面 */
+  --mrc-surface-mint: #EDF8F1;  /* 记录 / 成功表面 */
+  --mrc-surface-sun: #FFF8E8;   /* 数据 / 高光表面 */
 
   /* ---- 品牌珊瑚（更饱和、更敢用） ---- */
   --mrc-primary: #FF9D82;       /* 浅珊瑚 */
@@ -41,6 +44,7 @@ page {
   --mrc-shadow: 0 10rpx 28rpx rgba(176, 116, 74, 0.14);
   --mrc-shadow-soft: 0 6rpx 18rpx rgba(176, 116, 74, 0.08);
   --mrc-shadow-coral: 0 12rpx 26rpx rgba(255, 107, 91, 0.40);
+  --mrc-shadow-lift: 0 14rpx 34rpx rgba(112, 72, 47, 0.12);
   --mrc-gloss: inset 0 1rpx 0 rgba(255, 255, 255, 0.7);
 
   /* ---- 字号（rpx） ---- */

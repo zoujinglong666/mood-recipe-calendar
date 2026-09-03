@@ -392,11 +392,12 @@ const orderTypeText: Record<string, string> = {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: linear-gradient(135deg, var(--mrc-bg-card), var(--mrc-warm-light));
+  background: linear-gradient(135deg, var(--mrc-surface-peach), var(--mrc-surface-sun));
   border: 2rpx solid var(--mrc-border);
   border-radius: 32rpx;
   padding: 32rpx;
-  margin-bottom: 32rpx;
+  margin: 12rpx 0 24rpx;
+  box-shadow: var(--mrc-shadow);
 }
 .checkin-card__left {
   flex: 1;
@@ -416,7 +417,7 @@ const orderTypeText: Record<string, string> = {
 .checkin-card__ready {
   font-size: 24rpx;
   color: var(--mrc-accent);
-  background: rgba(232, 131, 107, 0.15);
+  background: var(--mrc-accent-soft);
   padding: 4rpx 16rpx;
   border-radius: 24rpx;
   font-weight: 600;
@@ -463,7 +464,7 @@ const orderTypeText: Record<string, string> = {
 .checkin-btn {
   padding: 12rpx 36rpx;
   border-radius: 40rpx;
-  background: linear-gradient(135deg, var(--mrc-primary), var(--mrc-primary-deep));
+  background: var(--mrc-primary-grad);
   color: #fff;
   font-size: 28rpx;
   font-weight: 600;
@@ -483,7 +484,7 @@ const orderTypeText: Record<string, string> = {
 /* Tab */
 .gallery-tabs {
   display: flex;
-  background: var(--mrc-bg-card);
+  background: var(--mrc-surface-2);
   border-radius: 50rpx;
   padding: 8rpx;
   margin-bottom: 32rpx;
@@ -499,7 +500,7 @@ const orderTypeText: Record<string, string> = {
   transition: all 0.2s ease;
 }
 .gallery-tab--active {
-  background: var(--mrc-white);
+  background: var(--mrc-surface);
   color: var(--mrc-accent);
   font-weight: 700;
   box-shadow: 0 4rpx 12rpx rgba(90, 62, 43, 0.08);
@@ -510,10 +511,12 @@ const orderTypeText: Record<string, string> = {
   display: flex;
   align-items: center;
   gap: 20rpx;
-  background: var(--mrc-bg-card);
-  border-radius: 24rpx;
+  background: var(--mrc-surface);
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 28rpx;
   padding: 24rpx;
-  margin-bottom: 28rpx;
+  margin-bottom: 24rpx;
+  box-shadow: var(--mrc-shadow-soft);
 }
 .asset-intro__guozai {
   width: 100rpx;
@@ -542,6 +545,8 @@ const orderTypeText: Record<string, string> = {
   color: var(--mrc-text);
   display: block;
   margin-bottom: 16rpx;
+  padding-left: 14rpx;
+  border-left: 8rpx solid var(--mrc-primary);
 }
 .asset-grid {
   display: grid;
@@ -553,10 +558,10 @@ const orderTypeText: Record<string, string> = {
   flex-direction: column;
   align-items: center;
   gap: 10rpx;
-  background: var(--mrc-bg-card);
+  background: var(--mrc-surface);
+  border: 2rpx solid var(--mrc-border-light);
   border-radius: 24rpx;
   padding: 20rpx 8rpx;
-  border: 2rpx solid transparent;
   transition: all 0.15s ease;
 }
 .asset-item:active {
@@ -591,7 +596,9 @@ const orderTypeText: Record<string, string> = {
 .shop-card__img {
   width: 100%;
   height: 280rpx;
-  background: var(--mrc-bg-card);
+  background: var(--mrc-surface);
+  border: 2rpx solid var(--mrc-border-light);
+  box-shadow: var(--mrc-shadow-soft);
 }
 .shop-card__body {
   padding: 20rpx;
@@ -662,7 +669,9 @@ const orderTypeText: Record<string, string> = {
   width: 120rpx;
   height: 120rpx;
   border-radius: 16rpx;
-  background: var(--mrc-bg-card);
+  background: var(--mrc-surface);
+  border: 2rpx solid var(--mrc-border-light);
+  box-shadow: var(--mrc-shadow-soft);
   flex-shrink: 0;
 }
 .order-card__main {
@@ -775,7 +784,8 @@ const orderTypeText: Record<string, string> = {
   width: 200rpx;
   height: 200rpx;
   border-radius: 24rpx;
-  background: var(--mrc-bg-card);
+  background: var(--mrc-surface);
+  border: 2rpx solid var(--mrc-border-light);
   margin-bottom: 16rpx;
 }
 .buy-pop__name {

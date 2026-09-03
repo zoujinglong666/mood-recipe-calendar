@@ -371,7 +371,7 @@ function share() {
   font-size: 72rpx;
   font-weight: 700;
   color: var(--mrc-text-deep);
-  margin-top: 40rpx;
+  margin-top: 32rpx;
   margin-bottom: 16rpx;
 }
 .rpt-title--sub {
@@ -399,7 +399,7 @@ function share() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 60rpx 40rpx;
+  padding: 48rpx 40rpx 160rpx;
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -429,7 +429,7 @@ function share() {
   margin-bottom: 40rpx;
 }
 .rpt-cover__title-line {
-  font-size: 80rpx;
+  font-size: 72rpx;
   font-weight: 700;
   color: var(--mrc-text-deep);
   line-height: 1.3;
@@ -483,13 +483,14 @@ function share() {
 }
 .rpt-overview__card {
   flex: 1;
-  background: linear-gradient(180deg, #FEF8E8, #FDEED8);
+  background: var(--mrc-surface);
+  border: 2rpx solid var(--mrc-border-light);
   border-radius: 28rpx;
   padding: 40rpx 16rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
-  box-shadow: 0 4rpx 16rpx rgba(121, 73, 53, 0.08);
+  box-shadow: var(--mrc-shadow-soft);
 }
 .rpt-overview__num {
   font-size: 88rpx;
@@ -540,13 +541,14 @@ function share() {
 }
 .rpt-top3__item {
   position: relative;
-  background: linear-gradient(135deg, #FEF8E8, #FDEED8);
+  background: var(--mrc-surface);
+  border: 2rpx solid var(--mrc-border-light);
   border-radius: 32rpx;
   padding: 28rpx;
   display: flex;
   align-items: center;
   gap: 24rpx;
-  box-shadow: 0 4rpx 16rpx rgba(121, 73, 53, 0.08);
+  box-shadow: var(--mrc-shadow-soft);
 }
 .rpt-top3__medal {
   position: absolute;
@@ -755,13 +757,14 @@ function share() {
   margin: 48rpx 0;
 }
 .rpt-best__item {
-  background: linear-gradient(135deg, #FEF8E8, #FDEED8);
+  background: var(--mrc-surface);
+  border: 2rpx solid var(--mrc-border-light);
   border-radius: 32rpx;
   padding: 36rpx 32rpx;
   display: flex;
   align-items: center;
   gap: 28rpx;
-  box-shadow: 0 4rpx 16rpx rgba(121, 73, 53, 0.08);
+  box-shadow: var(--mrc-shadow-soft);
 }
 .rpt-best__icon {
   font-size: 72rpx;
@@ -946,7 +949,7 @@ function share() {
   left: 0;
   right: 0;
   height: 100rpx;
-  background: rgba(253, 249, 236, 0.95);
+  background: rgba(255, 252, 247, 0.96);
   backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
@@ -961,10 +964,10 @@ function share() {
   color: var(--mrc-text-mid);
   padding: 16rpx 32rpx;
   border-radius: 40rpx;
-  background: var(--mrc-bg-card);
+  background: var(--mrc-surface-2);
 }
 .rpt-nav__btn--primary {
-  background: linear-gradient(135deg, var(--mrc-mood-anxious), var(--mrc-primary-deep));
+  background: var(--mrc-primary-grad);
   color: #fff;
   font-weight: 600;
 }

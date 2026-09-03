@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
   openid        VARCHAR(64)  NOT NULL UNIQUE COMMENT '微信 openid',
   nickname      VARCHAR(50)  COMMENT '昵称',
   avatar_url    VARCHAR(255) COMMENT '头像',
+  session_key_encrypted VARCHAR(512) COMMENT '加密保存的微信 session_key，仅供服务端虚拟支付签名使用',
   first_use_date DATE        COMMENT '首次使用日期',
   is_member     TINYINT DEFAULT 0 COMMENT '是否会员',
   member_expire DATETIME     COMMENT '会员到期时间',
@@ -200,3 +201,52 @@ INSERT INTO products (name, image, price, exchange_price, category, description,
 ('锅仔围裙',          '/static/guozai/action_02_soup.png',   59.00, 1.00, 'clothes', '做饭仪式感拉满，锅仔陪你下厨',   60,  4, 1, NOW()),
 ('锅仔搪瓷碗套装',    '/static/guozai/action_01_bowl.png',   79.00, 1.00, 'kitchen', '一套温暖饭碗，好好吃饭每一天',   50,  5, 1, NOW()),
 ('锅仔手机壳',        '/static/guozai/mood_08_homesick.png', 29.00, 1.00, 'digital', '锅仔替你挡住生活的磕磕碰碰',     200, 6, 1, NOW());
+
+-- ---------- 虚拟商品与权益（必须在微信虚拟支付后台录入同名道具后才可真实售卖） ----------
+CREATE TABLE IF NOT EXISTS virtual_products (
+  sku                VARCHAR(64) PRIMARY KEY COMMENT '业务 SKU，服务端唯一可信商品标识',
+  platform_item_id   VARCHAR(128) COMMENT '微信虚拟支付后台道具 ID',
+  title              VARCHAR(100) NOT NULL,
+  description        TEXT,
+  price_fen          INT NOT NULL COMMENT '价格，分',
+  entitlement_code   VARCHAR(64) NOT NULL COMMENT '发放的权益代码',
+  entitlement_amount INT NOT NULL DEFAULT 0 COMMENT '次数型权益数量',
+  valid_days         INT NOT NULL DEFAULT 0 COMMENT '有效天数，0 为永久',
+  active             TINYINT NOT NULL DEFAULT 1,
+  sort_order         INT NOT NULL DEFAULT 0,
+  created_at         DATETIME
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='虚拟商品目录';
+
+CREATE TABLE IF NOT EXISTS virtual_orders (
+  id                      BIGINT AUTO_INCREMENT PRIMARY KEY,
+  order_no                VARCHAR(48) NOT NULL UNIQUE,
+  openid                  VARCHAR(64) NOT NULL,
+  sku                     VARCHAR(64) NOT NULL,
+  amount_fen              INT NOT NULL,
+  status                  VARCHAR(20) NOT NULL COMMENT 'PENDING/PAID/DELIVERED/REFUNDED/CANCELLED',
+  platform_transaction_id VARCHAR(128),
+  created_at              DATETIME,
+  paid_at                 DATETIME,
+  delivered_at            DATETIME,
+  INDEX idx_virtual_order_openid (openid),
+  INDEX idx_virtual_order_status (status)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='虚拟商品订单';
+
+CREATE TABLE IF NOT EXISTS user_entitlements (
+  id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+  openid          VARCHAR(64) NOT NULL,
+  code            VARCHAR(64) NOT NULL,
+  remaining_uses  INT,
+  source_order_no VARCHAR(48) NOT NULL UNIQUE,
+  expires_at      DATETIME,
+  status          VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
+  created_at      DATETIME,
+  INDEX idx_entitlement_openid_code (openid, code)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='用户虚拟权益';
+
+INSERT IGNORE INTO virtual_products
+  (sku, platform_item_id, title, description, price_fen, entitlement_code, entitlement_amount, valid_days, active, sort_order, created_at)
+VALUES
+  ('AI_MENU_7D', NULL, '锅仔 AI 私人菜单 7 天包', '7 天内可使用 21 次按食材、时长和口味生成的 AI 菜谱。', 690, 'AI_DEEP_RECOMMEND', 21, 7, 1, 1, NOW()),
+  ('ALBUM_HD_EXPORT', NULL, '月度画册收藏版', '解锁 1 次高清无水印导出与收藏版排版。', 490, 'ALBUM_HD_EXPORT', 1, 0, 1, 2, NOW()),
+  ('GUOZAI_MEMBER_30D', NULL, '锅仔会员 30 天权益包', '30 天会员身份；上线后可在此叠加会员专属 AI 与画册权益。', 1290, 'MEMBER', 0, 30, 1, 3, NOW());
