@@ -59,7 +59,7 @@ public class AiRecipeService {
             body.put("temperature", 0.8);
             body.put("messages", List.of(
                     Map.of("role", "system", "content", "你是锅仔，一位温暖、务实的中文家常菜助手。你只提供普通家庭可完成的菜谱，不提供医疗建议。"),
-                    Map.of("role", "user", """
+                    Map.of("role", "user", "content", """
                             用户现在的心情是「%s」。请推荐一道适合此刻的中国家常菜。
                             用户补充的烹饪偏好是：「%s」。只在合理且安全的范围内遵循它；如果为空则忽略。
                             只返回一个合法 JSON 对象，不要 Markdown、不要解释。格式严格为：

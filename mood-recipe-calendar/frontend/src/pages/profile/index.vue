@@ -106,6 +106,10 @@ function goGallery() {
 function goSettings() {
   router.push({ name: 'about' })
 }
+function showPrivacy() {
+  uni.showModal({ title: '隐私政策', content: '我们仅在你主动记录时保存菜品、心情和图片，用于生成日历与画册；不会出售个人信息。AI 请求只使用本次生成所需的内容。你可随时联系客服申请导出或删除数据。', showCancel: false, confirmText: '我知道了' })
+}
+function goAbout() { router.push({ name: 'about' }) }
 </script>
 
 <template>
@@ -226,9 +230,15 @@ function goSettings() {
 
       <!-- 底部链接 -->
       <view class="profile-footer">
-        <text class="profile-footer__link">隐私政策</text>
-        <text class="profile-footer__link">反馈建议</text>
-        <text class="profile-footer__link">关于我们</text>
+        <text class="profile-footer__link" @click="showPrivacy">隐私政策</text>
+        <!-- 微信原生客服会话；需在小程序后台配置客服能力 -->
+        <!-- #ifdef MP-WEIXIN -->
+        <button class="profile-footer__link profile-footer__contact" open-type="contact">反馈建议</button>
+        <!-- #endif -->
+        <!-- #ifndef MP-WEIXIN -->
+        <text class="profile-footer__link" @click="uni.showToast({ title: '请在微信小程序中联系锅仔', icon: 'none' })">反馈建议</text>
+        <!-- #endif -->
+        <text class="profile-footer__link" @click="goAbout">关于我们</text>
         <image class="profile-footer__guozai" src="/static/guozai/mood_01_happy.png" mode="aspectFit" />
       </view>
   </view>
@@ -490,6 +500,8 @@ function goSettings() {
   font-size: 26rpx;
   color: var(--mrc-text-sub);
 }
+.profile-footer__contact { margin: 0; padding: 0; line-height: inherit; background: transparent; border: 0; }
+.profile-footer__contact::after { border: 0; }
 .profile-footer__guozai {
   position: absolute;
   right: 0;
