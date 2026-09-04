@@ -1,7 +1,8 @@
 <script setup lang="ts">
+import { navBack } from '@/composables/useNavBar'
+import Icon from '../../components/common/Icon.vue'
 import { ref, computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import AppNav from '../../components/common/AppNav.vue'
 import LoadingState from '../../components/guozai/LoadingState.vue'
 import ErrorState from '../../components/guozai/ErrorState.vue'
 import { ensureLogin } from '../../utils/login'
@@ -19,7 +20,6 @@ definePage({
 const toast = useToast()
 const currentPage = ref(0)
 const totalPages = 8
-const isTransitioning = ref(false)
 
 const loading = ref(true)
 const error = ref('')
@@ -42,6 +42,80 @@ const monthlyData = computed(() => {
 
 const maxMonthly = computed(() => Math.max(...monthlyData.value.map(m => m.count), 1))
 
+/** 平均频率：总菜品数 / 总记录天数 */
+const avgFreq = computed(() => {
+  const days = yearStats.value?.totalDays || 0
+  const recs = yearStats.value?.totalRecords || 0
+  if (!days) return '0.0'
+  return (recs / days).toFixed(1)
+})
+
+/** 最常做的菜 TOP3 */
+const top3 = computed(() => (yearStats.value?.topDishes || []).slice(0, 3))
+
+/** 最勤快的月份 */
+const peakMonth = computed(() => {
+  let idx = -1
+  let cnt = 0
+  monthlyData.value.forEach((m, i) => {
+    if (m.count > cnt) {
+      cnt = m.count
+      idx = i
+    }
+  })
+  return { month: idx + 1, count: cnt }
+})
+
+/** 开心天数 */
+const happyDays = computed(() => yearStats.value?.moodDistribution?.['开心'] || 0)
+
+/** AI 寄语（基于真实数据动态生成） */
+const messageLines = computed(() => {
+  const recs = yearStats.value?.totalRecords || 0
+  const days = yearStats.value?.totalDays || 0
+  const topName = top3.value[0]?.name || '美食'
+  const top2Name = top3.value[1]?.name || '家常菜'
+  return [
+    `这一年你做了${recs}道菜，`,
+    `记录了${days}天。开心的时候你`,
+    `奖励自己大餐，疲惫的时候你`,
+    `用热汤取暖。${topName}是你的`,
+    `本命，${top2Name}是你的安慰。`,
+    `${currentYear}辛苦了，${currentYear + 1}也要继续`,
+    `好好吃饭呀。`,
+  ]
+})
+
+/** 菜名 -> 静态图映射 */
+const DISH_IMG: Record<string, string> = {
+  红烧肉: '/static/dish_hongshaorou.png',
+  番茄炒蛋: '/static/dish_fanqiechaodan.png',
+  番茄牛腩: '/static/dish_tomato_beef.png',
+  番茄牛腩面: '/static/dish_noodle.png',
+  青椒肉丝: '/static/dish_qingjiaorousi.png',
+  土豆丝: '/static/dish_potato.png',
+  牛肉面: '/static/dish_noodle.png',
+  汤面: '/static/dish_noodle.png',
+  汤: '/static/dish_soup.png',
+  鸡汤: '/static/dish_soup.png',
+}
+const FALLBACK_DISH_IMGS = ['/static/dish1.png', '/static/dish2.png', '/static/dish3.png', '/static/dish4.png']
+function dishImg(name: string, idx = 0): string {
+  return DISH_IMG[name] || FALLBACK_DISH_IMGS[idx % FALLBACK_DISH_IMGS.length]
+}
+
+/** TOP3 俏皮点评 */
+const TOP3_AI = ['你的本命菜，怎么做都不腻', '简单却永远吃不腻的国民菜', '下饭神器，你一定很爱米饭']
+function top3Ai(idx: number): string {
+  return TOP3_AI[idx] || '这道菜陪伴了你很多个日子'
+}
+
+/** 月度热力图柱色（随月份渐变） */
+const BAR_PALETTE = ['#FDE0C8', '#FCD4B0', '#FBC898', '#FABC80', '#F9B068', '#F8A450', '#F59848', '#F08C40', '#EB8038', '#E67430', '#E16828', '#DC5C20']
+function barColor(i: number): string {
+  return BAR_PALETTE[i % BAR_PALETTE.length]
+}
+
 async function loadStats() {
   loading.value = true
   error.value = ''
@@ -60,27 +134,9 @@ onShow(() => {
   loadStats()
 })
 
-function next() {
-  if (isTransitioning.value) return
-  if (currentPage.value < totalPages - 1) {
-    isTransitioning.value = true
-    currentPage.value++
-    setTimeout(() => { isTransitioning.value = false }, 300)
-  }
-}
-function prev() {
-  if (isTransitioning.value) return
-  if (currentPage.value > 0) {
-    isTransitioning.value = true
-    currentPage.value--
-    setTimeout(() => { isTransitioning.value = false }, 300)
-  }
-}
-function goToPage(i: number) {
-  if (isTransitioning.value) return
-  isTransitioning.value = true
-  currentPage.value = i
-  setTimeout(() => { isTransitioning.value = false }, 300)
+/** 上滑 / 下滑翻页（swiper 一页一屏） */
+function onSwiperChange(e: any) {
+  currentPage.value = e.detail.current
 }
 function share() {
   toast.show('分享长图即将上线')
@@ -89,7 +145,11 @@ function share() {
 
 <template>
   <view class="report">
-    <AppNav title="年度报告" show-back right-icon="share" />
+    <wd-navbar title="年度报告" left-arrow safe-area-inset-top @click-left="navBack" />
+
+    <view class="report__share" @click="share">
+      <Icon name="share" :size="36" color="var(--mrc-text)" />
+    </view>
 
     <!-- Loading -->
     <LoadingState v-if="loading" text="锅仔正在整理年度报告..." />
@@ -97,18 +157,19 @@ function share() {
     <!-- Error -->
     <ErrorState v-else-if="error" :text="error" @retry="loadStats" />
 
-    <scroll-view v-else scroll-y class="report__scroll">
+    <swiper v-else class="report__swiper" vertical :current="currentPage" @change="onSwiperChange" :duration="320">
       <!-- 第1页：封面 -->
-      <view v-show="currentPage === 0" class="rpt-cover">
+      <swiper-item>
+      <view class="rpt-cover rpt-page">
         <view class="rpt-cover__bg" />
         <text class="rpt-cover__brand">心情菜谱日历</text>
         <view class="rpt-cover__title">
-          <text class="rpt-cover__title-line">小圆同学的</text>
+          <text class="rpt-cover__title-line">你的</text>
           <text class="rpt-cover__title-line">{{ currentYear }}干饭报告</text>
         </view>
         <image class="rpt-cover__guozai" src="/static/guozai/action_06_glasses.png" mode="aspectFit" />
         <view class="rpt-cover__footer">
-          <text class="rpt-cover__slogan">⭐ 2026年度 · 用一道菜治愈每一天 ❤️</text>
+          <text class="rpt-cover__slogan">⭐ {{ currentYear }}年度 · 用一道菜治愈每一天 ❤️</text>
           <view class="rpt-cover__divider">
             <view class="rpt-cover__line" />
             <text class="rpt-cover__stars">⭐⭐⭐</text>
@@ -116,23 +177,25 @@ function share() {
           </view>
         </view>
       </view>
+      </swiper-item>
 
       <!-- 第2页：年度总览 -->
-      <view v-show="currentPage === 1" class="rpt-overview">
+      <swiper-item>
+      <view class="rpt-overview rpt-page">
         <text class="rpt-title">年度总览</text>
         <view class="rpt-overview__cards">
           <view class="rpt-overview__card">
-            <text class="rpt-overview__num">187</text>
+            <text class="rpt-overview__num">{{ yearStats?.totalDays || 0 }}</text>
             <text class="rpt-overview__unit">天</text>
             <text class="rpt-overview__label">总记录天数</text>
           </view>
           <view class="rpt-overview__card">
-            <text class="rpt-overview__num">246</text>
+            <text class="rpt-overview__num">{{ yearStats?.totalRecords || 0 }}</text>
             <text class="rpt-overview__unit">道</text>
             <text class="rpt-overview__label">总菜品数</text>
           </view>
           <view class="rpt-overview__card">
-            <text class="rpt-overview__num">2.3</text>
+            <text class="rpt-overview__num">{{ avgFreq }}</text>
             <text class="rpt-overview__unit">天/次</text>
             <text class="rpt-overview__label">平均频率</text>
           </view>
@@ -140,93 +203,74 @@ function share() {
         <image class="rpt-guozai" src="/static/guozai/mood_01_happy.png" mode="aspectFit" />
         <view class="rpt-overview__footer">
           <view class="rpt-overview__line" />
-          <text class="rpt-overview__text">你在2026年认真对待了每一餐</text>
+          <text class="rpt-overview__text">你在{{ currentYear }}年认真对待了每一餐</text>
           <view class="rpt-overview__line" />
         </view>
       </view>
+      </swiper-item>
 
       <!-- 第3页：最常做菜TOP3 -->
-      <view v-show="currentPage === 2" class="rpt-top3">
+      <swiper-item>
+      <view class="rpt-top3 rpt-page">
         <text class="rpt-title">最常做的菜</text>
         <text class="rpt-title rpt-title--sub">TOP3</text>
         <view class="rpt-top3__list">
-          <view class="rpt-top3__item">
-            <view class="rpt-top3__medal rpt-top3__medal--gold">🥇</view>
-            <image class="rpt-top3__img" src="/static/dish_hongshaorou.png" mode="aspectFill" />
+          <view v-if="!top3.length" class="rpt-top3__empty">记录几道拿手菜，这里就有你的 TOP3</view>
+          <view v-for="(d, i) in top3" :key="d.name" class="rpt-top3__item">
+            <view class="rpt-top3__medal" :class="i === 0 ? 'rpt-top3__medal--gold' : i === 1 ? 'rpt-top3__medal--silver' : 'rpt-top3__medal--bronze'">{{ ['🥇', '🥈', '🥉'][i] }}</view>
+            <image class="rpt-top3__img" :src="dishImg(d.name, i)" mode="aspectFill" />
             <view class="rpt-top3__info">
-              <text class="rpt-top3__name">红烧肉 <text class="rpt-top3__count">23次</text></text>
-              <text class="rpt-top3__ai">AI: 红烧肉是你的本命菜，肥而不腻说的就是你</text>
-            </view>
-          </view>
-          <view class="rpt-top3__item">
-            <view class="rpt-top3__medal rpt-top3__medal--silver">🥈</view>
-            <image class="rpt-top3__img" src="/static/dish_fanqiechaodan.png" mode="aspectFill" />
-            <view class="rpt-top3__info">
-              <text class="rpt-top3__name">番茄炒蛋 <text class="rpt-top3__count">18次</text></text>
-              <text class="rpt-top3__ai">AI: 简单却永远吃不腻的国民菜</text>
-            </view>
-          </view>
-          <view class="rpt-top3__item">
-            <view class="rpt-top3__medal rpt-top3__medal--bronze">🥉</view>
-            <image class="rpt-top3__img" src="/static/dish_qingjiaorousi.png" mode="aspectFill" />
-            <view class="rpt-top3__info">
-              <text class="rpt-top3__name">青椒肉丝 <text class="rpt-top3__count">12次</text></text>
-              <text class="rpt-top3__ai">下饭神器，你一定很爱米饭</text>
+              <text class="rpt-top3__name">{{ d.name }} <text class="rpt-top3__count">{{ d.count }}次</text></text>
+              <text class="rpt-top3__ai">AI: {{ top3Ai(i) }}</text>
             </view>
           </view>
         </view>
         <image class="rpt-guozai rpt-guozai--sm" src="/static/guozai/mood_01_happy.png" mode="aspectFit" />
       </view>
+      </swiper-item>
 
       <!-- 第4页：心情分布 -->
-      <view v-show="currentPage === 3" class="rpt-mood">
+      <swiper-item>
+      <view class="rpt-mood rpt-page">
         <text class="rpt-title">这一年的心情</text>
         <view class="rpt-mood__chart-wrap">
           <view class="rpt-mood__donut" />
           <view class="rpt-mood__legend">
-            <view class="rpt-mood__legend-item"><view class="rpt-mood__dot rpt-mood__dot--1" /><text>开心47天</text></view>
-            <view class="rpt-mood__legend-item"><view class="rpt-mood__dot rpt-mood__dot--2" /><text>平静38天</text></view>
-            <view class="rpt-mood__legend-item"><view class="rpt-mood__dot rpt-mood__dot--3" /><text>疲惫43天</text></view>
-            <view class="rpt-mood__legend-item"><view class="rpt-mood__dot rpt-mood__dot--4" /><text>焦虑15天</text></view>
-            <view class="rpt-mood__legend-item"><view class="rpt-mood__dot rpt-mood__dot--5" /><text>难过15天</text></view>
-            <view class="rpt-mood__legend-item"><view class="rpt-mood__dot rpt-mood__dot--6" /><text>难过12天</text></view>
-            <view class="rpt-mood__legend-item"><view class="rpt-mood__dot rpt-mood__dot--7" /><text>嘴馋20天</text></view>
-            <view class="rpt-mood__legend-item"><view class="rpt-mood__dot rpt-mood__dot--8" /><text>低落8天</text></view>
-            <view class="rpt-mood__legend-item"><view class="rpt-mood__dot rpt-mood__dot--9" /><text>想家10天</text></view>
+            <view v-if="!moodList.length" class="rpt-top3__empty">记录心情，让锅仔更懂你</view>
+            <view v-for="(m, i) in moodList" :key="m.mood" class="rpt-mood__legend-item">
+              <view class="rpt-mood__dot" :class="'rpt-mood__dot--' + (i % 9 + 1)" />
+              <text>{{ m.mood }}{{ m.count }}天</text>
+            </view>
           </view>
         </view>
-        <text class="rpt-mood__text">这一年你有47天是开心的，疲惫的日子也不少，但你总能用美食治愈自己。</text>
+        <text class="rpt-mood__text">这一年你有{{ happyDays }}天是开心的，疲惫的日子也不少，但你总能用美食治愈自己。</text>
         <image class="rpt-guozai rpt-guozai--sm" src="/static/guozai/mood_01_happy.png" mode="aspectFit" />
       </view>
+      </swiper-item>
 
       <!-- 第5页：月度热力图 -->
-      <view v-show="currentPage === 4" class="rpt-heatmap">
+      <swiper-item>
+      <view class="rpt-heatmap rpt-page">
         <text class="rpt-title">每月干饭热力图</text>
         <view class="rpt-heatmap__highlight">
-          <text class="rpt-heatmap__month">8月 23天</text>
+          <text class="rpt-heatmap__month">{{ peakMonth.count > 0 ? peakMonth.month + '月 ' + peakMonth.count + '天' : '记录中…' }}</text>
           <text class="rpt-heatmap__fire">🔥</text>
         </view>
         <view class="rpt-heatmap__chart">
           <view class="rpt-heatmap__bars">
-            <view class="rpt-heatmap__bar" style="height: 40%; background: #FDE0C8;" />
-            <view class="rpt-heatmap__bar" style="height: 50%; background: #FCD4B0;" />
-            <view class="rpt-heatmap__bar" style="height: 60%; background: #FBC898;" />
-            <view class="rpt-heatmap__bar" style="height: 72%; background: #FABC80;" />
-            <view class="rpt-heatmap__bar" style="height: 85%; background: #F9B068;" />
-            <view class="rpt-heatmap__bar rpt-heatmap__bar--peak" style="height: 100%; background: #F8A450;" />
-            <view class="rpt-heatmap__bar" style="height: 78%; background: #F59848;" />
-            <view class="rpt-heatmap__bar" style="height: 65%; background: #F08C40;" />
-            <view class="rpt-heatmap__bar" style="height: 55%; background: #EB8038;" />
-            <view class="rpt-heatmap__bar" style="height: 48%; background: #E67430;" />
-            <view class="rpt-heatmap__bar" style="height: 42%; background: #E16828;" />
-            <view class="rpt-heatmap__bar" style="height: 38%; background: #DC5C20;" />
+            <view
+              v-for="m in monthlyData"
+              :key="m.month"
+              class="rpt-heatmap__bar"
+              :class="{ 'rpt-heatmap__bar--peak': m.count > 0 && m.count === peakMonth.count }"
+              :style="{ height: Math.max(m.count / maxMonthly * 100, m.count > 0 ? 8 : 2) + '%', background: barColor(m.month - 1) }"
+            />
           </view>
           <view class="rpt-heatmap__axis">
-            <text>1月</text><text>2月</text><text>3月</text><text>4月</text><text>5月</text><text>6月</text>
-            <text>7月</text><text>9月</text><text>10月</text><text>11月</text><text>12月</text>
+            <text v-for="m in monthlyData" :key="m.month">{{ m.month }}月</text>
           </view>
         </view>
-        <text class="rpt-heatmap__text">8月是你最勤快的一个月</text>
+        <text class="rpt-heatmap__text">{{ peakMonth.count > 0 ? peakMonth.month + '月是你最勤快的一个月' : '本月还没开始记录，去好好吃饭吧' }}</text>
         <view class="rpt-heatmap__guozai-wrap">
           <image class="rpt-guozai rpt-guozai--sm" src="/static/guozai/mood_01_happy.png" mode="aspectFit" />
           <text class="rpt-heatmap__deco rpt-heatmap__deco--s1">⭐</text>
@@ -237,38 +281,42 @@ function share() {
           <text class="rpt-heatmap__deco rpt-heatmap__deco--c2">☁️</text>
         </view>
       </view>
+      </swiper-item>
 
       <!-- 第6页：年度之最 -->
-      <view v-show="currentPage === 5" class="rpt-best">
-        <text class="rpt-title">2026年度之最</text>
+      <swiper-item>
+      <view class="rpt-best rpt-page">
+        <text class="rpt-title">{{ currentYear }}年度之最</text>
         <view class="rpt-best__list">
           <view class="rpt-best__item">
-            <text class="rpt-best__icon">🌶️</text>
+            <text class="rpt-best__icon">🔥</text>
             <view class="rpt-best__info">
-              <text class="rpt-best__name">最能吃辣的一天</text>
-              <text class="rpt-best__detail">6月15日 麻辣香锅</text>
+              <text class="rpt-best__name">最勤快的月份</text>
+              <text class="rpt-best__detail">{{ peakMonth.count > 0 ? peakMonth.month + '月 · 记录了' + peakMonth.count + '天' : '记录中…' }}</text>
             </view>
           </view>
           <view class="rpt-best__item">
-            <text class="rpt-best__icon">🌙</text>
+            <text class="rpt-best__icon">📅</text>
             <view class="rpt-best__info">
-              <text class="rpt-best__name">最晚的一顿饭</text>
-              <text class="rpt-best__detail">11月3日 凌晨1点 泡面</text>
+              <text class="rpt-best__name">最长连续记录</text>
+              <text class="rpt-best__detail">{{ (yearStats?.longestStreak || 0) + '天 · 坚持就是胜利' }}</text>
             </view>
           </view>
           <view class="rpt-best__item">
             <text class="rpt-best__icon">🏆</text>
             <view class="rpt-best__info">
-              <text class="rpt-best__name">最复杂的一道菜</text>
-              <text class="rpt-best__detail">3月20日 红烧肉 耗时3小时</text>
+              <text class="rpt-best__name">最常做的菜</text>
+              <text class="rpt-best__detail">{{ top3.length ? top3[0].name + ' · ' + top3[0].count + '次' : '记录中…' }}</text>
             </view>
           </view>
         </view>
         <image class="rpt-guozai rpt-guozai--sm" src="/static/guozai/mood_01_happy.png" mode="aspectFit" />
       </view>
+      </swiper-item>
 
       <!-- 第7页：AI寄语 -->
-      <view v-show="currentPage === 6" class="rpt-message">
+      <swiper-item>
+      <view class="rpt-message rpt-page">
         <view class="rpt-message__guozai-wrap">
           <image class="rpt-message__guozai" src="/static/guozai/action_06_glasses.png" mode="aspectFit" />
           <text class="rpt-message__deco rpt-message__deco--s1">⭐</text>
@@ -279,75 +327,65 @@ function share() {
           <text class="rpt-message__deco rpt-message__deco--c2">☁️</text>
         </view>
         <view class="rpt-message__text">
-          <text>小圆，这一年你做了246道菜，</text>
-          <text>记录了187天。开心的时候你</text>
-          <text>奖励自己大餐，疲惫的时候你</text>
-          <text>用热汤取暖。红烧肉是你的</text>
-          <text>本命，番茄炒蛋是你的安慰。</text>
-          <text>2026辛苦了，2027也要继续</text>
-          <text>好好吃饭呀。</text>
+          <text v-for="(line, i) in messageLines" :key="i">{{ line }}</text>
         </view>
         <text class="rpt-message__sign">—— 爱你的锅仔</text>
       </view>
+      </swiper-item>
 
       <!-- 第8页：分享页 -->
-      <view v-show="currentPage === 7" class="rpt-share">
+      <swiper-item>
+      <view class="rpt-share rpt-page">
         <view class="rpt-share__header">
           <text class="rpt-share__brand">心情菜谱日历</text>
           <image class="rpt-share__guozai-sm" src="/static/guozai/mood_01_happy.png" mode="aspectFit" />
         </view>
         <view class="rpt-share__grid">
           <view class="rpt-share__card">
-            <text class="rpt-share__card-title">2026干饭报告</text>
+            <text class="rpt-share__card-title">{{ currentYear }}干饭报告</text>
             <text class="rpt-share__card-sub">年度总结</text>
           </view>
           <view class="rpt-share__card">
-            <text class="rpt-share__card-title">记录187天</text>
-            <text class="rpt-share__card-sub">做了246道菜</text>
+            <text class="rpt-share__card-title">记录{{ yearStats?.totalDays || 0 }}天</text>
+            <text class="rpt-share__card-sub">做了{{ yearStats?.totalRecords || 0 }}道菜</text>
           </view>
           <view class="rpt-share__card">
-            <text class="rpt-share__card-title">做了246道菜</text>
-            <text class="rpt-share__card-sub">平均2.3天/次</text>
+            <text class="rpt-share__card-title">做了{{ yearStats?.totalRecords || 0 }}道菜</text>
+            <text class="rpt-share__card-sub">平均{{ avgFreq }}天/次</text>
           </view>
           <view class="rpt-share__card">
-            <text class="rpt-share__card-title">最常做红烧肉</text>
-            <text class="rpt-share__card-sub">23次本命菜</text>
+            <text class="rpt-share__card-title">最常做{{ top3.length ? top3[0].name : '—' }}</text>
+            <text class="rpt-share__card-sub">{{ top3.length ? top3[0].count + '次本命菜' : '记录中…' }}</text>
           </view>
         </view>
         <image class="rpt-share__guozai" src="/static/guozai/mood_01_happy.png" mode="aspectFit" />
         <view class="rpt-share__btn" @click="share">
-          <text class="rpt-share__btn-text">分享我的2026干饭报告</text>
+          <text class="rpt-share__btn-text">分享我的{{ currentYear }}干饭报告</text>
           <view class="rpt-share__qrcode"><view class="rpt-share__qr-grid" /></view>
         </view>
         <view class="rpt-share__custom">
           <view class="rpt-share__line" />
-          <text class="rpt-share__custom-text">定制我的2026干饭纪念册</text>
+          <text class="rpt-share__custom-text">定制我的{{ currentYear }}干饭纪念册</text>
           <view class="rpt-share__line" />
         </view>
       </view>
-    </scroll-view>
+      </swiper-item>
+    </swiper>
 
-    <!-- 底部翻页导航 -->
+    <!-- 上滑指引：提示下方还有内容（末页隐藏） -->
+    <view v-if="!loading && !error && currentPage < totalPages - 1" class="rpt-swipe-hint">
+      <text>上滑继续</text>
+      <text class="rpt-swipe-hint__arrow">⌄</text>
+    </view>
+
+    <!-- 底部进度指示 -->
     <view v-if="!loading && !error" class="rpt-nav">
       <view
-        class="rpt-nav__btn"
-        :class="{ 'rpt-nav__btn--disabled': currentPage === 0 }"
-        @click="prev"
-      >上一页</view>
-      <view class="rpt-nav__dots">
-        <view
-          v-for="i in totalPages"
-          :key="i"
-          class="rpt-nav__dot"
-          :class="{ 'rpt-nav__dot--active': currentPage === i - 1 }"
-          @click="goToPage(i - 1)"
-        />
-      </view>
-      <view
-        class="rpt-nav__btn rpt-nav__btn--primary"
-        :class="{ 'rpt-nav__btn--disabled': currentPage === totalPages - 1 }"
-        @click="next"
-      >下一页</view>
+        v-for="i in totalPages"
+        :key="i"
+        class="rpt-nav__dot"
+        :class="{ 'rpt-nav__dot--active': currentPage === i - 1 }"
+      />
     </view>
   </view>
 </template>
@@ -358,10 +396,47 @@ function share() {
   background: var(--mrc-bg);
   position: relative;
 }
-.report__scroll {
-  height: calc(100vh - 100rpx);
-  padding-bottom: 120rpx;
+/* 一页一屏：竖向 swiper 占满导航栏以下的可用高度 */
+.report__swiper {
+  height: calc(100vh - env(safe-area-inset-top) - 92rpx - 64rpx);
+  width: 100%;
+}
+/* 每页统一：占满 swiper-item 高度，内容纵向分布，超出裁剪 */
+.rpt-page {
+  position: relative;
+  height: 100%;
   box-sizing: border-box;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: 24rpx;
+}
+
+/* 上滑指引 */
+.rpt-swipe-hint {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 84rpx;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2rpx;
+  color: var(--mrc-text-sub);
+  font-size: 22rpx;
+  opacity: 0.85;
+  animation: rpt-hint-bounce 1.6s ease-in-out infinite;
+}
+.rpt-swipe-hint__arrow {
+  font-size: 30rpx;
+  line-height: 1;
+  color: var(--mrc-accent);
+}
+@keyframes rpt-hint-bounce {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(8rpx); }
 }
 
 /* 通用标题 */
@@ -631,7 +706,7 @@ function share() {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 10rpx;
+  gap: 12rpx;
   background: #FEF8E8;
   border-radius: 20rpx;
   padding: 20rpx;
@@ -773,7 +848,7 @@ function share() {
 .rpt-best__info {
   display: flex;
   flex-direction: column;
-  gap: 10rpx;
+  gap: 12rpx;
 }
 .rpt-best__name {
   font-size: 42rpx;
@@ -914,7 +989,7 @@ function share() {
   height: 80rpx;
   background: #fff;
   border-radius: 8rpx;
-  padding: 6rpx;
+  padding: 8rpx;
   box-sizing: border-box;
 }
 .rpt-share__qr-grid {
@@ -948,35 +1023,13 @@ function share() {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 100rpx;
-  background: rgba(255, 252, 247, 0.96);
-  backdrop-filter: blur(10px);
+  height: 64rpx;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 32rpx;
-  box-sizing: border-box;
-  border-top: 1rpx solid var(--mrc-border-light);
-  z-index: 100;
-}
-.rpt-nav__btn {
-  font-size: 30rpx;
-  color: var(--mrc-text-mid);
-  padding: 16rpx 32rpx;
-  border-radius: 40rpx;
-  background: var(--mrc-surface-2);
-}
-.rpt-nav__btn--primary {
-  background: var(--mrc-primary-grad);
-  color: #fff;
-  font-weight: 600;
-}
-.rpt-nav__btn--disabled {
-  opacity: 0.4;
-}
-.rpt-nav__dots {
-  display: flex;
+  justify-content: center;
   gap: 12rpx;
+  box-sizing: border-box;
+  z-index: 100;
 }
 .rpt-nav__dot {
   width: 14rpx;
@@ -990,4 +1043,6 @@ function share() {
   border-radius: 8rpx;
   background: var(--mrc-primary-deep);
 }
+/* 分享按钮：navbar 右侧被小程序胶囊遮挡，移到内容区右上角浮动 */
+.report__share { position: absolute; top: calc(env(safe-area-inset-top) + 92rpx); right: 24rpx; z-index: 50; width: 72rpx; height: 72rpx; border-radius: 50%; background: rgba(255, 255, 255, 0.9); box-shadow: var(--mrc-shadow-sm); display: flex; align-items: center; justify-content: center; }
 </style>

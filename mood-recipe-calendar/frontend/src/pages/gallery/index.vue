@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import { navBack } from '@/composables/useNavBar'
 import { ref, computed } from 'vue'
 import Icon from '../../components/common/Icon.vue'
-import AppNav from '../../components/common/AppNav.vue'
 import LoadingState from '../../components/guozai/LoadingState.vue'
 import ErrorState from '../../components/guozai/ErrorState.vue'
 import { ensureLogin } from '../../utils/login'
@@ -179,7 +179,7 @@ const orderTypeText: Record<string, string> = {
 <template>
   <view class="gallery-page">
     <!-- 顶部导航（通用组件：状态栏 + 胶囊避让） -->
-    <AppNav title="锅仔形象馆" /> 
+    <wd-navbar title="锅仔形象馆" left-arrow safe-area-inset-top @click-left="navBack" /> 
     <!-- Loading / Error -->
     <LoadingState v-if="loading" text="锅仔正在布置形象馆..." />
     <ErrorState v-else-if="error" :text="error" @retry="loadData" />
@@ -473,7 +473,7 @@ const orderTypeText: Record<string, string> = {
 .gallery-tab {
   flex: 1;
   text-align: center;
-  padding: 18rpx 0;
+  padding: 20rpx 0;
   border-radius: 40rpx;
   font-size: 30rpx;
   color: var(--mrc-text-sub);
@@ -526,7 +526,7 @@ const orderTypeText: Record<string, string> = {
   color: var(--mrc-text);
   display: block;
   margin-bottom: 16rpx;
-  padding-left: 14rpx;
+  padding-left: 16rpx;
   border-left: 8rpx solid var(--mrc-primary);
 }
 .asset-grid {
@@ -538,7 +538,7 @@ const orderTypeText: Record<string, string> = {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10rpx;
+  gap: 12rpx;
   background: var(--mrc-surface);
   border: 2rpx solid var(--mrc-border-light);
   border-radius: 24rpx;
@@ -672,7 +672,7 @@ const orderTypeText: Record<string, string> = {
   color: var(--mrc-accent);
   background: rgba(232, 131, 107, 0.12);
   align-self: flex-start;
-  padding: 4rpx 14rpx;
+  padding: 4rpx 16rpx;
   border-radius: 20rpx;
 }
 .order-card__no {

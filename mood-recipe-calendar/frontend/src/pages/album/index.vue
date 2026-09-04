@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import { navBack } from '@/composables/useNavBar'
+import Icon from '../../components/common/Icon.vue'
 import { ref, computed } from 'vue'
-import AppNav from '../../components/common/AppNav.vue'
 import LoadingState from '../../components/guozai/LoadingState.vue'
 import ErrorState from '../../components/guozai/ErrorState.vue'
 import { ensureLogin } from '../../utils/login'
@@ -152,7 +153,11 @@ const aiLines = computed(() => {
 
 <template>
   <view class="album-page">
-    <AppNav title="月度画册" right-icon="share" @nav-right="onShare" />
+    <wd-navbar title="月度画册" left-arrow safe-area-inset-top @click-left="navBack" />
+
+    <view class="album-page__share" @click="onShare">
+      <Icon name="share" :size="36" color="var(--mrc-text)" />
+    </view>
 
     <LoadingState v-if="loading" text="锅仔正在装订画册..." />
     <ErrorState v-else-if="error" :text="error" @retry="loadAlbum" />
@@ -472,11 +477,11 @@ const aiLines = computed(() => {
   background: var(--mrc-surface);
   border: 2rpx solid var(--mrc-border-light);
   border-radius: 32rpx;
-  padding: 26rpx 26rpx;
-  margin-bottom: 22rpx;
+  padding: 28rpx 28rpx;
+  margin-bottom: 24rpx;
   box-shadow: var(--mrc-shadow-soft);
 }
-.album-card__title { font-size: 38rpx; font-weight: 700; color: var(--mrc-text-strong); margin-bottom: 22rpx; display: block; }
+.album-card__title { font-size: 38rpx; font-weight: 700; color: var(--mrc-text-strong); margin-bottom: 24rpx; display: block; }
 .album-card__empty { text-align: center; font-size: 28rpx; color: var(--mrc-text-sub); padding: 20rpx 0; }
 
 /* 心情分布色块条 */
@@ -585,7 +590,7 @@ const aiLines = computed(() => {
 .album-share__big { display: flex; align-items: baseline; margin-bottom: 24rpx; }
 .album-share__num { font-size: 140rpx; font-weight: 700; color: var(--mrc-text-deep); line-height: 1; }
 .album-share__unit { font-size: 44rpx; color: var(--mrc-text-deep); font-weight: 600; margin-left: 8rpx; }
-.album-share__info { font-size: 34rpx; color: var(--mrc-text-strong); margin-bottom: 10rpx; }
+.album-share__info { font-size: 34rpx; color: var(--mrc-text-strong); margin-bottom: 12rpx; }
 .album-share__guozai-wrap { position: relative; width: 100%; display: flex; justify-content: center; margin-bottom: 28rpx; }
 .album-share__bubble {
   position: absolute; top: 0; left: 40rpx;
@@ -604,7 +609,7 @@ const aiLines = computed(() => {
   width: 100%;
   background: linear-gradient(135deg, var(--mrc-mood-anxious), var(--mrc-primary-deep));
   border-radius: 48rpx;
-  padding: 30rpx 36rpx;
+  padding: 32rpx 36rpx;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -612,7 +617,7 @@ const aiLines = computed(() => {
   box-shadow: 0 8rpx 24rpx rgba(253, 145, 132, 0.3);
 }
 .album-share__btn-text { font-size: 34rpx; color: #fff; font-weight: 700; }
-.album-share__qrcode { width: 80rpx; height: 80rpx; background: #fff; border-radius: 8rpx; padding: 6rpx; box-sizing: border-box; }
+.album-share__qrcode { width: 80rpx; height: 80rpx; background: #fff; border-radius: 8rpx; padding: 8rpx; box-sizing: border-box; }
 .album-share__qr-grid {
   width: 100%; height: 100%;
   background:
@@ -642,9 +647,11 @@ const aiLines = computed(() => {
   border-top: 2rpx solid var(--mrc-border-light);
   z-index: 30;
 }
-.album-nav__btn { font-size: 28rpx; color: var(--mrc-text-deep); padding: 14rpx 28rpx; background: var(--mrc-surface-2); border-radius: 32rpx; min-width: 120rpx; text-align: center; }
+.album-nav__btn { font-size: 28rpx; color: var(--mrc-text-deep); padding: 16rpx 28rpx; background: var(--mrc-surface-2); border-radius: 32rpx; min-width: 120rpx; text-align: center; }
 .album-nav__btn--primary { background: var(--mrc-primary-grad); color: #fff; }
 .album-nav__dots { display: flex; gap: 12rpx; }
 .album-nav__dot { width: 14rpx; height: 14rpx; border-radius: 50%; background: var(--mrc-border-light); }
 .album-nav__dot--active { background: var(--mrc-primary-deep); width: 32rpx; border-radius: 8rpx; }
+/* 分享按钮：navbar 右侧被小程序胶囊遮挡，移到内容区右上角浮动 */
+.album-page__share { position: absolute; top: calc(env(safe-area-inset-top) + 92rpx); right: 24rpx; z-index: 50; width: 72rpx; height: 72rpx; border-radius: 50%; background: rgba(255, 255, 255, 0.9); box-shadow: var(--mrc-shadow-sm); display: flex; align-items: center; justify-content: center; }
 </style>

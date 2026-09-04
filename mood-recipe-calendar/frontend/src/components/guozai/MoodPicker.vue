@@ -149,7 +149,7 @@ function heroTap() {
   font-weight: 700;
   color: var(--mrc-text-deep);
   margin-bottom: 20rpx;
-  padding-left: 14rpx;
+  padding-left: 16rpx;
   border-left: 8rpx solid var(--mrc-primary);
 }
 
@@ -198,7 +198,7 @@ function heroTap() {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10rpx;
+  gap: 12rpx;
   min-height: 190rpx;
   padding: 16rpx 0;
   background: var(--mrc-surface);
@@ -290,7 +290,7 @@ function heroTap() {
   color: #fff;
   font-size: 30rpx;
   font-weight: 700;
-  padding: 18rpx 34rpx;
+  padding: 20rpx 36rpx;
   border-radius: 40rpx;
   box-shadow: 0 6rpx 16rpx rgba(253, 145, 132, 0.35);
 }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import { navBack } from '@/composables/useNavBar'
 import { ref, computed } from 'vue'
-import AppNav from '../../components/common/AppNav.vue'
 import Icon from '../../components/common/Icon.vue'
 import LoadingState from '../../components/guozai/LoadingState.vue'
 import ErrorState from '../../components/guozai/ErrorState.vue'
@@ -145,7 +145,11 @@ async function purchase(product: VirtualProduct) {
 
 <template>
   <view class="recipe-page">
-    <AppNav title="AI 今日推荐" right-icon="share" @nav-right="onShare" />
+    <wd-navbar title="AI 今日推荐" left-arrow safe-area-inset-top @click-left="navBack" />
+
+    <view class="recipe-page__share" @click="onShare">
+      <Icon name="share" :size="36" color="var(--mrc-text)" />
+    </view>
 
     <!-- Loading -->
     <LoadingState v-if="loading" text="锅仔正在挑菜..." />
@@ -267,7 +271,10 @@ async function purchase(product: VirtualProduct) {
   padding: 0 32rpx;
   padding-bottom: calc(160rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
+  position: relative;
 }
+/* 分享按钮：navbar 右侧被小程序胶囊遮挡，移到内容区右上角浮动 */
+.recipe-page__share { position: absolute; top: calc(env(safe-area-inset-top) + 92rpx); right: 24rpx; z-index: 50; width: 72rpx; height: 72rpx; border-radius: 50%; background: rgba(255, 255, 255, 0.9); box-shadow: var(--mrc-shadow-sm); display: flex; align-items: center; justify-content: center; }
 .recipe-healing {
   display: block;
   font-size: 36rpx;
@@ -288,7 +295,7 @@ async function purchase(product: VirtualProduct) {
 .ai-entry {
   display: flex;
   align-items: center;
-  gap: 14rpx;
+  gap: 16rpx;
   margin: 16rpx 0 24rpx;
   padding: 16rpx 20rpx;
   background: linear-gradient(135deg, var(--mrc-surface-sun), var(--mrc-surface-peach));
@@ -355,13 +362,13 @@ async function purchase(product: VirtualProduct) {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 10rpx;
+  gap: 12rpx;
   flex-shrink: 0;
 }
 .recipe-card__time {
   display: flex;
   align-items: center;
-  gap: 6rpx;
+  gap: 8rpx;
   font-size: 26rpx;
   color: var(--mrc-text-deep);
   font-weight: 600;
@@ -370,7 +377,7 @@ async function purchase(product: VirtualProduct) {
   font-size: 22rpx;
   color: var(--mrc-text-deep);
   background: var(--mrc-surface-peach);
-  padding: 6rpx 16rpx;
+  padding: 8rpx 16rpx;
   border-radius: 20rpx;
 }
 .recipe-section {
@@ -386,7 +393,7 @@ async function purchase(product: VirtualProduct) {
   font-size: 34rpx;
   font-weight: 700;
   color: var(--mrc-text-deep);
-  padding-left: 14rpx;
+  padding-left: 16rpx;
   border-left: 8rpx solid var(--mrc-primary);
 }
 .recipe-section__toggle {
@@ -456,7 +463,7 @@ async function purchase(product: VirtualProduct) {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10rpx;
+  gap: 12rpx;
   height: 96rpx;
   border-radius: 48rpx;
   font-size: 30rpx;
@@ -492,21 +499,21 @@ async function purchase(product: VirtualProduct) {
   border-radius: 40rpx 40rpx 0 0;
   background: var(--mrc-surface);
 }
-.ai-sheet__head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 26rpx; }
+.ai-sheet__head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28rpx; }
 .ai-sheet__eyebrow { display: block; color: var(--mrc-accent); font-size: 21rpx; font-weight: 800; letter-spacing: 2rpx; }
-.ai-sheet__title { display: block; margin-top: 6rpx; color: var(--mrc-text-deep); font-size: 42rpx; font-weight: 800; }
+.ai-sheet__title { display: block; margin-top: 8rpx; color: var(--mrc-text-deep); font-size: 42rpx; font-weight: 800; }
 .ai-sheet__close { width: 64rpx; height: 64rpx; line-height: 58rpx; text-align: center; font-size: 52rpx; color: var(--mrc-text-sub); }
-.ai-field { display: flex; flex-direction: column; gap: 12rpx; margin-bottom: 18rpx; }
+.ai-field { display: flex; flex-direction: column; gap: 12rpx; margin-bottom: 20rpx; }
 .ai-field text { color: var(--mrc-text-deep); font-size: 26rpx; font-weight: 700; }
-.ai-field input { height: 82rpx; padding: 0 22rpx; box-sizing: border-box; border: 2rpx solid var(--mrc-border-light); border-radius: 20rpx; color: var(--mrc-text-deep); font-size: 27rpx; background: var(--mrc-bg); }
-.ai-sheet__cta { display: flex; align-items: center; justify-content: center; height: 94rpx; margin: 26rpx 0 30rpx; border-radius: 47rpx; background: var(--mrc-primary-grad); color: #fff; font-size: 30rpx; font-weight: 800; box-shadow: var(--mrc-shadow-coral); }
+.ai-field input { height: 82rpx; padding: 0 24rpx; box-sizing: border-box; border: 2rpx solid var(--mrc-border-light); border-radius: 20rpx; color: var(--mrc-text-deep); font-size: 27rpx; background: var(--mrc-bg); }
+.ai-sheet__cta { display: flex; align-items: center; justify-content: center; height: 94rpx; margin: 28rpx 0 32rpx; border-radius: 47rpx; background: var(--mrc-primary-grad); color: #fff; font-size: 30rpx; font-weight: 800; box-shadow: var(--mrc-shadow-coral); }
 .ai-sheet__cta--loading { opacity: 0.65; }
 .ai-products { padding-top: 24rpx; border-top: 2rpx solid var(--mrc-border-light); }
 .ai-products__title { display: block; margin-bottom: 16rpx; color: var(--mrc-text-deep); font-size: 28rpx; font-weight: 800; }
 .ai-products__hint { color: var(--mrc-text-sub); font-size: 25rpx; }
-.ai-product { display: flex; align-items: center; gap: 16rpx; padding: 18rpx 0; border-bottom: 2rpx solid var(--mrc-border-light); }
-.ai-product__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6rpx; }
+.ai-product { display: flex; align-items: center; gap: 16rpx; padding: 20rpx 0; border-bottom: 2rpx solid var(--mrc-border-light); }
+.ai-product__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8rpx; }
 .ai-product__name { color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 700; }
 .ai-product__desc { color: var(--mrc-text-sub); font-size: 21rpx; line-height: 1.45; }
-.ai-product__buy { min-width: 118rpx; padding: 16rpx 10rpx; border-radius: 32rpx; text-align: center; background: var(--mrc-surface-sun); color: var(--mrc-accent); font-size: 25rpx; font-weight: 800; }
+.ai-product__buy { min-width: 118rpx; padding: 16rpx 12rpx; border-radius: 32rpx; text-align: center; background: var(--mrc-surface-sun); color: var(--mrc-accent); font-size: 25rpx; font-weight: 800; }
 </style>

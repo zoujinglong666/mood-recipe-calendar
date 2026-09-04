@@ -51,7 +51,7 @@ withDefaults(
   flex-direction: column;
   align-items: center;
   gap: 8rpx;
-  padding: 22rpx 0;
+  padding: 24rpx 0;
   background: var(--mrc-white);
   border: 3rpx solid var(--mrc-border);
   border-radius: 20rpx;

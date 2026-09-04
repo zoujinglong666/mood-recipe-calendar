@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import { navBack } from '@/composables/useNavBar'
 import { ref } from 'vue'
-import AppNav from '../../components/common/AppNav.vue'
 import MoodPicker from '../../components/guozai/MoodPicker.vue'
 
 definePage({
@@ -22,7 +22,7 @@ function onConfirm(m: { key: string }) {
 
 <template>
   <view class="mood-page">
-    <AppNav title="选一个心情吧" show-back />
+    <wd-navbar title="选一个心情吧" left-arrow safe-area-inset-top @click-left="navBack" />
 
     <MoodPicker
       v-model="selected"

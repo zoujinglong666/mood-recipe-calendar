@@ -61,6 +61,7 @@ declare global {
   const fetchCheckinStatus: typeof import('./api/gallery')['fetchCheckinStatus']
   const fetchEntitlements: typeof import('./api/virtualCommerce')['fetchEntitlements']
   const fetchMonthAlbum: typeof import('./api/albums')['fetchMonthAlbum']
+  const fetchMyFeedback: typeof import('./api/feedback')['fetchMyFeedback']
   const fetchOrders: typeof import('./api/gallery')['fetchOrders']
   const fetchProducts: typeof import('./api/gallery')['fetchProducts']
   const fetchRecipeDetail: typeof import('./api/recipes')['fetchRecipeDetail']
@@ -98,6 +99,7 @@ declare global {
   const mapWritableState: typeof import('pinia')['mapWritableState']
   const markRaw: typeof import('vue')['markRaw']
   const mountApis: typeof import('./api/createApis')['mountApis']
+  const navBack: typeof import('./composables/useNavBar')['navBack']
   const nextTick: typeof import('vue')['nextTick']
   const onActivated: typeof import('vue')['onActivated']
   const onAddToFavorites: typeof import('@dcloudio/uni-app')['onAddToFavorites']
@@ -174,6 +176,7 @@ declare global {
   const shallowReadonly: typeof import('vue')['shallowReadonly']
   const shallowRef: typeof import('vue')['shallowRef']
   const storeToRefs: typeof import('pinia')['storeToRefs']
+  const submitFeedback: typeof import('./api/feedback')['submitFeedback']
   const subscribeSystemThemeChange: typeof import('./utils/systemTheme')['subscribeSystemThemeChange']
   const syncRef: typeof import('@vueuse/core')['syncRef']
   const syncRefs: typeof import('@vueuse/core')['syncRefs']
@@ -457,6 +460,7 @@ declare module 'vue' {
     readonly fetchCheckinStatus: UnwrapRef<typeof import('./api/gallery')['fetchCheckinStatus']>
     readonly fetchEntitlements: UnwrapRef<typeof import('./api/virtualCommerce')['fetchEntitlements']>
     readonly fetchMonthAlbum: UnwrapRef<typeof import('./api/albums')['fetchMonthAlbum']>
+    readonly fetchMyFeedback: UnwrapRef<typeof import('./api/feedback')['fetchMyFeedback']>
     readonly fetchOrders: UnwrapRef<typeof import('./api/gallery')['fetchOrders']>
     readonly fetchProducts: UnwrapRef<typeof import('./api/gallery')['fetchProducts']>
     readonly fetchRecipeDetail: UnwrapRef<typeof import('./api/recipes')['fetchRecipeDetail']>
@@ -494,6 +498,7 @@ declare module 'vue' {
     readonly mapWritableState: UnwrapRef<typeof import('pinia')['mapWritableState']>
     readonly markRaw: UnwrapRef<typeof import('vue')['markRaw']>
     readonly mountApis: UnwrapRef<typeof import('./api/createApis')['mountApis']>
+    readonly navBack: UnwrapRef<typeof import('./composables/useNavBar')['navBack']>
     readonly nextTick: UnwrapRef<typeof import('vue')['nextTick']>
     readonly onActivated: UnwrapRef<typeof import('vue')['onActivated']>
     readonly onAddToFavorites: UnwrapRef<typeof import('@dcloudio/uni-app')['onAddToFavorites']>
@@ -570,6 +575,7 @@ declare module 'vue' {
     readonly shallowReadonly: UnwrapRef<typeof import('vue')['shallowReadonly']>
     readonly shallowRef: UnwrapRef<typeof import('vue')['shallowRef']>
     readonly storeToRefs: UnwrapRef<typeof import('pinia')['storeToRefs']>
+    readonly submitFeedback: UnwrapRef<typeof import('./api/feedback')['submitFeedback']>
     readonly subscribeSystemThemeChange: UnwrapRef<typeof import('./utils/systemTheme')['subscribeSystemThemeChange']>
     readonly syncRef: UnwrapRef<typeof import('@vueuse/core')['syncRef']>
     readonly syncRefs: UnwrapRef<typeof import('@vueuse/core')['syncRefs']>

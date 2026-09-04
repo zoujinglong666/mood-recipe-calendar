@@ -7,7 +7,6 @@ export {}
 
 declare module 'vue' {
   export interface GlobalComponents {
-    CommonAppNav: typeof import('./components/common/AppNav.vue')['default']
     CommonDesignSheet: typeof import('./components/common/DesignSheet.vue')['default']
     CommonIcon: typeof import('./components/common/Icon.vue')['default']
     CommonStatRow: typeof import('./components/common/StatRow.vue')['default']
@@ -35,6 +34,7 @@ declare module 'vue' {
     WdGap: typeof import('@wot-ui/ui/components/wd-gap/wd-gap.vue')['default']
     WdIcon: typeof import('@wot-ui/ui/components/wd-icon/wd-icon.vue')['default']
     WdInput: typeof import('@wot-ui/ui/components/wd-input/wd-input.vue')['default']
+    WdNavbar: typeof import('@wot-ui/ui/components/wd-navbar/wd-navbar.vue')['default']
     WdNotify: typeof import('@wot-ui/ui/components/wd-notify/wd-notify.vue')['default']
     WdPopup: typeof import('@wot-ui/ui/components/wd-popup/wd-popup.vue')['default']
     WdTabbar: typeof import('@wot-ui/ui/components/wd-tabbar/wd-tabbar.vue')['default']

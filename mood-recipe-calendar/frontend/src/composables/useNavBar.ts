@@ -68,3 +68,20 @@ export function refreshNavMetrics(): void {
 export function useNavBar() {
   return navMetrics
 }
+
+/**
+ * 统一返回：有上级页面则 navigateBack，否则回到首页。
+ * 供 wd-navbar 的 @click-left 复用（wd-navbar 仅展示箭头，不自动执行返回）。
+ */
+export function navBack(): void {
+  try {
+    const pages = getCurrentPages()
+    if (pages.length > 1) {
+      uni.navigateBack()
+      return
+    }
+  } catch {
+    // 忽略页面栈读取失败，走默认回首页
+  }
+  uni.switchTab({ url: '/pages/index/index' })
+}

@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import { navBack } from '@/composables/useNavBar'
 import { ref, computed } from 'vue'
-import AppNav from '../../components/common/AppNav.vue'
 import Icon from '../../components/common/Icon.vue'
 import SuccessModal from '../../components/guozai/SuccessModal.vue'
 import MoodPicker from '../../components/guozai/MoodPicker.vue'
@@ -95,7 +95,7 @@ function onSuccessConfirm() {
 
 <template>
   <view class="record-page">
-    <AppNav title="记录今日伙食" />
+    <wd-navbar title="记录今日伙食" safe-area-inset-top />
 
     <!-- 拍照区 -->
     <view class="record-photo" @click="chooseImage">

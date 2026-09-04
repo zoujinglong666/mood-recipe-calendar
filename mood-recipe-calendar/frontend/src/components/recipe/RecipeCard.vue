@@ -67,7 +67,7 @@ defineProps<{
   background: rgba(255, 255, 255, 0.92);
   color: var(--mrc-accent);
   font-size: 22rpx;
-  padding: 6rpx 18rpx;
+  padding: 8rpx 20rpx;
   border-radius: 50rpx;
 }
 .recipe-card__info {

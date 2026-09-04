@@ -8,12 +8,14 @@ type _LocationUrl =
   "/pages/about/index" |
   "/pages/album/index" |
   "/pages/calendar/index" |
+  "/pages/feedback/index" |
   "/pages/gallery/index" |
   "/pages/mood/index" |
   "/pages/profile/index" |
   "/pages/recipe/index" |
   "/pages/record/index" |
   "/pages/report/index" |
+  "/pages/timeline/index" |
   "/subPages/ci/index" |
   "/subPages/create-uni/index" |
   "/subPages/feedback/index" |

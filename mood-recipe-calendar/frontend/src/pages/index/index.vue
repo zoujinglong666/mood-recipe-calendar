@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import AppNav from '../../components/common/AppNav.vue'
 import Icon from '../../components/common/Icon.vue'
 import { ensureLogin } from '../../utils/login'
 import { fetchStats, fetchRecordsByMonth, type RecordItem, type StatsResult } from '../../api/records'
@@ -53,7 +52,7 @@ function goto(name: string, q?: Record<string, string>) { router.push({ name, qu
 
 <template>
   <view class="home mrc-hero">
-    <AppNav title="心情菜谱日历" @nav-right="goto('profile')" />
+    <wd-navbar title="心情菜谱日历" safe-area-inset-top />
     <!-- 首页不展示整屏缺省图：直接渲染真实内容，数据就绪后响应式更新 -->
     <view class="home-hero" @click="bounceGuozai">
         <view class="home-hero__intro">
@@ -62,6 +61,9 @@ function goto(name: string, q?: Record<string, string>) { router.push({ name, qu
           <text class="home-hero__copy">选个心情，锅仔来配一道刚刚好的菜</text>
         </view>
         <image class="home-hero__img" :class="{ 'guozai-breathe': !isBouncing, 'guozai-bounce': isBouncing }" src="/static/guozai/action_01_bowl.png" mode="aspectFit" />
+        <view class="home-hero__profile" @click.stop="goto('profile')">
+          <image src="/static/guozai/mood_01_happy.png" mode="aspectFit" />
+        </view>
         <view class="home-hero__bubble"><text>点我，告诉我现在的心情</text><text class="home-hero__bubble-arrow">›</text></view>
         <view class="home-hero__spark home-hero__spark--one" /><view class="home-hero__spark home-hero__spark--two" />
       </view>
@@ -116,18 +118,21 @@ function goto(name: string, q?: Record<string, string>) { router.push({ name, qu
 .home-hero__title { margin-top: 12rpx; color: var(--mrc-text-strong); font-size: 40rpx; font-weight: 700; line-height: 1.3; }
 .home-hero__copy { margin-top: 12rpx; color: var(--mrc-text-sub); font-size: 24rpx; }
 .home-hero__img { position: absolute; z-index: 1; right: -26rpx; bottom: -18rpx; width: 470rpx; height: 470rpx; }
-.home-hero__bubble { position: absolute; z-index: 3; left: 34rpx; bottom: 50rpx; display: flex; align-items: center; gap: 14rpx; max-width: 460rpx; padding: 18rpx 22rpx; border: 2rpx solid rgba(255, 255, 255, 0.75); border-radius: 28rpx 28rpx 28rpx 8rpx; background: rgba(255, 252, 247, 0.94); box-shadow: var(--mrc-shadow-sm); color: var(--mrc-text-deep); font-size: 25rpx; font-weight: 600; }
+.home-hero__bubble { position: absolute; z-index: 3; left: 34rpx; bottom: 50rpx; display: flex; align-items: center; gap: 16rpx; max-width: 460rpx; padding: 20rpx 24rpx; border: 2rpx solid rgba(255, 255, 255, 0.75); border-radius: 28rpx 28rpx 28rpx 8rpx; background: rgba(255, 252, 247, 0.94); box-shadow: var(--mrc-shadow-sm); color: var(--mrc-text-deep); font-size: 25rpx; font-weight: 600; }
 .home-hero__bubble-arrow { color: var(--mrc-accent); font-size: 42rpx; line-height: 24rpx; }
 .home-hero__spark { position: absolute; z-index: 0; width: 18rpx; height: 18rpx; border-radius: 50%; background: var(--mrc-pop); }
 .home-hero__spark--one { top: 178rpx; right: 72rpx; }.home-hero__spark--two { right: 310rpx; bottom: 98rpx; width: 12rpx; height: 12rpx; background: var(--mrc-primary); }
+/* 我的入口：hero 右上角圆形锅仔头像（小程序端 navbar 右侧被胶囊遮挡，故移入内容区） */
+.home-hero__profile { position: absolute; z-index: 4; top: 24rpx; right: 24rpx; width: 76rpx; height: 76rpx; border-radius: 50%; background: rgba(255, 255, 255, 0.88); box-shadow: var(--mrc-shadow-sm); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.home-hero__profile image { width: 58rpx; height: 58rpx; }
 
 /* 唯一强 CTA，减少一页内互相抢眼的高饱和元素。 */
-.home-lucky { display: flex; align-items: center; justify-content: space-between; min-height: 156rpx; padding: 24rpx 30rpx; border-radius: 32rpx; background: var(--mrc-primary-grad); box-shadow: var(--mrc-shadow-coral), var(--mrc-gloss); box-sizing: border-box; }
+.home-lucky { display: flex; align-items: center; justify-content: space-between; min-height: 156rpx; padding: 24rpx 32rpx; border-radius: 32rpx; background: var(--mrc-primary-grad); box-shadow: var(--mrc-shadow-coral), var(--mrc-gloss); box-sizing: border-box; }
 .home-lucky__content { display: flex; align-items: center; gap: 20rpx; }.home-lucky__icon { display: flex; align-items: center; justify-content: center; width: 76rpx; height: 76rpx; border: 2rpx solid rgba(255, 255, 255, 0.38); border-radius: 24rpx; background: rgba(255, 255, 255, 0.18); }
 .home-lucky__eyebrow, .home-lucky__main, .home-lucky__sub { display: block; }.home-lucky__eyebrow { margin-bottom: 4rpx; color: rgba(255, 255, 255, 0.78); font-size: 20rpx; }.home-lucky__main { color: var(--mrc-white); font-size: 32rpx; font-weight: 700; }.home-lucky__sub { margin-top: 4rpx; color: rgba(255, 255, 255, 0.85); font-size: 24rpx; }.home-lucky__arrow { margin-left: 12rpx; color: rgba(255, 255, 255, 0.92); font-size: 56rpx; font-weight: 300; }
 
-.home-actions { display: flex; gap: 16rpx; margin: 24rpx 0 30rpx; }.home-actions__item { display: flex; flex: 1; align-items: center; justify-content: space-between; min-width: 0; height: 128rpx; padding: 0 20rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; box-shadow: var(--mrc-shadow-soft); box-sizing: border-box; }.home-actions__item--recipe { background: #fff5ea; }.home-actions__item--record { overflow: hidden; background: #eff9f3; }.home-actions__text { z-index: 1; display: flex; flex-direction: column; gap: 8rpx; }.home-actions__label { color: var(--mrc-text-sub); font-size: 21rpx; }.home-actions__name { color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 700; white-space: nowrap; }.home-actions__guozai { width: 126rpx; height: 126rpx; margin-right: -16rpx; }
+.home-actions { display: flex; gap: 16rpx; margin: 24rpx 0 32rpx; }.home-actions__item { display: flex; flex: 1; align-items: center; justify-content: space-between; min-width: 0; height: 128rpx; padding: 0 20rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; box-shadow: var(--mrc-shadow-soft); box-sizing: border-box; }.home-actions__item--recipe { background: #fff5ea; }.home-actions__item--record { overflow: hidden; background: #eff9f3; }.home-actions__text { z-index: 1; display: flex; flex-direction: column; gap: 8rpx; }.home-actions__label { color: var(--mrc-text-sub); font-size: 21rpx; }.home-actions__name { color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 700; white-space: nowrap; }.home-actions__guozai { width: 126rpx; height: 126rpx; margin-right: -16rpx; }
 
-.home-cal { padding: 28rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 32rpx; background: var(--mrc-bg-card); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }.home-cal__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22rpx; }.home-cal__date { display: block; margin-top: 4rpx; color: var(--mrc-text-deep); font-size: 32rpx; font-weight: 700; }.home-cal__more { display: flex; gap: 8rpx; color: var(--mrc-accent); font-size: 24rpx; font-weight: 600; }.home-cal__main { background: #fffdf9; border: 2rpx solid var(--mrc-border-light); border-radius: 20rpx; padding: 14rpx; }.home-cal__main-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6rpx; text-align: center; }.home-cal__main-w { padding: 6rpx 0; color: var(--mrc-text-sub); font-size: 20rpx; font-weight: 600; }.home-cal__main-cell { padding: 9rpx 0; border-radius: 12rpx; color: var(--mrc-text); font-size: 22rpx; }.home-cal__main-cell--today { background: var(--mrc-accent-soft); outline: 2rpx solid var(--mrc-accent); color: var(--mrc-accent); font-weight: 700; }.home-cal__main-cell--warm { background: #ffe7d7; }.home-cal__footer { display: flex; align-items: center; gap: 18rpx; margin-top: 20rpx; color: var(--mrc-text-sub); font-size: 24rpx; }.home-cal__legend { display: flex; align-items: center; gap: 8rpx; font-size: 21rpx; }.home-cal__dot { width: 14rpx; height: 14rpx; border-radius: 50%; }.home-cal__dot--recorded { border: 2rpx solid var(--mrc-primary); background: #ffe7d7; }.home-cal__dot--today { background: var(--mrc-accent); }.home-cal__footer-note { margin-left: auto; font-size: 21rpx; }
-.home-slogan { display: flex; align-items: center; gap: 16rpx; padding: 34rpx 12rpx 42rpx; }.home-slogan__text { flex: 0 0 auto; color: var(--mrc-text-light); font-size: 24rpx; letter-spacing: 2rpx; }.home-slogan__line { flex: 1; height: 2rpx; background: var(--mrc-border); }.home-lucky:active, .home-actions__item:active, .home-cal:active, .home-hero:active { transform: scale(0.985); }
+.home-cal { padding: 28rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 32rpx; background: var(--mrc-bg-card); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }.home-cal__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24rpx; }.home-cal__date { display: block; margin-top: 4rpx; color: var(--mrc-text-deep); font-size: 32rpx; font-weight: 700; }.home-cal__more { display: flex; gap: 8rpx; color: var(--mrc-accent); font-size: 24rpx; font-weight: 600; }.home-cal__main { background: #fffdf9; border: 2rpx solid var(--mrc-border-light); border-radius: 20rpx; padding: 16rpx; }.home-cal__main-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8rpx; text-align: center; }.home-cal__main-w { padding: 8rpx 0; color: var(--mrc-text-sub); font-size: 20rpx; font-weight: 600; }.home-cal__main-cell { padding: 8rpx 0; border-radius: 12rpx; color: var(--mrc-text); font-size: 22rpx; }.home-cal__main-cell--today { background: var(--mrc-accent-soft); outline: 2rpx solid var(--mrc-accent); color: var(--mrc-accent); font-weight: 700; }.home-cal__main-cell--warm { background: #ffe7d7; }.home-cal__footer { display: flex; align-items: center; gap: 20rpx; margin-top: 20rpx; color: var(--mrc-text-sub); font-size: 24rpx; }.home-cal__legend { display: flex; align-items: center; gap: 8rpx; font-size: 21rpx; }.home-cal__dot { width: 14rpx; height: 14rpx; border-radius: 50%; }.home-cal__dot--recorded { border: 2rpx solid var(--mrc-primary); background: #ffe7d7; }.home-cal__dot--today { background: var(--mrc-accent); }.home-cal__footer-note { margin-left: auto; font-size: 21rpx; }
+.home-slogan { display: flex; align-items: center; gap: 16rpx; padding: 36rpx 12rpx 44rpx; }.home-slogan__text { flex: 0 0 auto; color: var(--mrc-text-light); font-size: 24rpx; letter-spacing: 2rpx; }.home-slogan__line { flex: 1; height: 2rpx; background: var(--mrc-border); }.home-lucky:active, .home-actions__item:active, .home-cal:active, .home-hero:active { transform: scale(0.985); }
 </style>

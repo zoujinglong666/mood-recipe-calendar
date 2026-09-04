@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import { navBack } from '@/composables/useNavBar'
 import { computed, ref } from 'vue'
-import AppNav from '../../components/common/AppNav.vue'
 import Icon from '../../components/common/Icon.vue'
 import LoadingState from '../../components/guozai/LoadingState.vue'
 import ErrorState from '../../components/guozai/ErrorState.vue'
@@ -112,7 +112,7 @@ function goRecordFromEmpty() {
 
 <template>
   <view class="cal-page">
-    <AppNav :title="`${year}年${month}月`" />
+    <wd-navbar :title="`${year}年${month}月`" left-arrow safe-area-inset-top @click-left="navBack" />
 
     <!-- Loading -->
     <LoadingState v-if="loading" text="锅仔正在翻日历..." />
@@ -205,7 +205,7 @@ function goRecordFromEmpty() {
   background: var(--mrc-surface);
   border: 2rpx solid var(--mrc-border-light);
   border-radius: 28rpx;
-  padding: 22rpx 28rpx;
+  padding: 24rpx 28rpx;
   box-shadow: var(--mrc-shadow-soft);
   margin-bottom: 28rpx;
 }
@@ -239,7 +239,7 @@ function goRecordFromEmpty() {
   background: var(--mrc-surface);
   border: 2rpx solid var(--mrc-border-light);
   border-radius: 32rpx;
-  padding: 24rpx 20rpx 150rpx;
+  padding: 24rpx 20rpx 152rpx;
   box-shadow: var(--mrc-shadow);
   margin-bottom: 32rpx;
   overflow: hidden;

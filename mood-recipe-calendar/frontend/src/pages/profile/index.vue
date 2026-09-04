@@ -110,6 +110,9 @@ function showPrivacy() {
   uni.showModal({ title: '隐私政策', content: '我们仅在你主动记录时保存菜品、心情和图片，用于生成日历与画册；不会出售个人信息。AI 请求只使用本次生成所需的内容。你可随时联系客服申请导出或删除数据。', showCancel: false, confirmText: '我知道了' })
 }
 function goAbout() { router.push({ name: 'about' }) }
+function goTimeline() { router.push({ name: 'timeline' }) }
+function onFeedbackHint() { uni.showToast({ title: '请在微信小程序中联系锅仔', icon: 'none' }) }
+function goFeedback() { router.push({ name: 'feedback' }) }
 </script>
 
 <template>
@@ -207,7 +210,7 @@ function goAbout() { router.push({ name: 'about' }) }
 
       <!-- 历史记录列表 -->
       <view class="profile-history">
-        <view class="profile-history__head">
+        <view class="profile-history__head" @click="goTimeline">
           <text class="profile-history__month">最近记录</text>
           <text class="profile-history__arrow">›</text>
         </view>
@@ -218,6 +221,7 @@ function goAbout() { router.push({ name: 'about' }) }
           v-for="(item, i) in history"
           :key="i"
           class="profile-history__item"
+          @click="goTimeline"
         >
           <text class="profile-history__date">{{ item.recordDate?.slice(5) }}</text>
           <view class="profile-history__main">
@@ -231,13 +235,7 @@ function goAbout() { router.push({ name: 'about' }) }
       <!-- 底部链接 -->
       <view class="profile-footer">
         <text class="profile-footer__link" @click="showPrivacy">隐私政策</text>
-        <!-- 微信原生客服会话；需在小程序后台配置客服能力 -->
-        <!-- #ifdef MP-WEIXIN -->
-        <button class="profile-footer__link profile-footer__contact" open-type="contact">反馈建议</button>
-        <!-- #endif -->
-        <!-- #ifndef MP-WEIXIN -->
-        <text class="profile-footer__link" @click="uni.showToast({ title: '请在微信小程序中联系锅仔', icon: 'none' })">反馈建议</text>
-        <!-- #endif -->
+        <text class="profile-footer__link" @click="goFeedback">反馈建议</text>
         <text class="profile-footer__link" @click="goAbout">关于我们</text>
         <image class="profile-footer__guozai" src="/static/guozai/mood_01_happy.png" mode="aspectFit" />
       </view>
@@ -389,7 +387,7 @@ function goAbout() { router.push({ name: 'about' }) }
   font-size: 22rpx;
   color: var(--mrc-accent);
   background: var(--mrc-accent-soft);
-  padding: 6rpx 18rpx;
+  padding: 8rpx 20rpx;
   border-radius: 24rpx;
   font-weight: 600;
 }

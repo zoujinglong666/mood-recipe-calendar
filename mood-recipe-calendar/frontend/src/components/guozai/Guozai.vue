@@ -266,7 +266,7 @@ const moodClass = computed(() => MOOD_CLASS[props.mood] ?? props.mood)
   background: #fffcf7;
   border: 3rpx solid var(--mrc-border, #ead2b6);
   border-radius: 24rpx;
-  padding: 10rpx 22rpx;
+  padding: 12rpx 24rpx;
   font-size: 22rpx;
   color: var(--mrc-text-deep, #3d2519);
   white-space: nowrap;
