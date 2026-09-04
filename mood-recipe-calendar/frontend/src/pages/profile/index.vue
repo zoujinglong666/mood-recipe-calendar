@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import Icon from '../../components/common/Icon.vue'
-import LoadingState from '../../components/guozai/LoadingState.vue'
 import { ensureLogin, refreshUserInfo } from '../../utils/login'
 import { fetchStats, fetchRecords, type RecordItem } from '../../api/records'
 import { updateUserInfo } from '../../api/auth'
@@ -111,12 +110,8 @@ function goSettings() {
 
 <template>
   <view class="profile-page">
-    <!-- Loading -->
-    <LoadingState v-if="loading" text="锅仔正在整理你的记录..." />
-
-    <!-- 内容 -->
-    <template v-else>
-      <!-- 顶部用户信息（paddingTop 避开状态栏，右侧齿轮避开胶囊） -->
+    <!-- 我的页不展示整屏缺省图：直接渲染真实内容，数据就绪后响应式更新 -->
+    <!-- 顶部用户信息（paddingTop 避开状态栏，右侧齿轮避开胶囊） -->
       <view class="profile-header" :style="{ paddingTop: nav.statusBarHeight + 24 + 'px' }">
         <view class="profile-header__left">
           <!-- 微信小程序：头像昵称填写能力 -->
@@ -236,7 +231,6 @@ function goSettings() {
         <text class="profile-footer__link">关于我们</text>
         <image class="profile-footer__guozai" src="/static/guozai/mood_01_happy.png" mode="aspectFit" />
       </view>
-    </template>
   </view>
 </template>
 

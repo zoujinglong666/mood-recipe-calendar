@@ -2,7 +2,6 @@
 import { computed, ref } from 'vue'
 import AppNav from '../../components/common/AppNav.vue'
 import Icon from '../../components/common/Icon.vue'
-import LoadingState from '../../components/guozai/LoadingState.vue'
 import { ensureLogin } from '../../utils/login'
 import { fetchStats, fetchRecordsByMonth, type RecordItem, type StatsResult } from '../../api/records'
 
@@ -55,9 +54,8 @@ function goto(name: string, q?: Record<string, string>) { router.push({ name, qu
 <template>
   <view class="home mrc-hero">
     <AppNav title="心情菜谱日历" @nav-right="goto('profile')" />
-    <LoadingState v-if="loading" text="锅仔正在准备..." />
-    <template v-else>
-      <view class="home-hero" @click="bounceGuozai">
+    <!-- 首页不展示整屏缺省图：直接渲染真实内容，数据就绪后响应式更新 -->
+    <view class="home-hero" @click="bounceGuozai">
         <view class="home-hero__intro">
           <text class="home-hero__eyebrow">{{ dateTitle }}</text>
           <text class="home-hero__title">今天，想怎么照顾自己？</text>
@@ -106,7 +104,6 @@ function goto(name: string, q?: Record<string, string>) { router.push({ name, qu
         </view>
       </view>
       <view class="home-slogan"><view class="home-slogan__line" /><text class="home-slogan__text">好好吃饭，也好好生活</text><view class="home-slogan__line" /></view>
-    </template>
   </view>
 </template>
 
