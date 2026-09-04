@@ -68,6 +68,8 @@ declare global {
   const fetchRecords: typeof import('./api/records')['fetchRecords']
   const fetchRecordsByMonth: typeof import('./api/records')['fetchRecordsByMonth']
   const fetchStats: typeof import('./api/records')['fetchStats']
+  const fetchVirtualOrder: typeof import('./api/virtualCommerce')['fetchVirtualOrder']
+  const fetchVirtualOrders: typeof import('./api/virtualCommerce')['fetchVirtualOrders']
   const fetchVirtualProducts: typeof import('./api/virtualCommerce')['fetchVirtualProducts']
   const fetchYearStats: typeof import('./api/records')['fetchYearStats']
   const get: typeof import('./api/request')['get']
@@ -165,6 +167,7 @@ declare global {
   const refreshUserInfo: typeof import('./utils/login')['refreshUserInfo']
   const requestDeepRecipe: typeof import('./api/recipes')['requestDeepRecipe']
   const requestWechatVirtualPayment: typeof import('./api/virtualCommerce')['requestWechatVirtualPayment']
+  const resolveAssetUrl: typeof import('./api/request')['resolveAssetUrl']
   const resolveComponent: typeof import('vue')['resolveComponent']
   const resolveRef: typeof import('@vueuse/core')['resolveRef']
   const resolveUnref: typeof import('@vueuse/core')['resolveUnref']
@@ -466,6 +469,8 @@ declare module 'vue' {
     readonly fetchRecords: UnwrapRef<typeof import('./api/records')['fetchRecords']>
     readonly fetchRecordsByMonth: UnwrapRef<typeof import('./api/records')['fetchRecordsByMonth']>
     readonly fetchStats: UnwrapRef<typeof import('./api/records')['fetchStats']>
+    readonly fetchVirtualOrder: UnwrapRef<typeof import('./api/virtualCommerce')['fetchVirtualOrder']>
+    readonly fetchVirtualOrders: UnwrapRef<typeof import('./api/virtualCommerce')['fetchVirtualOrders']>
     readonly fetchVirtualProducts: UnwrapRef<typeof import('./api/virtualCommerce')['fetchVirtualProducts']>
     readonly fetchYearStats: UnwrapRef<typeof import('./api/records')['fetchYearStats']>
     readonly get: UnwrapRef<typeof import('./api/request')['get']>
@@ -563,6 +568,7 @@ declare module 'vue' {
     readonly refreshUserInfo: UnwrapRef<typeof import('./utils/login')['refreshUserInfo']>
     readonly requestDeepRecipe: UnwrapRef<typeof import('./api/recipes')['requestDeepRecipe']>
     readonly requestWechatVirtualPayment: UnwrapRef<typeof import('./api/virtualCommerce')['requestWechatVirtualPayment']>
+    readonly resolveAssetUrl: UnwrapRef<typeof import('./api/request')['resolveAssetUrl']>
     readonly resolveComponent: UnwrapRef<typeof import('vue')['resolveComponent']>
     readonly resolveRef: UnwrapRef<typeof import('@vueuse/core')['resolveRef']>
     readonly resolveUnref: UnwrapRef<typeof import('@vueuse/core')['resolveUnref']>

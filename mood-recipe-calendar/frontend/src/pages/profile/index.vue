@@ -202,9 +202,9 @@ function goFeedback() { router.push({ name: 'feedback' }) }
           <Icon name="camera" :size="44" color="var(--mrc-primary)" />
           <text class="profile-action__text">我的年度报告</text>
         </view>
-        <view class="profile-action" @click="router.push({ name: 'calendar' })">
-          <Icon name="list" :size="44" color="var(--mrc-primary)" />
-          <text class="profile-action__text">历史记录</text>
+        <view class="profile-action" @click="goTimeline">
+          <Icon name="clock" :size="44" color="var(--mrc-primary)" />
+          <text class="profile-action__text">菜谱时光机</text>
         </view>
       </view>
 

@@ -1,8 +1,9 @@
 <script lang="ts" setup>
+import { useManualTheme } from '@/composables/useManualTheme'
+
 const router = useRouter()
-
 const route = useRoute()
-
+const { theme, themeVars } = useManualTheme()
 const { activeTabbar, getTabbarItemValue, setTabbarItemActive, tabbarList } = useTabbar()
 
 function handleTabbarChange({ value }: { value: string }) {
@@ -33,35 +34,43 @@ export default {
 </script>
 
 <template>
-  <slot />
-  <wd-gap safe-area-bottom height="var(--wot-tabbar-height, 50px)" />
-  <wd-tabbar
-    :model-value="activeTabbar.name"
-    safe-area-inset-bottom
-    fixed
-    class="mrc-tabbar"
-    @change="handleTabbarChange"
-  >
-    <wd-tabbar-item
-      v-for="(item, index) in tabbarList"
-      :key="index"
-      :name="item.name"
-      :value="getTabbarItemValue(item.name)"
-      :title="item.title"
-    >
-      <template #icon="{ active }">
-        <image
-          :src="active ? item.activeIcon : item.inactiveIcon"
-          class="mrc-tabbar__icon"
-          :class="{ 'mrc-tabbar__icon--active': active, 'mrc-tabbar__icon--inactive': !active }"
-          mode="aspectFit"
-        />
-      </template>
-    </wd-tabbar-item>
-  </wd-tabbar>
+  <wd-config-provider :theme="theme" :theme-vars="themeVars">
+    <view :class="{ 'mrc-dark': theme === 'dark' }" class="mrc-layout-root">
+      <slot />
+      <wd-gap safe-area-bottom height="var(--wot-tabbar-height, 50px)" />
+      <wd-tabbar
+        :model-value="activeTabbar.name"
+        safe-area-inset-bottom
+        fixed
+        class="mrc-tabbar"
+        @change="handleTabbarChange"
+      >
+        <wd-tabbar-item
+          v-for="(item, index) in tabbarList"
+          :key="index"
+          :name="item.name"
+          :value="getTabbarItemValue(item.name)"
+          :title="item.title"
+        >
+          <template #icon="{ active }">
+            <image
+              :src="active ? item.activeIcon : item.inactiveIcon"
+              class="mrc-tabbar__icon"
+              :class="{ 'mrc-tabbar__icon--active': active, 'mrc-tabbar__icon--inactive': !active }"
+              mode="aspectFit"
+            />
+          </template>
+        </wd-tabbar-item>
+      </wd-tabbar>
+    </view>
+  </wd-config-provider>
 </template>
 
 <style lang="scss">
+.mrc-layout-root {
+  min-height: 100vh;
+  box-sizing: border-box;
+}
 .mrc-tabbar {
   --wot-tabbar-bg-color: var(--mrc-white);
   --wot-tabbar-title-color: var(--mrc-text-sub);

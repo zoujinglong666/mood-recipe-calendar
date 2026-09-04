@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { navBack } from '@/composables/useNavBar'
+import { useManualTheme } from '@/composables/useManualTheme'
 import Icon from '@/components/common/Icon.vue'
 
 definePage({
@@ -7,6 +8,15 @@ definePage({
   layout: 'tabbar',
   style: { navigationStyle: 'custom', navigationBarTitleText: '关于' },
 })
+
+const { isDark, followSystem, currentThemeColor, themeColorOptions, toggleTheme, setFollowSystem, selectThemeColor } = useManualTheme()
+
+function onDarkChange({ value }: { value: boolean }) {
+  toggleTheme(value ? 'dark' : 'light')
+}
+function onFollowChange({ value }: { value: boolean }) {
+  setFollowSystem(value)
+}
 </script>
 
 <template>
@@ -32,6 +42,49 @@ definePage({
       <view class="about-point"><view class="about-point__icon"><Icon name="heart" :size="36" color="var(--mrc-accent)" /></view><view><text class="about-point__title">隐私与数据</text><text class="about-point__text">只处理你主动提交的内容，不出售个人信息</text></view></view>
     </view>
 
+    <!-- 外观设置 -->
+    <view class="about-card about-settings">
+      <text class="about-card__title">外观设置</text>
+
+      <view class="about-settings__row">
+        <view class="about-settings__row-left">
+          <view class="about-settings__row-icon"><Icon name="moon" :size="32" color="var(--mrc-accent)" /></view>
+          <view>
+            <text class="about-settings__row-title">深色模式</text>
+            <text class="about-settings__row-sub">夜晚更护眼，锅仔也想陪你晚睡</text>
+          </view>
+        </view>
+        <wd-switch :model-value="isDark" :disabled="followSystem" @change="onDarkChange" />
+      </view>
+
+      <view class="about-settings__row">
+        <view class="about-settings__row-left">
+          <view class="about-settings__row-icon"><Icon name="phone" :size="32" color="var(--mrc-accent)" /></view>
+          <view>
+            <text class="about-settings__row-title">跟随系统</text>
+            <text class="about-settings__row-sub">开启后自动同步手机深浅色</text>
+          </view>
+        </view>
+        <wd-switch :model-value="followSystem" @change="onFollowChange" />
+      </view>
+
+      <view class="about-settings__divider" />
+
+      <view class="about-settings__colors">
+        <text class="about-settings__colors-label">主题色</text>
+        <view class="about-settings__colors-list">
+          <view
+            v-for="opt in themeColorOptions"
+            :key="opt.value"
+            class="about-settings__color-dot"
+            :class="{ 'about-settings__color-dot--active': currentThemeColor?.value === opt.value }"
+            :style="{ background: opt.primary }"
+            @click="selectThemeColor(opt)"
+          />
+        </view>
+      </view>
+    </view>
+
     <view class="about-card about-card--service">
       <image class="about-card__service-img" src="/static/guozai/action_08_peek.png" mode="aspectFit" />
       <view><text class="about-card__title">需要帮忙？</text><text class="about-card__text">在“我的”页点击反馈建议，即可联系锅仔客服。</text></view>
@@ -48,4 +101,18 @@ definePage({
 .about-card { margin-top: 24rpx; padding: 32rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); }.about-card__title { display: block; color: var(--mrc-text-deep); font-size: 34rpx; font-weight: 700; }.about-card__text { display: block; margin-top: 16rpx; color: var(--mrc-text-sub); font-size: 27rpx; line-height: 1.7; }
 .about-points { display: flex; flex-direction: column; gap: 16rpx; margin-top: 24rpx; }.about-point { display: flex; align-items: center; gap: 20rpx; padding: 24rpx; border-radius: 26rpx; background: var(--mrc-surface); border: 2rpx solid var(--mrc-border-light); }.about-point__icon { display: flex; align-items: center; justify-content: center; width: 72rpx; height: 72rpx; border-radius: 22rpx; background: var(--mrc-surface-peach); }.about-point__title, .about-point__text { display: block; }.about-point__title { color: var(--mrc-text-deep); font-size: 30rpx; font-weight: 700; }.about-point__text { margin-top: 8rpx; color: var(--mrc-text-sub); font-size: 23rpx; }.about-footer { display: flex; flex-direction: column; align-items: center; gap: 12rpx; padding: 48rpx 0 16rpx; color: var(--mrc-text-light); font-size: 22rpx; letter-spacing: 1rpx; }
 .about-card--service { display: flex; align-items: center; gap: 20rpx; }.about-card__service-img { width: 110rpx; height: 110rpx; flex-shrink: 0; }
+
+/* 外观设置 */
+.about-settings__row { display: flex; align-items: center; justify-content: space-between; padding: 20rpx 0; }
+.about-settings__row-left { display: flex; align-items: center; gap: 20rpx; flex: 1; min-width: 0; }
+.about-settings__row-icon { display: flex; align-items: center; justify-content: center; width: 64rpx; height: 64rpx; border-radius: 18rpx; background: var(--mrc-surface-peach); flex-shrink: 0; }
+.about-settings__row-title { display: block; color: var(--mrc-text-deep); font-size: 28rpx; font-weight: 700; }
+.about-settings__row-sub { display: block; margin-top: 6rpx; color: var(--mrc-text-sub); font-size: 22rpx; }
+.about-settings__divider { height: 2rpx; background: var(--mrc-border-light); margin: 12rpx 0; }
+.about-settings__colors { padding-top: 8rpx; }
+.about-settings__colors-label { display: block; color: var(--mrc-text-sub); font-size: 24rpx; font-weight: 600; margin-bottom: 20rpx; }
+.about-settings__colors-list { display: flex; gap: 24rpx; flex-wrap: wrap; }
+.about-settings__color-dot { width: 56rpx; height: 56rpx; border-radius: 50%; border: 4rpx solid transparent; box-sizing: border-box; transition: transform 0.15s ease, border-color 0.15s ease; }
+.about-settings__color-dot:active { transform: scale(0.9); }
+.about-settings__color-dot--active { border-color: var(--mrc-text-deep); transform: scale(1.1); }
 </style>

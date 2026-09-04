@@ -322,3 +322,53 @@ page {
     animation: none !important;
   }
 }
+
+/* ============================================================
+   深色模式（暖调暗夜，保持治愈感，不用纯黑）
+   ============================================================ */
+.mrc-dark {
+  --mrc-bg: #2A1F18;
+  --mrc-surface: #382A20;
+  --mrc-surface-2: #423126;
+  --mrc-surface-3: #4D392C;
+  --mrc-surface-peach: #3D2B22;
+  --mrc-surface-mint: #24332B;
+  --mrc-surface-sun: #3A2E1E;
+  --mrc-primary: #FF9D82;
+  --mrc-primary-deep: #FF7A6B;
+  --mrc-accent: #FF8A6E;
+  --mrc-accent-soft: rgba(255, 138, 110, 0.2);
+  --mrc-pop: #FFD93D;
+  --mrc-mint: #4AD4B0;
+  --mrc-blue: #8BC4EA;
+  --mrc-text: #D4BFA8;
+  --mrc-text-deep: #F0E0CC;
+  --mrc-text-strong: #FFF5E8;
+  --mrc-text-sub: #A89078;
+  --mrc-text-light: #7A6654;
+  --mrc-border: #5A4434;
+  --mrc-border-light: #4D392C;
+  --mrc-border-strong: #6B5240;
+  --mrc-shadow-sm: 0 4rpx 12rpx rgba(0, 0, 0, 0.3);
+  --mrc-shadow: 0 10rpx 28rpx rgba(0, 0, 0, 0.35);
+  --mrc-shadow-soft: 0 6rpx 18rpx rgba(0, 0, 0, 0.25);
+  --mrc-shadow-coral: 0 12rpx 26rpx rgba(255, 122, 107, 0.3);
+  --mrc-shadow-lift: 0 14rpx 34rpx rgba(0, 0, 0, 0.3);
+  --mrc-gloss: inset 0 1rpx 0 rgba(255, 255, 255, 0.08);
+  --mrc-bg-card: var(--mrc-surface);
+  --mrc-bg-bar: var(--mrc-surface-2);
+  --mrc-bg-soft: var(--mrc-surface-2);
+  --mrc-bg-warm: #3A2B20;
+  --mrc-bg-alt: #33261D;
+  --mrc-warm: #3D2B22;
+  --mrc-warm-light: #423126;
+  --mrc-brown: #8A6E55;
+  --mrc-white: #382A20;
+  --mrc-border-soft: var(--mrc-border-light);
+  --mrc-text-mid: #B89E84;
+}
+/* 深色模式下 page 背景同步 */
+page:has(.mrc-dark),
+.mrc-dark {
+  background: var(--mrc-bg);
+}

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 defineProps<{
-  name: 'camera' | 'dice' | 'heart' | 'calendar' | 'book' | 'user' | 'back' | 'cart' | 'share' | 'clock' | 'flame' | 'gear' | 'list'
+  name: 'camera' | 'dice' | 'heart' | 'calendar' | 'book' | 'user' | 'back' | 'cart' | 'share' | 'clock' | 'flame' | 'gear' | 'list' | 'moon' | 'phone'
   size?: number
   color?: string
 }>()
@@ -79,6 +79,15 @@ defineProps<{
       <rect x="8" y="10" width="32" height="6" rx="3" />
       <rect x="8" y="21" width="32" height="6" rx="3" />
       <rect x="8" y="32" width="32" height="6" rx="3" />
+    </svg>
+    <!-- 月亮（深色模式） -->
+    <svg v-else-if="name === 'moon'" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M30 8a16 16 0 1010 20 13 13 0 01-10-20z" />
+    </svg>
+    <!-- 手机（跟随系统） -->
+    <svg v-else-if="name === 'phone'" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="12" y="6" width="24" height="36" rx="4" />
+      <path d="M20 38h8" />
     </svg>
   </view>
 </template>
