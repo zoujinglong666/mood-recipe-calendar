@@ -2,8 +2,10 @@ package com.moodrecipe.backend.controller;
 
 import com.moodrecipe.backend.common.ApiResponse;
 import com.moodrecipe.backend.entity.UserRecord;
+import com.moodrecipe.backend.entity.RecipeInteraction;
 import com.moodrecipe.backend.model.RecordRequest;
 import com.moodrecipe.backend.repository.UserRecordRepository;
+import com.moodrecipe.backend.repository.RecipeInteractionRepository;
 import jakarta.validation.Valid;
 import com.moodrecipe.backend.config.SessionAuthInterceptor;
 import org.springframework.web.bind.annotation.*;
@@ -18,10 +20,12 @@ import java.util.stream.Collectors;
 public class RecordController {
 
     private final UserRecordRepository repository;
+    private final RecipeInteractionRepository recipeInteractions;
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
-    public RecordController(UserRecordRepository repository) {
+    public RecordController(UserRecordRepository repository, RecipeInteractionRepository recipeInteractions) {
         this.repository = repository;
+        this.recipeInteractions = recipeInteractions;
     }
 
     /** 保存一条记录 */
@@ -36,7 +40,19 @@ public class RecordController {
         record.setRecipeId(req.recipeId() != null ? String.valueOf(req.recipeId()) : null);
         record.setCookingTime(req.cookingTime());
         record.setRecordDate(req.recordDate() != null ? req.recordDate() : LocalDate.now().format(DATE_FMT));
-        return ApiResponse.ok(repository.save(record));
+        UserRecord saved = repository.save(record);
+        try {
+            if (req.recipeId() != null && !req.recipeId().isBlank()) {
+                RecipeInteraction interaction = new RecipeInteraction();
+                interaction.setOpenid(openid);
+                interaction.setRecipeId(Long.valueOf(req.recipeId()));
+                interaction.setAction("MADE");
+                recipeInteractions.save(interaction);
+            }
+        } catch (NumberFormatException ignored) {
+            // AI 临时菜谱没有持久化 id，仍保留用户的做菜记录。
+        }
+        return ApiResponse.ok(saved);
     }
 
     /** 某用户全部记录 */

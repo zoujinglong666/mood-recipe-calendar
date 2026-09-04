@@ -2,6 +2,8 @@ package com.moodrecipe.backend.controller;
 
 import com.moodrecipe.backend.common.ApiResponse;
 import com.moodrecipe.backend.entity.Recipe;
+import com.moodrecipe.backend.entity.RecipeInteraction;
+import com.moodrecipe.backend.repository.RecipeInteractionRepository;
 import com.moodrecipe.backend.repository.RecipeRepository;
 import com.moodrecipe.backend.service.AiRecipeService;
 import com.moodrecipe.backend.service.VirtualCommerceService;
@@ -9,19 +11,22 @@ import com.moodrecipe.backend.service.OperationalEventService;
 import com.moodrecipe.backend.config.SessionAuthInterceptor;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/recipes")
 public class RecipeController {
 
     private final RecipeRepository repository;
+    private final RecipeInteractionRepository interactions;
     private final AiRecipeService aiRecipeService;
     private final VirtualCommerceService virtualCommerceService;
     private final OperationalEventService operationalEvents;
 
-    public RecipeController(RecipeRepository repository, AiRecipeService aiRecipeService, VirtualCommerceService virtualCommerceService, OperationalEventService operationalEvents) {
+    public RecipeController(RecipeRepository repository, RecipeInteractionRepository interactions, AiRecipeService aiRecipeService, VirtualCommerceService virtualCommerceService, OperationalEventService operationalEvents) {
         this.repository = repository;
+        this.interactions = interactions;
         this.aiRecipeService = aiRecipeService;
         this.virtualCommerceService = virtualCommerceService;
         this.operationalEvents = operationalEvents;
@@ -33,21 +38,55 @@ public class RecipeController {
         return ApiResponse.ok(repository.findAll());
     }
 
-    /** 按心情优先使用 AI 生成；AI 未配置或失败时回退到菜谱库。 */
+    /** 基础推荐：排除拒绝与最近看过的菜，并根据真实反馈排序。 */
     @GetMapping("/recommend")
-    public ApiResponse<Recipe> recommend(@RequestParam(defaultValue = "平静") String mood) {
-        Recipe recipe = aiRecipeService.recommend(mood).orElse(null);
-        if (recipe != null) return ApiResponse.ok(recipe);
+    public ApiResponse<Recipe> recommend(
+            @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
+            @RequestParam(defaultValue = "平静") String mood) {
+        List<RecipeInteraction> history = interactions.findTop30ByOpenidOrderByCreatedAtDesc(openid);
+        Set<Long> rejected = interactions.findByOpenidAndAction(openid, "DISLIKE").stream()
+                .map(RecipeInteraction::getRecipeId).collect(Collectors.toSet());
+        Set<Long> recentlyShown = history.stream().filter(i -> "SHOWN".equals(i.getAction())).limit(8)
+                .map(RecipeInteraction::getRecipeId).collect(Collectors.toSet());
+        Map<Long, Integer> score = new HashMap<>();
+        history.forEach(i -> score.merge(i.getRecipeId(), switch (i.getAction()) {
+            case "LIKE" -> 3;
+            case "MADE" -> 5;
+            default -> 0;
+        }, Integer::sum));
 
-        recipe = repository.findRandomByMood(mood);
-        if (recipe == null) {
-            // 没有匹配的心情，随机返回一道
-            List<Recipe> all = repository.findAll();
-            if (!all.isEmpty()) {
-                recipe = all.get((int) (Math.random() * all.size()));
-            }
-        }
+        List<Recipe> candidates = repository.findByMoodTag(mood).stream()
+                .filter(r -> !rejected.contains(r.getId())).toList();
+        if (candidates.isEmpty()) candidates = repository.findAll().stream()
+                .filter(r -> !rejected.contains(r.getId())).toList();
+        List<Recipe> unseen = candidates.stream().filter(r -> !recentlyShown.contains(r.getId())).toList();
+        if (!unseen.isEmpty()) candidates = unseen;
+        Recipe recipe = candidates.stream()
+                .max(Comparator.comparingInt(r -> score.getOrDefault(r.getId(), 0))
+                        .thenComparing(Recipe::getId, Comparator.reverseOrder()))
+                .orElse(null);
+        if (recipe != null) recordInteraction(openid, recipe.getId(), "SHOWN");
         return ApiResponse.ok(recipe);
+    }
+
+    @PostMapping("/{id}/feedback")
+    public ApiResponse<Void> feedback(@PathVariable Long id,
+            @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
+            @RequestBody RecipeFeedbackRequest request) {
+        if (!repository.existsById(id)) return ApiResponse.error(404, "菜谱不存在");
+        if (request == null || !Set.of("LIKE", "DISLIKE", "MADE").contains(request.action())) {
+            return ApiResponse.error(400, "反馈类型无效");
+        }
+        recordInteraction(openid, id, request.action());
+        return ApiResponse.ok(null);
+    }
+
+    private void recordInteraction(String openid, Long recipeId, String action) {
+        RecipeInteraction interaction = new RecipeInteraction();
+        interaction.setOpenid(openid);
+        interaction.setRecipeId(recipeId);
+        interaction.setAction(action);
+        interactions.save(interaction);
     }
 
     /** 已购 AI 私人菜单权益的深度推荐入口。 */
@@ -89,4 +128,5 @@ public class RecipeController {
     }
 
     public record DeepRecommendRequest(String mood, String ingredients, String maxMinutes, String preference) { }
+    public record RecipeFeedbackRequest(String action) { }
 }
