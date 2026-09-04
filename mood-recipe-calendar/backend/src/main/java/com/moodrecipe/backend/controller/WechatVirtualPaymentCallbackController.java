@@ -5,7 +5,7 @@ import com.moodrecipe.backend.entity.VirtualProduct;
 import com.moodrecipe.backend.repository.VirtualOrderRepository;
 import com.moodrecipe.backend.repository.VirtualProductRepository;
 import com.moodrecipe.backend.service.VirtualCommerceService;
-import org.springframework.beans.factory.annotation.Value;
+import com.moodrecipe.backend.service.WechatMessageCrypto;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,10 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.util.Map;
-import java.util.TreeSet;
 
 /** 微信小程序消息推送中的虚拟支付异步发货入口。 */
 @RestController
@@ -28,18 +25,18 @@ public class WechatVirtualPaymentCallbackController {
     private final VirtualOrderRepository orderRepository;
     private final VirtualProductRepository productRepository;
     private final VirtualCommerceService commerceService;
-
-    @Value("${wechat.message-push.token:}")
-    private String messageToken;
+    private final WechatMessageCrypto messageCrypto;
 
     public WechatVirtualPaymentCallbackController(
             VirtualOrderRepository orderRepository,
             VirtualProductRepository productRepository,
-            VirtualCommerceService commerceService
+            VirtualCommerceService commerceService,
+            WechatMessageCrypto messageCrypto
     ) {
         this.orderRepository = orderRepository;
         this.productRepository = productRepository;
         this.commerceService = commerceService;
+        this.messageCrypto = messageCrypto;
     }
 
     /** 微信后台首次配置消息推送 URL 时的握手校验。 */
@@ -50,7 +47,7 @@ public class WechatVirtualPaymentCallbackController {
             @RequestParam("nonce") String nonce,
             @RequestParam("echostr") String echostr
     ) {
-        return verifySignature(signature, timestamp, nonce)
+        return messageCrypto.verify(signature, timestamp, nonce, null)
                 ? ResponseEntity.ok(echostr)
                 : ResponseEntity.status(HttpStatus.FORBIDDEN).body("invalid signature");
     }
@@ -66,10 +63,13 @@ public class WechatVirtualPaymentCallbackController {
             @RequestParam("nonce") String nonce,
             @RequestBody Map<String, Object> body
     ) {
-        if (!verifySignature(signature, timestamp, nonce)) {
+        String encrypted = stringValue(body.get("Encrypt"));
+        if (encrypted == null) encrypted = stringValue(body.get("encrypt"));
+        if (!messageCrypto.verify(signature, timestamp, nonce, encrypted)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(fail("invalid signature"));
         }
         try {
+            if (encrypted != null) body = messageCrypto.decryptJson(encrypted);
             if (!"xpay_goods_deliver_notify".equals(String.valueOf(body.get("Event")))) {
                 return ResponseEntity.ok(ok());
             }
@@ -97,20 +97,8 @@ public class WechatVirtualPaymentCallbackController {
         }
     }
 
-    private boolean verifySignature(String signature, String timestamp, String nonce) {
-        if (messageToken == null || messageToken.isBlank()) return false;
-        try {
-            TreeSet<String> values = new TreeSet<>();
-            values.add(messageToken);
-            values.add(timestamp);
-            values.add(nonce);
-            String digest = java.util.HexFormat.of().formatHex(
-                    MessageDigest.getInstance("SHA-1").digest(String.join("", values).getBytes(StandardCharsets.UTF_8))
-            );
-            return MessageDigest.isEqual(digest.getBytes(StandardCharsets.UTF_8), signature.getBytes(StandardCharsets.UTF_8));
-        } catch (Exception exception) {
-            return false;
-        }
+    private String stringValue(Object value) {
+        return value == null || String.valueOf(value).isBlank() ? null : String.valueOf(value);
     }
 
     @SuppressWarnings("unchecked")

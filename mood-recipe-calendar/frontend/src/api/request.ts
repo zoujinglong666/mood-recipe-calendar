@@ -10,6 +10,11 @@ export interface ApiResult<T = any> {
   data: T
 }
 
+function authHeader() {
+  const token = uni.getStorageSync('sessionToken')
+  return token ? { 'X-Session-Token': String(token) } : {}
+}
+
 /**
  * 通用 GET 请求
  */
@@ -23,7 +28,7 @@ export function get<T = any>(url: string, params?: Record<string, any>): Promise
       : ''
     uni.request({
       url: BASE_URL + url + query,
-      method: 'GET',
+      method: 'GET', header: authHeader(),
       success: (res: any) => {
         const data = res.data as ApiResult<T>
         if (data && data.code === 0) {
@@ -46,7 +51,7 @@ export function post<T = any>(url: string, data?: any): Promise<T> {
       url: BASE_URL + url,
       method: 'POST',
       data,
-      header: { 'Content-Type': 'application/json' },
+      header: { 'Content-Type': 'application/json', ...authHeader() },
       success: (res: any) => {
         const result = res.data as ApiResult<T>
         if (result && result.code === 0) {
@@ -69,7 +74,7 @@ export function put<T = any>(url: string, data?: any): Promise<T> {
       url: BASE_URL + url,
       method: 'PUT',
       data,
-      header: { 'Content-Type': 'application/json' },
+      header: { 'Content-Type': 'application/json', ...authHeader() },
       success: (res: any) => {
         const result = res.data as ApiResult<T>
         if (result && result.code === 0) {
@@ -90,7 +95,7 @@ export function del<T = any>(url: string): Promise<T> {
   return new Promise((resolve, reject) => {
     uni.request({
       url: BASE_URL + url,
-      method: 'DELETE',
+      method: 'DELETE', header: authHeader(),
       success: (res: any) => {
         const result = res.data as ApiResult<T>
         if (result && result.code === 0) {
@@ -113,6 +118,7 @@ export function uploadFile(filePath: string): Promise<{ url: string; filename: s
       url: BASE_URL + '/upload/image',
       filePath,
       name: 'file',
+      header: authHeader(),
       success: (res: any) => {
         try {
           const result = JSON.parse(res.data) as ApiResult<{ url: string; filename: string }>

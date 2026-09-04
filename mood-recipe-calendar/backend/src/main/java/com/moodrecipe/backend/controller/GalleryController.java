@@ -6,9 +6,9 @@ import com.moodrecipe.backend.entity.ShopOrder;
 import com.moodrecipe.backend.repository.ProductRepository;
 import com.moodrecipe.backend.repository.ShopOrderRepository;
 import com.moodrecipe.backend.service.GalleryService;
+import com.moodrecipe.backend.config.SessionAuthInterceptor;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -40,15 +40,13 @@ public class GalleryController {
 
     /** 今日签到 POST /api/gallery/checkin body: { openid } */
     @PostMapping("/checkin")
-    public ApiResponse<Map<String, Object>> checkin(@RequestBody Map<String, String> body) {
-        String openid = body.get("openid");
-        if (openid == null || openid.isEmpty()) return ApiResponse.error("openid 不能为空");
+    public ApiResponse<Map<String, Object>> checkin(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
         return ApiResponse.ok(galleryService.checkin(openid));
     }
 
     /** 签到状态 GET /api/gallery/checkin/status?openid= */
     @GetMapping("/checkin/status")
-    public ApiResponse<Map<String, Object>> checkinStatus(@RequestParam String openid) {
+    public ApiResponse<Map<String, Object>> checkinStatus(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
         return ApiResponse.ok(galleryService.checkinStatus(openid));
     }
 
@@ -57,10 +55,8 @@ public class GalleryController {
      * payType: normal 原价购买 / exchange 1元兑换（需连续签到30天）
      */
     @PostMapping("/orders")
-    public ApiResponse<ShopOrder> createOrder(@RequestBody Map<String, Object> body) {
-        String openid = (String) body.get("openid");
+    public ApiResponse<ShopOrder> createOrder(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @RequestBody Map<String, Object> body) {
         Object pid = body.get("productId");
-        if (openid == null || openid.isEmpty()) return ApiResponse.error("openid 不能为空");
         if (pid == null) return ApiResponse.error("productId 不能为空");
         try {
             ShopOrder order = galleryService.createOrder(openid, Long.valueOf(String.valueOf(pid)), (String) body.get("payType"));
@@ -72,26 +68,8 @@ public class GalleryController {
 
     /** 我的订单 GET /api/gallery/orders?openid= */
     @GetMapping("/orders")
-    public ApiResponse<List<ShopOrder>> myOrders(@RequestParam String openid) {
+    public ApiResponse<List<ShopOrder>> myOrders(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
         return ApiResponse.ok(shopOrderRepository.findByOpenidOrderByCreatedAtDesc(openid));
     }
 
-    /**
-     * 确认支付成功 POST /api/gallery/orders/{id}/pay
-     * 【真实接入】小程序端调微信虚拟支付（uni.requestPayment / wx.requestVirtualPayment）后，
-     * 由微信支付回调验证，此处为联调入口。
-     */
-    @PostMapping("/orders/{id}/pay")
-    public ApiResponse<Map<String, Object>> pay(@PathVariable Long id) {
-        try {
-            ShopOrder order = galleryService.markPaid(id);
-            Map<String, Object> res = new HashMap<>();
-            res.put("orderId", order.getId());
-            res.put("status", order.getStatus());
-            res.put("amount", order.getAmount());
-            return ApiResponse.ok(res);
-        } catch (Exception e) {
-            return ApiResponse.error(e.getMessage());
-        }
-    }
 }

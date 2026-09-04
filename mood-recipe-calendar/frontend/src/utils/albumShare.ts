@@ -153,6 +153,7 @@ export async function exportAlbumShare(data: AlbumShareData, canvasId = 'shareCa
   const tempPath = await new Promise<string>((resolve, reject) => {
     uni.canvasToTempFilePath(
       {
+        canvasId,
         canvas,
         width: W * dpr,
         height: H * dpr,

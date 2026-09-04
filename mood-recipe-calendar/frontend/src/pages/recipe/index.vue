@@ -4,7 +4,9 @@ import AppNav from '../../components/common/AppNav.vue'
 import Icon from '../../components/common/Icon.vue'
 import LoadingState from '../../components/guozai/LoadingState.vue'
 import ErrorState from '../../components/guozai/ErrorState.vue'
-import { recommendRecipe, type RecipeItem } from '../../api/recipes'
+import { recommendRecipe, requestDeepRecipe, type RecipeItem } from '../../api/recipes'
+import { createVirtualOrder, fetchVirtualProducts, getVirtualPaymentParams, requestWechatVirtualPayment, type VirtualProduct } from '../../api/virtualCommerce'
+import { ensureLogin } from '../../utils/login'
 
 definePage({
   name: 'recipe',
@@ -35,6 +37,14 @@ const loading = ref(true)
 const error = ref('')
 const recipe = ref<RecipeItem | null>(null)
 const showSteps = ref(false)
+const showAiPanel = ref(false)
+const deepIngredients = ref('')
+const deepMinutes = ref('30')
+const deepPreference = ref('')
+const deepLoading = ref(false)
+const productsLoading = ref(false)
+const purchasingSku = ref('')
+const aiProducts = ref<VirtualProduct[]>([])
 
 const ingredients = computed(() => {
   if (!recipe.value?.ingredients) return []
@@ -67,8 +77,70 @@ function goRecord() {
   if (!recipe.value) return
   router.push({ name: 'record', query: { dish: recipe.value.name, mood: mood.value } })
 }
-function goBuy() { uni.showToast({ title: '跳转买菜平台', icon: 'none' }) }
-function onShare() { uni.showToast({ title: '分享功能', icon: 'none' }) }
+function goBuy() { openAiPanel() }
+function onShare() {
+  // #ifdef MP-WEIXIN
+  ;(uni as any).showShareMenu({ menus: ['shareAppMessage', 'shareTimeline'] })
+  uni.showToast({ title: '可以从右上角分享给好友', icon: 'none' })
+  // #endif
+  // #ifndef MP-WEIXIN
+  uni.showToast({ title: '请在微信小程序中分享给好友', icon: 'none' })
+  // #endif
+}
+
+async function openAiPanel() {
+  showAiPanel.value = true
+  if (aiProducts.value.length || productsLoading.value) return
+  productsLoading.value = true
+  try {
+    aiProducts.value = await fetchVirtualProducts()
+  } catch (e: any) {
+    uni.showToast({ title: e.message || '权益加载失败，请稍后重试', icon: 'none' })
+  } finally {
+    productsLoading.value = false
+  }
+}
+
+async function requestPersonalMenu() {
+  deepLoading.value = true
+  try {
+    const openid = await ensureLogin()
+    recipe.value = await requestDeepRecipe({
+      openid,
+      mood: mood.value,
+      ingredients: deepIngredients.value.trim(),
+      maxMinutes: deepMinutes.value.trim(),
+      preference: deepPreference.value.trim(),
+    })
+    showAiPanel.value = false
+    showSteps.value = false
+    uni.showToast({ title: '锅仔为你做好专属菜单啦', icon: 'success' })
+  } catch (e: any) {
+    const message = e.message || '生成失败，请稍后重试'
+    if (message.includes('解锁')) {
+      uni.showToast({ title: '先解锁私人菜单，就能按食材定制', icon: 'none' })
+    } else {
+      uni.showToast({ title: message, icon: 'none' })
+    }
+  } finally {
+    deepLoading.value = false
+  }
+}
+
+async function purchase(product: VirtualProduct) {
+  purchasingSku.value = product.sku
+  try {
+    const openid = await ensureLogin()
+    const order = await createVirtualOrder(openid, product.sku)
+    const params = await getVirtualPaymentParams(openid, order.orderNo)
+    await requestWechatVirtualPayment(params)
+    uni.showToast({ title: '支付已提交，权益到账后即可使用', icon: 'none' })
+  } catch (e: any) {
+    uni.showToast({ title: e.message || '暂时无法发起支付', icon: 'none' })
+  } finally {
+    purchasingSku.value = ''
+  }
+}
 </script>
 
 <template>
@@ -85,6 +157,15 @@ function onShare() { uni.showToast({ title: '分享功能', icon: 'none' }) }
     <template v-else-if="recipe">
       <text class="recipe-kicker">锅仔 AI 为你配的这一餐</text>
       <text class="recipe-healing">{{ healingText }}</text>
+
+      <view class="ai-entry" @click="openAiPanel">
+        <image class="ai-entry__img" src="/static/guozai/action_10_thinking.png" mode="aspectFit" />
+        <view class="ai-entry__main">
+          <text class="ai-entry__title">让锅仔按你的食材来配菜</text>
+          <text class="ai-entry__sub">说说家里有什么、想吃多快、有哪些忌口</text>
+        </view>
+        <text class="ai-entry__arrow">›</text>
+      </view>
 
       <view class="recipe-hero">
         <image class="recipe-hero__img guozai-breathe" src="/static/guozai/action_02_soup.png" mode="aspectFit" />
@@ -128,11 +209,51 @@ function onShare() { uni.showToast({ title: '分享功能', icon: 'none' }) }
       <view class="recipe-bottom">
         <view class="recipe-btn recipe-btn--primary" @click="goBuy">
           <Icon name="cart" :size="36" color="#fff" />
-          <text>一键购食材</text>
+          <text>定制这一餐</text>
         </view>
         <view class="recipe-btn recipe-btn--ghost" @click="goRecord">
           <text>我做了这道菜</text>
           <Icon name="camera" :size="36" color="var(--mrc-text-deep)" />
+        </view>
+      </view>
+
+      <view v-if="showAiPanel" class="ai-mask" @click.self="showAiPanel = false">
+        <view class="ai-sheet">
+          <view class="ai-sheet__head">
+            <view>
+              <text class="ai-sheet__eyebrow">锅仔 AI 私人菜单</text>
+              <text class="ai-sheet__title">今天想怎么吃？</text>
+            </view>
+            <text class="ai-sheet__close" @click="showAiPanel = false">×</text>
+          </view>
+          <view class="ai-field">
+            <text>已有食材</text>
+            <input v-model="deepIngredients" placeholder="例如：鸡蛋、番茄、面条" :maxlength="80" />
+          </view>
+          <view class="ai-field">
+            <text>最多花几分钟</text>
+            <input v-model="deepMinutes" type="number" placeholder="例如：30" :maxlength="3" />
+          </view>
+          <view class="ai-field">
+            <text>口味与忌口</text>
+            <input v-model="deepPreference" placeholder="例如：少辣、不吃香菜" :maxlength="80" />
+          </view>
+          <view class="ai-sheet__cta" :class="{ 'ai-sheet__cta--loading': deepLoading }" @click="requestPersonalMenu">
+            {{ deepLoading ? '锅仔正在思考…' : '生成我的专属菜单' }}
+          </view>
+          <view class="ai-products">
+            <text class="ai-products__title">还没有权益？先解锁</text>
+            <view v-if="productsLoading" class="ai-products__hint">正在加载可用权益…</view>
+            <view v-for="product in aiProducts" :key="product.sku" class="ai-product">
+              <view class="ai-product__main">
+                <text class="ai-product__name">{{ product.title }}</text>
+                <text class="ai-product__desc">{{ product.description }}</text>
+              </view>
+              <view class="ai-product__buy" @click="purchase(product)">
+                {{ purchasingSku === product.sku ? '发起中' : `¥${(product.priceFen / 100).toFixed(2)}` }}
+              </view>
+            </view>
+          </view>
         </view>
       </view>
     </template>
@@ -164,6 +285,23 @@ function onShare() { uni.showToast({ title: '分享功能', icon: 'none' }) }
   font-weight: 700;
   letter-spacing: 2rpx;
 }
+.ai-entry {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  margin: 16rpx 0 24rpx;
+  padding: 16rpx 20rpx;
+  background: linear-gradient(135deg, var(--mrc-surface-sun), var(--mrc-surface-peach));
+  border: 2rpx solid var(--mrc-border);
+  border-radius: 28rpx;
+  box-shadow: var(--mrc-shadow-soft);
+}
+.ai-entry:active { transform: scale(0.98); }
+.ai-entry__img { width: 84rpx; height: 84rpx; flex-shrink: 0; }
+.ai-entry__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4rpx; }
+.ai-entry__title { font-size: 28rpx; font-weight: 800; color: var(--mrc-text-deep); }
+.ai-entry__sub { font-size: 22rpx; color: var(--mrc-text-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ai-entry__arrow { font-size: 42rpx; color: var(--mrc-accent); }
 .recipe-hero {
   position: relative;
   display: flex;
@@ -337,4 +475,38 @@ function onShare() { uni.showToast({ title: '分享功能', icon: 'none' }) }
 .recipe-btn:active {
   transform: scale(0.97);
 }
+.ai-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(54, 35, 22, 0.48);
+}
+.ai-sheet {
+  width: 100%;
+  max-height: 86vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 32rpx 32rpx calc(32rpx + env(safe-area-inset-bottom));
+  border-radius: 40rpx 40rpx 0 0;
+  background: var(--mrc-surface);
+}
+.ai-sheet__head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 26rpx; }
+.ai-sheet__eyebrow { display: block; color: var(--mrc-accent); font-size: 21rpx; font-weight: 800; letter-spacing: 2rpx; }
+.ai-sheet__title { display: block; margin-top: 6rpx; color: var(--mrc-text-deep); font-size: 42rpx; font-weight: 800; }
+.ai-sheet__close { width: 64rpx; height: 64rpx; line-height: 58rpx; text-align: center; font-size: 52rpx; color: var(--mrc-text-sub); }
+.ai-field { display: flex; flex-direction: column; gap: 12rpx; margin-bottom: 18rpx; }
+.ai-field text { color: var(--mrc-text-deep); font-size: 26rpx; font-weight: 700; }
+.ai-field input { height: 82rpx; padding: 0 22rpx; box-sizing: border-box; border: 2rpx solid var(--mrc-border-light); border-radius: 20rpx; color: var(--mrc-text-deep); font-size: 27rpx; background: var(--mrc-bg); }
+.ai-sheet__cta { display: flex; align-items: center; justify-content: center; height: 94rpx; margin: 26rpx 0 30rpx; border-radius: 47rpx; background: var(--mrc-primary-grad); color: #fff; font-size: 30rpx; font-weight: 800; box-shadow: var(--mrc-shadow-coral); }
+.ai-sheet__cta--loading { opacity: 0.65; }
+.ai-products { padding-top: 24rpx; border-top: 2rpx solid var(--mrc-border-light); }
+.ai-products__title { display: block; margin-bottom: 16rpx; color: var(--mrc-text-deep); font-size: 28rpx; font-weight: 800; }
+.ai-products__hint { color: var(--mrc-text-sub); font-size: 25rpx; }
+.ai-product { display: flex; align-items: center; gap: 16rpx; padding: 18rpx 0; border-bottom: 2rpx solid var(--mrc-border-light); }
+.ai-product__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6rpx; }
+.ai-product__name { color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 700; }
+.ai-product__desc { color: var(--mrc-text-sub); font-size: 21rpx; line-height: 1.45; }
+.ai-product__buy { min-width: 118rpx; padding: 16rpx 10rpx; border-radius: 32rpx; text-align: center; background: var(--mrc-surface-sun); color: var(--mrc-accent); font-size: 25rpx; font-weight: 800; }
 </style>

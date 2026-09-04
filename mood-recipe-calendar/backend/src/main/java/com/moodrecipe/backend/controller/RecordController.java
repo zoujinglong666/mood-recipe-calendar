@@ -5,6 +5,7 @@ import com.moodrecipe.backend.entity.UserRecord;
 import com.moodrecipe.backend.model.RecordRequest;
 import com.moodrecipe.backend.repository.UserRecordRepository;
 import jakarta.validation.Valid;
+import com.moodrecipe.backend.config.SessionAuthInterceptor;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -25,9 +26,9 @@ public class RecordController {
 
     /** 保存一条记录 */
     @PostMapping
-    public ApiResponse<UserRecord> save(@Valid @RequestBody RecordRequest req) {
+    public ApiResponse<UserRecord> save(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @Valid @RequestBody RecordRequest req) {
         UserRecord record = new UserRecord();
-        record.setOpenid(req.openid());
+        record.setOpenid(openid);
         record.setImageUrl(req.imageUrl());
         record.setDishName(req.dishName());
         record.setMoodTag(req.moodTag());
@@ -40,20 +41,23 @@ public class RecordController {
 
     /** 某用户全部记录 */
     @GetMapping
-    public ApiResponse<List<UserRecord>> list(@RequestParam String openid) {
+    public ApiResponse<List<UserRecord>> list(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
         return ApiResponse.ok(repository.findByOpenidOrderByCreatedAtDesc(openid));
     }
 
     /** 某用户某月记录 */
     @GetMapping("/month")
-    public ApiResponse<List<UserRecord>> byMonth(@RequestParam String openid, @RequestParam String month) {
+    public ApiResponse<List<UserRecord>> byMonth(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @RequestParam String month) {
         return ApiResponse.ok(repository.findByOpenidAndRecordDateStartingWith(openid, month));
     }
 
     /** 删除记录 */
     @DeleteMapping("/{id}")
-    public ApiResponse<Map<String, Object>> delete(@PathVariable Long id) {
-        repository.deleteById(id);
+    public ApiResponse<Map<String, Object>> delete(@PathVariable Long id, @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
+        UserRecord record = repository.findById(id).orElse(null);
+        if (record == null) return ApiResponse.error(404, "记录不存在");
+        if (!openid.equals(record.getOpenid())) return ApiResponse.error(403, "无权删除该记录");
+        repository.delete(record);
         Map<String, Object> res = new LinkedHashMap<>();
         res.put("deleted", true);
         res.put("id", id);
@@ -62,7 +66,7 @@ public class RecordController {
 
     /** 综合统计（总记录/天数/心情分布/连续打卡/最常做菜） */
     @GetMapping("/stats")
-    public ApiResponse<Map<String, Object>> stats(@RequestParam String openid) {
+    public ApiResponse<Map<String, Object>> stats(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
         List<UserRecord> all = repository.findByOpenidOrderByCreatedAtDesc(openid);
         Map<String, Object> res = new LinkedHashMap<>();
 
@@ -102,7 +106,7 @@ public class RecordController {
 
     /** 年度统计 */
     @GetMapping("/year-stats")
-    public ApiResponse<Map<String, Object>> yearStats(@RequestParam String openid, @RequestParam int year) {
+    public ApiResponse<Map<String, Object>> yearStats(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @RequestParam int year) {
         String yearPrefix = String.valueOf(year);
         List<UserRecord> yearRecords = repository.findByOpenidOrderByCreatedAtDesc(openid).stream()
             .filter(r -> r.getRecordDate() != null && r.getRecordDate().startsWith(yearPrefix))

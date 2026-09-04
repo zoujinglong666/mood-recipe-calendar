@@ -9,8 +9,6 @@ import {
   fetchProducts,
   fetchCheckinStatus,
   doCheckin,
-  createOrder,
-  payOrder,
   fetchOrders,
   type Product,
   type CheckinStatus,
@@ -38,7 +36,6 @@ const activeTab = ref<'assets' | 'shop' | 'orders'>('assets')
 
 // 购买弹窗
 const showBuy = ref(false)
-const buying = ref(false)
 const selectedProduct = ref<Product | null>(null)
 const buyType = ref<'normal' | 'exchange'>('normal')
 
@@ -164,24 +161,8 @@ function openBuy(product: Product) {
 
 async function onBuy() {
   if (!selectedProduct.value) return
-  buying.value = true
-  try {
-    const openid = await ensureLogin()
-    const order = await createOrder(openid, selectedProduct.value.id, buyType.value)
-    // 支付：真实环境在小程序端调 uni.requestPayment / wx.requestVirtualPayment，
-    // 由微信回调确认；当前 H5 联调直接走通支付入口。
-    await payOrder(order.id)
-    showBuy.value = false
-    orders.value = await fetchOrders(openid)
-    uni.showToast({
-      title: buyType.value === 'exchange' ? '1元兑换成功，锅仔送给你！' : '购买成功，锅仔马上打包！',
-      icon: 'none',
-    })
-  } catch (e: any) {
-    uni.showToast({ title: e.message || '下单失败', icon: 'none' })
-  } finally {
-    buying.value = false
-  }
+  uni.showToast({ title: '锅仔周边正在筹备发售，先解锁 AI 菜单试试看吧', icon: 'none' })
+  showBuy.value = false
 }
 
 const orderStatusText: Record<string, string> = {
@@ -292,7 +273,7 @@ const orderTypeText: Record<string, string> = {
                   <text class="shop-card__price--now">¥{{ p.price }}</text>
                   <text class="shop-card__price--exchange">签到1元兑</text>
                 </view>
-                <view class="shop-card__buy" @click.stop="openBuy(p)">买</view>
+                <view class="shop-card__buy" @click.stop="openBuy(p)">预约</view>
               </view>
             </view>
           </view>
@@ -368,7 +349,7 @@ const orderTypeText: Record<string, string> = {
           :class="{ 'buy-pop__btn--disabled': buyType === 'exchange' && !checkin.exchangeReady }"
           @click="onBuy"
         >
-          {{ buying ? '下单中...' : (buyType === 'exchange' && !checkin.exchangeReady ? '签到满30天可兑换' : '确认支付') }}
+          {{ buyType === 'exchange' && !checkin.exchangeReady ? '签到满30天可兑换' : '周边筹备中，先预约关注' }}
         </view>
         <view class="buy-pop__close" @click="showBuy = false">
           <Icon name="back" :size="32" color="var(--mrc-text-sub)" />

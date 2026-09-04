@@ -31,7 +31,8 @@ export function requestDeepRecipe(payload: {
   maxMinutes?: string
   preference?: string
 }) {
-  return post<RecipeItem>('/recipes/deep-recommend', payload)
+  const { openid: _openid, ...request } = payload
+  return post<RecipeItem>('/recipes/deep-recommend', request)
 }
 
 /** 按心情列表 */

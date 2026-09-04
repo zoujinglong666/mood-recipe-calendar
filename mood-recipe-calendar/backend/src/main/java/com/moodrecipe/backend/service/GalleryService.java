@@ -131,31 +131,6 @@ public class GalleryService {
         return shopOrderRepository.save(order);
     }
 
-    /**
-     * 标记订单已支付。
-     * 【真实接入微信虚拟支付时】：
-     *   1. 在小程序端调用 uni.requestPayment / wx.requestVirtualPayment 发起支付；
-     *   2. 后端通过微信支付回调（notify）验证支付结果后置为已支付；
-     *   3. 这里仅提供「确认支付成功」的服务端入口（当前 H5 联调直接走通）。
-     */
-    public ShopOrder markPaid(Long orderId) {
-        ShopOrder order = shopOrderRepository.findById(orderId)
-            .orElseThrow(() -> new RuntimeException("订单不存在"));
-        if ("paid".equals(order.getStatus())) {
-            return order;
-        }
-        order.setStatus("paid");
-        order.setPaidAt(java.time.LocalDateTime.now());
-        // 扣减库存
-        productRepository.findById(order.getProductId()).ifPresent(p -> {
-            if (p.getStock() != null && p.getStock() > 0) {
-                p.setStock(p.getStock() - 1);
-                productRepository.save(p);
-            }
-        });
-        return shopOrderRepository.save(order);
-    }
-
     private String genOrderNo() {
         return "GZ" + System.currentTimeMillis() + UUID.randomUUID().toString().substring(0, 6).toUpperCase();
     }

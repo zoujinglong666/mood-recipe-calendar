@@ -5,6 +5,7 @@ import com.moodrecipe.backend.entity.Recipe;
 import com.moodrecipe.backend.repository.RecipeRepository;
 import com.moodrecipe.backend.service.AiRecipeService;
 import com.moodrecipe.backend.service.VirtualCommerceService;
+import com.moodrecipe.backend.config.SessionAuthInterceptor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -48,8 +49,8 @@ public class RecipeController {
 
     /** 已购 AI 私人菜单权益的深度推荐入口。 */
     @PostMapping("/deep-recommend")
-    public ApiResponse<Recipe> deepRecommend(@RequestBody DeepRecommendRequest request) {
-        var entitlement = virtualCommerceService.consumeEntitlement(request.openid(), "AI_DEEP_RECOMMEND");
+    public ApiResponse<Recipe> deepRecommend(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @RequestBody DeepRecommendRequest request) {
+        var entitlement = virtualCommerceService.consumeEntitlement(openid, "AI_DEEP_RECOMMEND");
         if (entitlement.isEmpty()) {
             return ApiResponse.error(403, "请先解锁锅仔 AI 私人菜单权益");
         }
@@ -83,5 +84,5 @@ public class RecipeController {
             .orElseGet(() -> ApiResponse.error(404, "菜谱不存在"));
     }
 
-    public record DeepRecommendRequest(String openid, String mood, String ingredients, String maxMinutes, String preference) { }
+    public record DeepRecommendRequest(String mood, String ingredients, String maxMinutes, String preference) { }
 }

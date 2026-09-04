@@ -6,6 +6,7 @@ import com.moodrecipe.backend.entity.UserRecord;
 import com.moodrecipe.backend.repository.MonthlyAlbumRepository;
 import com.moodrecipe.backend.repository.UserRecordRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.moodrecipe.backend.config.SessionAuthInterceptor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
@@ -29,7 +30,10 @@ public class AlbumController {
      * GET /api/albums/month?openid=xxx&month=2026-09
      */
     @GetMapping("/month")
-    public ApiResponse<MonthlyAlbum> getMonthAlbum(@RequestParam String openid, @RequestParam String month) {
+    public ApiResponse<MonthlyAlbum> getMonthAlbum(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @RequestParam String month) {
+        if (month == null || !month.matches("\\d{4}-(0[1-9]|1[0-2])")) {
+            return ApiResponse.error(400, "month 格式应为 YYYY-MM");
+        }
         // 先查是否已生成
         Optional<MonthlyAlbum> existing = albumRepository.findByOpenidAndMonth(openid, month);
         if (existing.isPresent()) {

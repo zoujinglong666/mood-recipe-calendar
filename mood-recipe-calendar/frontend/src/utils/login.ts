@@ -23,13 +23,13 @@ export async function ensureLogin(): Promise<string> {
   const userStore = useUserStore()
 
   // 已登录直接返回
-  if (userStore.openid) {
+  if (userStore.isLoggedIn) {
     return userStore.openid
   }
 
   // 从本地存储恢复
   userStore.restoreFromStorage()
-  if (userStore.openid) {
+  if (userStore.isLoggedIn) {
     return userStore.openid
   }
 
@@ -37,7 +37,7 @@ export async function ensureLogin(): Promise<string> {
   // H5 仅本地预览：固定 mock code（h5_dev_ 前缀），后端走 mock，不请求微信
   const mockCode = 'h5_dev_' + Math.random().toString(36).slice(2, 10)
   const h5Result = await apiLogin(mockCode, '小圆', '')
-  userStore.setLogin(h5Result.openid, h5Result.user)
+  userStore.setLogin(h5Result.openid, h5Result.sessionToken, h5Result.user)
   return h5Result.openid
   // #endif
 
@@ -50,7 +50,7 @@ export async function ensureLogin(): Promise<string> {
         if (res.code) {
           try {
             const result = await apiLogin(res.code)
-            userStore.setLogin(result.openid, result.user)
+            userStore.setLogin(result.openid, result.sessionToken, result.user)
             resolve(result.openid)
           } catch (e) {
             reject(new Error(normalizeLoginError(e)))
@@ -74,7 +74,7 @@ export async function refreshUserInfo(): Promise<void> {
   const { getUserInfo } = await import('../api/auth')
   try {
     const info = await getUserInfo(userStore.openid)
-    userStore.setLogin(userStore.openid, info)
+    userStore.setLogin(userStore.openid, userStore.sessionToken, info)
   } catch {
     // 静默失败，保留本地缓存
   }

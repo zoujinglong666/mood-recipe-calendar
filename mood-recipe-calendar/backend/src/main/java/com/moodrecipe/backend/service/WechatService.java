@@ -16,6 +16,7 @@ public class WechatService {
 
     private final UserRepository userRepository;
     private final SessionKeyCipher sessionKeyCipher;
+    private final UserSessionService userSessionService;
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -25,9 +26,10 @@ public class WechatService {
     @Value("${wechat.secret:}")
     private String secret;
 
-    public WechatService(UserRepository userRepository, SessionKeyCipher sessionKeyCipher) {
+    public WechatService(UserRepository userRepository, SessionKeyCipher sessionKeyCipher, UserSessionService userSessionService) {
         this.userRepository = userRepository;
         this.sessionKeyCipher = sessionKeyCipher;
+        this.userSessionService = userSessionService;
     }
 
     /**
@@ -93,6 +95,7 @@ public class WechatService {
 
         Map<String, Object> result = new HashMap<>();
         result.put("openid", openid);
+        result.put("sessionToken", userSessionService.issue(user));
         result.put("user", user);
         result.put("isNew", user.getCreatedAt() != null &&
             user.getCreatedAt().plusSeconds(5).isAfter(java.time.LocalDateTime.now()));

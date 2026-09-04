@@ -29,6 +29,12 @@ public class User {
     @Column(name = "session_key_encrypted", length = 512)
     private String sessionKeyEncrypted;
 
+    @Column(name = "session_token_hash", length = 64)
+    private String sessionTokenHash;
+
+    @Column(name = "session_token_expires_at")
+    private LocalDateTime sessionTokenExpiresAt;
+
     @Column(name = "first_use_date")
     private LocalDate firstUseDate;
 

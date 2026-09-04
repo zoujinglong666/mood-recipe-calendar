@@ -43,25 +43,20 @@ export function fetchProducts() {
 
 /** 今日签到 */
 export function doCheckin(openid: string) {
-  return post<CheckinStatus>('/gallery/checkin', { openid })
+  return post<CheckinStatus>('/gallery/checkin')
 }
 
 /** 签到状态 */
 export function fetchCheckinStatus(openid: string) {
-  return get<CheckinStatus>('/gallery/checkin/status', { openid })
+  return get<CheckinStatus>('/gallery/checkin/status')
 }
 
 /** 创建订单（payType: normal 原价 / exchange 1元兑换） */
 export function createOrder(openid: string, productId: number, payType: 'normal' | 'exchange') {
-  return post<ShopOrder>('/gallery/orders', { openid, productId, payType })
-}
-
-/** 确认支付成功（联调入口；真实环境由微信虚拟支付回调驱动） */
-export function payOrder(orderId: number) {
-  return post<{ orderId: number; status: string; amount: number }>(`/gallery/orders/${orderId}/pay`)
+  return post<ShopOrder>('/gallery/orders', { productId, payType })
 }
 
 /** 我的订单 */
 export function fetchOrders(openid: string) {
-  return get<ShopOrder[]>('/gallery/orders', { openid })
+  return get<ShopOrder[]>('/gallery/orders')
 }

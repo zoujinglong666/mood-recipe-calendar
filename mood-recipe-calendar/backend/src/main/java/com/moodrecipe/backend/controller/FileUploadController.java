@@ -5,7 +5,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -33,6 +32,15 @@ public class FileUploadController {
         if (file.isEmpty()) {
             return ApiResponse.error("文件不能为空");
         }
+        String contentType = file.getContentType();
+        Map<String, String> extensions = Map.of(
+            "image/jpeg", ".jpg",
+            "image/png", ".png",
+            "image/webp", ".webp"
+        );
+        if (!extensions.containsKey(contentType)) {
+            return ApiResponse.error(400, "仅支持 JPG、PNG 或 WebP 图片");
+        }
 
         try {
             // 确保目录存在
@@ -41,12 +49,8 @@ public class FileUploadController {
                 Files.createDirectories(dirPath);
             }
 
-            // 生成文件名：日期 + UUID + 原扩展名
-            String originalFilename = file.getOriginalFilename();
-            String ext = "";
-            if (originalFilename != null && originalFilename.contains(".")) {
-                ext = originalFilename.substring(originalFilename.lastIndexOf("."));
-            }
+            // 不信任原文件名；仅按已校验的 MIME 类型决定扩展名。
+            String ext = extensions.get(contentType);
             String dateStr = new SimpleDateFormat("yyyyMMdd").format(new Date());
             String filename = dateStr + "_" + UUID.randomUUID().toString().substring(0, 8) + ext;
 

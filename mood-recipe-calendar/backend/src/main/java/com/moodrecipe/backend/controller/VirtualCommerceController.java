@@ -6,6 +6,7 @@ import com.moodrecipe.backend.entity.VirtualOrder;
 import com.moodrecipe.backend.entity.VirtualProduct;
 import com.moodrecipe.backend.service.VirtualCommerceService;
 import com.moodrecipe.backend.service.WechatVirtualPaymentService;
+import com.moodrecipe.backend.config.SessionAuthInterceptor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -29,9 +30,9 @@ public class VirtualCommerceController {
     }
 
     @PostMapping("/orders")
-    public ApiResponse<VirtualOrder> createOrder(@RequestBody CreateOrderRequest request) {
+    public ApiResponse<VirtualOrder> createOrder(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @RequestBody CreateOrderRequest request) {
         try {
-            return ApiResponse.ok(commerceService.createOrder(request.openid(), request.sku()));
+            return ApiResponse.ok(commerceService.createOrder(openid, request.sku()));
         } catch (IllegalArgumentException exception) {
             return ApiResponse.error(400, exception.getMessage());
         }
@@ -44,10 +45,11 @@ public class VirtualCommerceController {
     @PostMapping("/orders/{orderNo}/payment-params")
     public ApiResponse<WechatVirtualPaymentService.VirtualPaymentParams> paymentParams(
             @PathVariable String orderNo,
+            @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
             @RequestBody PaymentParamsRequest request
     ) {
         try {
-            return ApiResponse.ok(paymentService.createPaymentParams(orderNo, request.openid()));
+            return ApiResponse.ok(paymentService.createPaymentParams(orderNo, openid));
         } catch (IllegalArgumentException exception) {
             return ApiResponse.error(400, exception.getMessage());
         } catch (IllegalStateException exception) {
@@ -56,10 +58,10 @@ public class VirtualCommerceController {
     }
 
     @GetMapping("/entitlements")
-    public ApiResponse<List<UserEntitlement>> entitlements(@RequestParam String openid) {
+    public ApiResponse<List<UserEntitlement>> entitlements(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
         return ApiResponse.ok(commerceService.listActiveEntitlements(openid));
     }
 
-    public record CreateOrderRequest(String openid, String sku) { }
-    public record PaymentParamsRequest(String openid) { }
+    public record CreateOrderRequest(String sku) { }
+    public record PaymentParamsRequest() { }
 }

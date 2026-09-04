@@ -39,7 +39,8 @@ export interface YearStatsResult extends StatsResult {
 
 /** 保存记录 */
 export function saveRecord(payload: RecordPayload) {
-  return post<RecordItem>('/records', payload)
+  const { openid: _openid, ...request } = payload
+  return post<RecordItem>('/records', request)
 }
 
 /** 获取用户全部记录 */
@@ -53,8 +54,8 @@ export function fetchRecordsByMonth(openid: string, month: string) {
 }
 
 /** 删除记录 */
-export function deleteRecord(id: number) {
-  return del(`/records/${id}`)
+export function deleteRecord(id: number, openid: string) {
+  return del(`/records/${id}?openid=${encodeURIComponent(openid)}`)
 }
 
 /** 综合统计 */

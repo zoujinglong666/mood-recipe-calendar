@@ -105,7 +105,7 @@ function goGallery() {
   router.push({ name: 'gallery' })
 }
 function goSettings() {
-  uni.showToast({ title: '设置', icon: 'none' })
+  router.push({ name: 'about' })
 }
 </script>
 

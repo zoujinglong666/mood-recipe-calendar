@@ -136,7 +136,6 @@ declare global {
   const onUnmounted: typeof import('vue')['onUnmounted']
   const onUpdated: typeof import('vue')['onUpdated']
   const pausableWatch: typeof import('@vueuse/core')['pausableWatch']
-  const payOrder: typeof import('./api/gallery')['payOrder']
   const persistPlugin: typeof import('./store/persist')['persistPlugin']
   const post: typeof import('./api/request')['post']
   const provide: typeof import('vue')['provide']
@@ -526,7 +525,6 @@ declare module 'vue' {
     readonly onUnmounted: UnwrapRef<typeof import('vue')['onUnmounted']>
     readonly onUpdated: UnwrapRef<typeof import('vue')['onUpdated']>
     readonly pausableWatch: UnwrapRef<typeof import('@vueuse/core')['pausableWatch']>
-    readonly payOrder: UnwrapRef<typeof import('./api/gallery')['payOrder']>
     readonly persistPlugin: UnwrapRef<typeof import('./store/persist')['persistPlugin']>
     readonly post: UnwrapRef<typeof import('./api/request')['post']>
     readonly provide: UnwrapRef<typeof import('vue')['provide']>

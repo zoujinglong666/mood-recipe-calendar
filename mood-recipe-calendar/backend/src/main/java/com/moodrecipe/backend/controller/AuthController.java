@@ -4,6 +4,8 @@ import com.moodrecipe.backend.common.ApiResponse;
 import com.moodrecipe.backend.entity.User;
 import com.moodrecipe.backend.repository.UserRepository;
 import com.moodrecipe.backend.service.WechatService;
+import com.moodrecipe.backend.service.UserSessionService;
+import com.moodrecipe.backend.config.SessionAuthInterceptor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -14,10 +16,12 @@ public class AuthController {
 
     private final WechatService wechatService;
     private final UserRepository userRepository;
+    private final UserSessionService userSessionService;
 
-    public AuthController(WechatService wechatService, UserRepository userRepository) {
+    public AuthController(WechatService wechatService, UserRepository userRepository, UserSessionService userSessionService) {
         this.wechatService = wechatService;
         this.userRepository = userRepository;
+        this.userSessionService = userSessionService;
     }
 
     /**
@@ -46,7 +50,7 @@ public class AuthController {
      * GET /api/auth/user?openid=xxx
      */
     @GetMapping("/user")
-    public ApiResponse<User> getUser(@RequestParam String openid) {
+    public ApiResponse<User> getUser(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
         return userRepository.findByOpenid(openid)
             .map(ApiResponse::ok)
             .orElseGet(() -> ApiResponse.error(404, "用户不存在"));
@@ -58,14 +62,19 @@ public class AuthController {
      * body: { openid, nickname, avatarUrl }
      */
     @PutMapping("/user")
-    public ApiResponse<User> updateUser(@RequestBody Map<String, String> body) {
-        String openid = body.get("openid");
-        if (openid == null) return ApiResponse.error("openid 不能为空");
+    public ApiResponse<User> updateUser(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @RequestBody Map<String, String> body) {
         return userRepository.findByOpenid(openid).map(user -> {
             if (body.containsKey("nickname")) user.setNickname(body.get("nickname"));
             if (body.containsKey("avatarUrl")) user.setAvatarUrl(body.get("avatarUrl"));
             if (body.containsKey("remindTime")) user.setRemindTime(body.get("remindTime"));
             return ApiResponse.ok(userRepository.save(user));
         }).orElseGet(() -> ApiResponse.error(404, "用户不存在"));
+    }
+
+    /** 用户主动退出当前设备。 */
+    @PostMapping("/logout")
+    public ApiResponse<Void> logout(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
+        userRepository.findByOpenid(openid).ifPresent(userSessionService::revoke);
+        return ApiResponse.ok();
     }
 }

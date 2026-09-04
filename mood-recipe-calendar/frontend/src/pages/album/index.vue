@@ -28,11 +28,26 @@ const now = new Date()
 const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 const monthNum = now.getMonth() + 1
 const yearNum = now.getFullYear()
+type AlbumStats = {
+  totalDays: number
+  moodDistribution: Record<string, number>
+  topDishes: { name: string; count: number }[]
+  longestStreak: number
+}
+const EMPTY_STATS: AlbumStats = { totalDays: 0, moodDistribution: {}, topDishes: [], longestStreak: 0 }
 
 // ---------- 数据解析 ----------
-const stats = computed(() => {
-  if (!album.value?.stats) return { totalDays: 0, moodDistribution: {} as Record<string, number>, topDishes: [] as { name: string; count: number }[], longestStreak: 0 }
-  try { return JSON.parse(album.value.stats) } catch { return { totalDays: 0, moodDistribution: {}, topDishes: [], longestStreak: 0 } }
+const stats = computed<AlbumStats>(() => {
+  if (!album.value?.stats) return EMPTY_STATS
+  try {
+    const parsed = JSON.parse(album.value.stats) as Partial<AlbumStats>
+    return {
+      totalDays: Number(parsed.totalDays) || 0,
+      moodDistribution: parsed.moodDistribution || {},
+      topDishes: Array.isArray(parsed.topDishes) ? parsed.topDishes : [],
+      longestStreak: Number(parsed.longestStreak) || 0,
+    }
+  } catch { return EMPTY_STATS }
 })
 
 const moodList = computed(() => {

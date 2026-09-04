@@ -3,6 +3,7 @@ import type { UserInfo } from '../stores/user'
 
 export interface LoginResult {
   openid: string
+  sessionToken: string
   user: UserInfo
   isNew: boolean
 }
@@ -14,10 +15,13 @@ export function login(code: string, nickname?: string, avatarUrl?: string) {
 
 /** 获取用户信息 */
 export function getUserInfo(openid: string) {
-  return get<UserInfo>('/auth/user', { openid })
+  return get<UserInfo>('/auth/user')
 }
 
 /** 更新用户信息 */
 export function updateUserInfo(data: { openid: string; nickname?: string; avatarUrl?: string; remindTime?: string }) {
-  return put<UserInfo>('/auth/user', data)
+  const { openid: _openid, ...request } = data
+  return put<UserInfo>('/auth/user', request)
 }
+
+export function logout() { return post<void>('/auth/logout') }
