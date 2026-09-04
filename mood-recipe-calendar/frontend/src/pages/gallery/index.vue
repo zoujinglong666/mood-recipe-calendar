@@ -179,7 +179,7 @@ const orderTypeText: Record<string, string> = {
 <template>
   <view class="gallery-page">
     <!-- 顶部导航（通用组件：状态栏 + 胶囊避让） -->
-    <wd-navbar title="锅仔形象馆" left-arrow safe-area-inset-top @click-left="navBack" /> 
+    <wd-navbar title="锅仔形象馆" left-arrow safe-area-inset-top @click-left="navBack"  custom-style="background-color: transparent !important;" /> 
     <!-- Loading / Error -->
     <LoadingState v-if="loading" text="锅仔正在布置形象馆..." />
     <ErrorState v-else-if="error" :text="error" @retry="loadData" />

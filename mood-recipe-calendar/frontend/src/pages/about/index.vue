@@ -11,7 +11,7 @@ definePage({
 
 <template>
   <view class="about-page mrc-hero">
-    <wd-navbar title="关于锅仔" left-arrow safe-area-inset-top @click-left="navBack" />
+    <wd-navbar title="关于锅仔" left-arrow safe-area-inset-top @click-left="navBack"  custom-style="background-color: transparent !important;" />
     <view class="about-hero">
       <view class="about-hero__copy">
         <text class="about-hero__eyebrow">GUOZAI'S KITCHEN</text>

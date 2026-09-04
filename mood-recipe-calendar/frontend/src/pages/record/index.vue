@@ -95,7 +95,7 @@ function onSuccessConfirm() {
 
 <template>
   <view class="record-page">
-    <wd-navbar title="记录今日伙食" safe-area-inset-top />
+    <wd-navbar title="记录今日伙食" safe-area-inset-top  custom-style="background-color: transparent !important;" />
 
     <!-- 拍照区 -->
     <view class="record-photo" @click="chooseImage">

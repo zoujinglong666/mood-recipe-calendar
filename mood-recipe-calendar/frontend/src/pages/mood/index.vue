@@ -22,7 +22,7 @@ function onConfirm(m: { key: string }) {
 
 <template>
   <view class="mood-page">
-    <wd-navbar title="选一个心情吧" left-arrow safe-area-inset-top @click-left="navBack" />
+    <wd-navbar title="选一个心情吧" left-arrow safe-area-inset-top @click-left="navBack"  custom-style="background-color: transparent !important;" />
 
     <MoodPicker
       v-model="selected"

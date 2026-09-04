@@ -153,7 +153,7 @@ const aiLines = computed(() => {
 
 <template>
   <view class="album-page">
-    <wd-navbar title="月度画册" left-arrow safe-area-inset-top @click-left="navBack" />
+    <wd-navbar title="月度画册" left-arrow safe-area-inset-top @click-left="navBack"  custom-style="background-color: transparent !important;" />
 
     <view class="album-page__share" @click="onShare">
       <Icon name="share" :size="36" color="var(--mrc-text)" />
@@ -203,7 +203,7 @@ const aiLines = computed(() => {
           <view class="album-stats">
             <view class="album-stats__header">
               <text class="album-stats__title">{{ monthNum }}月盘点</text>
-              <image class="album-stats__guozai-icon" src="/static/guozai/mood_01_happy.png" mode="aspectFit" />
+              <image class="album-stats__guozai-icon" src="/static/guozai/mood_10_content.png" mode="aspectFit" />
             </view>
 
             <view class="album-stats__big">
@@ -252,7 +252,7 @@ const aiLines = computed(() => {
               <text class="album-streak__text">天</text>
             </view>
 
-            <image class="album-stats__guozai" src="/static/guozai/mood_01_happy.png" mode="aspectFit" />
+            <image class="album-stats__guozai" src="/static/guozai/mood_10_content.png" mode="aspectFit" />
           </view>
         </swiper-item>
 
@@ -337,7 +337,7 @@ const aiLines = computed(() => {
               <view class="album-share__bubble">
                 <text>用一道菜，治愈今天的你。</text>
               </view>
-              <image class="album-share__guozai" src="/static/guozai/mood_01_happy.png" mode="aspectFit" />
+              <image class="album-share__guozai" src="/static/guozai/action_09_celebrate.png" mode="aspectFit" />
             </view>
             <view class="album-share__btn" @click="onShare">
               <text class="album-share__btn-text">保存我的{{ monthNum }}月干饭分享图</text>

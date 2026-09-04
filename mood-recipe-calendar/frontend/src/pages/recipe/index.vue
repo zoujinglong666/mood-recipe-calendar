@@ -145,7 +145,7 @@ async function purchase(product: VirtualProduct) {
 
 <template>
   <view class="recipe-page">
-    <wd-navbar title="AI 今日推荐" left-arrow safe-area-inset-top @click-left="navBack" />
+    <wd-navbar title="AI 今日推荐" left-arrow safe-area-inset-top @click-left="navBack"  custom-style="background-color: transparent !important;" />
 
     <view class="recipe-page__share" @click="onShare">
       <Icon name="share" :size="36" color="var(--mrc-text)" />

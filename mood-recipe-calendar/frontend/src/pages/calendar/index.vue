@@ -112,7 +112,7 @@ function goRecordFromEmpty() {
 
 <template>
   <view class="cal-page">
-    <wd-navbar :title="`${year}年${month}月`" left-arrow safe-area-inset-top @click-left="navBack" />
+    <wd-navbar :title="`${year}年${month}月`" left-arrow safe-area-inset-top @click-left="navBack"  custom-style="background-color: transparent !important;" />
 
     <!-- Loading -->
     <LoadingState v-if="loading" text="锅仔正在翻日历..." />

@@ -39,7 +39,7 @@ onShow(load)
 
 <template>
   <view class="timeline-page">
-    <wd-navbar title="菜谱时光机" left-arrow safe-area-inset-top @click-left="navBack" />
+    <wd-navbar title="菜谱时光机" left-arrow safe-area-inset-top @click-left="navBack"  custom-style="background-color: transparent !important;" />
     <LoadingState v-if="loading" text="锅仔正在翻找你的餐桌回忆…" />
     <EmptyState v-else-if="!records.length" image="/static/guozai/action_07_empty.png" title="时光机还是空的" text="记录第一餐，让锅仔替你把今天收好。" action-text="去记录" @action="router.push({ name: 'record' })" />
     <scroll-view v-else scroll-y class="timeline-scroll" @scroll="onScroll">

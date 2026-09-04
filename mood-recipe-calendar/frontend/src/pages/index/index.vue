@@ -52,7 +52,7 @@ function goto(name: string, q?: Record<string, string>) { router.push({ name, qu
 
 <template>
   <view class="home mrc-hero">
-    <wd-navbar title="心情菜谱日历" safe-area-inset-top />
+    <wd-navbar title="心情菜谱日历" safe-area-inset-top  custom-style="background-color: transparent !important;" />
     <!-- 首页不展示整屏缺省图：直接渲染真实内容，数据就绪后响应式更新 -->
     <view class="home-hero" @click="bounceGuozai">
         <view class="home-hero__intro">
