@@ -5,6 +5,7 @@ import com.moodrecipe.backend.entity.Recipe;
 import com.moodrecipe.backend.repository.RecipeRepository;
 import com.moodrecipe.backend.service.AiRecipeService;
 import com.moodrecipe.backend.service.VirtualCommerceService;
+import com.moodrecipe.backend.service.OperationalEventService;
 import com.moodrecipe.backend.config.SessionAuthInterceptor;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,11 +18,13 @@ public class RecipeController {
     private final RecipeRepository repository;
     private final AiRecipeService aiRecipeService;
     private final VirtualCommerceService virtualCommerceService;
+    private final OperationalEventService operationalEvents;
 
-    public RecipeController(RecipeRepository repository, AiRecipeService aiRecipeService, VirtualCommerceService virtualCommerceService) {
+    public RecipeController(RecipeRepository repository, AiRecipeService aiRecipeService, VirtualCommerceService virtualCommerceService, OperationalEventService operationalEvents) {
         this.repository = repository;
         this.aiRecipeService = aiRecipeService;
         this.virtualCommerceService = virtualCommerceService;
+        this.operationalEvents = operationalEvents;
     }
 
     /** 全部菜谱 */
@@ -61,6 +64,7 @@ public class RecipeController {
         var recipe = aiRecipeService.recommend(request.mood(), preference);
         if (recipe.isEmpty()) {
             virtualCommerceService.restoreEntitlement(entitlement.get().getId());
+            operationalEvents.record("AI_RECOMMEND_FAILED", "ALERT", openid, null, "provider unavailable or invalid response");
             return ApiResponse.error(503, "锅仔暂时没想好菜单，请稍后重试，本次权益未扣除");
         }
         return ApiResponse.ok(recipe.get());

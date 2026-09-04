@@ -6,6 +6,7 @@ import com.moodrecipe.backend.repository.VirtualOrderRepository;
 import com.moodrecipe.backend.repository.VirtualProductRepository;
 import com.moodrecipe.backend.service.VirtualCommerceService;
 import com.moodrecipe.backend.service.WechatMessageCrypto;
+import com.moodrecipe.backend.service.OperationalEventService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,17 +27,19 @@ public class WechatVirtualPaymentCallbackController {
     private final VirtualProductRepository productRepository;
     private final VirtualCommerceService commerceService;
     private final WechatMessageCrypto messageCrypto;
+    private final OperationalEventService operationalEvents;
 
     public WechatVirtualPaymentCallbackController(
             VirtualOrderRepository orderRepository,
             VirtualProductRepository productRepository,
             VirtualCommerceService commerceService,
-            WechatMessageCrypto messageCrypto
+            WechatMessageCrypto messageCrypto, OperationalEventService operationalEvents
     ) {
         this.orderRepository = orderRepository;
         this.productRepository = productRepository;
         this.commerceService = commerceService;
         this.messageCrypto = messageCrypto;
+        this.operationalEvents = operationalEvents;
     }
 
     /** 微信后台首次配置消息推送 URL 时的握手校验。 */
@@ -92,6 +95,7 @@ public class WechatVirtualPaymentCallbackController {
             commerceService.fulfillPaidOrder(orderNo, required(payInfo, "TransactionId"));
             return ResponseEntity.ok(ok());
         } catch (Exception exception) {
+            operationalEvents.record("VIRTUAL_PAYMENT_DELIVERY_FAILED", "ALERT", null, null, "callback delivery validation failed");
             // 失败时让微信重试；同一订单的重复通知会由 source_order_no 唯一约束安全处理。
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(fail("delivery failed"));
         }

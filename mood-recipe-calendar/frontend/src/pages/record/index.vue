@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import AppNav from '../../components/common/AppNav.vue'
 import Icon from '../../components/common/Icon.vue'
 import SuccessModal from '../../components/guozai/SuccessModal.vue'
+import MoodPicker from '../../components/guozai/MoodPicker.vue'
 import { ensureLogin } from '../../utils/login'
 import { saveRecord } from '../../api/records'
 import { uploadFile } from '../../api/request'
@@ -19,17 +20,6 @@ definePage({
 const route = useRoute()
 const router = useRouter()
 
-const MOODS = [
-  { key: '开心', img: '/static/guozai/mood_01_happy.png' },
-  { key: '平静', img: '/static/guozai/mood_02_calm.png' },
-  { key: '疲惫', img: '/static/guozai/mood_03_tired.png' },
-  { key: '焦虑', img: '/static/guozai/mood_04_anxious.png' },
-  { key: '难过', img: '/static/guozai/mood_05_sad.png' },
-  { key: '嘴馋', img: '/static/guozai/mood_06_hungry.png' },
-  { key: '低落', img: '/static/guozai/mood_07_low.png' },
-  { key: '想家', img: '/static/guozai/mood_08_homesick.png' },
-]
-
 const dishName = ref((route.query.dish as string) || '')
 const selectedMood = ref((route.query.mood as string) || '')
 const note = ref('')
@@ -39,11 +29,6 @@ const imageUrl = ref('')
 const showSuccess = ref(false)
 const submitting = ref(false)
 const uploading = ref(false)
-
-function pickMood(key: string) {
-  selectedMood.value = key
-  try { uni.vibrateShort({ type: 'light' }) } catch {}
-}
 
 async function chooseImage() {
   uni.chooseImage({
@@ -135,22 +120,8 @@ function onSuccessConfirm() {
       />
     </view>
 
-    <!-- 心情选择 -->
-    <view class="record-mood">
-      <text class="record-mood__title">今天的心情</text>
-      <view class="record-mood__grid">
-        <view
-          v-for="m in MOODS"
-          :key="m.key"
-          class="record-mood__item"
-          :class="{ 'record-mood__item--active': selectedMood === m.key }"
-          @click="pickMood(m.key)"
-        >
-          <image class="record-mood__icon" :src="m.img" mode="aspectFit" />
-          <text class="record-mood__label">{{ m.key }}</text>
-        </view>
-      </view>
-    </view>
+    <!-- 心情选择（公共组件：12 个锅仔 IP 大表情） -->
+    <MoodPicker v-model="selectedMood" :show-hero="false" title="今天的心情" />
 
     <!-- 心情日记 -->
     <view class="record-textarea">
@@ -263,58 +234,6 @@ function onSuccessConfirm() {
 }
 .record-input__placeholder {
   color: var(--mrc-text-light);
-}
-
-/* 心情选择 */
-.record-mood {
-  margin-bottom: 32rpx;
-}
-.record-mood__title {
-  display: block;
-  font-size: 34rpx;
-  font-weight: 700;
-  color: var(--mrc-text-deep);
-  margin-bottom: 20rpx;
-  padding-left: 14rpx;
-  border-left: 8rpx solid var(--mrc-primary);
-}
-.record-mood__grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 20rpx;
-}
-.record-mood__item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6rpx;
-  width: 136rpx;
-  height: 136rpx;
-  border: 2rpx solid var(--mrc-border-light);
-  border-radius: 28rpx;
-  background: var(--mrc-surface);
-  margin: 0 auto;
-  transition: all 0.2s ease;
-}
-.record-mood__item--active {
-  background: var(--mrc-primary-grad);
-  border-color: transparent;
-  transform: scale(1.08);
-  box-shadow: 0 6rpx 16rpx rgba(253, 145, 132, 0.35);
-}
-.record-mood__icon {
-  width: 48rpx;
-  height: 48rpx;
-}
-.record-mood__label {
-  font-size: 22rpx;
-  color: var(--mrc-text-deep);
-  font-weight: 500;
-}
-.record-mood__item--active .record-mood__label {
-  color: #fff;
-  font-weight: 700;
 }
 
 /* 心情日记 */

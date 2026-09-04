@@ -21,6 +21,7 @@ declare module 'vue' {
     GuozaiGuozaiImage: typeof import('./components/guozai/GuozaiImage.vue')['default']
     GuozaiLoadingGuozai: typeof import('./components/guozai/LoadingGuozai.vue')['default']
     GuozaiLoadingState: typeof import('./components/guozai/LoadingState.vue')['default']
+    GuozaiMoodPicker: typeof import('./components/guozai/MoodPicker.vue')['default']
     GuozaiSuccessModal: typeof import('./components/guozai/SuccessModal.vue')['default']
     MoodMoodGrid: typeof import('./components/mood/MoodGrid.vue')['default']
     PrivacyPopup: typeof import('./components/PrivacyPopup.vue')['default']

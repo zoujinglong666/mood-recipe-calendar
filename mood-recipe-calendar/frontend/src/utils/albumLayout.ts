@@ -104,6 +104,10 @@ export const MOOD_EMOJI: Record<string, string> = {
   嘴馋: '🤤',
   低落: '🌧️',
   想家: '❤️',
+  期待: '🤩',
+  满足: '🥰',
+  得意: '😎',
+  害羞: '😳',
 }
 
 /** 心情 -> 色值（用于色块） */
@@ -116,4 +120,8 @@ export const MOOD_COLOR: Record<string, string> = {
   嘴馋: '#FFB88C',
   低落: '#B5D4E8',
   想家: '#FFD93D',
+  期待: '#FFD93D',
+  满足: '#6BCB77',
+  得意: '#FFB88C',
+  害羞: '#E8836B',
 }

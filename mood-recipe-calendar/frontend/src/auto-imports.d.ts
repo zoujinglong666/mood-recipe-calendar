@@ -42,6 +42,7 @@ declare global {
   const createSharedComposable: typeof import('@vueuse/core')['createSharedComposable']
   const createTemplatePromise: typeof import('@vueuse/core')['createTemplatePromise']
   const createUnrefFn: typeof import('@vueuse/core')['createUnrefFn']
+  const createVirtualOrder: typeof import('./api/virtualCommerce')['createVirtualOrder']
   const customRef: typeof import('vue')['customRef']
   const debouncedRef: typeof import('@vueuse/core')['debouncedRef']
   const debouncedWatch: typeof import('@vueuse/core')['debouncedWatch']
@@ -58,6 +59,7 @@ declare global {
   const extendRef: typeof import('@vueuse/core')['extendRef']
   const fetchAllRecipes: typeof import('./api/recipes')['fetchAllRecipes']
   const fetchCheckinStatus: typeof import('./api/gallery')['fetchCheckinStatus']
+  const fetchEntitlements: typeof import('./api/virtualCommerce')['fetchEntitlements']
   const fetchMonthAlbum: typeof import('./api/albums')['fetchMonthAlbum']
   const fetchOrders: typeof import('./api/gallery')['fetchOrders']
   const fetchProducts: typeof import('./api/gallery')['fetchProducts']
@@ -66,6 +68,7 @@ declare global {
   const fetchRecords: typeof import('./api/records')['fetchRecords']
   const fetchRecordsByMonth: typeof import('./api/records')['fetchRecordsByMonth']
   const fetchStats: typeof import('./api/records')['fetchStats']
+  const fetchVirtualProducts: typeof import('./api/virtualCommerce')['fetchVirtualProducts']
   const fetchYearStats: typeof import('./api/records')['fetchYearStats']
   const get: typeof import('./api/request')['get']
   const getActivePinia: typeof import('pinia')['getActivePinia']
@@ -74,6 +77,7 @@ declare global {
   const getCurrentScope: typeof import('vue')['getCurrentScope']
   const getSystemTheme: typeof import('./utils/systemTheme')['getSystemTheme']
   const getUserInfo: typeof import('./api/auth')['getUserInfo']
+  const getVirtualPaymentParams: typeof import('./api/virtualCommerce')['getVirtualPaymentParams']
   const h: typeof import('vue')['h']
   const ignorableWatch: typeof import('@vueuse/core')['ignorableWatch']
   const initializeThemeOnce: typeof import('./utils/systemTheme')['initializeThemeOnce']
@@ -85,6 +89,7 @@ declare global {
   const isReadonly: typeof import('vue')['isReadonly']
   const isRef: typeof import('vue')['isRef']
   const login: typeof import('./api/auth')['login']
+  const logout: typeof import('./api/auth')['logout']
   const makeDestructurable: typeof import('@vueuse/core')['makeDestructurable']
   const mapActions: typeof import('pinia')['mapActions']
   const mapGetters: typeof import('pinia')['mapGetters']
@@ -157,6 +162,8 @@ declare global {
   const refWithControl: typeof import('@vueuse/core')['refWithControl']
   const refreshNavMetrics: typeof import('./composables/useNavBar')['refreshNavMetrics']
   const refreshUserInfo: typeof import('./utils/login')['refreshUserInfo']
+  const requestDeepRecipe: typeof import('./api/recipes')['requestDeepRecipe']
+  const requestWechatVirtualPayment: typeof import('./api/virtualCommerce')['requestWechatVirtualPayment']
   const resolveComponent: typeof import('vue')['resolveComponent']
   const resolveRef: typeof import('@vueuse/core')['resolveRef']
   const resolveUnref: typeof import('@vueuse/core')['resolveUnref']
@@ -431,6 +438,7 @@ declare module 'vue' {
     readonly createSharedComposable: UnwrapRef<typeof import('@vueuse/core')['createSharedComposable']>
     readonly createTemplatePromise: UnwrapRef<typeof import('@vueuse/core')['createTemplatePromise']>
     readonly createUnrefFn: UnwrapRef<typeof import('@vueuse/core')['createUnrefFn']>
+    readonly createVirtualOrder: UnwrapRef<typeof import('./api/virtualCommerce')['createVirtualOrder']>
     readonly customRef: UnwrapRef<typeof import('vue')['customRef']>
     readonly debouncedRef: UnwrapRef<typeof import('@vueuse/core')['debouncedRef']>
     readonly debouncedWatch: UnwrapRef<typeof import('@vueuse/core')['debouncedWatch']>
@@ -447,6 +455,7 @@ declare module 'vue' {
     readonly extendRef: UnwrapRef<typeof import('@vueuse/core')['extendRef']>
     readonly fetchAllRecipes: UnwrapRef<typeof import('./api/recipes')['fetchAllRecipes']>
     readonly fetchCheckinStatus: UnwrapRef<typeof import('./api/gallery')['fetchCheckinStatus']>
+    readonly fetchEntitlements: UnwrapRef<typeof import('./api/virtualCommerce')['fetchEntitlements']>
     readonly fetchMonthAlbum: UnwrapRef<typeof import('./api/albums')['fetchMonthAlbum']>
     readonly fetchOrders: UnwrapRef<typeof import('./api/gallery')['fetchOrders']>
     readonly fetchProducts: UnwrapRef<typeof import('./api/gallery')['fetchProducts']>
@@ -455,6 +464,7 @@ declare module 'vue' {
     readonly fetchRecords: UnwrapRef<typeof import('./api/records')['fetchRecords']>
     readonly fetchRecordsByMonth: UnwrapRef<typeof import('./api/records')['fetchRecordsByMonth']>
     readonly fetchStats: UnwrapRef<typeof import('./api/records')['fetchStats']>
+    readonly fetchVirtualProducts: UnwrapRef<typeof import('./api/virtualCommerce')['fetchVirtualProducts']>
     readonly fetchYearStats: UnwrapRef<typeof import('./api/records')['fetchYearStats']>
     readonly get: UnwrapRef<typeof import('./api/request')['get']>
     readonly getActivePinia: UnwrapRef<typeof import('pinia')['getActivePinia']>
@@ -463,6 +473,7 @@ declare module 'vue' {
     readonly getCurrentScope: UnwrapRef<typeof import('vue')['getCurrentScope']>
     readonly getSystemTheme: UnwrapRef<typeof import('./utils/systemTheme')['getSystemTheme']>
     readonly getUserInfo: UnwrapRef<typeof import('./api/auth')['getUserInfo']>
+    readonly getVirtualPaymentParams: UnwrapRef<typeof import('./api/virtualCommerce')['getVirtualPaymentParams']>
     readonly h: UnwrapRef<typeof import('vue')['h']>
     readonly ignorableWatch: UnwrapRef<typeof import('@vueuse/core')['ignorableWatch']>
     readonly initializeThemeOnce: UnwrapRef<typeof import('./utils/systemTheme')['initializeThemeOnce']>
@@ -474,6 +485,7 @@ declare module 'vue' {
     readonly isReadonly: UnwrapRef<typeof import('vue')['isReadonly']>
     readonly isRef: UnwrapRef<typeof import('vue')['isRef']>
     readonly login: UnwrapRef<typeof import('./api/auth')['login']>
+    readonly logout: UnwrapRef<typeof import('./api/auth')['logout']>
     readonly makeDestructurable: UnwrapRef<typeof import('@vueuse/core')['makeDestructurable']>
     readonly mapActions: UnwrapRef<typeof import('pinia')['mapActions']>
     readonly mapGetters: UnwrapRef<typeof import('pinia')['mapGetters']>
@@ -546,6 +558,8 @@ declare module 'vue' {
     readonly refWithControl: UnwrapRef<typeof import('@vueuse/core')['refWithControl']>
     readonly refreshNavMetrics: UnwrapRef<typeof import('./composables/useNavBar')['refreshNavMetrics']>
     readonly refreshUserInfo: UnwrapRef<typeof import('./utils/login')['refreshUserInfo']>
+    readonly requestDeepRecipe: UnwrapRef<typeof import('./api/recipes')['requestDeepRecipe']>
+    readonly requestWechatVirtualPayment: UnwrapRef<typeof import('./api/virtualCommerce')['requestWechatVirtualPayment']>
     readonly resolveComponent: UnwrapRef<typeof import('vue')['resolveComponent']>
     readonly resolveRef: UnwrapRef<typeof import('@vueuse/core')['resolveRef']>
     readonly resolveUnref: UnwrapRef<typeof import('@vueuse/core')['resolveUnref']>

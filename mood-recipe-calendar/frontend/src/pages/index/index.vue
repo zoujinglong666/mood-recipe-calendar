@@ -47,7 +47,7 @@ async function loadData() {
   } finally { loading.value = false }
 }
 onShow(loadData)
-const MOODS = ['开心', '平静', '疲惫', '焦虑', '难过', '嘴馋', '低落', '想家']
+const MOODS = ['开心', '平静', '疲惫', '焦虑', '难过', '嘴馋', '低落', '想家', '期待', '满足', '得意', '害羞']
 function gotoLucky() { router.push({ name: 'recipe', query: { mood: MOODS[Math.floor(Math.random() * MOODS.length)], random: '1' } }) }
 function goto(name: string, q?: Record<string, string>) { router.push({ name, query: q || {} }) }
 </script>
