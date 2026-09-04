@@ -30,3 +30,7 @@ Thumbs.db
 
 # 临时文件
 *.tmp
+
+# 临时/排障文件
+mood_new/
+nav_issue.png

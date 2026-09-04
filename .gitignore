@@ -37,3 +37,7 @@ Thumbs.db
 # uni-pages 自动生成的路由文件（由 pages.config.ts + definePage 生成，勿提交）
 **/src/pages.json
 **/src/pages.json.bak
+
+# 临时/排障
+mood_new/
+nav_issue.png
