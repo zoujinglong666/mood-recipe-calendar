@@ -75,7 +75,9 @@ onLoad(() => {
 function toggleSteps() { showSteps.value = !showSteps.value }
 function goRecord() {
   if (!recipe.value) return
-  router.push({ name: 'record', query: { dish: recipe.value.name, mood: mood.value } })
+  // switchTab 不支持 query，用 storage 暂存菜名与心情，记录页 onShow 消费
+  uni.setStorageSync('mrc_record_draft', { dish: recipe.value.name, mood: mood.value })
+  router.pushTab({ name: 'record' })
 }
 function goBuy() { openAiPanel() }
 function onShare() {

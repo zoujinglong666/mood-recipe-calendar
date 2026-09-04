@@ -106,7 +106,7 @@ function handleCellClick(c: { day: number; hasRecord: boolean }) {
 }
 function goRecordFromEmpty() {
   showEmpty.value = false
-  router.push({ name: 'record' })
+  router.pushTab({ name: 'record' })
 }
 </script>
 

@@ -17,11 +17,10 @@ definePage({
   },
 })
 
-const route = useRoute()
 const router = useRouter()
 
-const dishName = ref((route.query.dish as string) || '')
-const selectedMood = ref((route.query.mood as string) || '')
+const dishName = ref('')
+const selectedMood = ref('')
 const note = ref('')
 const cookingTime = ref('30分钟')
 const dishImage = ref('')
@@ -29,6 +28,18 @@ const imageUrl = ref('')
 const showSuccess = ref(false)
 const submitting = ref(false)
 const uploading = ref(false)
+
+// tabbar 页通过 switchTab 进入，无法带 query；从推荐页跳转时由 storage 暂存菜名与心情
+onShow(() => {
+  try {
+    const d = uni.getStorageSync('mrc_record_draft')
+    if (d) {
+      if (d.dish) dishName.value = d.dish
+      if (d.mood) selectedMood.value = d.mood
+      uni.removeStorageSync('mrc_record_draft')
+    }
+  } catch (e) { /* ignore */ }
+})
 
 async function chooseImage() {
   uni.chooseImage({

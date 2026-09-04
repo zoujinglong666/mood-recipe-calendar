@@ -81,7 +81,7 @@ function goto(name: string, q?: Record<string, string>) { router.push({ name, qu
           <view class="home-actions__text"><text class="home-actions__label">今日菜单</text><text class="home-actions__name">再来一道</text></view>
           <Icon name="cart" :size="44" color="var(--mrc-accent)" />
         </view>
-        <view class="home-actions__item home-actions__item--record" @click="goto('record')">
+        <view class="home-actions__item home-actions__item--record" @click="router.pushTab({ name: 'record' })">
           <view class="home-actions__text"><text class="home-actions__label">吃过什么</text><text class="home-actions__name">记录一餐</text></view>
           <image class="home-actions__guozai" src="/static/guozai/action_03_camera.png" mode="aspectFit" />
         </view>

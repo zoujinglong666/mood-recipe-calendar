@@ -262,6 +262,8 @@ function goFeedback() { router.push({ name: 'feedback' }) }
   display: flex;
   align-items: center;
   gap: 24rpx;
+  flex: 1;
+  min-width: 0;
 }
 .profile-avatar {
   width: 120rpx;
@@ -290,10 +292,15 @@ function goFeedback() { router.push({ name: 'feedback' }) }
   height: 90rpx;
 }
 .profile-nick-input {
+  flex: 1;
+  min-width: 0;
+  max-width: 420rpx;
   font-size: 48rpx;
   font-weight: 700;
   color: var(--mrc-text-deep);
-  min-width: 200rpx;
+  padding: 0;
+  background: transparent;
+  border: none;
 }
 .profile-name {
   font-size: 48rpx;
