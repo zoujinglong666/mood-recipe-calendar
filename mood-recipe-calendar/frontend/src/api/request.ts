@@ -2,7 +2,14 @@
  * 统一请求封装
  * 后端统一返回 { code, message, data }
  */
-export const BASE_URL = 'http://localhost:8080/api'
+/** 生产环境在 .env.production 设置 VITE_API_BASE_URL=https://api.example.com/api。 */
+export const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
+const ASSET_ORIGIN = BASE_URL.replace(/\/api\/?$/, '')
+
+export function resolveAssetUrl(url?: string) {
+  if (!url || /^(https?:)?\/\//.test(url) || url.startsWith('data:')) return url || ''
+  return `${ASSET_ORIGIN}${url.startsWith('/') ? '' : '/'}${url}`
+}
 
 export interface ApiResult<T = any> {
   code: number
@@ -123,7 +130,7 @@ export function uploadFile(filePath: string): Promise<{ url: string; filename: s
         try {
           const result = JSON.parse(res.data) as ApiResult<{ url: string; filename: string }>
           if (result.code === 0) {
-            resolve(result.data)
+            resolve({ ...result.data, url: resolveAssetUrl(result.data.url) })
           } else {
             reject(new Error(result.message || '上传失败'))
           }

@@ -62,6 +62,22 @@ public class VirtualCommerceController {
         return ApiResponse.ok(commerceService.listActiveEntitlements(openid));
     }
 
+    /** 支付完成后供客户端确认发货状态；不接受客户端修改订单状态。 */
+    @GetMapping("/orders/{orderNo}")
+    public ApiResponse<VirtualOrder> order(
+            @PathVariable String orderNo,
+            @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid
+    ) {
+        return commerceService.findOrderForUser(openid, orderNo)
+                .map(ApiResponse::ok)
+                .orElseGet(() -> ApiResponse.error(404, "订单不存在"));
+    }
+
+    @GetMapping("/orders")
+    public ApiResponse<List<VirtualOrder>> orders(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
+        return ApiResponse.ok(commerceService.listOrders(openid));
+    }
+
     public record CreateOrderRequest(String sku) { }
     public record PaymentParamsRequest() { }
 }

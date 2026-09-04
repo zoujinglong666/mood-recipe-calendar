@@ -26,6 +26,10 @@ public class WechatMessageCrypto {
 
     public WechatMessageCrypto(ObjectMapper objectMapper) { this.objectMapper = objectMapper; }
 
+    public boolean isSafeModeEnabled() {
+        return encodingAesKey != null && encodingAesKey.length() == 43;
+    }
+
     public boolean verify(String signature, String timestamp, String nonce, String encrypted) {
         if (token == null || token.isBlank()) return false;
         try {
@@ -38,8 +42,21 @@ public class WechatMessageCrypto {
         } catch (Exception ignored) { return false; }
     }
 
+    /** 解密安全模式中的 echostr；URL 校验时微信要求回传解密后的明文。 */
+    public String decryptText(String encrypted) {
+        return decryptMessage(encrypted);
+    }
+
     public Map<String, Object> decryptJson(String encrypted) {
-        if (encodingAesKey == null || encodingAesKey.length() != 43 || appid == null || appid.isBlank()) {
+        try {
+            return objectMapper.readValue(decryptMessage(encrypted), new TypeReference<>() { });
+        } catch (Exception exception) {
+            throw new IllegalArgumentException("无法解析微信安全消息", exception);
+        }
+    }
+
+    private String decryptMessage(String encrypted) {
+        if (!isSafeModeEnabled() || appid == null || appid.isBlank()) {
             throw new IllegalStateException("未配置有效的微信消息安全模式参数");
         }
         try {
@@ -53,7 +70,7 @@ public class WechatMessageCrypto {
             String message = new String(plain, 20, length, StandardCharsets.UTF_8);
             String receiverAppId = new String(plain, 20 + length, plain.length - 20 - length, StandardCharsets.UTF_8);
             if (!appid.equals(receiverAppId)) throw new IllegalArgumentException("消息 AppID 不匹配");
-            return objectMapper.readValue(message, new TypeReference<>() { });
+            return message;
         } catch (Exception exception) {
             throw new IllegalArgumentException("无法解密微信安全消息", exception);
         }

@@ -46,6 +46,14 @@ export function getVirtualPaymentParams(openid: string, orderNo: string) {
   return post<VirtualPaymentParams>(`/virtual-commerce/orders/${orderNo}/payment-params`)
 }
 
+export function fetchVirtualOrder(orderNo: string) {
+  return get<VirtualOrder>(`/virtual-commerce/orders/${orderNo}`)
+}
+
+export function fetchVirtualOrders() {
+  return get<VirtualOrder[]>('/virtual-commerce/orders')
+}
+
 /** 微信支付完成回调仅表示客户端流程结束；权益以服务端发货通知为准。 */
 export function requestWechatVirtualPayment(params: VirtualPaymentParams) {
   return new Promise<void>((resolve, reject) => {

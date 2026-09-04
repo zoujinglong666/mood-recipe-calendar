@@ -6,13 +6,9 @@ import LoadingState from '../../components/guozai/LoadingState.vue'
 import ErrorState from '../../components/guozai/ErrorState.vue'
 import { ensureLogin } from '../../utils/login'
 import {
-  fetchProducts,
   fetchCheckinStatus,
   doCheckin,
-  fetchOrders,
-  type Product,
   type CheckinStatus,
-  type ShopOrder,
 } from '../../api/gallery'
 
 definePage({
@@ -29,15 +25,13 @@ const router = useRouter()
 // ---------- 数据状态 ----------
 const loading = ref(true)
 const error = ref('')
-const products = ref<Product[]>([])
-const checkin = ref<CheckinStatus>({ checkedIn: false, streak: 0, exchangeReady: false, daysToExchange: 30, totalDays: 0 })
-const orders = ref<ShopOrder[]>([])
-const activeTab = ref<'assets' | 'shop' | 'orders'>('assets')
-
-// 购买弹窗
-const showBuy = ref(false)
-const selectedProduct = ref<Product | null>(null)
+// 遗留模板将在下一次整理中删除；不发起任何实物商品或订单请求。
+const products = ref<any[]>([])
+const orders = ref<any[]>([])
+const selectedProduct = ref<any>(null)
 const buyType = ref<'normal' | 'exchange'>('normal')
+const showBuy = ref(false)
+const checkin = ref<CheckinStatus>({ checkedIn: false, streak: 0, exchangeReady: false, daysToExchange: 30, totalDays: 0 })
 
 // ---------- 表情包（内容资产区：锅仔透明 PNG 资源库） ----------
 const STICKER_GROUPS = [
@@ -87,14 +81,7 @@ async function loadData() {
   error.value = ''
   try {
     const openid = await ensureLogin()
-    const [p, c, o] = await Promise.all([
-      fetchProducts(),
-      fetchCheckinStatus(openid),
-      fetchOrders(openid),
-    ])
-    products.value = p
-    checkin.value = c
-    orders.value = o
+    checkin.value = await fetchCheckinStatus(openid)
   } catch (e: any) {
     error.value = e.message || '加载失败'
   } finally {
@@ -151,29 +138,11 @@ function onDownloadSticker(sticker: { name: string; src: string }) {
   // #endif
 }
 
-// ---------- 购买 ----------
-function openBuy(product: Product) {
-  selectedProduct.value = product
-  // 已解锁 1 元兑换则默认选兑换，否则默认原价
-  buyType.value = checkin.value.exchangeReady ? 'exchange' : 'normal'
-  showBuy.value = true
-}
+function openBuy(_: any) {}
+function onBuy() {}
+const orderStatusText: Record<string, string> = {}
+const orderTypeText: Record<string, string> = {}
 
-async function onBuy() {
-  if (!selectedProduct.value) return
-  uni.showToast({ title: '锅仔周边正在筹备发售，先解锁 AI 菜单试试看吧', icon: 'none' })
-  showBuy.value = false
-}
-
-const orderStatusText: Record<string, string> = {
-  pending: '待支付',
-  paid: '已支付',
-  cancelled: '已取消',
-}
-const orderTypeText: Record<string, string> = {
-  normal: '原价购买',
-  exchange: '1元兑换',
-}
 </script>
 
 <template>
@@ -190,13 +159,13 @@ const orderTypeText: Record<string, string> = {
         <view class="checkin-card__left">
           <view class="checkin-card__head">
             <text class="checkin-card__label">签到福利</text>
-            <text v-if="checkin.exchangeReady" class="checkin-card__ready">🎉 1元兑换已解锁</text>
+            <text v-if="checkin.exchangeReady" class="checkin-card__ready">连续签到已达标</text>
           </view>
           <view class="checkin-card__progress">
             <text class="checkin-card__streak">
               连续签到 <text class="checkin-card__num">{{ checkin.streak }}</text> / 30 天
             </text>
-            <text class="checkin-card__hint">满 30 天可 1 元兑换任意周边</text>
+            <text class="checkin-card__hint">满 30 天解锁锅仔限定纪念徽章</text>
           </view>
           <view class="checkin-bar">
             <view class="checkin-bar__inner" :style="{ width: progressPct + '%' }" />
@@ -218,21 +187,8 @@ const orderTypeText: Record<string, string> = {
         </view>
       </view>
 
-      <!-- Tab 切换 -->
-      <view class="gallery-tabs">
-        <view class="gallery-tab" :class="{ 'gallery-tab--active': activeTab === 'assets' }" @click="activeTab = 'assets'">
-          内容资产
-        </view>
-        <view class="gallery-tab" :class="{ 'gallery-tab--active': activeTab === 'shop' }" @click="activeTab = 'shop'">
-          周边商城
-        </view>
-        <view class="gallery-tab" :class="{ 'gallery-tab--active': activeTab === 'orders' }" @click="activeTab = 'orders'">
-          我的订单
-        </view>
-      </view>
-
       <!-- ============ 内容资产区：锅仔表情包 ============ -->
-      <view v-if="activeTab === 'assets'">
+      <view>
         <view class="asset-intro">
           <image class="asset-intro__guozai" src="/static/guozai/mood_06_hungry.png" mode="aspectFit" />
           <view class="asset-intro__text">
@@ -256,8 +212,8 @@ const orderTypeText: Record<string, string> = {
         </view>
       </view>
 
-      <!-- ============ 周边商城 ============ -->
-      <view v-if="activeTab === 'shop'">
+      <!-- 实物周边暂不开放：保留为无商品的内容介绍，避免伪支付入口。 -->
+      <view v-if="false">
         <view v-if="products.length === 0" class="gallery-empty">
           <image class="gallery-empty__img" src="/static/guozai/action_07_empty.png" mode="aspectFit" />
           <text class="gallery-empty__text">周边正在赶工中，锅仔先去喝口水～</text>
@@ -280,8 +236,7 @@ const orderTypeText: Record<string, string> = {
         </view>
       </view>
 
-      <!-- ============ 我的订单 ============ -->
-      <view v-if="activeTab === 'orders'">
+      <view v-if="false">
         <view v-if="orders.length === 0" class="gallery-empty">
           <image class="gallery-empty__img" src="/static/guozai/action_07_empty.png" mode="aspectFit" />
           <text class="gallery-empty__text">还没有订单，去带一只锅仔回家吧～</text>
@@ -308,8 +263,7 @@ const orderTypeText: Record<string, string> = {
       </view>
     </template>
 
-    <!-- 购买弹窗 -->
-    <view v-if="showBuy && selectedProduct" class="buy-mask" @click.self="showBuy = false">
+    <view v-if="false" class="buy-mask">
       <view class="buy-pop pop-in">
         <image class="buy-pop__img" :src="selectedProduct.image" mode="aspectFill" />
         <text class="buy-pop__name">{{ selectedProduct.name }}</text>

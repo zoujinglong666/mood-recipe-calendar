@@ -1,4 +1,4 @@
-import { get, post, del } from './request'
+import { get, post, del, resolveAssetUrl } from './request'
 
 export interface RecordItem {
   id: number
@@ -40,17 +40,21 @@ export interface YearStatsResult extends StatsResult {
 /** 保存记录 */
 export function saveRecord(payload: RecordPayload) {
   const { openid: _openid, ...request } = payload
-  return post<RecordItem>('/records', request)
+  return post<RecordItem>('/records', request).then(normalizeRecord)
 }
 
 /** 获取用户全部记录 */
 export function fetchRecords(openid: string) {
-  return get<RecordItem[]>('/records', { openid })
+  return get<RecordItem[]>('/records', { openid }).then(items => items.map(normalizeRecord))
 }
 
 /** 获取某月记录 */
 export function fetchRecordsByMonth(openid: string, month: string) {
-  return get<RecordItem[]>('/records/month', { openid, month })
+  return get<RecordItem[]>('/records/month', { openid, month }).then(items => items.map(normalizeRecord))
+}
+
+function normalizeRecord(record: RecordItem): RecordItem {
+  return { ...record, imageUrl: resolveAssetUrl(record.imageUrl) }
 }
 
 /** 删除记录 */

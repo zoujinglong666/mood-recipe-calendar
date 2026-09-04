@@ -50,9 +50,16 @@ public class WechatVirtualPaymentCallbackController {
             @RequestParam("nonce") String nonce,
             @RequestParam("echostr") String echostr
     ) {
-        return messageCrypto.verify(signature, timestamp, nonce, null)
-                ? ResponseEntity.ok(echostr)
-                : ResponseEntity.status(HttpStatus.FORBIDDEN).body("invalid signature");
+        String signaturePayload = messageCrypto.isSafeModeEnabled() ? echostr : null;
+        if (!messageCrypto.verify(signature, timestamp, nonce, signaturePayload)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("invalid signature");
+        }
+        try {
+            // 安全模式下 echostr 是密文；明文模式下保留原样兼容本地联调。
+            return ResponseEntity.ok(messageCrypto.isSafeModeEnabled() ? messageCrypto.decryptText(echostr) : echostr);
+        } catch (IllegalArgumentException exception) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("invalid echostr");
+        }
     }
 
     /**

@@ -67,6 +67,14 @@ public class VirtualCommerceService {
                 .toList();
     }
 
+    public Optional<VirtualOrder> findOrderForUser(String openid, String orderNo) {
+        return orderRepository.findByOrderNo(orderNo).filter(order -> openid.equals(order.getOpenid()));
+    }
+
+    public List<VirtualOrder> listOrders(String openid) {
+        return orderRepository.findByOpenidOrderByCreatedAtDesc(openid);
+    }
+
     /** 预扣一次权益。调用方在模型生成失败时必须调用 restoreEntitlement。 */
     @Transactional
     public Optional<UserEntitlement> consumeEntitlement(String openid, String code) {

@@ -104,10 +104,10 @@ function goGallery() {
   router.push({ name: 'gallery' })
 }
 function goSettings() {
-  router.push({ name: 'about' })
+  router.push({ name: 'privacy' })
 }
 function showPrivacy() {
-  uni.showModal({ title: '隐私政策', content: '我们仅在你主动记录时保存菜品、心情和图片，用于生成日历与画册；不会出售个人信息。AI 请求只使用本次生成所需的内容。你可随时联系客服申请导出或删除数据。', showCancel: false, confirmText: '我知道了' })
+  router.push({ name: 'privacy' })
 }
 function goAbout() { router.push({ name: 'about' }) }
 function goTimeline() { router.push({ name: 'timeline' }) }

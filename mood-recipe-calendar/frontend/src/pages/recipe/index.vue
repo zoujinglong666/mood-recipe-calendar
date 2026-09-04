@@ -5,7 +5,7 @@ import Icon from '../../components/common/Icon.vue'
 import LoadingState from '../../components/guozai/LoadingState.vue'
 import ErrorState from '../../components/guozai/ErrorState.vue'
 import { recommendRecipe, requestDeepRecipe, type RecipeItem } from '../../api/recipes'
-import { createVirtualOrder, fetchVirtualProducts, getVirtualPaymentParams, requestWechatVirtualPayment, type VirtualProduct } from '../../api/virtualCommerce'
+import { createVirtualOrder, fetchVirtualOrder, fetchVirtualProducts, getVirtualPaymentParams, requestWechatVirtualPayment, type VirtualProduct } from '../../api/virtualCommerce'
 import { ensureLogin } from '../../utils/login'
 
 definePage({
@@ -131,17 +131,31 @@ async function requestPersonalMenu() {
 
 async function purchase(product: VirtualProduct) {
   purchasingSku.value = product.sku
+  let checkingDelivery = false
   try {
     const openid = await ensureLogin()
     const order = await createVirtualOrder(openid, product.sku)
     const params = await getVirtualPaymentParams(openid, order.orderNo)
     await requestWechatVirtualPayment(params)
-    uni.showToast({ title: '支付已提交，权益到账后即可使用', icon: 'none' })
+    checkingDelivery = true
+    uni.showLoading({ title: '锅仔正在确认权益…', mask: true })
+    const delivered = await waitForDelivery(order.orderNo)
+    uni.showToast({ title: delivered ? '权益已到账，可以定制菜单啦' : '支付已完成，权益确认中', icon: 'none' })
   } catch (e: any) {
     uni.showToast({ title: e.message || '暂时无法发起支付', icon: 'none' })
   } finally {
+    if (checkingDelivery) uni.hideLoading()
     purchasingSku.value = ''
   }
+}
+
+async function waitForDelivery(orderNo: string) {
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    await new Promise(resolve => setTimeout(resolve, attempt === 0 ? 900 : 1600))
+    const latest = await fetchVirtualOrder(orderNo)
+    if (latest.status === 'DELIVERED') return true
+  }
+  return false
 }
 </script>
 
