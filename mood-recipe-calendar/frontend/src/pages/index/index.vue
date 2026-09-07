@@ -16,6 +16,21 @@ const now = new Date()
 const weekCN = ['日', '一', '二', '三', '四', '五', '六']
 const dateTitle = `${now.getMonth() + 1}月${now.getDate()}日 周${weekCN[now.getDay()]}`
 const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+/** 时间段 → 主卡片右侧锅仔形象池，与寄语内容呼应，按日期轮换 */
+const HERO_GUOZAI_BY_PERIOD: Record<string, string[]> = {
+  morning: ['/static/guozai/action_01_bowl.png', '/static/guozai/action_13_wave.png', '/static/guozai/action_11_cooking.png'],
+  noon: ['/static/guozai/action_02_soup.png', '/static/guozai/action_16_chopsticks.png', '/static/guozai/action_17_full.png'],
+  afternoon: ['/static/guozai/action_10_thinking.png', '/static/guozai/action_14_clap.png', '/static/guozai/action_12_heart.png'],
+  evening: ['/static/guozai/action_09_celebrate.png', '/static/guozai/action_18_cheer.png', '/static/guozai/action_06_glasses.png'],
+  late: ['/static/guozai/action_08_peek.png', '/static/guozai/action_15_sleepy.png', '/static/guozai/action_07_empty.png'],
+}
+function getPeriod(hour: number) {
+  return hour < 5 ? 'late' : hour < 11 ? 'morning' : hour < 15 ? 'noon' : hour < 18 ? 'afternoon' : hour < 22 ? 'evening' : 'late'
+}
+const heroGuozaiImg = computed(() => {
+  const pool = HERO_GUOZAI_BY_PERIOD[getPeriod(now.getHours())] || HERO_GUOZAI_BY_PERIOD.morning
+  return pool[now.getDate() % pool.length]
+})
 const loading = ref(true)
 const stats = ref<StatsResult>({ totalRecords: 0, totalDays: 0, currentStreak: 0, longestStreak: 0, moodDistribution: {}, topDishes: [] })
 const recordDays = ref<Set<number>>(new Set())
@@ -95,7 +110,7 @@ function goto(name: string, q?: Record<string, string>) { router.push({ name, qu
             </view>
           </view>
         </view>
-        <image class="home-hero__img" :class="{ 'guozai-breathe': !isBouncing, 'guozai-bounce': isBouncing }" src="/static/guozai/action_01_bowl.png" mode="aspectFit" />
+        <image class="home-hero__img" :class="{ 'guozai-breathe': !isBouncing, 'guozai-bounce': isBouncing }" :src="heroGuozaiImg" :key="heroGuozaiImg" mode="aspectFit" />
         <view class="home-hero__profile" role="button" aria-label="打开我的页面" @click.stop="goto('profile')">
           <image src="/static/guozai/mood_01_happy.png" mode="aspectFit" />
         </view>
@@ -157,7 +172,8 @@ function goto(name: string, q?: Record<string, string>) { router.push({ name, qu
 .home-hero__memory-title, .home-hero__memory-copy { display: block; }
 .home-hero__memory-title { color: var(--mrc-text-deep); font-size: 23rpx; font-weight: 800; }
 .home-hero__memory-copy { margin-top: 4rpx; color: var(--mrc-text-sub); font-size: 19rpx; line-height: 1.35; }
-.home-hero__img { position: absolute; z-index: 1; right: -18rpx; bottom: -12rpx; width: 438rpx; height: 438rpx; }
+.home-hero__img { position: absolute; z-index: 1; right: -18rpx; bottom: -12rpx; width: 438rpx; height: 438rpx; animation: guozai-hero-in 0.45s ease; }
+@keyframes guozai-hero-in { from { opacity: 0; transform: scale(0.88) translateY(12rpx); } to { opacity: 1; transform: scale(1) translateY(0); } }
 .home-hero__bubble { position: absolute; z-index: 3; left: 34rpx; bottom: 40rpx; display: flex; align-items: center; gap: 16rpx; max-width: 460rpx; min-height: 88rpx; box-sizing: border-box; padding: 16rpx 22rpx; border: 2rpx solid var(--mrc-border); border-radius: 28rpx 28rpx 28rpx 8rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-sm); color: var(--mrc-text-deep); font-size: 25rpx; font-weight: 700; }
 .home-hero__bubble-arrow { color: var(--mrc-accent); font-size: 42rpx; line-height: 24rpx; }
 .home-hero__spark { position: absolute; z-index: 0; width: 18rpx; height: 18rpx; border-radius: 50%; background: var(--mrc-pop); }
