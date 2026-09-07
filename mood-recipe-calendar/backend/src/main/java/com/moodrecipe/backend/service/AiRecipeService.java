@@ -27,6 +27,7 @@ public class AiRecipeService {
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(15);
 
     private final ObjectMapper objectMapper;
+    private final AgnesRecipeImageService imageService;
     private final HttpClient httpClient;
     private final String apiKey;
     private final String baseUrl;
@@ -34,11 +35,13 @@ public class AiRecipeService {
 
     public AiRecipeService(
             ObjectMapper objectMapper,
+            AgnesRecipeImageService imageService,
             @Value("${ai.recipe.api-key:}") String apiKey,
             @Value("${ai.recipe.base-url:https://api.openai.com/v1/chat/completions}") String baseUrl,
             @Value("${ai.recipe.model:}") String model
     ) {
         this.objectMapper = objectMapper;
+        this.imageService = imageService;
         this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(8)).build();
         this.apiKey = apiKey;
         this.baseUrl = baseUrl;
@@ -79,7 +82,9 @@ public class AiRecipeService {
 
             JsonNode root = objectMapper.readTree(response.body());
             String content = root.path("choices").path(0).path("message").path("content").asText();
-            return toRecipe(content, mood);
+            Optional<Recipe> recipe = toRecipe(content, mood);
+            recipe.ifPresent(item -> imageService.generateCover(item).ifPresent(item::setImage));
+            return recipe;
         } catch (Exception ignored) {
             return Optional.empty();
         }

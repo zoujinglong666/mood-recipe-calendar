@@ -21,6 +21,16 @@ onMounted(() => {
     }
   })
 })
+
+// 监听路由变化，自动同步 tabbar 激活态（修复：从其他页面 pushTab 跳转时激活态不更新）
+watch(() => route.name, (newName) => {
+  if (newName && newName !== activeTabbar.value.name) {
+    const tabNames = tabbarList.value.map(item => item.name)
+    if (tabNames.includes(newName)) {
+      setTabbarItemActive(newName)
+    }
+  }
+})
 </script>
 
 <script lang="ts">
