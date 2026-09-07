@@ -33,6 +33,10 @@ public class Recipe {
 
     private String season;
 
+    /** 仅用于本次响应，不进入菜谱表。 */
+    @Transient
+    private String recommendationReason;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

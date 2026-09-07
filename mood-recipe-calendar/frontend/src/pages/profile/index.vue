@@ -124,7 +124,7 @@ function goFeedback() { router.push({ name: 'feedback' }) }
           <!-- 微信小程序：头像昵称填写能力 -->
           <!-- #ifdef MP-WEIXIN -->
           <button class="profile-avatar-btn" open-type="chooseAvatar" @chooseavatar="onChooseAvatar">
-            <view class="profile-avatar">
+            <view class="profile-avatar" :class="{ 'profile-avatar--logged': userStore.userInfo?.avatarUrl }">
               <image
                 v-if="userStore.userInfo?.avatarUrl"
                 class="profile-avatar__img"
@@ -132,37 +132,43 @@ function goFeedback() { router.push({ name: 'feedback' }) }
                 mode="aspectFill"
               />
               <image v-else class="profile-avatar__img" src="/static/guozai/mood_01_happy.png" mode="aspectFit" />
-              <view v-if="!userStore.userInfo?.avatarUrl" class="profile-avatar__badge"><text>登录</text></view>
+              <view class="profile-avatar__edit">
+                <Icon name="camera" :size="28" color="var(--mrc-primary)" />
+              </view>
             </view>
           </button>
           <!-- #endif -->
           <!-- H5 开发调试 -->
           <!-- #ifndef MP-WEIXIN -->
-          <view class="profile-avatar">
+          <view class="profile-avatar profile-avatar--logged">
             <image class="profile-avatar__img" src="/static/guozai/mood_01_happy.png" mode="aspectFit" />
           </view>
           <!-- #endif -->
 
-          <!-- 昵称：小程序可填写，H5 只读 -->
-          <!-- #ifdef MP-WEIXIN -->
-          <input
-            v-if="editingNick"
-            v-model="nickInput"
-            class="profile-nick-input"
-            type="nickname"
-            placeholder="点击填写昵称"
-            confirm-type="done"
-            @confirm="onNickConfirm"
-            @blur="onNickConfirm"
-          />
-          <text v-else class="profile-name" @click="editingNick = true; nickInput = userStore.userInfo?.nickname || ''">
-            {{ userStore.userInfo?.nickname || '点击微信登录' }}
-          </text>
-          <text v-if="!userStore.userInfo?.nickname" class="profile-login-hint">授权头像昵称，开启锅仔陪伴</text>
-          <!-- #endif -->
-          <!-- #ifndef MP-WEIXIN -->
-          <text class="profile-name">{{ userStore.userInfo?.nickname || '小圆' }}</text>
-          <!-- #endif -->
+          <view class="profile-userinfo">
+            <!-- 昵称：小程序可填写，H5 只读 -->
+            <!-- #ifdef MP-WEIXIN -->
+            <input
+              v-if="editingNick"
+              v-model="nickInput"
+              class="profile-nick-input"
+              type="nickname"
+              placeholder="请输入昵称"
+              confirm-type="done"
+              @confirm="onNickConfirm"
+              @blur="onNickConfirm"
+            />
+            <view v-else class="profile-name-wrap" @click="editingNick = true; nickInput = userStore.userInfo?.nickname || ''">
+              <text class="profile-name">{{ userStore.userInfo?.nickname || '点击微信登录' }}</text>
+              <text class="profile-name__arrow">›</text>
+            </view>
+            <text v-if="!userStore.userInfo?.nickname" class="profile-login-hint">授权头像昵称，开启锅仔陪伴</text>
+            <text v-else class="profile-login-hint profile-login-hint--sub">点击可修改昵称</text>
+            <!-- #endif -->
+            <!-- #ifndef MP-WEIXIN -->
+            <text class="profile-name">{{ userStore.userInfo?.nickname || '小圆' }}</text>
+            <!-- #endif -->
+          </view>
         </view>
         <view class="profile-header__right" :style="{ marginRight: nav.capsuleRightGap + 8 + 'px' }" @click="goSettings">
           <Icon name="gear" :size="44" color="var(--mrc-text-deep)" />
@@ -257,26 +263,38 @@ function goFeedback() { router.push({ name: 'feedback' }) }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 60rpx 0 32rpx;
+  padding: 48rpx 0 32rpx;
 }
 .profile-header__left {
   display: flex;
   align-items: center;
-  gap: 24rpx;
+  gap: 28rpx;
   flex: 1;
   min-width: 0;
 }
+.profile-userinfo {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+  flex: 1;
+  min-width: 0;
+}
+/* 头像：渐变光晕 + 白色描边 */
 .profile-avatar {
   position: relative;
-  width: 120rpx;
-  height: 120rpx;
+  width: 136rpx;
+  height: 136rpx;
   border-radius: 50%;
-  background: var(--mrc-surface-peach);
-  border: 4rpx solid var(--mrc-border-light);
+  background: linear-gradient(135deg, #FFE8D6 0%, #FFD4C4 100%);
+  box-shadow: 0 8rpx 24rpx rgba(255, 140, 100, 0.18), 0 0 0 6rpx rgba(255,255,255,0.6);
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: visible;
+  flex-shrink: 0;
+}
+.profile-avatar--logged {
+  background: var(--mrc-surface-peach);
 }
 .profile-avatar-btn {
   background: transparent;
@@ -285,44 +303,72 @@ function goFeedback() { router.push({ name: 'feedback' }) }
   line-height: 1;
   border: none;
   border-radius: 50%;
+  width: 136rpx;
+  height: 136rpx;
+  flex-shrink: 0;
 }
 .profile-avatar-btn::after {
   border: none;
 }
 .profile-avatar__img {
-  width: 90rpx;
-  height: 90rpx;
+  width: 104rpx;
+  height: 104rpx;
+  border-radius: 50%;
 }
-.profile-avatar__badge {
+/* 编辑角标：精致小圆 + 相机图标 */
+.profile-avatar__edit {
   position: absolute;
-  right: -4rpx;
-  bottom: -4rpx;
-  background: var(--mrc-primary);
-  color: #fff;
-  font-size: 18rpx;
-  font-weight: 700;
-  padding: 4rpx 12rpx;
-  border-radius: 16rpx;
+  right: -2rpx;
+  bottom: -2rpx;
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 4rpx 12rpx rgba(0,0,0,0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: 3rpx solid var(--mrc-bg);
-  line-height: 1.4;
+}
+/* 昵称 */
+.profile-name-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+}
+.profile-name {
+  font-size: 44rpx;
+  font-weight: 700;
+  color: var(--mrc-text-strong);
+  line-height: 1.3;
+}
+.profile-name__arrow {
+  font-size: 36rpx;
+  color: var(--mrc-text-light);
+  font-weight: 400;
+  line-height: 1;
+  margin-top: 4rpx;
 }
 .profile-login-hint {
-  display: block;
-  margin-top: 8rpx;
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: var(--mrc-accent);
   font-weight: 600;
+  line-height: 1.4;
+}
+.profile-login-hint--sub {
+  color: var(--mrc-text-light);
+  font-weight: 400;
 }
 .profile-nick-input {
-  flex: 1;
-  min-width: 0;
-  max-width: 420rpx;
-  font-size: 48rpx;
+  width: 100%;
+  font-size: 44rpx;
   font-weight: 700;
   color: var(--mrc-text-deep);
   padding: 0;
   background: transparent;
   border: none;
+  border-bottom: 2rpx solid var(--mrc-accent);
+  line-height: 1.3;
 }
 .profile-name {
   font-size: 48rpx;
