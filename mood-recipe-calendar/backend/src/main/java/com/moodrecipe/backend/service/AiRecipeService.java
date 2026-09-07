@@ -85,6 +85,33 @@ public class AiRecipeService {
         }
     }
 
+    /** 只接收聚合后的习惯摘要，不上传日记、菜谱正文或身份标识。 */
+    public Optional<String> companionMessage(String context) {
+        if (apiKey.isBlank() || model.isBlank()) return Optional.empty();
+        try {
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("model", model);
+            body.put("temperature", 0.75);
+            body.put("messages", List.of(
+                    Map.of("role", "system", "content", "你是锅仔，一个温暖、克制、熟悉用户吃饭习惯的中文陪伴者。只谈吃饭和日常关心，不做医疗判断，不制造焦虑。"),
+                    Map.of("role", "user", "content", "根据这份不含身份信息的习惯摘要写一句20到36字的个性化寄语：" + sanitizePreference(context) + "。自然提到其中一个真实细节，不要引号、标题、表情符号或自称AI。")
+            ));
+            HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl))
+                    .timeout(REQUEST_TIMEOUT)
+                    .header("Authorization", "Bearer " + apiKey)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)))
+                    .build();
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) return Optional.empty();
+            String text = objectMapper.readTree(response.body()).path("choices").path(0).path("message").path("content").asText().replaceAll("[\\r\\n]+", " ").trim();
+            if (text.isBlank()) return Optional.empty();
+            return Optional.of(text.substring(0, Math.min(text.length(), 40)));
+        } catch (Exception ignored) {
+            return Optional.empty();
+        }
+    }
+
     private Optional<Recipe> toRecipe(String content, String mood) {
         try {
             String json = content.trim();

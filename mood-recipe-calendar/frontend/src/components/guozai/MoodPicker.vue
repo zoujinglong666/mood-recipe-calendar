@@ -91,8 +91,15 @@ function heroTap() {
 
 <template>
   <view class="mood-picker">
-    <!-- 标题 -->
-    <text class="mood-picker__title">{{ title }}</text>
+    <view class="mood-picker__heading">
+      <view class="mood-picker__heading-copy">
+        <text class="mood-picker__eyebrow">锅仔听着呢</text>
+        <text class="mood-picker__title">{{ title }}</text>
+      </view>
+      <view class="mood-picker__current" :class="{ 'mood-picker__current--active': selected }">
+        {{ selected || '未选择' }}
+      </view>
+    </view>
 
     <!-- 顶部大锅仔联动区 -->
     <view v-if="showHero" class="mood-picker__hero" :style="{ height: heroHeight + 'rpx' }" @click="heroTap">
@@ -120,6 +127,8 @@ function heroTap() {
         }"
         hover-class="mood-picker__card--hover"
         :hover-stay-time="80"
+        role="button"
+        :aria-label="`选择心情：${m.key}${selected === m.key ? '，已选择' : ''}`"
         @click="onCardTap(m.key)"
       >
         <image class="mood-picker__card-icon" :src="m.img" mode="aspectFit" />
@@ -132,7 +141,7 @@ function heroTap() {
     <view v-if="confirmText && selected" class="mood-picker__bar">
       <image v-if="shownMood" class="mood-picker__bar-img" :src="shownMood.img" mode="aspectFit" />
       <text class="mood-picker__bar-txt">{{ shownMood?.key }} · {{ heroTip }}</text>
-      <view class="mood-picker__bar-btn" @click="onConfirm">{{ confirmText }}</view>
+      <view class="mood-picker__bar-btn" role="button" :aria-label="`${confirmText}：${selected}`" @click="onConfirm">{{ confirmText }}</view>
     </view>
   </view>
 </template>
@@ -143,14 +152,46 @@ function heroTap() {
 }
 
 /* 标题 */
+.mood-picker__heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24rpx;
+  margin-bottom: 20rpx;
+}
+.mood-picker__heading-copy {
+  min-width: 0;
+}
+.mood-picker__eyebrow {
+  display: block;
+  margin-bottom: 6rpx;
+  color: var(--mrc-accent);
+  font-size: 20rpx;
+  font-weight: 800;
+  letter-spacing: 2rpx;
+}
 .mood-picker__title {
   display: block;
-  font-size: 34rpx;
+  color: var(--mrc-text-strong);
+  font-size: 36rpx;
+  font-weight: 850;
+  line-height: 1.25;
+}
+.mood-picker__current {
+  min-width: 104rpx;
+  padding: 12rpx 18rpx;
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 28rpx;
+  background: var(--mrc-surface-2);
+  color: var(--mrc-text-sub);
+  font-size: 22rpx;
   font-weight: 700;
-  color: var(--mrc-text-deep);
-  margin-bottom: 20rpx;
-  padding-left: 16rpx;
-  border-left: 8rpx solid var(--mrc-primary);
+  text-align: center;
+}
+.mood-picker__current--active {
+  border-color: var(--mrc-primary);
+  background: var(--mrc-accent-soft);
+  color: var(--mrc-accent);
 }
 
 /* 大锅仔联动区 */
@@ -160,10 +201,10 @@ function heroTap() {
   align-items: center;
   justify-content: center;
   border: 2rpx solid var(--mrc-border-light);
-  border-radius: 36rpx;
-  background: radial-gradient(circle at 75% 20%, rgba(255, 197, 61, 0.28), transparent 24%), var(--mrc-surface-peach);
-  box-shadow: var(--mrc-shadow-soft);
-  margin-bottom: 24rpx;
+  border-radius: 40rpx;
+  background: radial-gradient(circle at 82% 8%, rgba(255, 197, 61, 0.28), transparent 30%), linear-gradient(145deg, var(--mrc-surface), var(--mrc-surface-peach));
+  box-shadow: var(--mrc-shadow-lift), var(--mrc-gloss);
+  margin-bottom: 28rpx;
   overflow: hidden;
 }
 .mood-picker__hero-img {
@@ -173,24 +214,29 @@ function heroTap() {
   display: flex;
   flex-direction: column;
   gap: 8rpx;
-  max-width: 40%;
+  max-width: 44%;
+  padding: 24rpx;
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 26rpx 26rpx 26rpx 8rpx;
+  background: var(--mrc-surface);
+  box-shadow: var(--mrc-shadow-sm);
 }
 .mood-picker__hero-mood {
-  font-size: 44rpx;
+  font-size: 40rpx;
   font-weight: 800;
   color: var(--mrc-text-deep);
 }
 .mood-picker__hero-tip {
-  font-size: 26rpx;
+  font-size: 24rpx;
   color: var(--mrc-text-sub);
   line-height: 1.5;
 }
 
-/* 12 心情网格 3×4 */
+/* 12 心情网格 4×3，缩短选择路径 */
 .mood-picker__grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20rpx;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14rpx;
 }
 .mood-picker__card {
   position: relative;
@@ -198,22 +244,22 @@ function heroTap() {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12rpx;
-  min-height: 190rpx;
-  padding: 16rpx 0;
+  gap: 6rpx;
+  min-height: 156rpx;
+  padding: 12rpx 4rpx;
   background: var(--mrc-surface);
   border: 2rpx solid var(--mrc-border-light);
-  border-radius: 28rpx;
-  box-shadow: var(--mrc-shadow-sm);
-  transition: transform 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+  border-radius: 24rpx;
+  box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss);
+  transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
 .mood-picker__card--hover {
   transform: scale(0.96);
 }
 .mood-picker__card--active {
-  background: var(--mrc-primary-grad);
-  border-color: transparent;
-  box-shadow: 0 10rpx 24rpx rgba(253, 145, 132, 0.38);
+  background: var(--mrc-surface-peach);
+  border-color: var(--mrc-primary-deep);
+  box-shadow: 0 8rpx 20rpx rgba(239, 90, 60, 0.18), inset 0 0 0 2rpx var(--mrc-primary);
 }
 /* 选中弹跳 */
 @keyframes mood-pop {
@@ -225,29 +271,29 @@ function heroTap() {
   animation: mood-pop 0.35s ease;
 }
 .mood-picker__card-icon {
-  width: 104rpx;
-  height: 104rpx;
+  width: 84rpx;
+  height: 84rpx;
 }
 .mood-picker__card-label {
-  font-size: 28rpx;
+  font-size: 24rpx;
   color: var(--mrc-text-deep);
   font-weight: 600;
   letter-spacing: 1rpx;
 }
 .mood-picker__card--active .mood-picker__card-label {
-  color: #fff;
+  color: var(--mrc-accent);
   font-weight: 800;
 }
 .mood-picker__card-check {
   position: absolute;
   top: 10rpx;
   right: 12rpx;
-  width: 36rpx;
-  height: 36rpx;
+  width: 34rpx;
+  height: 34rpx;
   border-radius: 50%;
-  background: #fff;
-  color: var(--mrc-accent);
-  font-size: 24rpx;
+  background: var(--mrc-primary-deep);
+  color: #fff;
+  font-size: 22rpx;
   font-weight: 800;
   display: flex;
   align-items: center;
@@ -264,7 +310,7 @@ function heroTap() {
   display: flex;
   align-items: center;
   gap: 16rpx;
-  background: #fff;
+  background: var(--mrc-surface);
   border: 2rpx solid var(--mrc-border-light);
   border-radius: 40rpx;
   padding: 16rpx 20rpx;
@@ -286,6 +332,10 @@ function heroTap() {
   font-weight: 600;
 }
 .mood-picker__bar-btn {
+  min-height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: var(--mrc-primary-grad);
   color: #fff;
   font-size: 30rpx;
@@ -296,5 +346,11 @@ function heroTap() {
 }
 .mood-picker__bar-btn:active {
   transform: scale(0.95);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mood-picker__card,
+  .mood-picker__card--pop,
+  .mood-picker__bar { animation: none; transition: none; }
 }
 </style>

@@ -68,6 +68,7 @@ async function save() {
       eatCilantro: eatCilantro.value,
       spiceLevel: spiceLevel.value,
     })
+    uni.removeStorageSync('mrc_companion_message')
     uni.setStorageSync('mrc_preference_onboarded', '1')
     uni.showToast({ title: '锅仔记住啦', icon: 'success' })
     setTimeout(finish, 450)
@@ -105,6 +106,7 @@ function clearMemory() {
       if (!result.confirm) return
       try {
         await clearFoodPreference()
+        uni.removeStorageSync('mrc_companion_message')
         uni.removeStorageSync('mrc_preference_onboarded')
         favoriteTags.value = []
         favoriteDishes.value = ''

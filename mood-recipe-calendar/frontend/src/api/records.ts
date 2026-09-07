@@ -37,6 +37,13 @@ export interface YearStatsResult extends StatsResult {
   monthlyHeatmap: Record<string, number>
 }
 
+export interface CompanionMessage {
+  greeting: string
+  message: string
+  insight: string
+  actionText: string
+}
+
 /** 保存记录 */
 export function saveRecord(payload: RecordPayload) {
   const { openid: _openid, ...request } = payload
@@ -70,4 +77,9 @@ export function fetchStats(openid: string) {
 /** 年度统计 */
 export function fetchYearStats(openid: string, year: number) {
   return get<YearStatsResult>('/records/year-stats', { openid, year })
+}
+
+/** 锅仔寄语：后端只使用聚合习惯，hour 为用户设备的本地小时。 */
+export function fetchCompanionMessage(hour: number) {
+  return get<CompanionMessage>('/companion/message', { hour })
 }

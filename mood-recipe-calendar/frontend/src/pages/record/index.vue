@@ -44,6 +44,7 @@ onShow(() => {
 })
 
 async function chooseImage() {
+  if (uploading.value) return
   uni.chooseImage({
     count: 1,
     success: async (res) => {
@@ -64,6 +65,7 @@ async function chooseImage() {
 }
 
 async function publish() {
+  if (submitting.value) return
   if (!dishImage.value) {
     uni.showToast({ title: '请先上传菜品照片', icon: 'none' })
     return
@@ -93,6 +95,7 @@ async function publish() {
       recipeId: recipeId.value,
       cookingTime: parseInt(cookingTime.value) || 30,
     })
+    uni.removeStorageSync('mrc_companion_message')
     showSuccess.value = true
   } catch (e: any) {
     uni.showToast({ title: e.message || '保存失败', icon: 'none' })
@@ -119,55 +122,80 @@ function chooseCookingTime() {
 
 <template>
   <view class="record-page mrc-hero">
-    <wd-navbar title="记录今日伙食" safe-area-inset-top  custom-style="background-color: transparent !important;" />
+    <wd-navbar title="记录今日伙食" safe-area-inset-top custom-style="background-color: transparent !important;" />
+
+    <view class="record-intro">
+      <view class="record-intro__copy">
+        <text class="record-intro__eyebrow">今天也有好好吃饭</text>
+        <text class="record-intro__title">把这一餐，留给以后的你</text>
+        <text class="record-intro__sub">锅仔会记住味道，也记住你今天的心情</text>
+      </view>
+      <image class="record-intro__guozai" src="/static/guozai/action_03_camera.png" mode="aspectFit" />
+    </view>
 
     <!-- 拍照区 -->
-    <view class="record-photo" @click="chooseImage">
-      <image v-if="dishImage" class="record-photo__img" :src="dishImage" mode="aspectFill" />
-      <template v-else>
-        <image class="record-photo__guozai guozai-breathe" src="/static/guozai/action_03_camera.png" mode="aspectFit" />
-        <view class="record-photo__camera">
-          <Icon name="camera" :size="64" color="var(--mrc-accent)" />
+    <view class="record-photo" role="button" aria-label="添加或更换菜品照片" @click="chooseImage">
+      <template v-if="dishImage">
+        <image class="record-photo__img" :src="dishImage" mode="aspectFill" />
+        <view class="record-photo__change">
+          <Icon name="camera" :size="30" color="#FFFFFF" />
+          <text>{{ uploading ? '上传中…' : '更换照片' }}</text>
         </view>
-        <text class="record-photo__tip">点击拍照 / 从相册选择</text>
+        <view v-if="uploading" class="record-photo__uploading"><text>锅仔正在收好照片…</text></view>
+      </template>
+      <template v-else>
+        <view class="record-photo__camera">
+          <Icon name="camera" :size="56" color="#EF5A3C" />
+        </view>
+        <text class="record-photo__title">先拍下今天这道菜</text>
+        <text class="record-photo__tip">拍照或从相册选择 · 必填</text>
       </template>
     </view>
 
-    <!-- 菜名输入 -->
-    <view class="record-input">
-      <text class="record-input__label">菜名</text>
-      <input
-        class="record-input__field"
-        v-model="dishName"
-        placeholder="请输入菜名"
-        placeholder-class="record-input__placeholder"
-      />
+    <view class="record-form-card">
+      <view class="record-section-title">
+        <view class="record-section-title__num">2</view>
+        <view><text class="record-section-title__main">这一餐吃了什么？</text><text class="record-section-title__sub">菜名必填，时间可以慢慢选</text></view>
+      </view>
+      <view class="record-input">
+        <text class="record-input__label">菜名</text>
+        <input
+          v-model="dishName"
+          class="record-input__field"
+          placeholder="比如：番茄炒蛋"
+          placeholder-class="record-input__placeholder"
+        />
+      </view>
+      <view class="record-time" role="button" aria-label="选择烹饪时间" @click="chooseCookingTime">
+        <view class="record-time__label"><Icon name="clock" :size="34" color="#EF5A3C" /><text>烹饪时间</text></view>
+        <view class="record-time__tag">{{ cookingTime }}<text class="record-time__arrow">›</text></view>
+      </view>
     </view>
 
-    <!-- 心情选择（公共组件：12 个锅仔 IP 大表情） -->
-    <MoodPicker v-model="selectedMood" :show-hero="false" title="今天的心情" />
+    <view class="record-mood-card">
+      <MoodPicker v-model="selectedMood" :show-hero="false" title="吃完这顿，你是什么心情？" />
+    </view>
 
-    <!-- 心情日记 -->
     <view class="record-textarea">
+      <view class="record-textarea__head">
+        <view><text class="record-textarea__title">留一句话给今天</text><text class="record-textarea__sub">可选 · 锅仔不会催你写很多</text></view>
+        <text class="record-textarea__count">{{ note.length }}/50</text>
+      </view>
       <textarea
-        class="record-textarea__field"
         v-model="note"
-        placeholder="一句话记录今天的心情（限50字）"
+        class="record-textarea__field"
+        placeholder="今天这顿饭，有什么想记住的？"
         placeholder-class="record-textarea__placeholder"
         :maxlength="50"
         :auto-height="true"
       />
     </view>
 
-    <!-- 烹饪时间 -->
-    <view class="record-time" @click="chooseCookingTime">
-      <text class="record-time__label">烹饪时间（可选）</text>
-      <view class="record-time__tag">{{ cookingTime }}<text class="record-time__arrow">›</text></view>
-    </view>
-
-    <!-- 发布按钮 -->
     <view class="record-submit">
-      <view class="record-submit__btn" @click="publish">发布</view>
+      <view class="record-submit__btn" :class="{ 'record-submit__btn--disabled': submitting || uploading }" role="button" aria-label="保存今日伙食记录" @click="publish">
+        <text>{{ submitting ? '正在保存…' : '收进我的时光机' }}</text>
+        <text v-if="!submitting" class="record-submit__sub">以后翻到今天，还能想起这一餐</text>
+      </view>
     </view>
 
     <!-- 成功弹窗 -->
@@ -183,67 +211,78 @@ function chooseCookingTime() {
 <style lang="scss" scoped>
 .record-page {
   min-height: 100vh;
-  padding: 8rpx 32rpx 0;
-  padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
+  padding: 0 32rpx;
+  padding-bottom: calc(56rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
+
+.record-intro { position: relative; display: flex; min-height: 176rpx; margin: 4rpx 0 24rpx; padding: 28rpx 28rpx 24rpx; overflow: hidden; box-sizing: border-box; border: 2rpx solid var(--mrc-border); border-radius: 36rpx; background: linear-gradient(145deg, var(--mrc-surface), var(--mrc-surface-peach)); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }
+.record-intro__copy { position: relative; z-index: 1; max-width: 76%; }
+.record-intro__eyebrow, .record-intro__title, .record-intro__sub { display: block; }
+.record-intro__eyebrow { margin-bottom: 8rpx; color: var(--mrc-accent); font-size: 20rpx; font-weight: 800; letter-spacing: 2rpx; }
+.record-intro__title { color: var(--mrc-text-strong); font-size: 34rpx; font-weight: 850; line-height: 1.3; }
+.record-intro__sub { margin-top: 8rpx; color: var(--mrc-text-sub); font-size: 22rpx; line-height: 1.45; }
+.record-intro__guozai { position: absolute; right: -4rpx; bottom: -12rpx; width: 142rpx; height: 142rpx; }
 
 /* 拍照区 */
 .record-photo {
   position: relative;
   width: 100%;
-  height: 400rpx;
-  background: radial-gradient(circle at 78% 18%, rgba(255, 197, 61, 0.25), transparent 22%), var(--mrc-surface-peach);
+  height: 344rpx;
+  background: radial-gradient(circle at 78% 18%, rgba(255, 197, 61, 0.22), transparent 28%), var(--mrc-surface-sun);
   border: 2rpx dashed var(--mrc-border-strong);
   border-radius: 36rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  margin-bottom: 32rpx;
+  margin-bottom: 24rpx;
   overflow: hidden;
 }
 .record-photo__img {
   width: 100%;
   height: 100%;
 }
-.record-photo__guozai {
-  position: absolute;
-  top: -32rpx;
-  right: 20rpx;
-  width: 180rpx;
-  height: 180rpx;
-  z-index: 2;
-}
+.record-photo:active { opacity: .88; }
 .record-photo__camera {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 112rpx;
-  height: 112rpx;
+  width: 104rpx;
+  height: 104rpx;
   background: var(--mrc-surface);
   border-radius: 32rpx;
   box-shadow: var(--mrc-shadow-sm);
-  margin-bottom: 20rpx;
+  margin-bottom: 16rpx;
 }
+.record-photo__title { color: var(--mrc-text-deep); font-size: 30rpx; font-weight: 800; }
 .record-photo__tip {
+  margin-top: 8rpx;
   font-size: 27rpx;
   color: var(--mrc-text-sub);
 }
+.record-photo__change { position: absolute; right: 20rpx; bottom: 20rpx; display: flex; align-items: center; gap: 8rpx; min-height: 72rpx; padding: 0 22rpx; border-radius: 36rpx; background: rgba(44, 24, 16, .72); color: #fff; font-size: 23rpx; font-weight: 700; }
+.record-photo__uploading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(44, 24, 16, .45); color: #fff; font-size: 26rpx; font-weight: 700; }
 
-/* 输入框 */
+.record-form-card, .record-mood-card, .record-textarea { margin-bottom: 24rpx; padding: 28rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 32rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }
+.record-section-title { display: flex; align-items: center; gap: 16rpx; margin-bottom: 22rpx; }
+.record-section-title__num { width: 48rpx; height: 48rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 50%; background: var(--mrc-accent-soft); color: var(--mrc-accent); font-size: 24rpx; font-weight: 900; }
+.record-section-title__main, .record-section-title__sub { display: block; }
+.record-section-title__main { color: var(--mrc-text-strong); font-size: 29rpx; font-weight: 800; }
+.record-section-title__sub { margin-top: 4rpx; color: var(--mrc-text-sub); font-size: 20rpx; }
+
 .record-input {
   display: flex;
   align-items: center;
-  background: var(--mrc-surface);
+  background: var(--mrc-surface-2);
   border: 2rpx solid var(--mrc-border-light);
-  border-radius: 48rpx;
-  padding: 0 32rpx;
-  height: 96rpx;
-  margin-bottom: 32rpx;
+  border-radius: 24rpx;
+  padding: 0 24rpx;
+  height: 92rpx;
+  margin-bottom: 14rpx;
 }
 .record-input__label {
-  font-size: 32rpx;
+  font-size: 27rpx;
   color: var(--mrc-text-deep);
   font-weight: 600;
   margin-right: 24rpx;
@@ -259,20 +298,21 @@ function chooseCookingTime() {
   color: var(--mrc-text-light);
 }
 
-/* 心情日记 */
-.record-textarea {
-  background: var(--mrc-surface);
-  border: 2rpx solid var(--mrc-border-light);
-  border-radius: 28rpx;
-  padding: 28rpx;
-  margin-bottom: 32rpx;
-}
+.record-textarea__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20rpx; margin-bottom: 20rpx; }
+.record-textarea__title, .record-textarea__sub { display: block; }
+.record-textarea__title { color: var(--mrc-text-strong); font-size: 29rpx; font-weight: 800; }
+.record-textarea__sub { margin-top: 5rpx; color: var(--mrc-text-sub); font-size: 20rpx; }
+.record-textarea__count { color: var(--mrc-text-light); font-size: 21rpx; }
 .record-textarea__field {
   width: 100%;
-  font-size: 30rpx;
+  min-height: 130rpx;
+  padding: 20rpx 22rpx;
+  box-sizing: border-box;
+  border-radius: 22rpx;
+  background: var(--mrc-surface-2);
+  font-size: 27rpx;
   color: var(--mrc-text-deep);
   line-height: 1.6;
-  min-height: 120rpx;
 }
 .record-textarea__placeholder {
   color: var(--mrc-text-light);
@@ -283,18 +323,24 @@ function chooseCookingTime() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 32rpx;
+  min-height: 88rpx;
+  padding: 0 18rpx 0 22rpx;
+  border-radius: 24rpx;
+  background: var(--mrc-surface-sun);
 }
 .record-time__label {
-  font-size: 30rpx;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  font-size: 26rpx;
   color: var(--mrc-text-deep);
   font-weight: 600;
 }
 .record-time__tag {
-  font-size: 28rpx;
+  font-size: 25rpx;
   color: var(--mrc-text-deep);
   background: var(--mrc-surface-sun);
-  padding: 12rpx 24rpx 12rpx 32rpx;
+  padding: 10rpx 12rpx 10rpx 22rpx;
   border-radius: 32rpx;
   border: 2rpx solid var(--mrc-border-light);
   display: flex;
@@ -307,21 +353,29 @@ function chooseCookingTime() {
 }
 
 /* 发布按钮 */
+.record-submit { padding-top: 4rpx; }
 .record-submit__btn {
   width: 100%;
-  height: 100rpx;
+  min-height: 112rpx;
+  flex-direction: column;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--mrc-primary-grad);
   color: #fff;
-  font-size: 36rpx;
+  font-size: 32rpx;
   font-weight: 700;
   border-radius: 50rpx;
   box-shadow: 0 10rpx 24rpx rgba(253, 145, 132, 0.35);
   letter-spacing: 4rpx;
 }
+.record-submit__sub { margin-top: 5rpx; font-size: 20rpx; font-weight: 500; letter-spacing: 0; opacity: .84; }
+.record-submit__btn--disabled { opacity: .58; box-shadow: none; }
 .record-submit__btn:active {
   transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .record-submit__btn { transition: none; }
 }
 </style>

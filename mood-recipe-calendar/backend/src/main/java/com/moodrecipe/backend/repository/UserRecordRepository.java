@@ -10,6 +10,9 @@ public interface UserRecordRepository extends JpaRepository<UserRecord, Long> {
     /** 某用户全部记录，按时间倒序 */
     List<UserRecord> findByOpenidOrderByCreatedAtDesc(String openid);
 
+    /** 个性化寄语只需观察最近记录，避免用户数据增长后全表读取。 */
+    List<UserRecord> findTop30ByOpenidOrderByCreatedAtDesc(String openid);
+
     /** 某用户某月（YYYY-MM）的记录 */
     List<UserRecord> findByOpenidAndRecordDateStartingWith(String openid, String month);
 
