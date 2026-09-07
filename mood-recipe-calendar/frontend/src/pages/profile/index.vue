@@ -89,6 +89,9 @@ async function onChooseAvatar(e: any) {
 }
 
 // ---- 微信昵称填写（小程序）----
+function onNickInput(e: any) {
+  nickInput.value = e.detail?.value || ''
+}
 async function onNickConfirm() {
   const name = nickInput.value.trim()
   if (!name || nickSaving.value) return
@@ -177,6 +180,7 @@ function goFeedback() { router.push({ name: 'feedback' }) }
               placeholder="请输入昵称"
               confirm-type="done"
               :disabled="nickSaving"
+              @input="onNickInput"
               @confirm="onNickConfirm"
               @blur="onNickConfirm"
             />

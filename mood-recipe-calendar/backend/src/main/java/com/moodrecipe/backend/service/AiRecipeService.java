@@ -37,8 +37,8 @@ public class AiRecipeService {
             ObjectMapper objectMapper,
             AgnesRecipeImageService imageService,
             @Value("${ai.recipe.api-key:}") String apiKey,
-            @Value("${ai.recipe.base-url:https://api.openai.com/v1/chat/completions}") String baseUrl,
-            @Value("${ai.recipe.model:}") String model
+            @Value("${ai.recipe.base-url:https://apihub.agnes-ai.com/v1/chat/completions}") String baseUrl,
+            @Value("${ai.recipe.model:agnes-2.5-flash}") String model
     ) {
         this.objectMapper = objectMapper;
         this.imageService = imageService;
@@ -60,6 +60,7 @@ public class AiRecipeService {
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("model", model);
             body.put("temperature", 0.8);
+            body.put("max_tokens", 1024);
             body.put("messages", List.of(
                     Map.of("role", "system", "content", "你是锅仔，一位温暖、务实的中文家常菜助手。你只提供普通家庭可完成的菜谱，不提供医疗建议。"),
                     Map.of("role", "user", "content", """

@@ -3,6 +3,8 @@ package com.moodrecipe.backend.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moodrecipe.backend.entity.Recipe;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -20,6 +22,7 @@ import java.util.Optional;
 public class AgnesRecipeImageService {
 
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
+    private static final Logger log = LoggerFactory.getLogger(AgnesRecipeImageService.class);
 
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
@@ -56,9 +59,13 @@ public class AgnesRecipeImageService {
                     .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(requestBody(recipe))))
                     .build();
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() < 200 || response.statusCode() >= 300) return Optional.empty();
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                log.warn("Agnes image request failed with HTTP {}", response.statusCode());
+                return Optional.empty();
+            }
             return imageUrl(response.body());
-        } catch (Exception ignored) {
+        } catch (Exception exception) {
+            log.warn("Agnes image request failed: {}", exception.getClass().getSimpleName());
             return Optional.empty();
         }
     }
