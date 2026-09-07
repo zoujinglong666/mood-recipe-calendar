@@ -46,8 +46,9 @@ public class WechatService {
 
     /**
      * 微信登录：用 code 换 openid，然后创建/更新用户
+     * 仅传 code；昵称/头像通过 PUT /api/auth/user 单独编辑
      */
-    public Map<String, Object> login(String code, String nickname, String avatarUrl) {
+    public Map<String, Object> login(String code) {
         String openid;
         String sessionKey = null;
 
@@ -78,12 +79,11 @@ public class WechatService {
             }
         }
 
-        // 查找或创建用户
+        // 查找或创建用户（新用户默认昵称"小圆"，头像为空）
         User user = userRepository.findByOpenid(openid).orElseGet(() -> {
             User u = new User();
             u.setOpenid(openid);
-            u.setNickname(nickname != null ? nickname : "小圆");
-            u.setAvatarUrl(avatarUrl);
+            u.setNickname("小圆");
             return userRepository.save(u);
         });
 

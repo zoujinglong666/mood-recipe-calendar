@@ -36,7 +36,7 @@ export async function ensureLogin(): Promise<string> {
   // #ifdef H5
   // H5 仅本地预览：固定 mock code（h5_dev_ 前缀），后端走 mock，不请求微信
   const mockCode = 'h5_dev_' + Math.random().toString(36).slice(2, 10)
-  const h5Result = await apiLogin(mockCode, '小圆', '')
+  const h5Result = await apiLogin(mockCode)
   userStore.setLogin(h5Result.openid, h5Result.sessionToken, h5Result.user)
   return h5Result.openid
   // #endif

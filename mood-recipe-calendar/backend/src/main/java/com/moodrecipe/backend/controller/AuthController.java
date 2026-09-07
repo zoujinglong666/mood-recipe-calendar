@@ -27,18 +27,16 @@ public class AuthController {
     /**
      * 微信登录
      * POST /api/auth/login
-     * body: { code, nickname, avatarUrl }
+     * body: { code }
      */
     @PostMapping("/login")
     public ApiResponse<Map<String, Object>> login(@RequestBody Map<String, String> body) {
         String code = body.get("code");
-        String nickname = body.get("nickname");
-        String avatarUrl = body.get("avatarUrl");
         if (code == null || code.isEmpty()) {
             return ApiResponse.error("code 不能为空");
         }
         try {
-            Map<String, Object> result = wechatService.login(code, nickname, avatarUrl);
+            Map<String, Object> result = wechatService.login(code);
             return ApiResponse.ok(result);
         } catch (Exception e) {
             return ApiResponse.error(e.getMessage());

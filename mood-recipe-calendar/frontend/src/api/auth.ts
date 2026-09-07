@@ -9,8 +9,8 @@ export interface LoginResult {
 }
 
 /** 微信登录（小程序/H5 均使用 wx.login 获取的真实 code，后端 code2session 换 openid） */
-export function login(code: string, nickname?: string, avatarUrl?: string) {
-  return post<LoginResult>('/auth/login', { code, nickname, avatarUrl })
+export function login(code: string) {
+  return post<LoginResult>('/auth/login', { code })
 }
 
 /** 获取用户信息 */

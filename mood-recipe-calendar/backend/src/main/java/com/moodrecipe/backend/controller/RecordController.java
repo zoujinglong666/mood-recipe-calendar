@@ -64,6 +64,9 @@ public class RecordController {
     /** 某用户某月记录 */
     @GetMapping("/month")
     public ApiResponse<List<UserRecord>> byMonth(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @RequestParam String month) {
+        if (month == null || !month.matches("^\\d{4}-\\d{2}$")) {
+            return ApiResponse.error(400, "月份格式应为 YYYY-MM");
+        }
         return ApiResponse.ok(repository.findByOpenidAndRecordDateStartingWith(openid, month));
     }
 
@@ -123,6 +126,9 @@ public class RecordController {
     /** 年度统计 */
     @GetMapping("/year-stats")
     public ApiResponse<Map<String, Object>> yearStats(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @RequestParam int year) {
+        if (year < 2000 || year > 2100) {
+            return ApiResponse.error(400, "年份范围应在 2000-2100 之间");
+        }
         String yearPrefix = String.valueOf(year);
         List<UserRecord> yearRecords = repository.findByOpenidOrderByCreatedAtDesc(openid).stream()
             .filter(r -> r.getRecordDate() != null && r.getRecordDate().startsWith(yearPrefix))
