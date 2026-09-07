@@ -255,7 +255,7 @@ function goFeedback() { router.push({ name: 'feedback' }) }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 60rpx 8rpx 32rpx;
+  padding: 60rpx 0 32rpx;
 }
 .profile-header__left {
   display: flex;
@@ -322,7 +322,7 @@ function goFeedback() { router.push({ name: 'feedback' }) }
   border: 2rpx solid var(--mrc-border-light);
   border-radius: 32rpx;
   padding: 36rpx 0;
-  margin-bottom: 24rpx;
+  margin-bottom: 32rpx;
   box-shadow: var(--mrc-shadow-soft);
 }
 .profile-stats__item {
@@ -435,7 +435,7 @@ function goFeedback() { router.push({ name: 'feedback' }) }
   border: 2rpx solid var(--mrc-border-light);
   border-radius: 32rpx;
   padding: 28rpx;
-  margin-bottom: 40rpx;
+  margin-bottom: 32rpx;
   box-shadow: var(--mrc-shadow-soft);
 }
 .profile-history__head {
@@ -444,7 +444,7 @@ function goFeedback() { router.push({ name: 'feedback' }) }
   justify-content: space-between;
   padding-bottom: 20rpx;
   border-bottom: 2rpx solid var(--mrc-border-light);
-  margin-bottom: 8rpx;
+  margin-bottom: 16rpx;
 }
 .profile-history__month {
   font-size: 36rpx;
@@ -509,7 +509,7 @@ function goFeedback() { router.push({ name: 'feedback' }) }
 .profile-footer__guozai {
   position: absolute;
   right: 0;
-  bottom: -10rpx;
+  bottom: -8rpx;
   width: 100rpx;
   height: 100rpx;
 }

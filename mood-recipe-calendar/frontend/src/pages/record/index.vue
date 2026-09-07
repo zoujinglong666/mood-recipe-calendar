@@ -173,7 +173,7 @@ function onSuccessConfirm() {
 <style lang="scss" scoped>
 .record-page {
   min-height: 100vh;
-  padding: 0 32rpx;
+  padding: 8rpx 32rpx 0;
   padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
 }
@@ -199,7 +199,7 @@ function onSuccessConfirm() {
 }
 .record-photo__guozai {
   position: absolute;
-  top: -30rpx;
+  top: -32rpx;
   right: 20rpx;
   width: 180rpx;
   height: 180rpx;
@@ -255,7 +255,7 @@ function onSuccessConfirm() {
   border: 2rpx solid var(--mrc-border-light);
   border-radius: 28rpx;
   padding: 28rpx;
-  margin-bottom: 28rpx;
+  margin-bottom: 32rpx;
 }
 .record-textarea__field {
   width: 100%;
@@ -273,7 +273,7 @@ function onSuccessConfirm() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 40rpx;
+  margin-bottom: 32rpx;
 }
 .record-time__label {
   font-size: 30rpx;
