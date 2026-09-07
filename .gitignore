@@ -41,3 +41,7 @@ Thumbs.db
 # 临时/排障
 mood_new/
 nav_issue.png
+
+# pnpm 虚拟 store（不应提交）
+.pnpm-store/
+**/.pnpm-store/

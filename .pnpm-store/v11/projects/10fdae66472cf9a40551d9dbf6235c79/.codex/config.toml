@@ -1,5 +1,0 @@
-# open-wot managed mcp server start
-[mcp_servers.wot-ui]
-command = "npx"
-args = ["-y", "@wot-ui/cli", "mcp"]
-# open-wot managed mcp server end
