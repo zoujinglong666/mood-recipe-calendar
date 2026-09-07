@@ -132,6 +132,7 @@ function goFeedback() { router.push({ name: 'feedback' }) }
                 mode="aspectFill"
               />
               <image v-else class="profile-avatar__img" src="/static/guozai/mood_01_happy.png" mode="aspectFit" />
+              <view v-if="!userStore.userInfo?.avatarUrl" class="profile-avatar__badge"><text>登录</text></view>
             </view>
           </button>
           <!-- #endif -->
@@ -155,8 +156,9 @@ function goFeedback() { router.push({ name: 'feedback' }) }
             @blur="onNickConfirm"
           />
           <text v-else class="profile-name" @click="editingNick = true; nickInput = userStore.userInfo?.nickname || ''">
-            {{ userStore.userInfo?.nickname || '点击设置昵称' }}
+            {{ userStore.userInfo?.nickname || '点击微信登录' }}
           </text>
+          <text v-if="!userStore.userInfo?.nickname" class="profile-login-hint">授权头像昵称，开启锅仔陪伴</text>
           <!-- #endif -->
           <!-- #ifndef MP-WEIXIN -->
           <text class="profile-name">{{ userStore.userInfo?.nickname || '小圆' }}</text>
@@ -199,11 +201,11 @@ function goFeedback() { router.push({ name: 'feedback' }) }
       <!-- 功能按钮 -->
       <view class="profile-actions">
         <view class="profile-action" @click="goReport">
-          <Icon name="camera" :size="44" color="var(--mrc-primary)" />
+          <image class="profile-action__guozai" src="/static/guozai/action_09_celebrate.png" mode="aspectFit" />
           <text class="profile-action__text">我的年度报告</text>
         </view>
         <view class="profile-action" @click="goTimeline">
-          <Icon name="clock" :size="44" color="var(--mrc-primary)" />
+          <image class="profile-action__guozai" src="/static/guozai/action_06_glasses.png" mode="aspectFit" />
           <text class="profile-action__text">菜谱时光机</text>
         </view>
       </view>
@@ -265,6 +267,7 @@ function goFeedback() { router.push({ name: 'feedback' }) }
   min-width: 0;
 }
 .profile-avatar {
+  position: relative;
   width: 120rpx;
   height: 120rpx;
   border-radius: 50%;
@@ -273,7 +276,7 @@ function goFeedback() { router.push({ name: 'feedback' }) }
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
+  overflow: visible;
 }
 .profile-avatar-btn {
   background: transparent;
@@ -289,6 +292,26 @@ function goFeedback() { router.push({ name: 'feedback' }) }
 .profile-avatar__img {
   width: 90rpx;
   height: 90rpx;
+}
+.profile-avatar__badge {
+  position: absolute;
+  right: -4rpx;
+  bottom: -4rpx;
+  background: var(--mrc-primary);
+  color: #fff;
+  font-size: 18rpx;
+  font-weight: 700;
+  padding: 4rpx 12rpx;
+  border-radius: 16rpx;
+  border: 3rpx solid var(--mrc-bg);
+  line-height: 1.4;
+}
+.profile-login-hint {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  color: var(--mrc-accent);
+  font-weight: 600;
 }
 .profile-nick-input {
   flex: 1;
@@ -424,6 +447,11 @@ function goFeedback() { router.push({ name: 'feedback' }) }
   font-size: 32rpx;
   color: var(--mrc-text-deep);
   font-weight: 600;
+}
+.profile-action__guozai {
+  width: 56rpx;
+  height: 56rpx;
+  flex-shrink: 0;
 }
 .profile-action:active {
   transform: scale(0.97);

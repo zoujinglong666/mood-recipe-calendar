@@ -70,7 +70,7 @@ function goto(name: string, q?: Record<string, string>) { router.push({ name, qu
 
       <view class="home-lucky" @click="gotoLucky">
         <view class="home-lucky__content">
-          <view class="home-lucky__icon"><Icon name="dice" :size="42" color="var(--mrc-white)" /></view>
+          <image class="home-lucky__guozai" src="/static/guozai/action_10_thinking.png" mode="aspectFit" />
           <view><text class="home-lucky__eyebrow">没想法的时候</text><text class="home-lucky__main">让锅仔替你决定</text><text class="home-lucky__sub">抽一道今日治愈菜</text></view>
         </view>
         <view class="home-lucky__arrow">›</view>
@@ -79,7 +79,7 @@ function goto(name: string, q?: Record<string, string>) { router.push({ name, qu
       <view class="home-actions">
         <view class="home-actions__item home-actions__item--recipe" @click="gotoLucky">
           <view class="home-actions__text"><text class="home-actions__label">今日菜单</text><text class="home-actions__name">再来一道</text></view>
-          <Icon name="cart" :size="44" color="var(--mrc-accent)" />
+          <image class="home-actions__guozai" src="/static/guozai/action_02_soup.png" mode="aspectFit" />
         </view>
         <view class="home-actions__item home-actions__item--record" @click="router.pushTab({ name: 'record' })">
           <view class="home-actions__text"><text class="home-actions__label">吃过什么</text><text class="home-actions__name">记录一餐</text></view>
@@ -128,7 +128,7 @@ function goto(name: string, q?: Record<string, string>) { router.push({ name, qu
 
 /* 唯一强 CTA，减少一页内互相抢眼的高饱和元素。 */
 .home-lucky { display: flex; align-items: center; justify-content: space-between; min-height: 156rpx; padding: 24rpx 32rpx; border-radius: 32rpx; background: var(--mrc-primary-grad); box-shadow: var(--mrc-shadow-coral), var(--mrc-gloss); box-sizing: border-box; }
-.home-lucky__content { display: flex; align-items: center; gap: 20rpx; }.home-lucky__icon { display: flex; align-items: center; justify-content: center; width: 76rpx; height: 76rpx; border: 2rpx solid rgba(255, 255, 255, 0.38); border-radius: 24rpx; background: rgba(255, 255, 255, 0.18); }
+.home-lucky__content { display: flex; align-items: center; gap: 20rpx; }.home-lucky__guozai { width: 88rpx; height: 88rpx; flex-shrink: 0; filter: drop-shadow(0 4rpx 8rpx rgba(0,0,0,0.12)); }
 .home-lucky__eyebrow, .home-lucky__main, .home-lucky__sub { display: block; }.home-lucky__eyebrow { margin-bottom: 4rpx; color: rgba(255, 255, 255, 0.78); font-size: 20rpx; }.home-lucky__main { color: var(--mrc-white); font-size: 32rpx; font-weight: 700; }.home-lucky__sub { margin-top: 4rpx; color: rgba(255, 255, 255, 0.85); font-size: 24rpx; }.home-lucky__arrow { margin-left: 12rpx; color: rgba(255, 255, 255, 0.92); font-size: 56rpx; font-weight: 300; }
 
 .home-actions { display: flex; gap: 16rpx; margin: 24rpx 0 32rpx; }.home-actions__item { display: flex; flex: 1; align-items: center; justify-content: space-between; min-width: 0; height: 128rpx; padding: 0 20rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; box-shadow: var(--mrc-shadow-soft); box-sizing: border-box; }.home-actions__item--recipe { background: #fff5ea; }.home-actions__item--record { overflow: hidden; background: #eff9f3; }.home-actions__text { z-index: 1; display: flex; flex-direction: column; gap: 8rpx; }.home-actions__label { color: var(--mrc-text-sub); font-size: 21rpx; }.home-actions__name { color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 700; white-space: nowrap; }.home-actions__guozai { width: 126rpx; height: 126rpx; margin-right: -16rpx; }

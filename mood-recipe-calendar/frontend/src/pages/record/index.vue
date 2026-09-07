@@ -105,6 +105,16 @@ function onSuccessConfirm() {
   showSuccess.value = false
   router.push({ name: 'calendar' })
 }
+
+const COOKING_TIME_OPTIONS = ['10分钟', '20分钟', '30分钟', '45分钟', '60分钟', '1小时以上']
+function chooseCookingTime() {
+  uni.showActionSheet({
+    itemList: COOKING_TIME_OPTIONS,
+    success: (res) => {
+      cookingTime.value = COOKING_TIME_OPTIONS[res.tapIndex]
+    },
+  })
+}
 </script>
 
 <template>
@@ -150,9 +160,9 @@ function onSuccessConfirm() {
     </view>
 
     <!-- 烹饪时间 -->
-    <view class="record-time">
+    <view class="record-time" @click="chooseCookingTime">
       <text class="record-time__label">烹饪时间（可选）</text>
-      <view class="record-time__tag">{{ cookingTime }}</view>
+      <view class="record-time__tag">{{ cookingTime }}<text class="record-time__arrow">›</text></view>
     </view>
 
     <!-- 发布按钮 -->
@@ -284,9 +294,16 @@ function onSuccessConfirm() {
   font-size: 28rpx;
   color: var(--mrc-text-deep);
   background: var(--mrc-surface-sun);
-  padding: 12rpx 32rpx;
+  padding: 12rpx 24rpx 12rpx 32rpx;
   border-radius: 32rpx;
   border: 2rpx solid var(--mrc-border-light);
+  display: flex;
+  align-items: center;
+}
+.record-time__arrow {
+  margin-left: 8rpx;
+  font-size: 32rpx;
+  color: var(--mrc-text-light);
 }
 
 /* 发布按钮 */
