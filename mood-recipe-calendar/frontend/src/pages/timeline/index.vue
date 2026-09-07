@@ -4,6 +4,7 @@ import { ref, computed } from 'vue'
 import LoadingState from '../../components/guozai/LoadingState.vue'
 import EmptyState from '../../components/guozai/EmptyState.vue'
 import { ensureLogin } from '../../utils/login'
+import { toast, toastError, toastSuccess } from '../../utils/toast'
 import { deleteRecord, fetchRecords, type RecordItem } from '../../api/records'
 
 definePage({ name: 'timeline', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '菜谱时光机' } })
@@ -43,7 +44,7 @@ async function removeSelected() {
   await deleteRecord(selected.value.id, await ensureLogin())
   records.value = records.value.filter(item => item.id !== selected.value?.id)
   selected.value = null
-  uni.showToast({ title: '记录已删除', icon: 'success' })
+  toastSuccess('记录已删除')
 }
 </script>
 

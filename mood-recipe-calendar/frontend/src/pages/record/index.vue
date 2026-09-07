@@ -5,6 +5,7 @@ import Icon from '../../components/common/Icon.vue'
 import SuccessModal from '../../components/guozai/SuccessModal.vue'
 import MoodPicker from '../../components/guozai/MoodPicker.vue'
 import { ensureLogin } from '../../utils/login'
+import { toast, toastError } from '../../utils/toast'
 import { saveRecord } from '../../api/records'
 import { uploadFile } from '../../api/request'
 
@@ -55,7 +56,7 @@ async function chooseImage() {
         const result = await uploadFile(tempPath)
         imageUrl.value = result.url
       } catch (e: any) {
-        uni.showToast({ title: '图片上传失败', icon: 'none' })
+        toast('图片上传失败')
         dishImage.value = ''
       } finally {
         uploading.value = false
@@ -67,19 +68,19 @@ async function chooseImage() {
 async function publish() {
   if (submitting.value) return
   if (!dishImage.value) {
-    uni.showToast({ title: '请先上传菜品照片', icon: 'none' })
+    toast('请先上传菜品照片')
     return
   }
   if (uploading.value) {
-    uni.showToast({ title: '图片上传中，请稍候', icon: 'none' })
+    toast('图片上传中，请稍候')
     return
   }
   if (!dishName.value.trim()) {
-    uni.showToast({ title: '请输入菜名', icon: 'none' })
+    toast('请输入菜名')
     return
   }
   if (!selectedMood.value) {
-    uni.showToast({ title: '请选择今天的心情', icon: 'none' })
+    toast('请选择今天的心情')
     return
   }
 
@@ -98,7 +99,7 @@ async function publish() {
     uni.removeStorageSync('mrc_companion_message')
     showSuccess.value = true
   } catch (e: any) {
-    uni.showToast({ title: e.message || '保存失败', icon: 'none' })
+    toastError(e, '保存失败')
   } finally {
     submitting.value = false
   }

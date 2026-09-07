@@ -5,6 +5,7 @@ import Icon from '../../components/common/Icon.vue'
 import LoadingState from '../../components/guozai/LoadingState.vue'
 import ErrorState from '../../components/guozai/ErrorState.vue'
 import { ensureLogin } from '../../utils/login'
+import { toast, toastError, toastSuccess } from '../../utils/toast'
 import {
   fetchCheckinStatus,
   doCheckin,
@@ -99,16 +100,16 @@ async function onCheckin() {
   try {
     const openid = await ensureLogin()
     checkin.value = await doCheckin(openid)
-    uni.showToast({ title: '签到成功，锅仔陪你吃饭！', icon: 'none' })
+    toast('签到成功，锅仔陪你吃饭！')
   } catch (e: any) {
-    uni.showToast({ title: e.message || '签到失败', icon: 'none' })
+    toastError(e, '签到失败')
   }
 }
 
 // ---------- 表情包下载（小程序保存到相册） ----------
 function onDownloadSticker(sticker: { name: string; src: string }) {
   // #ifndef MP-WEIXIN
-  uni.showToast({ title: '请在小程序中体验下载表情包', icon: 'none' })
+  toast('请在小程序中体验下载表情包')
   // #endif
   // #ifdef MP-WEIXIN
   uni.authorize({
@@ -116,7 +117,7 @@ function onDownloadSticker(sticker: { name: string; src: string }) {
     success: () => {
       uni.saveImageToPhotosAlbum({
         filePath: sticker.src,
-        success: () => uni.showToast({ title: `已保存「${sticker.name}」到相册`, icon: 'success' }),
+        success: () => toastSuccess(`已保存「${sticker.name}」到相册`),
         fail: () => {
           // 兜底：先取图片信息再保存
           uni.getImageInfo({
@@ -124,16 +125,16 @@ function onDownloadSticker(sticker: { name: string; src: string }) {
             success: (info) => {
               uni.saveImageToPhotosAlbum({
                 filePath: info.path,
-                success: () => uni.showToast({ title: `已保存「${sticker.name}」`, icon: 'success' }),
-                fail: () => uni.showToast({ title: '保存失败，请检查相册权限', icon: 'none' }),
+                success: () => toastSuccess(`已保存「${sticker.name}」`),
+                fail: () => toast('保存失败，请检查相册权限'),
               })
             },
-            fail: () => uni.showToast({ title: '保存失败', icon: 'none' }),
+            fail: () => toast('保存失败'),
           })
         },
       })
     },
-    fail: () => uni.showToast({ title: '需要相册权限才能下载', icon: 'none' }),
+    fail: () => toast('需要相册权限才能下载'),
   })
   // #endif
 }

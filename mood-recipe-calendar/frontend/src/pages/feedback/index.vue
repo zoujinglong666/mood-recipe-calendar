@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { toast, toastError, toastSuccess } from '../../utils/toast'
 import type { Feedback, FeedbackCategory } from '../../api/feedback'
 import { computed, ref } from 'vue'
 import { navBack } from '@/composables/useNavBar'
@@ -51,7 +52,7 @@ async function submit() {
   if (sending.value)
     return
   if (!content.value.trim()) {
-    uni.showToast({ title: '写下你的建议吧', icon: 'none' })
+    toast('写下你的建议吧')
     return
   }
 
@@ -65,10 +66,10 @@ async function submit() {
     content.value = ''
     contact.value = ''
     await loadHistory()
-    uni.showToast({ title: '锅仔收到啦，谢谢你', icon: 'success' })
+    toastSuccess('锅仔收到啦，谢谢你')
   }
   catch (error: any) {
-    uni.showToast({ title: error.message || '提交失败', icon: 'none' })
+    toastError(error, '提交失败')
   }
   finally {
     sending.value = false

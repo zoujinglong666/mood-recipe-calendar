@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import Icon from '../../components/common/Icon.vue'
 import { ensureLogin, refreshUserInfo } from '../../utils/login'
+import { toast, toastError, toastSuccess } from '../../utils/toast'
 import { fetchStats, fetchRecords, type RecordItem } from '../../api/records'
 import { updateUserInfo } from '../../api/auth'
 import { uploadFile } from '../../api/request'
@@ -56,7 +57,7 @@ async function loadData() {
     nickInput.value = userStore.userInfo?.nickname || ''
   } catch (e: any) {
     // 我的页登录/加载失败不展示缺省图，仅 toast 轻提示
-    uni.showToast({ title: e.message || '加载失败，请稍后重试', icon: 'none' })
+    toastError(e, '加载失败，请稍后重试')
   } finally {
     loading.value = false
   }
@@ -79,9 +80,9 @@ async function onChooseAvatar(e: any) {
       avatarUrl: uploaded.url,
     })
     await refreshUserInfo()
-    uni.showToast({ title: '头像已更新', icon: 'success' })
+    toastSuccess('头像已更新')
   } catch {
-    uni.showToast({ title: '头像更新失败', icon: 'none' })
+    toast('头像更新失败')
   } finally {
     avatarUpdating.value = false
   }
@@ -97,9 +98,9 @@ async function onNickConfirm() {
     await updateUserInfo({ openid: userStore.openid, nickname: name })
     await refreshUserInfo()
     editingNick.value = false
-    uni.showToast({ title: '昵称已更新', icon: 'success' })
+    toastSuccess('昵称已更新')
   } catch {
-    uni.showToast({ title: '昵称更新失败', icon: 'none' })
+    toast('昵称更新失败')
   } finally {
     nickSaving.value = false
   }
@@ -120,7 +121,7 @@ function showPrivacy() {
 function goAbout() { router.push({ name: 'about' }) }
 function goTimeline() { router.push({ name: 'timeline' }) }
 function goPreferences() { router.push({ name: 'preferences' }) }
-function onFeedbackHint() { uni.showToast({ title: '请在微信小程序中联系锅仔', icon: 'none' }) }
+function onFeedbackHint() { toast('请在微信小程序中联系锅仔') }
 function goFeedback() { router.push({ name: 'feedback' }) }
 </script>
 

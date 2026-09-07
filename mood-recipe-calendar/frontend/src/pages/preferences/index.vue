@@ -4,6 +4,7 @@ import { computed, ref } from 'vue'
 import { navBack } from '@/composables/useNavBar'
 import { clearFoodPreference, fetchFoodPreference, saveFoodPreference } from '../../api/preferences'
 import { ensureLogin } from '../../utils/login'
+import { toast, toastError, toastSuccess } from '../../utils/toast'
 
 definePage({
   name: 'preferences',
@@ -48,7 +49,7 @@ onLoad(async () => {
     allergens.value = data.allergens || ''
   }
   catch (e: any) {
-    uni.showToast({ title: e.message || '记忆加载失败，请重试', icon: 'none' })
+    toastError(e, '记忆加载失败，请重试')
   }
   finally {
     loading.value = false
@@ -84,11 +85,11 @@ async function save() {
     })
     uni.removeStorageSync('mrc_companion_message')
     uni.setStorageSync('mrc_preference_onboarded', '1')
-    uni.showToast({ title: '锅仔记住啦', icon: 'success' })
+    toastSuccess('锅仔记住啦')
     setTimeout(finish, 450)
   }
   catch (e: any) {
-    uni.showToast({ title: e.message || '保存失败，请重试', icon: 'none' })
+    toastError(e, '保存失败，请重试')
   }
   finally {
     saving.value = false
@@ -135,10 +136,10 @@ function clearMemory() {
         spiceLevel.value = 'NORMAL'
         avoidIngredients.value = ''
         allergens.value = ''
-        uni.showToast({ title: '口味记忆已清除', icon: 'none' })
+        toast('口味记忆已清除')
       }
       catch (e: any) {
-        uni.showToast({ title: e.message || '清除失败，请重试', icon: 'none' })
+        toastError(e, '清除失败，请重试')
       }
     },
   })

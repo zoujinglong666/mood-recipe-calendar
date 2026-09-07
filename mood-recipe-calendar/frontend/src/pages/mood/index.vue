@@ -4,6 +4,7 @@ import { ref } from 'vue'
 import MoodPicker from '../../components/guozai/MoodPicker.vue'
 import { fetchFoodPreference } from '../../api/preferences'
 import { ensureLogin } from '../../utils/login'
+import { toast, toastError, toastSuccess } from '../../utils/toast'
 
 definePage({
   name: 'mood',
@@ -32,7 +33,7 @@ async function onConfirm(m: { key: string }) {
       router.push({ name: 'preferences', query: { from: 'onboarding', mood: m.key } })
     }
   } catch (e: any) {
-    uni.showToast({ title: e.message || '暂时无法读取锅仔记忆', icon: 'none' })
+    toastError(e, '暂时无法读取锅仔记忆')
   }
 }
 </script>

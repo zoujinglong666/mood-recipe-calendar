@@ -7,6 +7,7 @@ import ErrorState from '../../components/guozai/ErrorState.vue'
 import { recommendRecipe, requestDeepRecipe, sendRecipeFeedback, type RecipeItem, type RecipeFeedbackAction } from '../../api/recipes'
 import { createVirtualOrder, fetchVirtualOrder, fetchVirtualProducts, getVirtualPaymentParams, requestWechatVirtualPayment, type VirtualProduct } from '../../api/virtualCommerce'
 import { ensureLogin } from '../../utils/login'
+import { toast, toastError, toastSuccess } from '../../utils/toast'
 
 definePage({
   name: 'recipe',
@@ -90,10 +91,10 @@ async function sendFeedback(action: RecipeFeedbackAction) {
   try {
     await ensureLogin()
     await sendRecipeFeedback(recipe.value.id, action)
-    uni.showToast({ title: action === 'LIKE' ? '锅仔记住啦，以后多推荐这类菜' : '明白，下次换一道', icon: 'none' })
+    toast(action === 'LIKE' ? '锅仔记住啦，以后多推荐这类菜' : '明白，下次换一道')
     if (action === 'DISLIKE') await loadRecipe()
   } catch (e: any) {
-    uni.showToast({ title: e.message || '记录偏好失败，请重试', icon: 'none' })
+    toastError(e, '记录偏好失败，请重试')
   } finally {
     feedbackLoading.value = ''
   }
@@ -102,10 +103,10 @@ function goBuy() { openAiPanel() }
 function onShare() {
   // #ifdef MP-WEIXIN
   ;(uni as any).showShareMenu({ menus: ['shareAppMessage', 'shareTimeline'] })
-  uni.showToast({ title: '可以从右上角分享给好友', icon: 'none' })
+  toast('可以从右上角分享给好友')
   // #endif
   // #ifndef MP-WEIXIN
-  uni.showToast({ title: '请在微信小程序中分享给好友', icon: 'none' })
+  toast('请在微信小程序中分享给好友')
   // #endif
 }
 
@@ -116,7 +117,7 @@ async function openAiPanel() {
   try {
     aiProducts.value = await fetchVirtualProducts()
   } catch (e: any) {
-    uni.showToast({ title: e.message || '权益加载失败，请稍后重试', icon: 'none' })
+    toastError(e, '权益加载失败，请稍后重试')
   } finally {
     productsLoading.value = false
   }
@@ -135,13 +136,13 @@ async function requestPersonalMenu() {
     })
     showAiPanel.value = false
     showSteps.value = false
-    uni.showToast({ title: '锅仔为你做好专属菜单啦', icon: 'success' })
+    toastSuccess('锅仔为你做好专属菜单啦')
   } catch (e: any) {
     const message = e.message || '生成失败，请稍后重试'
     if (message.includes('解锁')) {
-      uni.showToast({ title: '先解锁私人菜单，就能按食材定制', icon: 'none' })
+      toast('先解锁私人菜单，就能按食材定制')
     } else {
-      uni.showToast({ title: message, icon: 'none' })
+      toast(message)
     }
   } finally {
     deepLoading.value = false
@@ -159,9 +160,9 @@ async function purchase(product: VirtualProduct) {
     checkingDelivery = true
     uni.showLoading({ title: '锅仔正在确认权益…', mask: true })
     const delivered = await waitForDelivery(order.orderNo)
-    uni.showToast({ title: delivered ? '权益已到账，可以定制菜单啦' : '支付已完成，权益确认中', icon: 'none' })
+    toast(delivered ? '权益已到账，可以定制菜单啦' : '支付已完成，权益确认中')
   } catch (e: any) {
-    uni.showToast({ title: e.message || '暂时无法发起支付', icon: 'none' })
+    toastError(e, '暂时无法发起支付')
   } finally {
     if (checkingDelivery) uni.hideLoading()
     purchasingSku.value = ''

@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import Icon from '../../components/common/Icon.vue'
 import { ensureLogin } from '../../utils/login'
+import { toastError } from '../../utils/toast'
 import { fetchCompanionMessage, fetchStats, fetchRecordsByMonth, type CompanionMessage, type RecordItem, type StatsResult } from '../../api/records'
 
 definePage({ name: 'home', layout: 'tabbar', style: { navigationStyle: 'custom', navigationBarTitleText: '首页' } })
@@ -108,7 +109,7 @@ async function loadData() {
       return day ? parseInt(day, 10) : 0
     }).filter(d => d > 0))
   } catch (e: any) {
-    uni.showToast({ title: e.message || '加载失败，请稍后重试', icon: 'none' })
+    toastError(e, '加载失败，请稍后重试')
   } finally { loading.value = false }
 }
 

@@ -84,6 +84,7 @@ declare global {
   const getUserInfo: typeof import('./api/auth')['getUserInfo']
   const getVirtualPaymentParams: typeof import('./api/virtualCommerce')['getVirtualPaymentParams']
   const h: typeof import('vue')['h']
+  const hideLoading: typeof import('./utils/toast')['hideLoading']
   const ignorableWatch: typeof import('@vueuse/core')['ignorableWatch']
   const initializeThemeOnce: typeof import('./utils/systemTheme')['initializeThemeOnce']
   const inject: typeof import('vue')['inject']
@@ -182,6 +183,7 @@ declare global {
   const shallowReactive: typeof import('vue')['shallowReactive']
   const shallowReadonly: typeof import('vue')['shallowReadonly']
   const shallowRef: typeof import('vue')['shallowRef']
+  const showLoading: typeof import('./utils/toast')['showLoading']
   const storeToRefs: typeof import('pinia')['storeToRefs']
   const submitFeedback: typeof import('./api/feedback')['submitFeedback']
   const subscribeSystemThemeChange: typeof import('./utils/systemTheme')['subscribeSystemThemeChange']
@@ -196,6 +198,9 @@ declare global {
   const toRef: typeof import('vue')['toRef']
   const toRefs: typeof import('vue')['toRefs']
   const toValue: typeof import('vue')['toValue']
+  const toast: typeof import('./utils/toast')['toast']
+  const toastError: typeof import('./utils/toast')['toastError']
+  const toastSuccess: typeof import('./utils/toast')['toastSuccess']
   const triggerRef: typeof import('vue')['triggerRef']
   const tryOnBeforeMount: typeof import('@vueuse/core')['tryOnBeforeMount']
   const tryOnBeforeUnmount: typeof import('@vueuse/core')['tryOnBeforeUnmount']
@@ -490,6 +495,7 @@ declare module 'vue' {
     readonly getUserInfo: UnwrapRef<typeof import('./api/auth')['getUserInfo']>
     readonly getVirtualPaymentParams: UnwrapRef<typeof import('./api/virtualCommerce')['getVirtualPaymentParams']>
     readonly h: UnwrapRef<typeof import('vue')['h']>
+    readonly hideLoading: UnwrapRef<typeof import('./utils/toast')['hideLoading']>
     readonly ignorableWatch: UnwrapRef<typeof import('@vueuse/core')['ignorableWatch']>
     readonly initializeThemeOnce: UnwrapRef<typeof import('./utils/systemTheme')['initializeThemeOnce']>
     readonly inject: UnwrapRef<typeof import('vue')['inject']>
@@ -588,6 +594,7 @@ declare module 'vue' {
     readonly shallowReactive: UnwrapRef<typeof import('vue')['shallowReactive']>
     readonly shallowReadonly: UnwrapRef<typeof import('vue')['shallowReadonly']>
     readonly shallowRef: UnwrapRef<typeof import('vue')['shallowRef']>
+    readonly showLoading: UnwrapRef<typeof import('./utils/toast')['showLoading']>
     readonly storeToRefs: UnwrapRef<typeof import('pinia')['storeToRefs']>
     readonly submitFeedback: UnwrapRef<typeof import('./api/feedback')['submitFeedback']>
     readonly subscribeSystemThemeChange: UnwrapRef<typeof import('./utils/systemTheme')['subscribeSystemThemeChange']>
@@ -602,6 +609,9 @@ declare module 'vue' {
     readonly toRef: UnwrapRef<typeof import('vue')['toRef']>
     readonly toRefs: UnwrapRef<typeof import('vue')['toRefs']>
     readonly toValue: UnwrapRef<typeof import('vue')['toValue']>
+    readonly toast: UnwrapRef<typeof import('./utils/toast')['toast']>
+    readonly toastError: UnwrapRef<typeof import('./utils/toast')['toastError']>
+    readonly toastSuccess: UnwrapRef<typeof import('./utils/toast')['toastSuccess']>
     readonly triggerRef: UnwrapRef<typeof import('vue')['triggerRef']>
     readonly tryOnBeforeMount: UnwrapRef<typeof import('@vueuse/core')['tryOnBeforeMount']>
     readonly tryOnBeforeUnmount: UnwrapRef<typeof import('@vueuse/core')['tryOnBeforeUnmount']>

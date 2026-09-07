@@ -5,6 +5,7 @@ import { ref, computed } from 'vue'
 import LoadingState from '../../components/guozai/LoadingState.vue'
 import ErrorState from '../../components/guozai/ErrorState.vue'
 import { ensureLogin } from '../../utils/login'
+import { toast, toastError, toastSuccess } from '../../utils/toast'
 import { fetchMonthAlbum, type AlbumItem } from '../../api/albums'
 import { fetchRecordsByMonth, type RecordItem } from '../../api/records'
 import { autoLayout, chunkPages, MOOD_EMOJI, MOOD_COLOR, type LayoutBox } from '../../utils/albumLayout'
@@ -120,9 +121,9 @@ async function onShare() {
       guozaiPath: '/static/guozai/mood_01_happy.png',
       footer: '「锅仔」· 你的情绪味蕾搭子',
     })
-    uni.showToast({ title: '已保存到相册', icon: 'success' })
+    toastSuccess('已保存到相册')
   } catch (e: any) {
-    uni.showToast({ title: e.message || '导出失败', icon: 'none' })
+    toastError(e, '导出失败')
   } finally {
     uni.hideLoading()
     sharing.value = false
