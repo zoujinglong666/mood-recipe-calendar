@@ -20,17 +20,23 @@ const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart
 const HERO_GUOZAI_BY_PERIOD: Record<string, string[]> = {
   morning: ['/static/guozai/action_01_bowl.png', '/static/guozai/action_13_wave.png', '/static/guozai/action_11_cooking.png'],
   noon: ['/static/guozai/action_02_soup.png', '/static/guozai/action_16_chopsticks.png', '/static/guozai/action_17_full.png'],
-  afternoon: ['/static/guozai/action_10_thinking.png', '/static/guozai/action_14_clap.png', '/static/guozai/action_12_heart.png'],
-  evening: ['/static/guozai/action_09_celebrate.png', '/static/guozai/action_18_cheer.png', '/static/guozai/action_06_glasses.png'],
+  afternoon: ['/static/guozai/action_10_thinking.png', '/static/guozai/action_14_clap.png', '/static/guozai/action_12_heart.png', '/static/guozai/action_20_panda.png'],
+  evening: ['/static/guozai/action_09_celebrate.png', '/static/guozai/action_18_cheer.png', '/static/guozai/action_06_glasses.png', '/static/guozai/action_19_kungfu.png'],
   late: ['/static/guozai/action_08_peek.png', '/static/guozai/action_15_sleepy.png', '/static/guozai/action_07_empty.png'],
 }
 function getPeriod(hour: number) {
   return hour < 5 ? 'late' : hour < 11 ? 'morning' : hour < 15 ? 'noon' : hour < 18 ? 'afternoon' : hour < 22 ? 'evening' : 'late'
 }
-const heroGuozaiImg = computed(() => {
-  const pool = HERO_GUOZAI_BY_PERIOD[getPeriod(now.getHours())] || HERO_GUOZAI_BY_PERIOD.morning
-  return pool[now.getDate() % pool.length]
-})
+const heroPool = HERO_GUOZAI_BY_PERIOD[getPeriod(now.getHours())] || HERO_GUOZAI_BY_PERIOD.morning
+const heroGuozaiIndex = ref(now.getDate() % heroPool.length)
+const heroGuozaiImg = computed(() => heroPool[heroGuozaiIndex.value % heroPool.length])
+const isHeroCycling = ref(false)
+function cycleHeroGuozai() {
+  if (isHeroCycling.value) return
+  isHeroCycling.value = true
+  heroGuozaiIndex.value = (heroGuozaiIndex.value + 1) % heroPool.length
+  setTimeout(() => { isHeroCycling.value = false }, 400)
+}
 const loading = ref(true)
 const stats = ref<StatsResult>({ totalRecords: 0, totalDays: 0, currentStreak: 0, longestStreak: 0, moodDistribution: {}, topDishes: [] })
 const recordDays = ref<Set<number>>(new Set())
@@ -110,7 +116,7 @@ function goto(name: string, q?: Record<string, string>) { router.push({ name, qu
             </view>
           </view>
         </view>
-        <image class="home-hero__img" :class="{ 'guozai-breathe': !isBouncing, 'guozai-bounce': isBouncing }" :src="heroGuozaiImg" :key="heroGuozaiImg" mode="aspectFit" />
+        <image class="home-hero__img" :class="{ 'guozai-breathe': !isBouncing && !isHeroCycling, 'guozai-bounce': isBouncing, 'guozai-cycle': isHeroCycling }" :src="heroGuozaiImg" :key="heroGuozaiImg" mode="aspectFit" role="button" aria-label="点击切换锅仔形象" @click.stop="cycleHeroGuozai" />
         <view class="home-hero__profile" role="button" aria-label="打开我的页面" @click.stop="goto('profile')">
           <image src="/static/guozai/mood_01_happy.png" mode="aspectFit" />
         </view>
@@ -174,6 +180,8 @@ function goto(name: string, q?: Record<string, string>) { router.push({ name, qu
 .home-hero__memory-copy { margin-top: 4rpx; color: var(--mrc-text-sub); font-size: 19rpx; line-height: 1.35; }
 .home-hero__img { position: absolute; z-index: 1; right: -18rpx; bottom: -12rpx; width: 438rpx; height: 438rpx; animation: guozai-hero-in 0.45s ease; }
 @keyframes guozai-hero-in { from { opacity: 0; transform: scale(0.88) translateY(12rpx); } to { opacity: 1; transform: scale(1) translateY(0); } }
+.guozai-cycle { animation: guozai-cycle-pop 0.4s ease !important; }
+@keyframes guozai-cycle-pop { 0% { transform: scale(1) rotate(0); } 40% { transform: scale(1.12) rotate(-6deg); } 70% { transform: scale(0.95) rotate(3deg); } 100% { transform: scale(1) rotate(0); } }
 .home-hero__bubble { position: absolute; z-index: 3; left: 34rpx; bottom: 40rpx; display: flex; align-items: center; gap: 16rpx; max-width: 460rpx; min-height: 88rpx; box-sizing: border-box; padding: 16rpx 22rpx; border: 2rpx solid var(--mrc-border); border-radius: 28rpx 28rpx 28rpx 8rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-sm); color: var(--mrc-text-deep); font-size: 25rpx; font-weight: 700; }
 .home-hero__bubble-arrow { color: var(--mrc-accent); font-size: 42rpx; line-height: 24rpx; }
 .home-hero__spark { position: absolute; z-index: 0; width: 18rpx; height: 18rpx; border-radius: 50%; background: var(--mrc-pop); }
