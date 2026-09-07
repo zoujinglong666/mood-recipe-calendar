@@ -160,7 +160,7 @@ const aiLines = computed(() => {
     </view>
 
     <LoadingState v-if="loading" text="锅仔正在装订画册..." />
-    <ErrorState v-else-if="error" :text="error" @retry="loadAlbum" />
+    <ErrorState v-else-if="error" @retry="loadAlbum" />
 
     <template v-else>
       <swiper

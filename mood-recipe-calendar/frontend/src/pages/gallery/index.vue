@@ -151,7 +151,7 @@ const orderTypeText: Record<string, string> = {}
     <wd-navbar title="锅仔形象馆" left-arrow safe-area-inset-top @click-left="navBack"  custom-style="background-color: transparent !important;" /> 
     <!-- Loading / Error -->
     <LoadingState v-if="loading" text="锅仔正在布置形象馆..." />
-    <ErrorState v-else-if="error" :text="error" @retry="loadData" />
+    <ErrorState v-else-if="error" @retry="loadData" />
 
     <template v-else>
       <!-- 签到福利卡片 -->

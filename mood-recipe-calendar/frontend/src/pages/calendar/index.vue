@@ -118,7 +118,7 @@ function goRecordFromEmpty() {
     <LoadingState v-if="loading" text="锅仔正在翻日历..." />
 
     <!-- Error -->
-    <ErrorState v-else-if="error" :text="error" @retry="loadData" />
+    <ErrorState v-else-if="error" @retry="loadData" />
 
     <!-- 内容 -->
     <template v-else>

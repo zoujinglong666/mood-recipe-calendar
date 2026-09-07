@@ -190,7 +190,7 @@ async function waitForDelivery(orderNo: string) {
     <LoadingState v-if="loading" text="锅仔正在挑菜..." />
 
     <!-- Error -->
-    <ErrorState v-else-if="error" :text="error" @retry="loadRecipe" />
+    <ErrorState v-else-if="error" @retry="loadRecipe" />
 
     <!-- 内容 -->
     <template v-else-if="recipe">

@@ -155,7 +155,7 @@ function share() {
     <LoadingState v-if="loading" text="锅仔正在整理年度报告..." />
 
     <!-- Error -->
-    <ErrorState v-else-if="error" :text="error" @retry="loadStats" />
+    <ErrorState v-else-if="error" @retry="loadStats" />
 
     <swiper v-else class="report__swiper" vertical :current="currentPage" @change="onSwiperChange" :duration="320">
       <!-- 第1页：封面 -->
