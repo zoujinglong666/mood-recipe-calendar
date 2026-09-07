@@ -108,7 +108,7 @@ function onSuccessConfirm() {
 </script>
 
 <template>
-  <view class="record-page">
+  <view class="record-page mrc-hero">
     <wd-navbar title="记录今日伙食" safe-area-inset-top  custom-style="background-color: transparent !important;" />
 
     <!-- 拍照区 -->
@@ -173,7 +173,6 @@ function onSuccessConfirm() {
 <style lang="scss" scoped>
 .record-page {
   min-height: 100vh;
-  background: var(--mrc-bg);
   padding: 0 32rpx;
   padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;

@@ -116,7 +116,7 @@ function goFeedback() { router.push({ name: 'feedback' }) }
 </script>
 
 <template>
-  <view class="profile-page">
+  <view class="profile-page mrc-hero">
     <!-- 我的页不展示整屏缺省图：直接渲染真实内容，数据就绪后响应式更新 -->
     <!-- 顶部用户信息（paddingTop 避开状态栏，右侧齿轮避开胶囊） -->
       <view class="profile-header" :style="{ paddingTop: nav.statusBarHeight + 24 + 'px' }">
@@ -245,7 +245,6 @@ function goFeedback() { router.push({ name: 'feedback' }) }
 <style lang="scss" scoped>
 .profile-page {
   min-height: 100vh;
-  background: var(--mrc-bg);
   padding: 0 32rpx;
   padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
