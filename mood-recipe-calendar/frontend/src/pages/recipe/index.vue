@@ -1,46 +1,40 @@
 <script setup lang="ts">
+import type { RecipeFeedbackAction, RecipeItem } from '../../api/recipes'
+import type { VirtualProduct } from '../../api/virtualCommerce'
+import { computed, nextTick, ref } from 'vue'
 import { navBack } from '@/composables/useNavBar'
-import { ref, computed } from 'vue'
+import { recommendRecipe, requestDeepRecipe, sendRecipeFeedback } from '../../api/recipes'
+import { createVirtualOrder, fetchVirtualOrder, fetchVirtualProducts, getVirtualPaymentParams, requestWechatVirtualPayment } from '../../api/virtualCommerce'
 import Icon from '../../components/common/Icon.vue'
-import LoadingState from '../../components/guozai/LoadingState.vue'
 import ErrorState from '../../components/guozai/ErrorState.vue'
-import { recommendRecipe, requestDeepRecipe, sendRecipeFeedback, type RecipeItem, type RecipeFeedbackAction } from '../../api/recipes'
-import { createVirtualOrder, fetchVirtualOrder, fetchVirtualProducts, getVirtualPaymentParams, requestWechatVirtualPayment, type VirtualProduct } from '../../api/virtualCommerce'
+import LoadingState from '../../components/guozai/LoadingState.vue'
 import { ensureLogin } from '../../utils/login'
 import { toast, toastError, toastSuccess } from '../../utils/toast'
 
-definePage({
-  name: 'recipe',
-  layout: 'default',
-  style: {
-    navigationStyle: 'custom',
-    navigationBarTitleText: '今日推荐',
-  },
-})
+definePage({ name: 'recipe', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '今日推荐' } })
 
 const route = useRoute()
 const router = useRouter()
-
 const mood = computed(() => (route.query.mood as string) || '开心')
-
 const HEALING_TEXTS: Record<string, string> = {
-  开心: '开心的时候，吃什么都香！',
-  平静: '平静的日子，需要一道温柔的菜。',
-  疲惫: '疲惫的时候，一碗热汤比任何话都暖。',
-  焦虑: '焦虑的时候，好好吃顿饭，世界会慢下来。',
-  难过: '难过的时候，食物是最好的安慰。',
-  嘴馋: '嘴馋的时候，就放纵自己一次吧！',
-  低落: '低落的时候，一口热乎的就能治愈。',
-  想家: '想家的时候，做一道家乡的味道。',
-  期待: '值得期待的日子，先从一顿好饭开始。',
-  满足: '此刻刚刚好，慢慢享受这一餐。',
-  得意: '今天这么棒，给自己加一道好菜。',
-  害羞: '不用急着表达，先让热饭替你说话。',
+  开心: '你今天的好心情，适合配一口热乎又满足的。',
+  平静: '不赶时间的这一餐，就让味道慢慢展开。',
+  疲惫: '今天辛苦了，选一道省心又暖胃的给你。',
+  焦虑: '先把注意力交给锅里升起的香气，慢慢来。',
+  难过: '不用急着振作，先认真吃一顿温暖的饭。',
+  嘴馋: '既然想吃点好的，就选一道香气很有存在感的。',
+  低落: '热饭会稳稳接住今天的你，先吃饱再说。',
+  想家: '熟悉的家常味最会安慰人，这道很适合今天。',
+  期待: '把期待放进锅里，今晚值得一顿有仪式感的饭。',
+  满足: '此刻刚刚好，用一道舒服的菜延续这份满足。',
+  得意: '今天这么棒，当然要用一道拿手菜奖励自己。',
+  害羞: '不用说很多，让一顿认真做的饭替你表达。',
 }
 
-const loading = ref(true)
+const loading = ref(false)
 const error = ref('')
 const recipe = ref<RecipeItem | null>(null)
+const imageFailed = ref(false)
 const showSteps = ref(false)
 const showAiPanel = ref(false)
 const deepIngredients = ref('')
@@ -48,108 +42,161 @@ const deepMinutes = ref('30')
 const deepPreference = ref('')
 const deepLoading = ref(false)
 const productsLoading = ref(false)
+const productsLoaded = ref(false)
+const productsError = ref('')
 const purchasingSku = ref('')
 const aiProducts = ref<VirtualProduct[]>([])
 const feedbackLoading = ref<RecipeFeedbackAction | ''>('')
+const likedRecipeId = ref<number | null>(null)
 
-const ingredients = computed(() => {
-  if (!recipe.value?.ingredients) return []
-  try { return JSON.parse(recipe.value.ingredients) } catch { return [] }
-})
-const steps = computed(() => {
-  if (!recipe.value?.steps) return []
-  try { return JSON.parse(recipe.value.steps) } catch { return [] }
-})
-const healingText = computed(() => recipe.value?.recommendationReason || HEALING_TEXTS[mood.value] || recipe.value?.description || '好好吃饭，天天开心。')
+function parseStringList(value?: string): string[] {
+  if (!value)
+    return []
+  try {
+    const parsed = JSON.parse(value)
+    return Array.isArray(parsed) ? parsed.map(String).filter(Boolean) : []
+  }
+  catch {
+    return []
+  }
+}
+
+const ingredients = computed(() => parseStringList(recipe.value?.ingredients))
+const steps = computed(() => parseStringList(recipe.value?.steps))
+const feedbackAvailable = computed(() => Number(recipe.value?.id) > 0)
+const recipeImageAvailable = computed(() => Boolean(recipe.value?.image) && !imageFailed.value)
+const healingText = computed(() => recipe.value?.recommendationReason?.trim() || HEALING_TEXTS[mood.value] || recipe.value?.description || '好好吃饭，锅仔会陪你慢慢找到喜欢的味道。')
+const primaryText = computed(() => showSteps.value || !steps.value.length ? '做完了，记一笔' : '查看完整做法')
+
+function readableError(errorValue: unknown, fallback: string) {
+  const message = errorValue instanceof Error ? errorValue.message : String((errorValue as any)?.message || '')
+  return !message || /request:fail|network|timeout/i.test(message) ? fallback : message
+}
 
 async function loadRecipe() {
+  if (loading.value)
+    return
   loading.value = true
   error.value = ''
+  imageFailed.value = false
+  showSteps.value = false
   try {
-    recipe.value = await recommendRecipe(mood.value)
-  } catch (e: any) {
-    error.value = e.message || '加载失败'
-  } finally {
+    recipe.value = await recommendRecipe(mood.value) || null
+  }
+  catch (e: any) {
+    error.value = readableError(e, '网络开小差了')
+  }
+  finally {
     loading.value = false
   }
 }
 
-onLoad(() => {
-  loadRecipe()
-})
+onLoad(loadRecipe)
 
-function toggleSteps() { showSteps.value = !showSteps.value }
+async function revealSteps() {
+  showSteps.value = true
+  await nextTick()
+  uni.pageScrollTo({ selector: '#recipe-steps', duration: 240 })
+}
+
+function toggleSteps() {
+  if (showSteps.value)
+    showSteps.value = false
+  else revealSteps()
+}
+
+function handlePrimaryAction() {
+  if (!showSteps.value && steps.value.length)
+    revealSteps()
+  else goRecord()
+}
+
 function goRecord() {
-  if (!recipe.value) return
-  // switchTab 不支持 query，用 storage 暂存菜名与心情，记录页 onShow 消费
+  if (!recipe.value)
+    return
   uni.setStorageSync('mrc_record_draft', { dish: recipe.value.name, mood: mood.value, recipeId: recipe.value.id })
   router.pushTab({ name: 'record' })
 }
+
 async function sendFeedback(action: RecipeFeedbackAction) {
-  if (!recipe.value?.id || feedbackLoading.value) return
+  if (!recipe.value?.id || feedbackLoading.value || (action === 'LIKE' && likedRecipeId.value === recipe.value.id))
+    return
   feedbackLoading.value = action
   try {
     await ensureLogin()
     await sendRecipeFeedback(recipe.value.id, action)
-    toast(action === 'LIKE' ? '锅仔记住啦，以后多推荐这类菜' : '明白，下次换一道')
-    if (action === 'DISLIKE') await loadRecipe()
-  } catch (e: any) {
+    if (action === 'LIKE') {
+      likedRecipeId.value = recipe.value.id
+      toast('锅仔记住啦，以后多推荐这类菜')
+    }
+    else {
+      toast('明白，锅仔换一道更合胃口的')
+      await loadRecipe()
+    }
+  }
+  catch (e: any) {
     toastError(e, '记录偏好失败，请重试')
-  } finally {
+  }
+  finally {
     feedbackLoading.value = ''
   }
 }
-function goBuy() { openAiPanel() }
+
 function onShare() {
   // #ifdef MP-WEIXIN
   ;(uni as any).showShareMenu({ menus: ['shareAppMessage', 'shareTimeline'] })
   toast('可以从右上角分享给好友')
   // #endif
   // #ifndef MP-WEIXIN
-  toast('请在微信小程序中分享给好友')
+  toast('分享功能请在微信小程序中使用')
   // #endif
 }
 
 async function openAiPanel() {
   showAiPanel.value = true
-  if (aiProducts.value.length || productsLoading.value) return
+  if (!productsLoaded.value && !productsLoading.value)
+    await loadProducts()
+}
+
+async function loadProducts() {
   productsLoading.value = true
+  productsError.value = ''
   try {
     aiProducts.value = await fetchVirtualProducts()
-  } catch (e: any) {
-    toastError(e, '权益加载失败，请稍后重试')
-  } finally {
+    productsLoaded.value = true
+  }
+  catch (e: any) {
+    productsError.value = e?.message || '权益加载失败'
+  }
+  finally {
     productsLoading.value = false
   }
 }
 
 async function requestPersonalMenu() {
+  if (deepLoading.value)
+    return
   deepLoading.value = true
   try {
     const openid = await ensureLogin()
-    recipe.value = await requestDeepRecipe({
-      openid,
-      mood: mood.value,
-      ingredients: deepIngredients.value.trim(),
-      maxMinutes: deepMinutes.value.trim(),
-      preference: deepPreference.value.trim(),
-    })
+    recipe.value = await requestDeepRecipe({ openid, mood: mood.value, ingredients: deepIngredients.value.trim(), maxMinutes: deepMinutes.value.trim(), preference: deepPreference.value.trim() })
+    imageFailed.value = false
     showAiPanel.value = false
     showSteps.value = false
     toastSuccess('锅仔为你做好专属菜单啦')
-  } catch (e: any) {
-    const message = e.message || '生成失败，请稍后重试'
-    if (message.includes('解锁')) {
-      toast('先解锁私人菜单，就能按食材定制')
-    } else {
-      toast(message)
-    }
-  } finally {
+  }
+  catch (e: any) {
+    const message = e?.message || '生成失败，请稍后重试'
+    toast(message.includes('解锁') ? '先解锁私人菜单，就能按食材定制' : message)
+  }
+  finally {
     deepLoading.value = false
   }
 }
 
 async function purchase(product: VirtualProduct) {
+  if (purchasingSku.value)
+    return
   purchasingSku.value = product.sku
   let checkingDelivery = false
   try {
@@ -161,10 +208,13 @@ async function purchase(product: VirtualProduct) {
     uni.showLoading({ title: '锅仔正在确认权益…', mask: true })
     const delivered = await waitForDelivery(order.orderNo)
     toast(delivered ? '权益已到账，可以定制菜单啦' : '支付已完成，权益确认中')
-  } catch (e: any) {
+  }
+  catch (e: any) {
     toastError(e, '暂时无法发起支付')
-  } finally {
-    if (checkingDelivery) uni.hideLoading()
+  }
+  finally {
+    if (checkingDelivery)
+      uni.hideLoading()
     purchasingSku.value = ''
   }
 }
@@ -172,8 +222,8 @@ async function purchase(product: VirtualProduct) {
 async function waitForDelivery(orderNo: string) {
   for (let attempt = 0; attempt < 4; attempt += 1) {
     await new Promise(resolve => setTimeout(resolve, attempt === 0 ? 900 : 1600))
-    const latest = await fetchVirtualOrder(orderNo)
-    if (latest.status === 'DELIVERED') return true
+    if ((await fetchVirtualOrder(orderNo)).status === 'DELIVERED')
+      return true
   }
   return false
 }
@@ -181,393 +231,288 @@ async function waitForDelivery(orderNo: string) {
 
 <template>
   <view class="recipe-page">
-    <wd-navbar title="AI 今日推荐" left-arrow safe-area-inset-top @click-left="navBack"  custom-style="background-color: transparent !important;" />
-
-    <view class="recipe-page__share" @click="onShare">
-      <Icon name="share" :size="36" color="var(--mrc-text)" />
+    <wd-navbar title="AI 今日推荐" left-arrow safe-area-inset-top custom-style="background-color: transparent !important;" @click-left="navBack" />
+    <view v-if="loading" class="recipe-state" aria-label="锅仔正在推荐菜谱">
+      <view class="recipe-state__media">
+        <LoadingState text="锅仔正在看你的心情和口味…" />
+      </view>
+      <view class="recipe-state__line recipe-state__line--title" />
+      <view class="recipe-state__line" />
+    </view>
+    <view v-else-if="error" class="recipe-state recipe-state--center">
+      <ErrorState :text="error" subtext="网络恢复后，锅仔会接着为你挑菜" @retry="loadRecipe" />
     </view>
 
-    <!-- Loading -->
-    <LoadingState v-if="loading" text="锅仔正在挑菜..." />
-
-    <!-- Error -->
-    <ErrorState v-else-if="error" @retry="loadRecipe" />
-
-    <!-- 内容 -->
     <template v-else-if="recipe">
-      <text class="recipe-kicker">锅仔 AI 为你配的这一餐</text>
-      <text class="recipe-healing">{{ healingText }}</text>
-
-      <view class="ai-entry" @click="openAiPanel">
-        <image class="ai-entry__img" src="/static/guozai/action_10_thinking.png" mode="aspectFit" />
-        <view class="ai-entry__main">
-          <text class="ai-entry__title">让锅仔按你的食材来配菜</text>
-          <text class="ai-entry__sub">说说家里有什么、想吃多快、有哪些忌口</text>
-        </view>
-        <text class="ai-entry__arrow">›</text>
-      </view>
-
-      <view class="recipe-hero">
-        <image class="recipe-hero__img guozai-breathe" src="/static/guozai/action_02_soup.png" mode="aspectFit" />
-      </view>
-
-      <view class="recipe-card">
-        <image class="recipe-card__img" :src="recipe.image || '/static/guozai/action_01_bowl.png'" mode="aspectFit" />
-        <view class="recipe-card__info">
-          <text class="recipe-card__name">{{ recipe.name }}</text>
-          <text class="recipe-card__desc">{{ recipe.description }}</text>
-        </view>
-        <view class="recipe-card__meta">
-          <view class="recipe-card__time">
-            <Icon name="clock" :size="28" color="var(--mrc-text-deep)" />
-            <text>{{ recipe.cookingTime }}分钟</text>
+      <view class="recipe-content">
+        <view class="recommend-card">
+          <view class="recommend-card__topline">
+            <view class="mood-chip">
+              <text class="mood-chip__dot" /><text>今天有点{{ mood }}</text>
+            </view>
+            <view class="recommend-card__share pressable" role="button" aria-label="分享今日推荐" @click="onShare">
+              <Icon name="share" :size="36" color="#EF5A3C" />
+            </view>
           </view>
-          <view class="recipe-card__tag">{{ recipe.difficulty }}</view>
-        </view>
-      </view>
-
-      <view class="recipe-section">
-        <text class="recipe-section__title">食材清单</text>
-        <view class="recipe-ingredients">
-          <view v-for="(ing, i) in ingredients" :key="i" class="recipe-ingredients__item">{{ ing }}</view>
-        </view>
-      </view>
-
-      <view class="recipe-section">
-        <view class="recipe-section__head">
-          <text class="recipe-section__title">完整做法</text>
-          <text class="recipe-section__toggle" @click="toggleSteps">{{ showSteps ? '收起' : '展开' }}</text>
-        </view>
-        <view v-if="showSteps" class="recipe-steps">
-          <view v-for="(step, i) in steps" :key="i" class="recipe-steps__item">
-            <text class="recipe-steps__num">{{ Number(i) + 1 }}</text>
-            <text class="recipe-steps__text">{{ step }}</text>
+          <view class="dish-copy">
+            <text class="dish-copy__name">
+              {{ recipe.name }}
+            </text>
+            <view class="dish-meta" aria-label="菜谱信息">
+              <view class="dish-meta__item">
+                <Icon name="clock" :size="30" color="#EF5A3C" /><text>{{ recipe.cookingTime || '--' }} 分钟</text>
+              </view>
+              <view class="dish-meta__divider" />
+              <view class="dish-meta__item">
+                <Icon name="flame" :size="30" color="#EF5A3C" /><text>{{ recipe.difficulty || '家常难度' }}</text>
+              </view>
+            </view>
           </view>
-        </view>
-      </view>
-
-      <view class="recipe-feedback" aria-label="告诉锅仔这道菜合不合胃口">
-        <text class="recipe-feedback__hint">这道菜合胃口吗？</text>
-        <view class="recipe-feedback__actions">
-          <view class="recipe-feedback__button recipe-feedback__button--like" @click="sendFeedback('LIKE')">
-            {{ feedbackLoading === 'LIKE' ? '记住了…' : '喜欢，下次多来' }}
+          <view class="dish-media">
+            <image v-if="recipeImageAvailable" class="dish-media__image" :src="recipe.image" mode="aspectFill" aria-label="推荐菜品图片" @error="imageFailed = true" />
+            <view v-else class="dish-media__fallback">
+              <image src="/static/guozai/action_01_bowl.png" mode="aspectFit" />
+            </view>
+            <view class="guozai-note">
+              <image class="guozai-note__avatar guozai-breathe" src="/static/guozai/action_16_chopsticks.png" mode="aspectFit" />
+              <view class="guozai-note__bubble">
+                <text class="guozai-note__label">
+                  锅仔为什么推荐它
+                </text>
+                <text class="guozai-note__text">
+                  {{ healingText }}
+                </text>
+              </view>
+            </view>
           </view>
-          <view class="recipe-feedback__button" @click="sendFeedback('DISLIKE')">
-            {{ feedbackLoading === 'DISLIKE' ? '换菜中…' : '不想吃，换一道' }}
+          <text v-if="recipe.description" class="dish-description">
+            {{ recipe.description }}
+          </text>
+        </view>
+
+        <view v-if="feedbackAvailable" class="feedback-row" aria-label="告诉锅仔这道菜是否合胃口">
+          <view class="feedback-action pressable" :class="{ 'is-disabled': feedbackLoading || likedRecipeId === recipe.id }" role="button" :aria-label="likedRecipeId === recipe.id ? '已喜欢这道菜' : '喜欢这道菜'" @click="sendFeedback('LIKE')">
+            <Icon name="heart" :size="30" color="#EF5A3C" /><text>{{ feedbackLoading === 'LIKE' ? '记住中…' : likedRecipeId === recipe.id ? '已经记住' : '喜欢这道' }}</text>
+          </view>
+          <view class="feedback-action pressable" :class="{ 'is-disabled': Boolean(feedbackLoading) }" role="button" aria-label="不想吃这道菜，换一道推荐" @click="sendFeedback('DISLIKE')">
+            <Icon name="dice" :size="30" color="#A1826A" /><text>{{ feedbackLoading === 'DISLIKE' ? '换菜中…' : '不想吃，换一道' }}</text>
           </view>
         </view>
+
+        <view class="custom-entry pressable" role="button" aria-label="打开按食材定制菜单" @click="openAiPanel">
+          <image class="custom-entry__image" src="/static/guozai/action_10_thinking.png" mode="aspectFit" />
+          <view class="custom-entry__copy">
+            <text class="custom-entry__title">
+              家里有现成食材？
+            </text><text class="custom-entry__subtitle">
+              让锅仔按时间、口味和忌口重新配菜
+            </text>
+          </view>
+          <text class="custom-entry__link">
+            去定制
+          </text>
+        </view>
+
+        <view class="recipe-section">
+          <view class="section-heading">
+            <text class="section-heading__eyebrow">
+              PREPARE
+            </text><text class="section-heading__title">
+              食材清单
+            </text>
+          </view>
+          <view v-if="ingredients.length" class="ingredient-list">
+            <view v-for="(ingredient, index) in ingredients" :key="`${ingredient}-${index}`" class="ingredient-item">
+              <text class="ingredient-item__dot" /><text>{{ ingredient }}</text>
+            </view>
+          </view>
+          <view v-else class="content-empty">
+            锅仔还没拿到食材清单，先看看做法吧。
+          </view>
+        </view>
+
+        <view id="recipe-steps" class="recipe-section recipe-section--steps">
+          <view class="section-heading section-heading--row">
+            <view>
+              <text class="section-heading__eyebrow">
+                COOK
+              </text><text class="section-heading__title">
+                完整做法
+              </text>
+            </view>
+            <view v-if="steps.length" class="section-toggle pressable" role="button" :aria-label="showSteps ? '收起完整做法' : '展开完整做法'" @click="toggleSteps">
+              {{ showSteps ? '收起' : `查看 ${steps.length} 步` }}
+            </view>
+          </view>
+          <view v-if="showSteps && steps.length" class="step-list">
+            <view v-for="(step, index) in steps" :key="index" class="step-item">
+              <text class="step-item__number">
+                {{ Number(index) + 1 }}
+              </text><text class="step-item__text">
+                {{ step }}
+              </text>
+            </view>
+          </view>
+          <view v-else-if="steps.length" class="steps-preview">
+            准备好后再展开，跟着锅仔一步步做。
+          </view>
+          <view v-else class="content-empty">
+            这道菜暂时没有详细步骤，你仍然可以记录自己的做法。
+          </view>
+        </view>
       </view>
 
-      <view class="recipe-bottom">
-        <view class="recipe-btn recipe-btn--primary" @click="goBuy">
-          <Icon name="cart" :size="36" color="#fff" />
-          <text>定制这一餐</text>
-        </view>
-        <view class="recipe-btn recipe-btn--ghost" @click="goRecord">
-          <text>我做了这道菜</text>
-          <Icon name="camera" :size="36" color="var(--mrc-text-deep)" />
+      <view class="primary-bar">
+        <view class="primary-bar__inner">
+          <view class="primary-action pressable" role="button" :aria-label="primaryText" @click="handlePrimaryAction">
+            <Icon :name="showSteps || !steps.length ? 'camera' : 'book'" :size="36" color="#fff" /><text>{{ primaryText }}</text>
+          </view>
         </view>
       </view>
 
       <view v-if="showAiPanel" class="ai-mask" @click.self="showAiPanel = false">
-        <view class="ai-sheet">
+        <view class="ai-sheet" role="dialog" aria-label="锅仔 AI 私人菜单">
           <view class="ai-sheet__head">
             <view>
-              <text class="ai-sheet__eyebrow">锅仔 AI 私人菜单</text>
-              <text class="ai-sheet__title">今天想怎么吃？</text>
+              <text class="ai-sheet__eyebrow">
+                锅仔 AI 私人菜单
+              </text><text class="ai-sheet__title">
+                家里有什么，就做什么
+              </text><text class="ai-sheet__subtitle">
+                下面都可以不填，锅仔会按你的心情自由发挥。
+              </text>
             </view>
-            <text class="ai-sheet__close" @click="showAiPanel = false">×</text>
+            <view class="ai-sheet__close pressable" role="button" aria-label="关闭私人菜单" @click="showAiPanel = false">
+              ×
+            </view>
           </view>
-          <view class="ai-field">
-            <text>已有食材</text>
-            <input v-model="deepIngredients" placeholder="例如：鸡蛋、番茄、面条" :maxlength="80" />
-          </view>
-          <view class="ai-field">
-            <text>最多花几分钟</text>
-            <input v-model="deepMinutes" type="number" placeholder="例如：30" :maxlength="3" />
-          </view>
-          <view class="ai-field">
-            <text>口味与忌口</text>
-            <input v-model="deepPreference" placeholder="例如：少辣、不吃香菜" :maxlength="80" />
-          </view>
-          <view class="ai-sheet__cta" :class="{ 'ai-sheet__cta--loading': deepLoading }" @click="requestPersonalMenu">
-            {{ deepLoading ? '锅仔正在思考…' : '生成我的专属菜单' }}
+          <label class="ai-field"><text class="ai-field__label">已有食材</text><input v-model="deepIngredients" placeholder="例如：鸡蛋、番茄、面条" :maxlength="80"></label>
+          <label class="ai-field"><text class="ai-field__label">最多花几分钟</text><input v-model="deepMinutes" type="number" placeholder="例如：30" :maxlength="3"></label>
+          <label class="ai-field"><text class="ai-field__label">口味与忌口</text><input v-model="deepPreference" placeholder="例如：少辣、不吃香菜" :maxlength="80"></label>
+          <view class="ai-sheet__cta pressable" :class="{ 'is-disabled': deepLoading }" role="button" :aria-label="deepLoading ? '专属菜单生成中' : '生成专属菜单'" @click="requestPersonalMenu">
+            {{ deepLoading ? '锅仔正在组合食材…' : '生成我的专属菜单' }}
           </view>
           <view class="ai-products">
-            <text class="ai-products__title">还没有权益？先解锁</text>
-            <view v-if="productsLoading" class="ai-products__hint">正在加载可用权益…</view>
+            <text class="ai-products__title">
+              私人菜单权益
+            </text><text class="ai-products__intro">
+              权益不足时可在这里解锁，基础推荐始终可以免费使用。
+            </text>
+            <view v-if="productsLoading" class="ai-products__state">
+              正在加载可用权益…
+            </view>
+            <view v-else-if="productsError" class="ai-products__state ai-products__state--error">
+              <text>{{ productsError }}</text><view class="ai-products__retry pressable" role="button" aria-label="重新加载权益" @click="loadProducts">
+                重试
+              </view>
+            </view>
+            <view v-else-if="productsLoaded && !aiProducts.length" class="ai-products__state">
+              暂时没有可购买权益，请稍后再来。
+            </view>
             <view v-for="product in aiProducts" :key="product.sku" class="ai-product">
               <view class="ai-product__main">
-                <text class="ai-product__name">{{ product.title }}</text>
-                <text class="ai-product__desc">{{ product.description }}</text>
+                <text class="ai-product__name">
+                  {{ product.title }}
+                </text><text class="ai-product__desc">
+                  {{ product.description }}
+                </text>
               </view>
-              <view class="ai-product__buy" @click="purchase(product)">
-                {{ purchasingSku === product.sku ? '发起中' : `¥${(product.priceFen / 100).toFixed(2)}` }}
+              <view class="ai-product__buy pressable" :class="{ 'is-disabled': Boolean(purchasingSku) }" role="button" :aria-label="`购买${product.title}`" @click="purchase(product)">
+                {{ purchasingSku === product.sku ? '处理中…' : `¥${(product.priceFen / 100).toFixed(2)}` }}
               </view>
             </view>
           </view>
         </view>
       </view>
     </template>
+
+    <view v-else class="recipe-state recipe-state--center">
+      <ErrorState text="锅仔今天没挑到合适的菜" subtext="换个心情再试一次，或稍后回来看看" action-text="重新推荐" @retry="loadRecipe" />
+    </view>
   </view>
 </template>
 
 <style lang="scss" scoped>
-.recipe-page {
-  min-height: 100vh;
-  background: var(--mrc-bg);
-  padding: 0 32rpx;
-  padding-bottom: calc(160rpx + env(safe-area-inset-bottom));
-  box-sizing: border-box;
-  position: relative;
-}
-/* 分享按钮：navbar 右侧被小程序胶囊遮挡，移到内容区右上角浮动 */
-.recipe-page__share { position: absolute; top: calc(env(safe-area-inset-top) + 92rpx); right: 24rpx; z-index: 50; width: 72rpx; height: 72rpx; border-radius: 50%; background: rgba(255, 255, 255, 0.9); box-shadow: var(--mrc-shadow-sm); display: flex; align-items: center; justify-content: center; }
-.recipe-healing {
-  display: block;
-  font-size: 36rpx;
-  font-weight: 700;
-  color: var(--mrc-text-deep);
-  line-height: 1.5;
-  margin: 16rpx 8rpx 12rpx;
-  letter-spacing: 1rpx;
-}
-.recipe-kicker {
-  display: block;
-  margin: 16rpx 8rpx 4rpx;
-  color: var(--mrc-accent);
-  font-size: 21rpx;
-  font-weight: 700;
-  letter-spacing: 2rpx;
-}
-.ai-entry {
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-  margin: 16rpx 0 24rpx;
-  padding: 16rpx 20rpx;
-  background: linear-gradient(135deg, var(--mrc-surface-sun), var(--mrc-surface-peach));
-  border: 2rpx solid var(--mrc-border);
-  border-radius: 28rpx;
-  box-shadow: var(--mrc-shadow-soft);
-}
-.ai-entry:active { transform: scale(0.98); }
-.ai-entry__img { width: 84rpx; height: 84rpx; flex-shrink: 0; }
-.ai-entry__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4rpx; }
-.ai-entry__title { font-size: 28rpx; font-weight: 800; color: var(--mrc-text-deep); }
-.ai-entry__sub { font-size: 22rpx; color: var(--mrc-text-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ai-entry__arrow { font-size: 42rpx; color: var(--mrc-accent); }
-.recipe-hero {
-  position: relative;
-  display: flex;
-  justify-content: center;
-  height: 224rpx;
-  margin-bottom: 20rpx;
-  overflow: hidden;
-  border-radius: 32rpx;
-  background: var(--mrc-surface-peach);
-  border: 2rpx solid var(--mrc-border-light);
-}
-.recipe-hero__img {
-  width: 310rpx;
-  height: 270rpx;
-  margin-top: 4rpx;
-}
-.recipe-card {
-  display: flex;
-  align-items: center;
-  gap: 24rpx;
-  background: var(--mrc-surface);
-  border: 2rpx solid var(--mrc-border-light);
-  border-radius: 32rpx;
-  padding: 24rpx;
-  margin-bottom: 32rpx;
-  box-shadow: var(--mrc-shadow);
-}
-.recipe-card__img {
-  width: 160rpx;
-  height: 160rpx;
-  border-radius: 24rpx;
-  flex-shrink: 0;
-}
-.recipe-card__info {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8rpx;
-  min-width: 0;
-}
-.recipe-card__name {
-  font-size: 40rpx;
-  font-weight: 700;
-  color: var(--mrc-text-deep);
-}
-.recipe-card__desc {
-  font-size: 26rpx;
-  color: var(--mrc-text-sub);
-}
-.recipe-card__meta {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 12rpx;
-  flex-shrink: 0;
-}
-.recipe-card__time {
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-  font-size: 26rpx;
-  color: var(--mrc-text-deep);
-  font-weight: 600;
-}
-.recipe-card__tag {
-  font-size: 22rpx;
-  color: var(--mrc-text-deep);
-  background: var(--mrc-surface-peach);
-  padding: 8rpx 16rpx;
-  border-radius: 20rpx;
-}
-.recipe-section {
-  margin-bottom: 32rpx;
-}
-.recipe-section__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20rpx;
-}
-.recipe-section__title {
-  font-size: 34rpx;
-  font-weight: 700;
-  color: var(--mrc-text-deep);
-  padding-left: 16rpx;
-  border-left: 8rpx solid var(--mrc-primary);
-}
-.recipe-section__toggle {
-  font-size: 26rpx;
-  color: var(--mrc-text-sub);
-}
-.recipe-ingredients {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16rpx;
-}
-.recipe-ingredients__item {
-  background: var(--mrc-surface);
-  border: 2rpx solid var(--mrc-border-light);
-  border-radius: 16rpx;
-  padding: 20rpx 24rpx;
-  font-size: 28rpx;
-  color: var(--mrc-text-deep);
-}
-.recipe-steps {
-  display: flex;
-  flex-direction: column;
-  gap: 16rpx;
-}
-.recipe-steps__item {
-  display: flex;
-  align-items: flex-start;
-  gap: 16rpx;
-  background: var(--mrc-surface);
-  border: 2rpx solid var(--mrc-border-light);
-  border-radius: 16rpx;
-  padding: 20rpx 24rpx;
-}
-.recipe-steps__num {
-  width: 40rpx;
-  height: 40rpx;
-  background: var(--mrc-primary);
-  color: #fff;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24rpx;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-.recipe-steps__text {
-  font-size: 28rpx;
-  color: var(--mrc-text-deep);
-  line-height: 1.6;
-  flex: 1;
-}
-.recipe-feedback { padding: 24rpx; margin: 0 0 32rpx; background: var(--mrc-surface-sun); border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; }
-.recipe-feedback__hint { display: block; color: var(--mrc-text-deep); font-size: 28rpx; font-weight: 700; margin-bottom: 18rpx; }
-.recipe-feedback__actions { display: flex; gap: 16rpx; }
-.recipe-feedback__button { flex: 1; min-height: 76rpx; display: flex; align-items: center; justify-content: center; padding: 0 12rpx; color: var(--mrc-text-deep); background: var(--mrc-surface); border: 2rpx solid var(--mrc-border); border-radius: 38rpx; font-size: 24rpx; font-weight: 700; }
-.recipe-feedback__button--like { color: #fff; background: var(--mrc-primary-grad); border-color: transparent; }
-.recipe-feedback__button:active { transform: scale(.97); }
-.recipe-bottom {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  gap: 20rpx;
-  padding: 20rpx 32rpx calc(20rpx + env(safe-area-inset-bottom));
-  background: rgba(248, 236, 218, 0.96);
-  border-top: 2rpx solid var(--mrc-border);
-  z-index: 30;
-}
-.recipe-btn {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12rpx;
-  height: 96rpx;
-  border-radius: 48rpx;
-  font-size: 30rpx;
-  font-weight: 600;
-}
-.recipe-btn--primary {
-  background: var(--mrc-primary-grad);
-  color: #fff;
-  box-shadow: var(--mrc-shadow-coral);
-}
-.recipe-btn--ghost {
-  background: var(--mrc-surface);
-  border: 2rpx solid var(--mrc-border);
-  color: var(--mrc-text-deep);
-}
-.recipe-btn:active {
-  transform: scale(0.97);
-}
-.ai-mask {
-  position: fixed;
-  inset: 0;
-  z-index: 60;
-  display: flex;
-  align-items: flex-end;
-  background: rgba(54, 35, 22, 0.48);
-}
-.ai-sheet {
-  width: 100%;
-  max-height: 86vh;
-  overflow-y: auto;
-  box-sizing: border-box;
-  padding: 32rpx 32rpx calc(32rpx + env(safe-area-inset-bottom));
-  border-radius: 40rpx 40rpx 0 0;
-  background: var(--mrc-surface);
-}
-.ai-sheet__head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 28rpx; }
-.ai-sheet__eyebrow { display: block; color: var(--mrc-accent); font-size: 21rpx; font-weight: 800; letter-spacing: 2rpx; }
-.ai-sheet__title { display: block; margin-top: 8rpx; color: var(--mrc-text-deep); font-size: 42rpx; font-weight: 800; }
-.ai-sheet__close { width: 64rpx; height: 64rpx; line-height: 58rpx; text-align: center; font-size: 52rpx; color: var(--mrc-text-sub); }
-.ai-field { display: flex; flex-direction: column; gap: 12rpx; margin-bottom: 20rpx; }
-.ai-field text { color: var(--mrc-text-deep); font-size: 26rpx; font-weight: 700; }
-.ai-field input { height: 82rpx; padding: 0 24rpx; box-sizing: border-box; border: 2rpx solid var(--mrc-border-light); border-radius: 20rpx; color: var(--mrc-text-deep); font-size: 27rpx; background: var(--mrc-bg); }
-.ai-sheet__cta { display: flex; align-items: center; justify-content: center; height: 94rpx; margin: 28rpx 0 32rpx; border-radius: 47rpx; background: var(--mrc-primary-grad); color: #fff; font-size: 30rpx; font-weight: 800; box-shadow: var(--mrc-shadow-coral); }
-.ai-sheet__cta--loading { opacity: 0.65; }
-.ai-products { padding-top: 24rpx; border-top: 2rpx solid var(--mrc-border-light); }
-.ai-products__title { display: block; margin-bottom: 16rpx; color: var(--mrc-text-deep); font-size: 28rpx; font-weight: 800; }
-.ai-products__hint { color: var(--mrc-text-sub); font-size: 25rpx; }
-.ai-product { display: flex; align-items: center; gap: 16rpx; padding: 20rpx 0; border-bottom: 2rpx solid var(--mrc-border-light); }
-.ai-product__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8rpx; }
-.ai-product__name { color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 700; }
-.ai-product__desc { color: var(--mrc-text-sub); font-size: 21rpx; line-height: 1.45; }
-.ai-product__buy { min-width: 118rpx; padding: 16rpx 12rpx; border-radius: 32rpx; text-align: center; background: var(--mrc-surface-sun); color: var(--mrc-accent); font-size: 25rpx; font-weight: 800; }
+.recipe-page { min-height: 100vh; min-height: 100dvh; box-sizing: border-box; overflow-x: hidden; color: var(--mrc-text); background: radial-gradient(90% 36% at 8% 4%, var(--mrc-surface-sun) 0%, transparent 72%), var(--mrc-bg); }
+.recipe-content, .recipe-state { width: calc(100% - 48rpx); max-width: 820rpx; margin: 0 auto; box-sizing: border-box; }
+.recipe-content { padding: 18rpx 0 calc(180rpx + env(safe-area-inset-bottom)); }
+.pressable { transition: transform 180ms ease, opacity 180ms ease, background-color 180ms ease; }
+.pressable:active { transform: scale(.97); }
+.is-disabled { opacity: .52; pointer-events: none; }
+.recipe-state { min-height: 840rpx; padding: 24rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 36rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); }
+.recipe-state--center { display: flex; align-items: center; justify-content: center; }
+.recipe-state__media { height: 560rpx; overflow: hidden; border-radius: 28rpx; background: var(--mrc-surface-2); }
+.recipe-state__line { height: 24rpx; margin-top: 20rpx; border-radius: 12rpx; background: var(--mrc-surface-2); }
+.recipe-state__line--title { width: 58%; height: 42rpx; margin-top: 28rpx; }
+.recipe-state :deep(.gz-error__btn) { display: flex; align-items: center; justify-content: center; min-height: 88rpx; box-sizing: border-box; }
+.recommend-card { overflow: hidden; border: 2rpx solid var(--mrc-border-light); border-radius: 40rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-lift), var(--mrc-gloss); }
+.recommend-card__topline { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; min-height: 88rpx; padding: 0 28rpx; }
+.mood-chip { display: inline-flex; align-items: center; gap: 12rpx; color: var(--mrc-text-deep); font-size: 24rpx; font-weight: 700; }
+.mood-chip__dot { width: 14rpx; height: 14rpx; border-radius: 50%; background: var(--mrc-pop); box-shadow: 0 0 0 8rpx var(--mrc-surface-sun); }
+.recommend-card__share { display: flex; align-items: center; justify-content: center; width: 88rpx; height: 88rpx; margin-right: -20rpx; border-radius: 50%; }
+.dish-media { position: relative; width: 100%; height: 0; padding-bottom: 75%; overflow: hidden; background: var(--mrc-surface-peach); }
+.dish-media__image { position: absolute; inset: 0; width: 100%; height: 100%; }
+.dish-media__fallback { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8rpx; color: var(--mrc-text-sub); font-size: 24rpx; }
+.dish-media__fallback image { width: 300rpx; height: 250rpx; }
+.dish-copy { padding: 28rpx 28rpx 24rpx; }
+.dish-copy__name { display: block; color: var(--mrc-text-strong); font-size: 48rpx; font-weight: 800; line-height: 1.25; }
+.dish-copy__description { display: block; margin-top: 12rpx; color: var(--mrc-text-sub); font-size: 26rpx; line-height: 1.65; }
+.dish-meta { display: flex; align-items: center; gap: 20rpx; margin-top: 22rpx; }
+.dish-meta__item { display: flex; align-items: center; gap: 8rpx; color: var(--mrc-text-deep); font-size: 25rpx; font-weight: 700; }
+.dish-meta__divider { width: 2rpx; height: 28rpx; background: var(--mrc-border); }
+.guozai-note { display: flex; align-items: flex-end; gap: 12rpx; padding: 0 24rpx 28rpx; }
+.guozai-note__avatar { width: 112rpx; height: 112rpx; flex-shrink: 0; }
+.guozai-note__bubble { flex: 1; min-width: 0; padding: 20rpx 22rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 24rpx 24rpx 24rpx 8rpx; background: var(--mrc-surface-sun); }
+.guozai-note__label { display: block; color: var(--mrc-accent); font-size: 20rpx; font-weight: 800; letter-spacing: 1rpx; }
+.guozai-note__text { display: block; margin-top: 8rpx; color: var(--mrc-text-deep); font-size: 26rpx; line-height: 1.55; }
+.feedback-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx; margin-top: 20rpx; }
+.feedback-action { display: flex; align-items: center; justify-content: center; gap: 10rpx; min-height: 88rpx; padding: 0 16rpx; box-sizing: border-box; border: 2rpx solid var(--mrc-border); border-radius: 44rpx; color: var(--mrc-text-deep); background: var(--mrc-surface); font-size: 24rpx; font-weight: 700; }
+.custom-entry { display: flex; align-items: center; gap: 16rpx; min-height: 112rpx; margin-top: 28rpx; padding: 12rpx 20rpx; box-sizing: border-box; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; background: var(--mrc-surface-2); }
+.custom-entry__image { width: 84rpx; height: 84rpx; flex-shrink: 0; }
+.custom-entry__copy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 6rpx; }
+.custom-entry__title { color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 800; }
+.custom-entry__subtitle { color: var(--mrc-text-sub); font-size: 22rpx; line-height: 1.45; }
+.custom-entry__link { flex-shrink: 0; color: var(--mrc-accent); font-size: 24rpx; font-weight: 800; }
+.recipe-section { margin-top: 44rpx; }
+.section-heading { margin-bottom: 20rpx; }
+.section-heading--row { display: flex; align-items: center; justify-content: space-between; gap: 20rpx; }
+.section-heading__eyebrow { display: block; color: var(--mrc-accent); font-size: 19rpx; font-weight: 800; letter-spacing: 3rpx; }
+.section-heading__title { display: block; margin-top: 6rpx; color: var(--mrc-text-strong); font-size: 36rpx; font-weight: 800; }
+.section-toggle { display: flex; align-items: center; justify-content: center; min-width: 136rpx; min-height: 88rpx; padding: 0 20rpx; box-sizing: border-box; border-radius: 44rpx; color: var(--mrc-accent); background: var(--mrc-surface); font-size: 24rpx; font-weight: 700; }
+.ingredient-list { display: grid; grid-template-columns: 1fr 1fr; gap: 14rpx; }
+.ingredient-item { display: flex; align-items: center; gap: 14rpx; min-height: 80rpx; padding: 12rpx 20rpx; box-sizing: border-box; border: 2rpx solid var(--mrc-border-light); border-radius: 20rpx; color: var(--mrc-text-deep); background: var(--mrc-surface); font-size: 26rpx; line-height: 1.45; }
+.ingredient-item__dot { width: 10rpx; height: 10rpx; flex-shrink: 0; border-radius: 50%; background: var(--mrc-primary-deep); }
+.content-empty, .steps-preview { padding: 28rpx; border: 2rpx dashed var(--mrc-border); border-radius: 24rpx; color: var(--mrc-text-sub); background: var(--mrc-surface); font-size: 25rpx; line-height: 1.6; }
+.step-list { display: flex; flex-direction: column; gap: 16rpx; }
+.step-item { display: flex; align-items: flex-start; gap: 18rpx; padding: 24rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 24rpx; background: var(--mrc-surface); }
+.step-item__number { display: flex; align-items: center; justify-content: center; width: 48rpx; height: 48rpx; flex-shrink: 0; border-radius: 50%; color: #fff; background: var(--mrc-primary-deep); font-size: 23rpx; font-weight: 800; }
+.step-item__text { flex: 1; color: var(--mrc-text-deep); font-size: 27rpx; line-height: 1.7; }
+.primary-bar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 30; padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom)); border-top: 2rpx solid var(--mrc-border-light); background: var(--mrc-surface); box-shadow: 0 -8rpx 24rpx rgba(40, 24, 16, .08); }
+.primary-bar__inner { max-width: 820rpx; margin: 0 auto; }
+.primary-action { display: flex; align-items: center; justify-content: center; gap: 12rpx; min-height: 96rpx; border-radius: 48rpx; color: #fff; background: var(--mrc-primary-grad); box-shadow: var(--mrc-shadow-coral); font-size: 30rpx; font-weight: 800; letter-spacing: 1rpx; }
+.ai-mask { position: fixed; inset: 0; z-index: 60; display: flex; align-items: flex-end; background: rgba(24, 15, 10, .58); }
+.ai-sheet { width: 100%; max-height: 88vh; max-height: 88dvh; overflow-y: auto; box-sizing: border-box; padding: 32rpx 32rpx calc(32rpx + env(safe-area-inset-bottom)); border-radius: 40rpx 40rpx 0 0; background: var(--mrc-surface); }
+.ai-sheet__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20rpx; margin-bottom: 28rpx; }
+.ai-sheet__eyebrow { display: block; color: var(--mrc-accent); font-size: 20rpx; font-weight: 800; letter-spacing: 2rpx; }
+.ai-sheet__title { display: block; margin-top: 8rpx; color: var(--mrc-text-strong); font-size: 38rpx; font-weight: 800; line-height: 1.35; }
+.ai-sheet__subtitle { display: block; margin-top: 10rpx; color: var(--mrc-text-sub); font-size: 23rpx; line-height: 1.5; }
+.ai-sheet__close { display: flex; align-items: center; justify-content: center; width: 88rpx; height: 88rpx; flex-shrink: 0; border-radius: 50%; color: var(--mrc-text-sub); background: var(--mrc-surface-2); font-size: 48rpx; line-height: 1; }
+.ai-field { display: flex; flex-direction: column; gap: 10rpx; margin-bottom: 20rpx; }
+.ai-field__label { color: var(--mrc-text-deep); font-size: 26rpx; font-weight: 800; }
+.ai-field input { height: 88rpx; padding: 0 22rpx; box-sizing: border-box; border: 2rpx solid var(--mrc-border); border-radius: 20rpx; color: var(--mrc-text-deep); background: var(--mrc-bg); font-size: 27rpx; }
+.ai-sheet__cta { display: flex; align-items: center; justify-content: center; min-height: 96rpx; margin: 28rpx 0 32rpx; border-radius: 48rpx; color: #fff; background: var(--mrc-primary-grad); box-shadow: var(--mrc-shadow-coral); font-size: 29rpx; font-weight: 800; }
+.ai-products { padding-top: 28rpx; border-top: 2rpx solid var(--mrc-border-light); }
+.ai-products__title { display: block; color: var(--mrc-text-deep); font-size: 29rpx; font-weight: 800; }
+.ai-products__intro { display: block; margin-top: 8rpx; color: var(--mrc-text-sub); font-size: 23rpx; line-height: 1.5; }
+.ai-products__state { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; min-height: 88rpx; margin-top: 18rpx; color: var(--mrc-text-sub); font-size: 24rpx; }
+.ai-products__state--error { color: var(--mrc-accent); }
+.ai-products__retry { display: flex; align-items: center; justify-content: center; min-width: 100rpx; min-height: 88rpx; color: var(--mrc-accent); font-weight: 800; }
+.ai-product { display: flex; align-items: center; gap: 16rpx; min-height: 112rpx; border-bottom: 2rpx solid var(--mrc-border-light); }
+.ai-product__main { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 6rpx; }
+.ai-product__name { color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 800; }
+.ai-product__desc { color: var(--mrc-text-sub); font-size: 22rpx; line-height: 1.45; }
+.ai-product__buy { display: flex; align-items: center; justify-content: center; min-width: 132rpx; min-height: 88rpx; padding: 0 16rpx; box-sizing: border-box; border-radius: 44rpx; color: var(--mrc-accent); background: var(--mrc-surface-sun); font-size: 25rpx; font-weight: 800; }
+@media (max-width: 350px) { .recipe-content, .recipe-state { width: calc(100% - 32rpx); } .dish-copy__name { font-size: 42rpx; } .feedback-row, .ingredient-list { grid-template-columns: 1fr; } .custom-entry__subtitle { display: none; } }
+@media (min-width: 720px), (orientation: landscape) and (min-width: 640px) { .recipe-content, .recipe-state { max-width: 900rpx; } .dish-media { padding-bottom: 62%; } }
+@media (prefers-reduced-motion: reduce) { .pressable { transition: none; } .pressable:active { transform: none; } }
 </style>
