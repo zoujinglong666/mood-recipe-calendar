@@ -18,4 +18,4 @@
 - [x] 4.1 增加后端测试，覆盖菜系保存、推荐命中加权和无匹配回退
 - [x] 4.2 运行后端测试、前端 ESLint、类型检查、H5 与微信小程序构建
   - 本次相关后端测试、ESLint、H5 与微信小程序构建通过；全量检查仍受既有 MySQL 测试配置和首页 `HeroGuozai` 类型声明问题影响。
-- [ ] 4.3 运行 `openspec validate add-favorite-cuisines-to-memory --strict` 并核对规格与实现一致
+- [x] 4.3 运行 `openspec validate add-favorite-cuisines-to-memory --strict` 并核对规格与实现一致
