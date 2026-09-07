@@ -41,14 +41,15 @@ public class CompanionMessageService {
         int streak = currentStreak(recent);
         boolean recordedToday = recent.stream().anyMatch(r -> LocalDate.now().toString().equals(r.getRecordDate()));
         String favorite = firstValue(preference == null ? "" : preference.getFavoriteDishes());
+        String favoriteCuisine = firstValue(preference == null ? "" : preference.getFavoriteCuisines());
         if (favorite.isBlank()) favorite = topDish;
 
         String greeting = greeting(period);
-        List<String> candidates = fallbackCandidates(period, usualPeriod, favorite, topMood, streak, recordedToday, preference, recent.isEmpty());
+        List<String> candidates = fallbackCandidates(period, usualPeriod, favorite, favoriteCuisine, topMood, streak, recordedToday, preference, recent.isEmpty());
         String fallback = candidates.get(Math.floorMod(Objects.hash(openid, LocalDate.now(), period), candidates.size()));
-        String insight = insight(usualPeriod, favorite, streak, preference, recent.isEmpty());
+        String insight = insight(usualPeriod, favorite, favoriteCuisine, streak, preference, recent.isEmpty());
         String context = "当前时段=" + period + "；常打开时段=" + usualPeriod + "；最近常做菜=" + safe(topDish)
-                + "；偏爱=" + safe(favorite) + "；常见心情=" + safe(topMood) + "；连续记录=" + streak
+                + "；偏爱=" + safe(favorite) + "；偏爱菜系=" + safe(favoriteCuisine) + "；常见心情=" + safe(topMood) + "；连续记录=" + streak
                 + "天；今天已记录=" + recordedToday + "；明确口味=" + preferenceSummary(preference);
         String message = ai.companionMessage(context).orElse(fallback);
         return new Message(greeting, message, insight, recordedToday ? "看看今天的食光" : "告诉我现在的心情");
@@ -88,10 +89,11 @@ public class CompanionMessageService {
         };
     }
 
-    private List<String> fallbackCandidates(String period, String usualPeriod, String favorite, String mood, int streak,
+    private List<String> fallbackCandidates(String period, String usualPeriod, String favorite, String favoriteCuisine, String mood, int streak,
                                              boolean today, UserFoodPreference preference, boolean newUser) {
         List<String> result = new ArrayList<>();
         if (newUser) result.add("先告诉我几样爱吃的，往后的每一顿我都会更懂你。 ");
+        if (!favoriteCuisine.isBlank()) result.add("你喜欢的“" + favoriteCuisine + "”我记在心里了，今天也往这个方向替你挑。 ");
         if (!favorite.isBlank()) result.add("你常惦记的“" + favorite + "”我记得，今天也挑一道合口味的。 ");
         if (!mood.isBlank()) result.add("最近“" + mood + "”出现得多，今天给自己留一顿舒服的饭吧。 ");
         if (streak >= 2) result.add("已经连续好好吃饭 " + streak + " 天了，这份认真很值得被记住。 ");
@@ -108,9 +110,10 @@ public class CompanionMessageService {
         return result;
     }
 
-    private String insight(String usualPeriod, String favorite, int streak, UserFoodPreference preference, boolean newUser) {
+    private String insight(String usualPeriod, String favorite, String favoriteCuisine, int streak, UserFoodPreference preference, boolean newUser) {
         if (newUser) return "从第一顿开始认识你";
         if (streak >= 2) return "记得你已连续记录 " + streak + " 天";
+        if (!favoriteCuisine.isBlank()) return "记得你喜欢 " + favoriteCuisine;
         if (!favorite.isBlank()) return "记得你喜欢 " + favorite;
         if (preference != null && preference.isOnboardingCompleted()) return "你的口味和忌口都收好了";
         if (!"还在了解".equals(usualPeriod)) return "发现你常在" + usualPeriod + "来看看";
@@ -119,7 +122,8 @@ public class CompanionMessageService {
 
     private String preferenceSummary(UserFoodPreference p) {
         if (p == null) return "未设置";
-        return "标签" + safe(p.getFavoriteTags()) + "，辣度" + safe(p.getSpiceLevel()) + "，葱" + p.getEatScallion() + "，香菜" + p.getEatCilantro();
+        return "标签" + safe(p.getFavoriteTags()) + "，菜系" + safe(p.getFavoriteCuisines())
+                + "，辣度" + safe(p.getSpiceLevel()) + "，葱" + p.getEatScallion() + "，香菜" + p.getEatCilantro();
     }
 
     private int currentStreak(List<UserRecord> recent) {

@@ -19,6 +19,15 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/recipes")
 public class RecipeController {
+    private static final Map<String, List<String>> CUISINE_KEYWORDS = Map.of(
+            "川菜", List.of("麻婆", "宫保", "回锅", "鱼香", "水煮", "辣子", "口水鸡", "酸菜鱼", "担担"),
+            "湘菜", List.of("剁椒", "小炒肉", "辣椒炒肉", "农家", "腊肉"),
+            "粤菜", List.of("白切鸡", "叉烧", "煲仔", "河粉", "云吞", "豉汁", "白灼", "老火汤"),
+            "江浙菜", List.of("东坡", "糖醋", "红烧", "清蒸", "油焖", "西湖", "葱油", "狮子头"),
+            "东北菜", List.of("锅包肉", "地三鲜", "乱炖", "小鸡炖蘑菇", "酸菜", "酱骨"),
+            "西北菜", List.of("羊肉", "牛肉面", "凉皮", "肉夹馍", "孜然", "臊子"),
+            "云贵菜", List.of("酸汤", "过桥米线", "汽锅", "折耳根", "菌菇"),
+            "日韩料理", List.of("泡菜", "寿司", "照烧", "石锅", "部队锅", "味噌", "咖喱"));
 
     private final RecipeRepository repository;
     private final RecipeInteractionRepository interactions;
@@ -99,8 +108,14 @@ public class RecipeController {
                 .mapToInt(tag -> matchesTag(text, tag) ? 6 : 0).sum();
         score += terms(preference.getFavoriteDishes()).stream()
                 .mapToInt(dish -> text.contains(dish) ? 10 : 0).sum();
+        score += terms(preference.getFavoriteCuisines()).stream()
+                .mapToInt(cuisine -> matchesCuisine(text, cuisine) ? 8 : 0).sum();
         if ("HOT".equals(preference.getSpiceLevel()) && matchesTag(text, "香辣")) score += 4;
         return score;
+    }
+
+    private boolean matchesCuisine(String text, String cuisine) {
+        return CUISINE_KEYWORDS.getOrDefault(cuisine, List.of()).stream().anyMatch(text::contains);
     }
 
     private boolean matchesTag(String text, String tag) {
@@ -121,6 +136,14 @@ public class RecipeController {
             Map<Long, Integer> historyScore) {
         if (historyScore.getOrDefault(recipe.getId(), 0) >= 5) {
             return "我记得你做过并喜欢这类菜，今天再吃一次也很合适。";
+        }
+        if (preference != null) {
+            String text = searchableText(recipe);
+            Optional<String> cuisine = terms(preference.getFavoriteCuisines()).stream()
+                    .filter(item -> matchesCuisine(text, item)).findFirst();
+            if (cuisine.isPresent()) {
+                return "我记得你喜欢" + cuisine.get() + "，这道菜很值得今天尝尝。";
+            }
         }
         if (preference != null && (terms(preference.getFavoriteTags()).stream()
                 .anyMatch(tag -> matchesTag(searchableText(recipe), tag))
@@ -193,6 +216,7 @@ public class RecipeController {
     private String preferencePrompt(UserFoodPreference preference) {
         if (preference == null) return "暂无";
         return "喜欢" + safe(preference.getFavoriteTags())
+                + "，偏爱菜系" + safe(preference.getFavoriteCuisines())
                 + "，常吃的菜" + safe(preference.getFavoriteDishes())
                 + "，不吃" + safe(preference.getAvoidIngredients())
                 + "，过敏" + safe(preference.getAllergens())

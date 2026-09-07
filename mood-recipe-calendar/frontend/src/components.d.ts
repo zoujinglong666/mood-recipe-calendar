@@ -10,7 +10,6 @@ declare module 'vue' {
     CommonDesignSheet: typeof import('./components/common/DesignSheet.vue')['default']
     CommonIcon: typeof import('./components/common/Icon.vue')['default']
     CommonStatRow: typeof import('./components/common/StatRow.vue')['default']
-    DemoBlock: typeof import('./components/DemoBlock.vue')['default']
     GlobalDialog: typeof import('./components/GlobalDialog.vue')['default']
     GlobalLoading: typeof import('./components/GlobalLoading.vue')['default']
     GlobalToast: typeof import('./components/GlobalToast.vue')['default']
