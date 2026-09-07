@@ -16,8 +16,27 @@ const now = new Date()
 const weekCN = ['日', '一', '二', '三', '四', '五', '六']
 const dateTitle = `${now.getMonth() + 1}月${now.getDate()}日 周${weekCN[now.getDay()]}`
 const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-/** 时间段 → 主卡片右侧锅仔形象池，与寄语内容呼应，按日期轮换 */
-interface HeroGuozai { img: string; name: string }
+/** 全部锅仔形象池（点击切换时遍历全部，不受时间段限制） */
+const ALL_HERO_GUOZAI: HeroGuozai[] = [
+  { img: '/static/guozai/action_01_bowl.png', name: '端碗锅仔' },
+  { img: '/static/guozai/action_02_soup.png', name: '喝汤锅仔' },
+  { img: '/static/guozai/action_06_glasses.png', name: '学者锅仔' },
+  { img: '/static/guozai/action_07_empty.png', name: '空空锅仔' },
+  { img: '/static/guozai/action_08_peek.png', name: '探头锅仔' },
+  { img: '/static/guozai/action_09_celebrate.png', name: '庆祝锅仔' },
+  { img: '/static/guozai/action_10_thinking.png', name: '思考锅仔' },
+  { img: '/static/guozai/action_11_cooking.png', name: '厨师锅仔' },
+  { img: '/static/guozai/action_12_heart.png', name: '比心锅仔' },
+  { img: '/static/guozai/action_13_wave.png', name: '挥手锅仔' },
+  { img: '/static/guozai/action_14_clap.png', name: '鼓掌锅仔' },
+  { img: '/static/guozai/action_15_sleepy.png', name: '困困锅仔' },
+  { img: '/static/guozai/action_16_chopsticks.png', name: '干饭锅仔' },
+  { img: '/static/guozai/action_17_full.png', name: '饱饱锅仔' },
+  { img: '/static/guozai/action_18_cheer.png', name: '加油锅仔' },
+  { img: '/static/guozai/action_19_kungfu.png', name: '功夫锅仔' },
+  { img: '/static/guozai/action_20_panda.png', name: '熊猫锅仔' },
+]
+/** 时间段 → 初始锅仔（与寄语呼应，仅用于首次展示） */
 const HERO_GUOZAI_BY_PERIOD: Record<string, HeroGuozai[]> = {
   morning: [
     { img: '/static/guozai/action_01_bowl.png', name: '端碗锅仔' },
@@ -50,14 +69,17 @@ const HERO_GUOZAI_BY_PERIOD: Record<string, HeroGuozai[]> = {
 function getPeriod(hour: number) {
   return hour < 5 ? 'late' : hour < 11 ? 'morning' : hour < 15 ? 'noon' : hour < 18 ? 'afternoon' : hour < 22 ? 'evening' : 'late'
 }
-const heroPool = HERO_GUOZAI_BY_PERIOD[getPeriod(now.getHours())] || HERO_GUOZAI_BY_PERIOD.morning
-const heroGuozaiIndex = ref(now.getDate() % heroPool.length)
-const heroGuozai = computed(() => heroPool[heroGuozaiIndex.value % heroPool.length])
+/** 初始按时间段选一个锅仔，找到它在全局池中的索引 */
+const initialPeriodPool = HERO_GUOZAI_BY_PERIOD[getPeriod(now.getHours())] || HERO_GUOZAI_BY_PERIOD.morning
+const initialGuozai = initialPeriodPool[now.getDate() % initialPeriodPool.length]
+const initialGlobalIndex = Math.max(0, ALL_HERO_GUOZAI.findIndex(g => g.img === initialGuozai.img))
+const heroGuozaiIndex = ref(initialGlobalIndex)
+const heroGuozai = computed(() => ALL_HERO_GUOZAI[heroGuozaiIndex.value % ALL_HERO_GUOZAI.length])
 const isHeroCycling = ref(false)
 function cycleHeroGuozai() {
   if (isHeroCycling.value) return
   isHeroCycling.value = true
-  heroGuozaiIndex.value = (heroGuozaiIndex.value + 1) % heroPool.length
+  heroGuozaiIndex.value = (heroGuozaiIndex.value + 1) % ALL_HERO_GUOZAI.length
   setTimeout(() => { isHeroCycling.value = false }, 400)
 }
 const loading = ref(true)
