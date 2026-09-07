@@ -21,6 +21,9 @@ public class UserFoodPreference {
     @Column(name = "favorite_tags", length = 500)
     private String favoriteTags = "";
 
+    @Column(name = "favorite_cuisines", length = 500)
+    private String favoriteCuisines = "";
+
     @Column(name = "favorite_dishes", length = 500)
     private String favoriteDishes = "";
 

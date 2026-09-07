@@ -35,13 +35,14 @@ public class UserFoodPreferenceController {
         if (request == null || !SPICE_LEVELS.contains(request.spiceLevel())) {
             return ApiResponse.error(400, "辣度选择无效");
         }
-        if (tooLong(request.favoriteTags()) || tooLong(request.favoriteDishes())
+        if (tooLong(request.favoriteTags()) || tooLong(request.favoriteCuisines()) || tooLong(request.favoriteDishes())
                 || tooLong(request.avoidIngredients()) || tooLong(request.allergens())) {
             return ApiResponse.error(400, "口味内容不能超过 500 字");
         }
         UserFoodPreference preference = repository.findByOpenid(openid).orElseGet(UserFoodPreference::new);
         preference.setOpenid(openid);
         preference.setFavoriteTags(clean(request.favoriteTags()));
+        preference.setFavoriteCuisines(clean(request.favoriteCuisines()));
         preference.setFavoriteDishes(clean(request.favoriteDishes()));
         preference.setAvoidIngredients(clean(request.avoidIngredients()));
         preference.setAllergens(clean(request.allergens()));
@@ -66,6 +67,7 @@ public class UserFoodPreferenceController {
 
     public record PreferenceRequest(
             String favoriteTags,
+            String favoriteCuisines,
             String favoriteDishes,
             String avoidIngredients,
             String allergens,

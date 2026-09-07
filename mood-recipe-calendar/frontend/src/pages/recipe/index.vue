@@ -211,7 +211,7 @@ async function waitForDelivery(orderNo: string) {
       </view>
 
       <view class="recipe-card">
-        <image class="recipe-card__img" :src="recipe.image || '/static/dish_tomato_beef.png'" mode="aspectFill" />
+        <image class="recipe-card__img" :src="recipe.image || '/static/guozai/action_01_bowl.png'" mode="aspectFit" />
         <view class="recipe-card__info">
           <text class="recipe-card__name">{{ recipe.name }}</text>
           <text class="recipe-card__desc">{{ recipe.description }}</text>

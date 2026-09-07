@@ -5,6 +5,7 @@ export type SpiceLevel = 'NONE' | 'MILD' | 'NORMAL' | 'HOT'
 export interface FoodPreference {
   id?: number
   favoriteTags: string
+  favoriteCuisines?: string
   favoriteDishes: string
   avoidIngredients: string
   allergens: string

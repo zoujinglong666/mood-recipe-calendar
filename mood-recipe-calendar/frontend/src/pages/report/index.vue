@@ -86,28 +86,15 @@ const messageLines = computed(() => {
   ]
 })
 
-/** 菜名 -> 静态图映射 */
-const DISH_IMG: Record<string, string> = {
-  红烧肉: '/static/dish_hongshaorou.png',
-  番茄炒蛋: '/static/dish_fanqiechaodan.png',
-  番茄牛腩: '/static/dish_tomato_beef.png',
-  番茄牛腩面: '/static/dish_noodle.png',
-  青椒肉丝: '/static/dish_qingjiaorousi.png',
-  土豆丝: '/static/dish_potato.png',
-  牛肉面: '/static/dish_noodle.png',
-  汤面: '/static/dish_noodle.png',
-  汤: '/static/dish_soup.png',
-  鸡汤: '/static/dish_soup.png',
-}
-const FALLBACK_DISH_IMGS = ['/static/dish1.png', '/static/dish2.png', '/static/dish3.png', '/static/dish4.png']
-function dishImg(name: string, idx = 0): string {
-  return DISH_IMG[name] || FALLBACK_DISH_IMGS[idx % FALLBACK_DISH_IMGS.length]
-}
-
 /** TOP3 俏皮点评 */
 const TOP3_AI = ['你的本命菜，怎么做都不腻', '简单却永远吃不腻的国民菜', '下饭神器，你一定很爱米饭']
 function top3Ai(idx: number): string {
   return TOP3_AI[idx] || '这道菜陪伴了你很多个日子'
+}
+/** TOP3 菜品图渐变色（替代静态菜品图） */
+const TOP3_BGS = ['linear-gradient(135deg,#FFB088,#FF8C66)', 'linear-gradient(135deg,#FFD180,#FFA726)', 'linear-gradient(135deg,#A5D6A7,#66BB6A)']
+function top3Bg(idx: number): string {
+  return TOP3_BGS[idx] || 'linear-gradient(135deg,#CE93D8,#AB47BC)'
 }
 
 /** 月度热力图柱色（随月份渐变） */
@@ -218,7 +205,7 @@ function share() {
           <view v-if="!top3.length" class="rpt-top3__empty">记录几道拿手菜，这里就有你的 TOP3</view>
           <view v-for="(d, i) in top3" :key="d.name" class="rpt-top3__item">
             <view class="rpt-top3__medal" :class="i === 0 ? 'rpt-top3__medal--gold' : i === 1 ? 'rpt-top3__medal--silver' : 'rpt-top3__medal--bronze'">{{ ['🥇', '🥈', '🥉'][i] }}</view>
-            <image class="rpt-top3__img" :src="dishImg(d.name, i)" mode="aspectFill" />
+            <view class="rpt-top3__img" :style="{ background: top3Bg(i) }">{{ d.name.charAt(0) }}</view>
             <view class="rpt-top3__info">
               <text class="rpt-top3__name">{{ d.name }} <text class="rpt-top3__count">{{ d.count }}次</text></text>
               <text class="rpt-top3__ai">AI: {{ top3Ai(i) }}</text>
@@ -638,6 +625,12 @@ function share() {
   border-radius: 20rpx;
   flex-shrink: 0;
   margin-left: 32rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 64rpx;
+  font-weight: 700;
 }
 .rpt-top3__info {
   flex: 1;
