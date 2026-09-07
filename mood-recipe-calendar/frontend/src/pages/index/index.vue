@@ -17,19 +17,42 @@ const weekCN = ['日', '一', '二', '三', '四', '五', '六']
 const dateTitle = `${now.getMonth() + 1}月${now.getDate()}日 周${weekCN[now.getDay()]}`
 const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 /** 时间段 → 主卡片右侧锅仔形象池，与寄语内容呼应，按日期轮换 */
-const HERO_GUOZAI_BY_PERIOD: Record<string, string[]> = {
-  morning: ['/static/guozai/action_01_bowl.png', '/static/guozai/action_13_wave.png', '/static/guozai/action_11_cooking.png'],
-  noon: ['/static/guozai/action_02_soup.png', '/static/guozai/action_16_chopsticks.png', '/static/guozai/action_17_full.png'],
-  afternoon: ['/static/guozai/action_10_thinking.png', '/static/guozai/action_14_clap.png', '/static/guozai/action_12_heart.png', '/static/guozai/action_20_panda.png'],
-  evening: ['/static/guozai/action_09_celebrate.png', '/static/guozai/action_18_cheer.png', '/static/guozai/action_06_glasses.png', '/static/guozai/action_19_kungfu.png'],
-  late: ['/static/guozai/action_08_peek.png', '/static/guozai/action_15_sleepy.png', '/static/guozai/action_07_empty.png'],
+interface HeroGuozai { img: string; name: string }
+const HERO_GUOZAI_BY_PERIOD: Record<string, HeroGuozai[]> = {
+  morning: [
+    { img: '/static/guozai/action_01_bowl.png', name: '端碗锅仔' },
+    { img: '/static/guozai/action_13_wave.png', name: '挥手锅仔' },
+    { img: '/static/guozai/action_11_cooking.png', name: '厨师锅仔' },
+  ],
+  noon: [
+    { img: '/static/guozai/action_02_soup.png', name: '喝汤锅仔' },
+    { img: '/static/guozai/action_16_chopsticks.png', name: '干饭锅仔' },
+    { img: '/static/guozai/action_17_full.png', name: '饱饱锅仔' },
+  ],
+  afternoon: [
+    { img: '/static/guozai/action_10_thinking.png', name: '思考锅仔' },
+    { img: '/static/guozai/action_14_clap.png', name: '鼓掌锅仔' },
+    { img: '/static/guozai/action_12_heart.png', name: '比心锅仔' },
+    { img: '/static/guozai/action_20_panda.png', name: '熊猫锅仔' },
+  ],
+  evening: [
+    { img: '/static/guozai/action_09_celebrate.png', name: '庆祝锅仔' },
+    { img: '/static/guozai/action_18_cheer.png', name: '加油锅仔' },
+    { img: '/static/guozai/action_06_glasses.png', name: '学者锅仔' },
+    { img: '/static/guozai/action_19_kungfu.png', name: '功夫锅仔' },
+  ],
+  late: [
+    { img: '/static/guozai/action_08_peek.png', name: '探头锅仔' },
+    { img: '/static/guozai/action_15_sleepy.png', name: '困困锅仔' },
+    { img: '/static/guozai/action_07_empty.png', name: '空空锅仔' },
+  ],
 }
 function getPeriod(hour: number) {
   return hour < 5 ? 'late' : hour < 11 ? 'morning' : hour < 15 ? 'noon' : hour < 18 ? 'afternoon' : hour < 22 ? 'evening' : 'late'
 }
 const heroPool = HERO_GUOZAI_BY_PERIOD[getPeriod(now.getHours())] || HERO_GUOZAI_BY_PERIOD.morning
 const heroGuozaiIndex = ref(now.getDate() % heroPool.length)
-const heroGuozaiImg = computed(() => heroPool[heroGuozaiIndex.value % heroPool.length])
+const heroGuozai = computed(() => heroPool[heroGuozaiIndex.value % heroPool.length])
 const isHeroCycling = ref(false)
 function cycleHeroGuozai() {
   if (isHeroCycling.value) return
@@ -111,12 +134,12 @@ function goto(name: string, q?: Record<string, string>) { router.push({ name, qu
           <view class="home-hero__memory">
             <view class="home-hero__memory-dot" />
             <view>
-              <text class="home-hero__memory-title">锅仔记得</text>
+              <text class="home-hero__memory-title">{{ heroGuozai.name }}</text>
               <text class="home-hero__memory-copy">{{ companion.insight }}</text>
             </view>
           </view>
         </view>
-        <image class="home-hero__img" :class="{ 'guozai-breathe': !isBouncing && !isHeroCycling, 'guozai-bounce': isBouncing, 'guozai-cycle': isHeroCycling }" :src="heroGuozaiImg" :key="heroGuozaiImg" mode="aspectFit" role="button" aria-label="点击切换锅仔形象" @click.stop="cycleHeroGuozai" />
+        <image class="home-hero__img" :class="{ 'guozai-breathe': !isBouncing && !isHeroCycling, 'guozai-bounce': isBouncing, 'guozai-cycle': isHeroCycling }" :src="heroGuozai.img" :key="heroGuozai.img" mode="aspectFit" role="button" aria-label="点击切换锅仔形象" @click.stop="cycleHeroGuozai" />
         <view class="home-hero__profile" role="button" aria-label="打开我的页面" @click.stop="goto('profile')">
           <image src="/static/guozai/mood_01_happy.png" mode="aspectFit" />
         </view>
