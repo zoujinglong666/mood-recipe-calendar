@@ -6,6 +6,19 @@
 
 :root,
 page {
+  /* ---- Wot UI 组件库主题色覆盖（默认蓝 → 品牌珊瑚红） ---- */
+  --wd-color-primary: #FF6B5B;
+  --wd-color-primary-light-1: #FF7A6C;
+  --wd-color-primary-light-2: #FF897C;
+  --wd-color-primary-light-3: #FF978C;
+  --wd-color-primary-light-4: #FFA69D;
+  --wd-color-primary-light-5: #FFB5AD;
+  --wd-color-primary-light-6: #FFC4BD;
+  --wd-color-primary-light-7: #FFD2CE;
+  --wd-color-primary-light-8: #FFE1DE;
+  --wd-color-primary-light-9: #FFF0EE;
+  --wd-color-primary-dark-2: #CC5649;
+
   /* ---- 表面层级（清晰对比，根治"灰脏"） ---- */
   --mrc-bg: #F8ECDA;            /* 页面底：温暖奶油（比卡片深，制造层次） */
   --mrc-surface: #FFFCF7;       /* 卡片：近白暖调，明显浮起 */
