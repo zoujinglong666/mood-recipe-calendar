@@ -11,6 +11,7 @@ type _LocationUrl =
   "/pages/feedback/index" |
   "/pages/gallery/index" |
   "/pages/mood/index" |
+  "/pages/preferences/index" |
   "/pages/privacy/index" |
   "/pages/profile/index" |
   "/pages/recipe/index" |

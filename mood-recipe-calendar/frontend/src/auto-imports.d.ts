@@ -21,6 +21,7 @@ declare global {
   const autoLayout: typeof import('./utils/albumLayout')['autoLayout']
   const autoResetRef: typeof import('@vueuse/core')['autoResetRef']
   const chunkPages: typeof import('./utils/albumLayout')['chunkPages']
+  const clearFoodPreference: typeof import('./api/preferences')['clearFoodPreference']
   const computed: typeof import('vue')['computed']
   const computedAsync: typeof import('@vueuse/core')['computedAsync']
   const computedEager: typeof import('@vueuse/core')['computedEager']
@@ -59,6 +60,7 @@ declare global {
   const fetchAllRecipes: typeof import('./api/recipes')['fetchAllRecipes']
   const fetchCheckinStatus: typeof import('./api/gallery')['fetchCheckinStatus']
   const fetchEntitlements: typeof import('./api/virtualCommerce')['fetchEntitlements']
+  const fetchFoodPreference: typeof import('./api/preferences')['fetchFoodPreference']
   const fetchMonthAlbum: typeof import('./api/albums')['fetchMonthAlbum']
   const fetchMyFeedback: typeof import('./api/feedback')['fetchMyFeedback']
   const fetchOrders: typeof import('./api/gallery')['fetchOrders']
@@ -171,6 +173,7 @@ declare global {
   const resolveComponent: typeof import('vue')['resolveComponent']
   const resolveRef: typeof import('@vueuse/core')['resolveRef']
   const resolveUnref: typeof import('@vueuse/core')['resolveUnref']
+  const saveFoodPreference: typeof import('./api/preferences')['saveFoodPreference']
   const saveRecord: typeof import('./api/records')['saveRecord']
   const sendRecipeFeedback: typeof import('./api/recipes')['sendRecipeFeedback']
   const setActivePinia: typeof import('pinia')['setActivePinia']
@@ -423,6 +426,7 @@ declare module 'vue' {
     readonly autoLayout: UnwrapRef<typeof import('./utils/albumLayout')['autoLayout']>
     readonly autoResetRef: UnwrapRef<typeof import('@vueuse/core')['autoResetRef']>
     readonly chunkPages: UnwrapRef<typeof import('./utils/albumLayout')['chunkPages']>
+    readonly clearFoodPreference: UnwrapRef<typeof import('./api/preferences')['clearFoodPreference']>
     readonly computed: UnwrapRef<typeof import('vue')['computed']>
     readonly computedAsync: UnwrapRef<typeof import('@vueuse/core')['computedAsync']>
     readonly computedEager: UnwrapRef<typeof import('@vueuse/core')['computedEager']>
@@ -461,6 +465,7 @@ declare module 'vue' {
     readonly fetchAllRecipes: UnwrapRef<typeof import('./api/recipes')['fetchAllRecipes']>
     readonly fetchCheckinStatus: UnwrapRef<typeof import('./api/gallery')['fetchCheckinStatus']>
     readonly fetchEntitlements: UnwrapRef<typeof import('./api/virtualCommerce')['fetchEntitlements']>
+    readonly fetchFoodPreference: UnwrapRef<typeof import('./api/preferences')['fetchFoodPreference']>
     readonly fetchMonthAlbum: UnwrapRef<typeof import('./api/albums')['fetchMonthAlbum']>
     readonly fetchMyFeedback: UnwrapRef<typeof import('./api/feedback')['fetchMyFeedback']>
     readonly fetchOrders: UnwrapRef<typeof import('./api/gallery')['fetchOrders']>
@@ -573,6 +578,7 @@ declare module 'vue' {
     readonly resolveComponent: UnwrapRef<typeof import('vue')['resolveComponent']>
     readonly resolveRef: UnwrapRef<typeof import('@vueuse/core')['resolveRef']>
     readonly resolveUnref: UnwrapRef<typeof import('@vueuse/core')['resolveUnref']>
+    readonly saveFoodPreference: UnwrapRef<typeof import('./api/preferences')['saveFoodPreference']>
     readonly saveRecord: UnwrapRef<typeof import('./api/records')['saveRecord']>
     readonly sendRecipeFeedback: UnwrapRef<typeof import('./api/recipes')['sendRecipeFeedback']>
     readonly setActivePinia: UnwrapRef<typeof import('pinia')['setActivePinia']>

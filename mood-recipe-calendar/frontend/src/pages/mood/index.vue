@@ -2,6 +2,8 @@
 import { navBack } from '@/composables/useNavBar'
 import { ref } from 'vue'
 import MoodPicker from '../../components/guozai/MoodPicker.vue'
+import { fetchFoodPreference } from '../../api/preferences'
+import { ensureLogin } from '../../utils/login'
 
 definePage({
   name: 'mood',
@@ -15,8 +17,23 @@ definePage({
 const router = useRouter()
 const selected = ref('')
 
-function onConfirm(m: { key: string }) {
-  router.push({ name: 'recipe', query: { mood: m.key } })
+async function onConfirm(m: { key: string }) {
+  if (uni.getStorageSync('mrc_preference_onboarded')) {
+    router.push({ name: 'recipe', query: { mood: m.key } })
+    return
+  }
+  try {
+    await ensureLogin()
+    const preference = await fetchFoodPreference()
+    if (preference.onboardingCompleted) {
+      uni.setStorageSync('mrc_preference_onboarded', '1')
+      router.push({ name: 'recipe', query: { mood: m.key } })
+    } else {
+      router.push({ name: 'preferences', query: { from: 'onboarding', mood: m.key } })
+    }
+  } catch (e: any) {
+    uni.showToast({ title: e.message || '暂时无法读取锅仔记忆', icon: 'none' })
+  }
 }
 </script>
 

@@ -4,6 +4,7 @@ import com.moodrecipe.backend.common.ApiResponse;
 import com.moodrecipe.backend.config.SessionAuthInterceptor;
 import com.moodrecipe.backend.entity.UserFoodPreference;
 import com.moodrecipe.backend.repository.UserFoodPreferenceRepository;
+import com.moodrecipe.backend.repository.RecipeInteractionRepository;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,9 +15,11 @@ import java.util.Set;
 public class UserFoodPreferenceController {
     private static final Set<String> SPICE_LEVELS = Set.of("NONE", "MILD", "NORMAL", "HOT");
     private final UserFoodPreferenceRepository repository;
+    private final RecipeInteractionRepository interactions;
 
-    public UserFoodPreferenceController(UserFoodPreferenceRepository repository) {
+    public UserFoodPreferenceController(UserFoodPreferenceRepository repository, RecipeInteractionRepository interactions) {
         this.repository = repository;
+        this.interactions = interactions;
     }
 
     @GetMapping
@@ -32,12 +35,14 @@ public class UserFoodPreferenceController {
         if (request == null || !SPICE_LEVELS.contains(request.spiceLevel())) {
             return ApiResponse.error(400, "辣度选择无效");
         }
-        if (tooLong(request.favoriteTags()) || tooLong(request.avoidIngredients()) || tooLong(request.allergens())) {
+        if (tooLong(request.favoriteTags()) || tooLong(request.favoriteDishes())
+                || tooLong(request.avoidIngredients()) || tooLong(request.allergens())) {
             return ApiResponse.error(400, "口味内容不能超过 500 字");
         }
         UserFoodPreference preference = repository.findByOpenid(openid).orElseGet(UserFoodPreference::new);
         preference.setOpenid(openid);
         preference.setFavoriteTags(clean(request.favoriteTags()));
+        preference.setFavoriteDishes(clean(request.favoriteDishes()));
         preference.setAvoidIngredients(clean(request.avoidIngredients()));
         preference.setAllergens(clean(request.allergens()));
         preference.setEatScallion(request.eatScallion());
@@ -52,6 +57,7 @@ public class UserFoodPreferenceController {
     public ApiResponse<Void> clear(
             @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
         repository.deleteByOpenid(openid);
+        interactions.deleteByOpenid(openid);
         return ApiResponse.ok();
     }
 
@@ -60,6 +66,7 @@ public class UserFoodPreferenceController {
 
     public record PreferenceRequest(
             String favoriteTags,
+            String favoriteDishes,
             String avoidIngredients,
             String allergens,
             Boolean eatScallion,

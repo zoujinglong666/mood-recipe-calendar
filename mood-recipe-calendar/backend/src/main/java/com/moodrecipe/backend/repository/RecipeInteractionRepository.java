@@ -8,4 +8,5 @@ import java.util.List;
 public interface RecipeInteractionRepository extends JpaRepository<RecipeInteraction, Long> {
     List<RecipeInteraction> findTop30ByOpenidOrderByCreatedAtDesc(String openid);
     List<RecipeInteraction> findByOpenidAndAction(String openid, String action);
+    void deleteByOpenid(String openid);
 }

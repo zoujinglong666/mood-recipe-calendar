@@ -11,6 +11,7 @@ export interface RecipeItem {
   difficulty: string
   moodTags: string
   season: string
+  recommendationReason?: string
 }
 
 /** 全部菜谱 */

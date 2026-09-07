@@ -65,10 +65,13 @@ public class RecipeController {
                 .filter(r -> !rejected.contains(r.getId()) && allowedByPreference(r, preference)).toList();
         if (candidates.isEmpty()) candidates = repository.findAll().stream()
                 .filter(r -> !rejected.contains(r.getId()) && allowedByPreference(r, preference)).toList();
+        if (candidates.isEmpty()) {
+            return ApiResponse.error(404, "没有找到符合当前忌口的菜，请到锅仔记忆里调整后再试");
+        }
         List<Recipe> unseen = candidates.stream().filter(r -> !recentlyShown.contains(r.getId())).toList();
         if (!unseen.isEmpty()) candidates = unseen;
         Recipe recipe = candidates.stream()
-                .max(Comparator.comparingInt(r -> score.getOrDefault(r.getId(), 0) + preferenceScore(r, preference))
+                .max(Comparator.comparingInt((Recipe r) -> score.getOrDefault(r.getId(), 0) + preferenceScore(r, preference))
                         .thenComparing(Recipe::getId, Comparator.reverseOrder()))
                 .orElse(null);
         if (recipe != null) {
@@ -94,6 +97,8 @@ public class RecipeController {
         String text = searchableText(recipe);
         int score = terms(preference.getFavoriteTags()).stream()
                 .mapToInt(tag -> matchesTag(text, tag) ? 6 : 0).sum();
+        score += terms(preference.getFavoriteDishes()).stream()
+                .mapToInt(dish -> text.contains(dish) ? 10 : 0).sum();
         if ("HOT".equals(preference.getSpiceLevel()) && matchesTag(text, "香辣")) score += 4;
         return score;
     }
@@ -117,8 +122,9 @@ public class RecipeController {
         if (historyScore.getOrDefault(recipe.getId(), 0) >= 5) {
             return "我记得你做过并喜欢这类菜，今天再吃一次也很合适。";
         }
-        if (preference != null && terms(preference.getFavoriteTags()).stream()
-                .anyMatch(tag -> matchesTag(searchableText(recipe), tag))) {
+        if (preference != null && (terms(preference.getFavoriteTags()).stream()
+                .anyMatch(tag -> matchesTag(searchableText(recipe), tag))
+                || terms(preference.getFavoriteDishes()).stream().anyMatch(searchableText(recipe)::contains))) {
             return "我记得你的口味，也避开了你不吃的食材，这道菜更像你会喜欢的。";
         }
         return "根据你现在“" + mood + "”的心情，我想给你一顿好做又暖胃的饭。";
@@ -187,6 +193,7 @@ public class RecipeController {
     private String preferencePrompt(UserFoodPreference preference) {
         if (preference == null) return "暂无";
         return "喜欢" + safe(preference.getFavoriteTags())
+                + "，常吃的菜" + safe(preference.getFavoriteDishes())
                 + "，不吃" + safe(preference.getAvoidIngredients())
                 + "，过敏" + safe(preference.getAllergens())
                 + "，葱" + answer(preference.getEatScallion())

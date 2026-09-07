@@ -59,7 +59,7 @@ const steps = computed(() => {
   if (!recipe.value?.steps) return []
   try { return JSON.parse(recipe.value.steps) } catch { return [] }
 })
-const healingText = computed(() => HEALING_TEXTS[mood.value] || recipe.value?.description || '好好吃饭，天天开心。')
+const healingText = computed(() => recipe.value?.recommendationReason || HEALING_TEXTS[mood.value] || recipe.value?.description || '好好吃饭，天天开心。')
 
 async function loadRecipe() {
   loading.value = true
