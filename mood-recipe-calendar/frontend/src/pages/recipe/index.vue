@@ -409,16 +409,16 @@ async function waitForDelivery(orderNo: string) {
             <view v-else class="dish-media__fallback">
               <image src="/static/guozai/action_01_bowl.png" mode="aspectFit" />
             </view>
-            <view class="guozai-note">
-              <image class="guozai-note__avatar guozai-breathe" src="/static/guozai/action_16_chopsticks.png" mode="aspectFit" />
-              <view class="guozai-note__bubble">
-                <text class="guozai-note__label">
-                  锅仔为什么推荐它
-                </text>
-                <text class="guozai-note__text">
-                  {{ healingText }}
-                </text>
-              </view>
+          </view>
+          <view class="guozai-note">
+            <image class="guozai-note__avatar guozai-breathe" src="/static/guozai/action_16_chopsticks.png" mode="aspectFit" aria-label="锅仔" />
+            <view class="guozai-note__bubble">
+              <text class="guozai-note__label">
+                锅仔为什么推荐它
+              </text>
+              <text class="guozai-note__text">
+                {{ healingText }}
+              </text>
             </view>
           </view>
           <text v-if="recipe.description" class="dish-description">
@@ -537,7 +537,7 @@ async function waitForDelivery(orderNo: string) {
         </view>
       </view>
 
-      <view v-if="showAiPanel" class="ai-mask" @click.self="showAiPanel = false">
+      <view v-if="showAiPanel" class="ai-mask" @tap.stop>
         <view class="ai-sheet" role="dialog" aria-label="锅仔 AI 私人菜单">
           <view class="ai-sheet__head">
             <view>
@@ -646,9 +646,9 @@ async function waitForDelivery(orderNo: string) {
 .dish-meta { display: flex; align-items: center; gap: 20rpx; margin-top: 16rpx; }
 .dish-meta__item { display: flex; align-items: center; gap: 8rpx; color: var(--mrc-text-deep); font-size: 25rpx; font-weight: 700; }
 .dish-meta__divider { width: 2rpx; height: 28rpx; background: var(--mrc-border); }
-.guozai-note { position: absolute; right: 18rpx; bottom: 18rpx; left: 18rpx; display: flex; align-items: flex-end; gap: 10rpx; }
-.guozai-note__avatar { width: 96rpx; height: 96rpx; flex-shrink: 0; }
-.guozai-note__bubble { flex: 1; min-width: 0; padding: 16rpx 20rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 22rpx 22rpx 22rpx 8rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-sm); }
+.guozai-note { display: flex; align-items: flex-start; gap: 12rpx; padding: 22rpx 24rpx 0; }
+.guozai-note__avatar { width: 84rpx; height: 84rpx; flex-shrink: 0; }
+.guozai-note__bubble { flex: 1; min-width: 0; padding: 16rpx 20rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 8rpx 22rpx 22rpx; background: var(--mrc-surface-2); }
 .guozai-note__label { display: block; color: var(--mrc-accent); font-size: 20rpx; font-weight: 800; letter-spacing: 1rpx; }
 .guozai-note__text { display: block; margin-top: 6rpx; color: var(--mrc-text-deep); font-size: 24rpx; line-height: 1.45; }
 .dish-description { display: block; padding: 20rpx 28rpx 26rpx; color: var(--mrc-text-sub); font-size: 25rpx; line-height: 1.6; }

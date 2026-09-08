@@ -3,6 +3,8 @@ package com.moodrecipe.backend.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moodrecipe.backend.entity.Recipe;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -25,6 +27,8 @@ import java.util.function.Consumer;
 @Service
 public class AiRecipeService {
 
+    private static final Logger log = LoggerFactory.getLogger(AiRecipeService.class);
+
     public enum GenerationEvent {
         TEXT_STARTED,
         TEXT_COMPLETED,
@@ -34,7 +38,7 @@ public class AiRecipeService {
         IMAGE_FAILED
     }
 
-    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(15);
+    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(40);
 
     private final ObjectMapper objectMapper;
     private final AgnesRecipeImageService imageService;
@@ -75,6 +79,7 @@ public class AiRecipeService {
         }
 
         try {
+            log.info("AI 菜谱生成开始，model={}, apiKeyConfigured={}", model, !apiKey.isBlank());
             progress.accept(GenerationEvent.TEXT_STARTED);
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("model", model);
@@ -99,6 +104,8 @@ public class AiRecipeService {
                     .build();
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                log.warn("AI 文本接口返回非 2xx: status={}, body={}", response.statusCode(),
+                        response.body() == null ? "" : response.body().substring(0, Math.min(response.body().length(), 300)));
                 progress.accept(GenerationEvent.TEXT_FAILED);
                 return Optional.empty();
             }
@@ -116,7 +123,8 @@ public class AiRecipeService {
             cover.ifPresent(recipe.get()::setImage);
             progress.accept(cover.isPresent() ? GenerationEvent.IMAGE_COMPLETED : GenerationEvent.IMAGE_FAILED);
             return recipe;
-        } catch (Exception ignored) {
+        } catch (Exception ex) {
+            log.warn("AI 菜谱文本生成失败，将回退本地菜谱库: {}", ex.toString());
             progress.accept(GenerationEvent.TEXT_FAILED);
             return Optional.empty();
         }
