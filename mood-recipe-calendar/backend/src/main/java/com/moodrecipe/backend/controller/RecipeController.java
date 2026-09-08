@@ -51,11 +51,28 @@ public class RecipeController {
         return ApiResponse.ok(repository.findAll());
     }
 
-    /** 基础推荐：排除拒绝与最近看过的菜，并根据真实反馈排序。 */
+    /** 基础推荐：优先 AI 真实生成，失败回退到数据库菜谱（排除拒绝与最近看过，按反馈排序）。 */
     @GetMapping("/recommend")
     public ApiResponse<Recipe> recommend(
             @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
             @RequestParam(defaultValue = "平静") String mood) {
+
+        UserFoodPreference preference = preferences.findByOpenid(openid).orElse(null);
+
+        // 优先 AI 真实推荐（结合用户口味偏好）
+        try {
+            String preferencePrompt = preferencePrompt(preference);
+            Optional<Recipe> aiRecipe = aiRecipeService.recommend(mood, preferencePrompt);
+            if (aiRecipe.isPresent()) {
+                Recipe recipe = aiRecipe.get();
+                recipe.setRecommendationReason("根据你现在「" + mood + "」的心情，锅仔特意为你想了这道菜。");
+                return ApiResponse.ok(recipe);
+            }
+        } catch (Exception ignored) {
+            // AI 不可用时静默回退到数据库
+        }
+
+        // 回退：数据库菜谱推荐
         List<RecipeInteraction> history = interactions.findTop30ByOpenidOrderByCreatedAtDesc(openid);
         Set<Long> rejected = interactions.findByOpenidAndAction(openid, "DISLIKE").stream()
                 .map(RecipeInteraction::getRecipeId).collect(Collectors.toSet());
@@ -67,8 +84,6 @@ public class RecipeController {
             case "MADE" -> 5;
             default -> 0;
         }, Integer::sum));
-
-        UserFoodPreference preference = preferences.findByOpenid(openid).orElse(null);
 
         List<Recipe> candidates = repository.findByMoodTag(mood).stream()
                 .filter(r -> !rejected.contains(r.getId()) && allowedByPreference(r, preference)).toList();
