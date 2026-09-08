@@ -1,13 +1,12 @@
 <script setup lang="ts">
+import type { RecordItem } from '../../api/records'
 import { ref } from 'vue'
-import Icon from '../../components/common/Icon.vue'
-import { ensureLogin, refreshUserInfo } from '../../utils/login'
-import { toast, toastError, toastSuccess } from '../../utils/toast'
-import { fetchStats, fetchRecords, type RecordItem } from '../../api/records'
-import { updateUserInfo } from '../../api/auth'
-import { uploadFile } from '../../api/request'
-import { useUserStore } from '../../stores/user'
 import { useNavBar } from '@/composables/useNavBar'
+import { fetchRecords, fetchStats } from '../../api/records'
+import Icon from '../../components/common/Icon.vue'
+import { useUserStore } from '../../stores/user'
+import { ensureLogin, refreshUserInfo } from '../../utils/login'
+import { toastError } from '../../utils/toast'
 
 definePage({
   name: 'profile',
@@ -24,13 +23,8 @@ const userStore = useUserStore()
 const nav = useNavBar()
 
 const loading = ref(true)
-const stats = ref({ totalRecords: 0, totalDays: 0, currentStreak: 0, topDishes: [] as { name: string; count: number }[] })
+const stats = ref({ totalRecords: 0, totalDays: 0, currentStreak: 0, topDishes: [] as { name: string, count: number }[] })
 const history = ref<RecordItem[]>([])
-// 编辑昵称状态
-const editingNick = ref(false)
-const nickInput = ref('')
-const avatarUpdating = ref(false)
-const nickSaving = ref(false)
 
 const MOOD_IMG_MAP: Record<string, string> = {
   开心: '/static/guozai/mood_01_happy.png',
@@ -54,11 +48,12 @@ async function loadData() {
     ])
     stats.value = statsData
     history.value = records.slice(0, 10)
-    nickInput.value = userStore.userInfo?.nickname || ''
-  } catch (e: any) {
+  }
+  catch (e: any) {
     // 我的页登录/加载失败不展示缺省图，仅 toast 轻提示
     toastError(e, '加载失败，请稍后重试')
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 }
@@ -67,48 +62,6 @@ onShow(() => {
   loadData()
 })
 
-// ---- 微信头像授权（小程序）----
-async function onChooseAvatar(e: any) {
-  const tempPath = e.detail?.avatarUrl
-  if (!tempPath || avatarUpdating.value) return
-  avatarUpdating.value = true
-  try {
-    await ensureLogin()
-    const uploaded = await uploadFile(tempPath)
-    await updateUserInfo({
-      openid: userStore.openid,
-      avatarUrl: uploaded.url,
-    })
-    await refreshUserInfo()
-    toastSuccess('头像已更新')
-  } catch {
-    toast('头像更新失败')
-  } finally {
-    avatarUpdating.value = false
-  }
-}
-
-// ---- 微信昵称填写（小程序）----
-function onNickInput(e: any) {
-  nickInput.value = e.detail?.value || ''
-}
-async function onNickConfirm() {
-  const name = nickInput.value.trim()
-  if (!name || nickSaving.value) return
-  nickSaving.value = true
-  try {
-    await ensureLogin()
-    await updateUserInfo({ openid: userStore.openid, nickname: name })
-    await refreshUserInfo()
-    editingNick.value = false
-    toastSuccess('昵称已更新')
-  } catch {
-    toast('昵称更新失败')
-  } finally {
-    nickSaving.value = false
-  }
-}
-
 function goReport() {
   router.push({ name: 'report' })
 }
@@ -116,185 +69,251 @@ function goGallery() {
   router.push({ name: 'gallery' })
 }
 function goSettings() {
-  router.push({ name: 'privacy' })
+  router.push({ name: 'settings' })
 }
 function showPrivacy() {
   router.push({ name: 'privacy' })
 }
-function goAbout() { router.push({ name: 'about' }) }
-function goTimeline() { router.push({ name: 'timeline' }) }
-function goPreferences() { router.push({ name: 'preferences' }) }
-function onFeedbackHint() { toast('请在微信小程序中联系锅仔') }
-function goFeedback() { router.push({ name: 'feedback' }) }
+function goAbout() {
+  router.push({ name: 'about' })
+}
+function goTimeline() {
+  router.push({ name: 'timeline' })
+}
+function goPreferences() {
+  router.push({ name: 'preferences' })
+}
+function goFeedback() {
+  router.push({ name: 'feedback' })
+}
 </script>
 
 <template>
   <view class="profile-page mrc-hero">
+    <view
+      class="profile-topbar"
+      :style="{ paddingTop: `${nav.statusBarHeight}px`, minHeight: `${nav.navBarHeight}px`, paddingRight: `${nav.capsuleRightGap}px` }"
+    >
+      <text class="profile-topbar__title">
+        我的
+      </text>
+      <view class="profile-topbar__settings" role="button" aria-label="打开设置" @click="goSettings">
+        <Icon name="gear" :size="38" color="#EF5A3C" />
+      </view>
+    </view>
+
+    <view class="profile-identity" role="button" aria-label="打开设置修改个人资料" @click="goSettings">
+      <view class="profile-identity__glow profile-identity__glow--one" />
+      <view class="profile-identity__glow profile-identity__glow--two" />
+      <image class="profile-identity__companion" src="/static/guozai/action_08_peek.png" mode="aspectFit" />
+
+      <view class="profile-identity__main">
+        <view class="profile-avatar" :class="{ 'profile-avatar--logged': userStore.userInfo?.avatarUrl }">
+          <image
+            class="profile-avatar__img"
+            :src="userStore.userInfo?.avatarUrl || '/static/guozai/mood_01_happy.png'"
+            :mode="userStore.userInfo?.avatarUrl ? 'aspectFill' : 'aspectFit'"
+          />
+          <view class="profile-avatar__edit">
+            <Icon name="gear" :size="26" color="#EF5A3C" />
+          </view>
+        </view>
+
+        <view class="profile-userinfo">
+          <text class="profile-userinfo__eyebrow">
+            锅仔的小饭友
+          </text>
+          <view class="profile-name-wrap">
+            <text class="profile-name">
+              {{ userStore.userInfo?.nickname || '给自己取个昵称' }}
+            </text>
+            <text class="profile-name__arrow">
+              ›
+            </text>
+          </view>
+          <text class="profile-login-hint">
+            点击进入设置，修改头像和昵称
+          </text>
+        </view>
+      </view>
+
+      <view class="profile-identity__footer">
+        <view class="profile-login-state">
+          <view class="profile-login-state__dot" :class="{ 'profile-login-state__dot--online': userStore.isLoggedIn }" />
+          <text>{{ userStore.isLoggedIn ? '微信身份已连接' : '正在连接微信身份…' }}</text>
+        </view>
+        <text class="profile-identity__promise">
+          今天也要好好吃饭
+        </text>
+      </view>
+    </view>
+
+    <!-- 统计卡 -->
+    <view class="profile-stats" aria-label="我的饮食记录统计">
+      <view class="profile-stats__item">
+        <text class="profile-stats__label">
+          总记录
+        </text>
+        <text class="profile-stats__value">
+          {{ stats.totalRecords }}<text class="profile-stats__unit">
+            条
+          </text>
+        </text>
+      </view>
+      <view class="profile-stats__divider" />
+      <view class="profile-stats__item">
+        <text class="profile-stats__label">
+          记录天数
+        </text>
+        <text class="profile-stats__value">
+          {{ stats.totalDays }}<text class="profile-stats__unit">
+            天
+          </text>
+        </text>
+      </view>
+      <view class="profile-stats__divider" />
+      <view class="profile-stats__item">
+        <text class="profile-stats__label">
+          连续打卡
+        </text>
+        <text class="profile-stats__value">
+          {{ stats.currentStreak }}<text class="profile-stats__unit">
+            天
+          </text>
+        </text>
+      </view>
+    </view>
+
+    <view class="profile-section-head">
+      <view>
+        <text class="profile-section-head__eyebrow">
+          锅仔陪你
+        </text><text class="profile-section-head__title">
+          更懂你的每一餐
+        </text>
+      </view>
+      <text class="profile-section-head__sub">
+        慢慢记录，慢慢熟悉
+      </text>
+    </view>
+
+    <view class="profile-memory" role="button" aria-label="打开我的口味与忌口" @click="goPreferences">
+      <image class="profile-memory__guozai" src="/static/guozai/action_10_thinking.png" mode="aspectFit" />
+      <view class="profile-memory__main">
+        <text class="profile-memory__eyebrow">
+          锅仔会一直记得
+        </text>
+        <text class="profile-memory__title">
+          我的口味与忌口
+        </text>
+        <text class="profile-memory__sub">
+          喜欢什么 · 葱和香菜 · 辣度 · 过敏食材
+        </text>
+      </view>
+      <text class="profile-memory__arrow">
+        ›
+      </text>
+    </view>
+
+    <!-- 锅仔形象馆入口（核心变现模块） -->
+    <view class="profile-gallery" role="button" aria-label="打开锅仔形象馆" @click="goGallery">
+      <image class="profile-gallery__guozai" src="/static/guozai/mood_06_hungry.png" mode="aspectFit" />
+      <view class="profile-gallery__main">
+        <text class="profile-gallery__title">
+          锅仔形象馆
+        </text>
+        <text class="profile-gallery__sub">
+          表情包 · 主题素材 · 每日收藏
+        </text>
+      </view>
+      <view class="profile-gallery__badge">
+        每日签到
+      </view>
+      <text class="profile-gallery__arrow">
+        ›
+      </text>
+    </view>
+
+    <!-- 功能按钮 -->
+    <view class="profile-actions">
+      <view class="profile-action" role="button" aria-label="打开我的年度报告" @click="goReport">
+        <image class="profile-action__guozai" src="/static/guozai/action_09_celebrate.png" mode="aspectFit" />
+        <view class="profile-action__copy">
+          <text class="profile-action__text">
+            年度报告
+          </text><text class="profile-action__sub">
+            看看这一年的味道
+          </text>
+        </view>
+      </view>
+      <view class="profile-action" role="button" aria-label="打开菜谱时光机" @click="goTimeline">
+        <image class="profile-action__guozai" src="/static/guozai/action_06_glasses.png" mode="aspectFit" />
+        <view class="profile-action__copy">
+          <text class="profile-action__text">
+            菜谱时光机
+          </text><text class="profile-action__sub">
+            往回翻每一顿饭
+          </text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 历史记录列表 -->
+    <view class="profile-history">
+      <view class="profile-history__head" role="button" aria-label="查看全部菜谱记录" @click="goTimeline">
+        <text class="profile-history__month">
+          最近记录
+        </text>
+        <text class="profile-history__arrow">
+          ›
+        </text>
+      </view>
+      <view v-if="history.length === 0" class="profile-history__empty">
+        <image src="/static/guozai/action_08_peek.png" mode="aspectFit" />
+        <view>
+          <text class="profile-history__empty-title">
+            第一顿饭，等你来记
+          </text><text class="profile-history__empty-sub">
+            记录后，锅仔会把它收进时光机
+          </text>
+        </view>
+      </view>
       <view
-        class="profile-topbar"
-        :style="{ paddingTop: nav.statusBarHeight + 'px', minHeight: nav.navBarHeight + 'px', paddingRight: nav.capsuleRightGap + 'px' }"
+        v-for="(item, i) in history"
+        :key="i"
+        class="profile-history__item"
+        @click="goTimeline"
       >
-        <text class="profile-topbar__title">我的</text>
-        <view class="profile-topbar__settings" role="button" aria-label="打开设置" @click="goSettings">
-          <Icon name="gear" :size="38" color="#EF5A3C" />
+        <text class="profile-history__date">
+          {{ item.recordDate?.slice(5) }}
+        </text>
+        <view class="profile-history__main">
+          <text class="profile-history__dish">
+            {{ item.dishName }}
+          </text>
+          <image class="profile-history__mood" :src="MOOD_IMG_MAP[item.moodTag] || '/static/guozai/mood_01_happy.png'" mode="aspectFit" />
         </view>
+        <text class="profile-history__arrow">
+          ›
+        </text>
       </view>
+    </view>
 
-      <view class="profile-identity">
-        <view class="profile-identity__glow profile-identity__glow--one" />
-        <view class="profile-identity__glow profile-identity__glow--two" />
-        <image class="profile-identity__companion" src="/static/guozai/action_08_peek.png" mode="aspectFit" />
-
-        <view class="profile-identity__main">
-          <!-- #ifdef MP-WEIXIN -->
-          <button class="profile-avatar-btn" open-type="chooseAvatar" :disabled="avatarUpdating" aria-label="更换微信头像" @chooseavatar="onChooseAvatar">
-            <view class="profile-avatar" :class="{ 'profile-avatar--logged': userStore.userInfo?.avatarUrl }">
-              <image
-                v-if="userStore.userInfo?.avatarUrl"
-                class="profile-avatar__img"
-                :src="userStore.userInfo.avatarUrl"
-                mode="aspectFill"
-              />
-              <image v-else class="profile-avatar__img" src="/static/guozai/mood_01_happy.png" mode="aspectFit" />
-              <view class="profile-avatar__edit">
-                <Icon name="camera" :size="26" color="var(--mrc-accent)" />
-              </view>
-              <view v-if="avatarUpdating" class="profile-avatar__loading">上传中</view>
-            </view>
-          </button>
-          <!-- #endif -->
-          <!-- #ifndef MP-WEIXIN -->
-          <view class="profile-avatar profile-avatar--logged">
-            <image class="profile-avatar__img" src="/static/guozai/mood_01_happy.png" mode="aspectFit" />
-          </view>
-          <!-- #endif -->
-
-          <view class="profile-userinfo">
-            <text class="profile-userinfo__eyebrow">锅仔的小饭友</text>
-            <!-- #ifdef MP-WEIXIN -->
-            <input
-              v-if="editingNick"
-              v-model="nickInput"
-              class="profile-nick-input"
-              type="nickname"
-              placeholder="请输入昵称"
-              confirm-type="done"
-              :disabled="nickSaving"
-              @input="onNickInput"
-              @confirm="onNickConfirm"
-              @blur="onNickConfirm"
-            />
-            <view v-else class="profile-name-wrap" @click="editingNick = true; nickInput = userStore.userInfo?.nickname || ''">
-              <text class="profile-name">{{ userStore.userInfo?.nickname || '给自己取个昵称' }}</text>
-              <text class="profile-name__arrow">›</text>
-            </view>
-            <text class="profile-login-hint">{{ userStore.userInfo?.nickname ? '点击昵称可修改' : '锅仔以后就这样称呼你' }}</text>
-            <!-- #endif -->
-            <!-- #ifndef MP-WEIXIN -->
-            <text class="profile-name">{{ userStore.userInfo?.nickname || '小圆' }}</text>
-            <!-- #endif -->
-          </view>
-        </view>
-
-        <view class="profile-identity__footer">
-          <view class="profile-login-state">
-            <view class="profile-login-state__dot" :class="{ 'profile-login-state__dot--online': userStore.isLoggedIn }" />
-            <text>{{ userStore.isLoggedIn ? '微信身份已连接' : '正在连接微信身份…' }}</text>
-          </view>
-          <text class="profile-identity__promise">今天也要好好吃饭</text>
-        </view>
-      </view>
-
-      <!-- 统计卡 -->
-      <view class="profile-stats" aria-label="我的饮食记录统计">
-        <view class="profile-stats__item">
-          <text class="profile-stats__label">总记录</text>
-          <text class="profile-stats__value">{{ stats.totalRecords }}<text class="profile-stats__unit">条</text></text>
-        </view>
-        <view class="profile-stats__divider" />
-        <view class="profile-stats__item">
-          <text class="profile-stats__label">记录天数</text>
-          <text class="profile-stats__value">{{ stats.totalDays }}<text class="profile-stats__unit">天</text></text>
-        </view>
-        <view class="profile-stats__divider" />
-        <view class="profile-stats__item">
-          <text class="profile-stats__label">连续打卡</text>
-          <text class="profile-stats__value">{{ stats.currentStreak }}<text class="profile-stats__unit">天</text></text>
-        </view>
-      </view>
-
-      <view class="profile-section-head">
-        <view><text class="profile-section-head__eyebrow">锅仔陪你</text><text class="profile-section-head__title">更懂你的每一餐</text></view>
-        <text class="profile-section-head__sub">慢慢记录，慢慢熟悉</text>
-      </view>
-
-      <view class="profile-memory" role="button" aria-label="打开我的口味与忌口" @click="goPreferences">
-        <image class="profile-memory__guozai" src="/static/guozai/action_10_thinking.png" mode="aspectFit" />
-        <view class="profile-memory__main">
-          <text class="profile-memory__eyebrow">锅仔会一直记得</text>
-          <text class="profile-memory__title">我的口味与忌口</text>
-          <text class="profile-memory__sub">喜欢什么 · 葱和香菜 · 辣度 · 过敏食材</text>
-        </view>
-        <text class="profile-memory__arrow">›</text>
-      </view>
-
-      <!-- 锅仔形象馆入口（核心变现模块） -->
-      <view class="profile-gallery" role="button" aria-label="打开锅仔形象馆" @click="goGallery">
-        <image class="profile-gallery__guozai" src="/static/guozai/mood_06_hungry.png" mode="aspectFit" />
-        <view class="profile-gallery__main">
-          <text class="profile-gallery__title">锅仔形象馆</text>
-          <text class="profile-gallery__sub">表情包 · 主题素材 · 每日收藏</text>
-        </view>
-        <view class="profile-gallery__badge">每日签到</view>
-        <text class="profile-gallery__arrow">›</text>
-      </view>
-
-      <!-- 功能按钮 -->
-      <view class="profile-actions">
-        <view class="profile-action" role="button" aria-label="打开我的年度报告" @click="goReport">
-          <image class="profile-action__guozai" src="/static/guozai/action_09_celebrate.png" mode="aspectFit" />
-          <view class="profile-action__copy"><text class="profile-action__text">年度报告</text><text class="profile-action__sub">看看这一年的味道</text></view>
-        </view>
-        <view class="profile-action" role="button" aria-label="打开菜谱时光机" @click="goTimeline">
-          <image class="profile-action__guozai" src="/static/guozai/action_06_glasses.png" mode="aspectFit" />
-          <view class="profile-action__copy"><text class="profile-action__text">菜谱时光机</text><text class="profile-action__sub">往回翻每一顿饭</text></view>
-        </view>
-      </view>
-
-      <!-- 历史记录列表 -->
-      <view class="profile-history">
-        <view class="profile-history__head" role="button" aria-label="查看全部菜谱记录" @click="goTimeline">
-          <text class="profile-history__month">最近记录</text>
-          <text class="profile-history__arrow">›</text>
-        </view>
-        <view v-if="history.length === 0" class="profile-history__empty">
-          <image src="/static/guozai/action_08_peek.png" mode="aspectFit" />
-          <view><text class="profile-history__empty-title">第一顿饭，等你来记</text><text class="profile-history__empty-sub">记录后，锅仔会把它收进时光机</text></view>
-        </view>
-        <view
-          v-for="(item, i) in history"
-          :key="i"
-          class="profile-history__item"
-          @click="goTimeline"
-        >
-          <text class="profile-history__date">{{ item.recordDate?.slice(5) }}</text>
-          <view class="profile-history__main">
-            <text class="profile-history__dish">{{ item.dishName }}</text>
-            <image class="profile-history__mood" :src="MOOD_IMG_MAP[item.moodTag] || '/static/guozai/mood_01_happy.png'" mode="aspectFit" />
-          </view>
-          <text class="profile-history__arrow">›</text>
-        </view>
-      </view>
-
-      <!-- 底部链接 -->
-      <view class="profile-footer">
-        <text class="profile-footer__link" role="button" @click="showPrivacy">隐私政策</text>
-        <view class="profile-footer__dot" />
-        <text class="profile-footer__link" role="button" @click="goFeedback">反馈建议</text>
-        <view class="profile-footer__dot" />
-        <text class="profile-footer__link" role="button" @click="goAbout">关于我们</text>
-        <image class="profile-footer__guozai" src="/static/guozai/mood_01_happy.png" mode="aspectFit" />
-      </view>
+    <!-- 底部链接 -->
+    <view class="profile-footer">
+      <text class="profile-footer__link" role="button" @click="showPrivacy">
+        隐私政策
+      </text>
+      <view class="profile-footer__dot" />
+      <text class="profile-footer__link" role="button" @click="goFeedback">
+        反馈建议
+      </text>
+      <view class="profile-footer__dot" />
+      <text class="profile-footer__link" role="button" @click="goAbout">
+        关于我们
+      </text>
+      <image class="profile-footer__guozai" src="/static/guozai/mood_01_happy.png" mode="aspectFit" />
+    </view>
   </view>
 </template>
 
@@ -308,7 +327,7 @@ function goFeedback() { router.push({ name: 'feedback' }) }
 
 /* 顶部标题栏：右侧为微信胶囊留位 */
 .profile-topbar { display: flex; align-items: center; justify-content: space-between; box-sizing: content-box; }
-.profile-topbar__title { color: var(--mrc-text-strong); font-size: 42rpx; font-weight: 900; }
+.profile-topbar__title { color: var(--mrc-text-strong); font-size: 42rpx; font-weight: var(--mrc-fw-heavy); }
 .profile-topbar__settings { width: 88rpx; height: 88rpx; display: flex; align-items: center; justify-content: center; border: 2rpx solid var(--mrc-border); border-radius: 50%; background: var(--mrc-surface-peach); box-shadow: var(--mrc-shadow-sm); }
 .profile-topbar__settings:active { transform: scale(.94); }
 
@@ -323,17 +342,12 @@ function goFeedback() { router.push({ name: 'feedback' }) }
 .profile-userinfo__eyebrow { color: var(--mrc-accent); font-size: 21rpx; font-weight: 800; letter-spacing: 2rpx; }
 .profile-avatar { position: relative; width: 128rpx; height: 128rpx; display: flex; flex-shrink: 0; align-items: center; justify-content: center; overflow: visible; border: 6rpx solid rgba(255, 255, 255, .86); border-radius: 50%; background: linear-gradient(135deg, var(--mrc-surface-peach), var(--mrc-surface-sun)); box-shadow: 0 10rpx 24rpx rgba(148, 91, 56, .16); }
 .profile-avatar--logged { background: var(--mrc-surface-peach); }
-.profile-avatar-btn { width: 140rpx; height: 140rpx; flex-shrink: 0; margin: 0; padding: 0; border: 0; border-radius: 50%; background: transparent; line-height: 1; }
-.profile-avatar-btn::after { border: 0; }
-.profile-avatar-btn[disabled] { opacity: .7; }
 .profile-avatar__img { width: 118rpx; height: 118rpx; border-radius: 50%; }
 .profile-avatar__edit { position: absolute; right: -4rpx; bottom: -4rpx; width: 50rpx; height: 50rpx; display: flex; align-items: center; justify-content: center; border: 3rpx solid var(--mrc-surface); border-radius: 50%; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-sm); }
-.profile-avatar__loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: rgba(61, 37, 25, .58); color: #fff; font-size: 21rpx; font-weight: 700; }
 .profile-name-wrap { display: flex; min-height: 88rpx; align-items: center; gap: 4rpx; }
-.profile-name { max-width: 360rpx; overflow: hidden; color: var(--mrc-text-strong); font-size: 40rpx; font-weight: 850; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
+.profile-name { max-width: 360rpx; overflow: hidden; color: var(--mrc-text-strong); font-size: 40rpx; font-weight: var(--mrc-fw-heavy); line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
 .profile-name__arrow { color: var(--mrc-text-light); font-size: 34rpx; line-height: 1; }
 .profile-login-hint { color: var(--mrc-text-sub); font-size: 22rpx; font-weight: 500; line-height: 1.4; }
-.profile-nick-input { width: 100%; height: 62rpx; padding: 0; border: 0; border-bottom: 2rpx solid var(--mrc-accent); background: transparent; color: var(--mrc-text-deep); font-size: 38rpx; font-weight: 800; }
 .profile-identity__footer { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 16rpx; margin-top: 26rpx; padding-top: 20rpx; border-top: 2rpx solid rgba(226, 189, 152, .55); }
 .profile-login-state { display: flex; align-items: center; gap: 10rpx; color: var(--mrc-text-sub); font-size: 21rpx; font-weight: 600; }
 .profile-login-state__dot { width: 12rpx; height: 12rpx; border-radius: 50%; background: var(--mrc-text-light); }
@@ -364,7 +378,7 @@ function goFeedback() { router.push({ name: 'feedback' }) }
 }
 .profile-stats__value {
   font-size: 46rpx;
-  font-weight: 900;
+  font-weight: var(--mrc-fw-heavy);
   color: var(--mrc-text-deep);
   line-height: 1;
 }
@@ -382,7 +396,7 @@ function goFeedback() { router.push({ name: 'feedback' }) }
 .profile-section-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 20rpx; margin: 0 4rpx 18rpx; }
 .profile-section-head__eyebrow, .profile-section-head__title { display: block; }
 .profile-section-head__eyebrow { margin-bottom: 6rpx; color: var(--mrc-accent); font-size: 20rpx; font-weight: 800; letter-spacing: 2rpx; }
-.profile-section-head__title { color: var(--mrc-text-strong); font-size: 32rpx; font-weight: 850; }
+.profile-section-head__title { color: var(--mrc-text-strong); font-size: 32rpx; font-weight: var(--mrc-fw-heavy); }
 .profile-section-head__sub { padding-bottom: 2rpx; color: var(--mrc-text-sub); font-size: 20rpx; }
 
 /* 锅仔形象馆入口 */
@@ -392,7 +406,7 @@ function goFeedback() { router.push({ name: 'feedback' }) }
 .profile-memory__main { flex: 1; min-width: 0; }
 .profile-memory__eyebrow, .profile-memory__title, .profile-memory__sub { display: block; }
 .profile-memory__eyebrow { color: var(--mrc-accent); font-size: 20rpx; font-weight: 800; letter-spacing: 2rpx; }
-.profile-memory__title { margin-top: 4rpx; color: var(--mrc-text-deep); font-size: 32rpx; font-weight: 850; }
+.profile-memory__title { margin-top: 4rpx; color: var(--mrc-text-deep); font-size: 32rpx; font-weight: var(--mrc-fw-heavy); }
 .profile-memory__sub { margin-top: 6rpx; color: var(--mrc-text-sub); font-size: 22rpx; }
 .profile-memory__arrow { color: var(--mrc-text-light); font-size: 40rpx; }
 

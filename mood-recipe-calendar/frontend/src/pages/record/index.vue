@@ -221,7 +221,7 @@ function chooseCookingTime() {
 .record-intro__copy { position: relative; z-index: 1; max-width: 76%; }
 .record-intro__eyebrow, .record-intro__title, .record-intro__sub { display: block; }
 .record-intro__eyebrow { margin-bottom: 8rpx; color: var(--mrc-accent); font-size: 20rpx; font-weight: 800; letter-spacing: 2rpx; }
-.record-intro__title { color: var(--mrc-text-strong); font-size: 34rpx; font-weight: 850; line-height: 1.3; }
+.record-intro__title { color: var(--mrc-text-strong); font-size: 34rpx; font-weight: var(--mrc-fw-heavy); line-height: 1.3; }
 .record-intro__sub { margin-top: 8rpx; color: var(--mrc-text-sub); font-size: 22rpx; line-height: 1.45; }
 .record-intro__guozai { position: absolute; right: -4rpx; bottom: -12rpx; width: 142rpx; height: 142rpx; }
 
@@ -267,7 +267,7 @@ function chooseCookingTime() {
 
 .record-form-card, .record-mood-card, .record-textarea { margin-bottom: 24rpx; padding: 28rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 32rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }
 .record-section-title { display: flex; align-items: center; gap: 16rpx; margin-bottom: 22rpx; }
-.record-section-title__num { width: 48rpx; height: 48rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 50%; background: var(--mrc-accent-soft); color: var(--mrc-accent); font-size: 24rpx; font-weight: 900; }
+.record-section-title__num { width: 48rpx; height: 48rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 50%; background: var(--mrc-accent-soft); color: var(--mrc-accent); font-size: 24rpx; font-weight: var(--mrc-fw-heavy); }
 .record-section-title__main, .record-section-title__sub { display: block; }
 .record-section-title__main { color: var(--mrc-text-strong); font-size: 29rpx; font-weight: 800; }
 .record-section-title__sub { margin-top: 4rpx; color: var(--mrc-text-sub); font-size: 20rpx; }

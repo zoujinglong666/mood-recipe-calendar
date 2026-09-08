@@ -17,13 +17,12 @@ onLaunch(() => {
 
 page {
   background: var(--mrc-bg);
-  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-family: var(--mrc-font-family);
   color: var(--mrc-text);
 }
 .page-wraper {
   min-height: calc(100vh - var(--window-top));
   box-sizing: border-box;
   background: var(--mrc-bg);
-  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
 </style>

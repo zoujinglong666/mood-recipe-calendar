@@ -174,7 +174,7 @@ function heroTap() {
   display: block;
   color: var(--mrc-text-strong);
   font-size: 36rpx;
-  font-weight: 850;
+  font-weight: var(--mrc-fw-heavy);
   line-height: 1.25;
 }
 .mood-picker__current {

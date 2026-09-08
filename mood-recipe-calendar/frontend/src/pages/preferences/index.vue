@@ -312,7 +312,7 @@ function clearMemory() {
 .memory-hero__copy { flex: 1; min-width: 0; }
 .memory-hero__eyebrow, .memory-hero__title, .memory-hero__body { display: block; }
 .memory-hero__eyebrow { color: var(--mrc-accent); font-size: 21rpx; font-weight: 800; letter-spacing: 2rpx; }
-.memory-hero__title { margin-top: 8rpx; color: var(--mrc-text-deep); font-size: 34rpx; font-weight: 900; line-height: 1.35; }
+.memory-hero__title { margin-top: 8rpx; color: var(--mrc-text-deep); font-size: 34rpx; font-weight: var(--mrc-fw-heavy); line-height: 1.35; }
 .memory-hero__body { margin-top: 10rpx; color: var(--mrc-text-sub); font-size: 23rpx; line-height: 1.55; }
 .memory-section { padding: 28rpx; margin-bottom: 20rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); }
 .memory-section--warning { border-color: var(--mrc-border); }

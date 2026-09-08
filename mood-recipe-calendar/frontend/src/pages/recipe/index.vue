@@ -452,19 +452,19 @@ async function waitForDelivery(orderNo: string) {
 .recommend-card__share { display: flex; align-items: center; justify-content: center; width: 88rpx; height: 88rpx; margin-right: -20rpx; border-radius: 50%; }
 .dish-media { position: relative; width: 100%; height: 0; padding-bottom: 75%; overflow: hidden; background: var(--mrc-surface-peach); }
 .dish-media__image { position: absolute; inset: 0; width: 100%; height: 100%; }
-.dish-media__fallback { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8rpx; color: var(--mrc-text-sub); font-size: 24rpx; }
-.dish-media__fallback image { width: 300rpx; height: 250rpx; }
-.dish-copy { padding: 28rpx 28rpx 24rpx; }
+.dish-media__fallback { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--mrc-text-sub); }
+.dish-media__fallback image { width: 260rpx; height: 220rpx; transform: translateY(-36rpx); }
+.dish-copy { padding: 16rpx 28rpx 26rpx; }
 .dish-copy__name { display: block; color: var(--mrc-text-strong); font-size: 48rpx; font-weight: 800; line-height: 1.25; }
-.dish-copy__description { display: block; margin-top: 12rpx; color: var(--mrc-text-sub); font-size: 26rpx; line-height: 1.65; }
-.dish-meta { display: flex; align-items: center; gap: 20rpx; margin-top: 22rpx; }
+.dish-meta { display: flex; align-items: center; gap: 20rpx; margin-top: 16rpx; }
 .dish-meta__item { display: flex; align-items: center; gap: 8rpx; color: var(--mrc-text-deep); font-size: 25rpx; font-weight: 700; }
 .dish-meta__divider { width: 2rpx; height: 28rpx; background: var(--mrc-border); }
-.guozai-note { display: flex; align-items: flex-end; gap: 12rpx; padding: 0 24rpx 28rpx; }
-.guozai-note__avatar { width: 112rpx; height: 112rpx; flex-shrink: 0; }
-.guozai-note__bubble { flex: 1; min-width: 0; padding: 20rpx 22rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 24rpx 24rpx 24rpx 8rpx; background: var(--mrc-surface-sun); }
+.guozai-note { position: absolute; right: 18rpx; bottom: 18rpx; left: 18rpx; display: flex; align-items: flex-end; gap: 10rpx; }
+.guozai-note__avatar { width: 96rpx; height: 96rpx; flex-shrink: 0; }
+.guozai-note__bubble { flex: 1; min-width: 0; padding: 16rpx 20rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 22rpx 22rpx 22rpx 8rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-sm); }
 .guozai-note__label { display: block; color: var(--mrc-accent); font-size: 20rpx; font-weight: 800; letter-spacing: 1rpx; }
-.guozai-note__text { display: block; margin-top: 8rpx; color: var(--mrc-text-deep); font-size: 26rpx; line-height: 1.55; }
+.guozai-note__text { display: block; margin-top: 6rpx; color: var(--mrc-text-deep); font-size: 24rpx; line-height: 1.45; }
+.dish-description { display: block; padding: 20rpx 28rpx 26rpx; color: var(--mrc-text-sub); font-size: 25rpx; line-height: 1.6; }
 .feedback-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx; margin-top: 20rpx; }
 .feedback-action { display: flex; align-items: center; justify-content: center; gap: 10rpx; min-height: 88rpx; padding: 0 16rpx; box-sizing: border-box; border: 2rpx solid var(--mrc-border); border-radius: 44rpx; color: var(--mrc-text-deep); background: var(--mrc-surface); font-size: 24rpx; font-weight: 700; }
 .custom-entry { display: flex; align-items: center; gap: 16rpx; min-height: 112rpx; margin-top: 28rpx; padding: 12rpx 20rpx; box-sizing: border-box; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; background: var(--mrc-surface-2); }
@@ -513,6 +513,7 @@ async function waitForDelivery(orderNo: string) {
 .ai-product__desc { color: var(--mrc-text-sub); font-size: 22rpx; line-height: 1.45; }
 .ai-product__buy { display: flex; align-items: center; justify-content: center; min-width: 132rpx; min-height: 88rpx; padding: 0 16rpx; box-sizing: border-box; border-radius: 44rpx; color: var(--mrc-accent); background: var(--mrc-surface-sun); font-size: 25rpx; font-weight: 800; }
 @media (max-width: 350px) { .recipe-content, .recipe-state { width: calc(100% - 32rpx); } .dish-copy__name { font-size: 42rpx; } .feedback-row, .ingredient-list { grid-template-columns: 1fr; } .custom-entry__subtitle { display: none; } }
-@media (min-width: 720px), (orientation: landscape) and (min-width: 640px) { .recipe-content, .recipe-state { max-width: 900rpx; } .dish-media { padding-bottom: 62%; } }
+@media (min-width: 500px) { .dish-media { padding-bottom: 56%; } }
+@media (min-width: 720px), (orientation: landscape) and (min-width: 640px) { .recipe-content, .recipe-state { max-width: 900rpx; } .dish-media { padding-bottom: 52%; } }
 @media (prefers-reduced-motion: reduce) { .pressable { transition: none; } .pressable:active { transform: none; } }
 </style>

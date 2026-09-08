@@ -17,6 +17,7 @@ type _LocationUrl =
   "/pages/recipe/index" |
   "/pages/record/index" |
   "/pages/report/index" |
+  "/pages/settings/index" |
   "/pages/timeline/index";
 
 interface NavigateToOptions {

@@ -364,7 +364,7 @@ const orderTypeText: Record<string, string> = {}
 }
 .checkin-card__num {
   font-size: 40rpx;
-  font-weight: 900;
+  font-weight: var(--mrc-fw-heavy);
   color: var(--mrc-accent);
   margin: 0 4rpx;
 }
@@ -766,7 +766,7 @@ const orderTypeText: Record<string, string> = {}
 }
 .buy-option__price {
   font-size: 36rpx;
-  font-weight: 900;
+  font-weight: var(--mrc-fw-heavy);
   color: var(--mrc-accent);
 }
 .buy-option__sub {

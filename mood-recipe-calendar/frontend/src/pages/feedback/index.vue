@@ -403,7 +403,7 @@ onShow(loadHistory)
   background: var(--mrc-accent-soft);
   color: var(--mrc-accent);
   font-size: 22rpx;
-  font-weight: 900;
+  font-weight: var(--mrc-fw-heavy);
 }
 
 .section-title,

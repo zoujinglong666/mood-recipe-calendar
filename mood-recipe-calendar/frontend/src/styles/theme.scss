@@ -61,6 +61,12 @@ page {
   --mrc-gloss: inset 0 1rpx 0 rgba(255, 255, 255, 0.7);
 
   /* ---- 字号（rpx） ---- */
+  --mrc-font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --mrc-fw-regular: 400;
+  --mrc-fw-medium: 500;
+  --mrc-fw-semibold: 600;
+  --mrc-fw-bold: 700;
+  --mrc-fw-heavy: 800;
   --mrc-fs-lg: 44rpx;
   --mrc-fs-title: 34rpx;
   --mrc-fs-body: 28rpx;
@@ -91,6 +97,19 @@ page {
   --mrc-text-mid: #8B6B55;
 }
 
+/* ---------- 全局排版基础 ---------- */
+page,
+.page-wraper,
+.mrc-page {
+  font-family: var(--mrc-font-family);
+}
+
+button,
+input,
+textarea {
+  font-family: inherit;
+}
+
 /* ---------- 页面骨架 ---------- */
 .mrc-page {
   min-height: 100vh;
@@ -99,7 +118,6 @@ page {
   padding: 0 var(--mrc-space-lg);
   padding-bottom: calc(var(--mrc-space-lg) * 2 + env(safe-area-inset-bottom));
   box-sizing: border-box;
-  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
 
 /* 整页暖色光晕背景（hero 区可用，制造氛围与深度） */

@@ -429,7 +429,7 @@ const aiLines = computed(() => {
   margin-top: 40rpx;
 }
 .album-cover__brand { font-size: 32rpx; color: var(--mrc-text-sub); letter-spacing: 8rpx; margin-bottom: 40rpx; }
-.album-cover__title { font-size: 76rpx; font-weight: 900; color: var(--mrc-text-deep); line-height: 1.2; text-align: center; letter-spacing: 4rpx; }
+.album-cover__title { font-size: 76rpx; font-weight: var(--mrc-fw-heavy); color: var(--mrc-text-deep); line-height: 1.2; text-align: center; letter-spacing: 4rpx; }
 .album-cover__subtitle { font-size: 32rpx; color: var(--mrc-text-mid); margin-top: 28rpx; margin-bottom: 40rpx; letter-spacing: 2rpx; }
 .album-cover__guozai-wrap { position: relative; width: 100%; display: flex; justify-content: center; margin-bottom: 40rpx; }
 .album-cover__guozai { width: 460rpx; height: 460rpx; }
