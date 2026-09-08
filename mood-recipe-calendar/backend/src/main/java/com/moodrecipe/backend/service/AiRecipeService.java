@@ -16,6 +16,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 /**
  * 通过 OpenAI 兼容的 Chat Completions API 生成菜谱。
@@ -23,6 +24,15 @@ import java.util.Optional;
  */
 @Service
 public class AiRecipeService {
+
+    public enum GenerationEvent {
+        TEXT_STARTED,
+        TEXT_COMPLETED,
+        TEXT_FAILED,
+        IMAGE_STARTED,
+        IMAGE_COMPLETED,
+        IMAGE_FAILED
+    }
 
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(15);
 
@@ -54,9 +64,18 @@ public class AiRecipeService {
 
     /** 为已购买的深度推荐权益生成菜谱，preference 仅包含用户明确填写的烹饪偏好。 */
     public Optional<Recipe> recommend(String mood, String preference) {
-        if (apiKey.isBlank() || model.isBlank()) return Optional.empty();
+        return recommend(mood, preference, ignored -> { });
+    }
+
+    /** 只在真实的模型请求边界报告阶段，不包含提示词或供应商错误。 */
+    public Optional<Recipe> recommend(String mood, String preference, Consumer<GenerationEvent> progress) {
+        if (apiKey.isBlank() || model.isBlank()) {
+            progress.accept(GenerationEvent.TEXT_FAILED);
+            return Optional.empty();
+        }
 
         try {
+            progress.accept(GenerationEvent.TEXT_STARTED);
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("model", model);
             body.put("temperature", 0.8);
@@ -79,14 +98,26 @@ public class AiRecipeService {
                     .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)))
                     .build();
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() < 200 || response.statusCode() >= 300) return Optional.empty();
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                progress.accept(GenerationEvent.TEXT_FAILED);
+                return Optional.empty();
+            }
 
             JsonNode root = objectMapper.readTree(response.body());
             String content = root.path("choices").path(0).path("message").path("content").asText();
             Optional<Recipe> recipe = toRecipe(content, mood);
-            recipe.ifPresent(item -> imageService.generateCover(item).ifPresent(item::setImage));
+            if (recipe.isEmpty()) {
+                progress.accept(GenerationEvent.TEXT_FAILED);
+                return Optional.empty();
+            }
+            progress.accept(GenerationEvent.TEXT_COMPLETED);
+            progress.accept(GenerationEvent.IMAGE_STARTED);
+            Optional<String> cover = imageService.generateCover(recipe.get());
+            cover.ifPresent(recipe.get()::setImage);
+            progress.accept(cover.isPresent() ? GenerationEvent.IMAGE_COMPLETED : GenerationEvent.IMAGE_FAILED);
             return recipe;
         } catch (Exception ignored) {
+            progress.accept(GenerationEvent.TEXT_FAILED);
             return Optional.empty();
         }
     }

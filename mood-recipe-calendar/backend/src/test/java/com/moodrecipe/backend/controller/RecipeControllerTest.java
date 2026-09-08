@@ -7,6 +7,7 @@ import com.moodrecipe.backend.repository.RecipeRepository;
 import com.moodrecipe.backend.repository.UserFoodPreferenceRepository;
 import com.moodrecipe.backend.service.AiRecipeService;
 import com.moodrecipe.backend.service.OperationalEventService;
+import com.moodrecipe.backend.service.RecommendationJobService;
 import com.moodrecipe.backend.service.VirtualCommerceService;
 import org.junit.jupiter.api.Test;
 
@@ -25,7 +26,7 @@ class RecipeControllerTest {
         RecipeInteractionRepository interactions = mock(RecipeInteractionRepository.class);
         UserFoodPreferenceRepository preferences = mock(UserFoodPreferenceRepository.class);
         RecipeController controller = new RecipeController(recipes, interactions, preferences,
-                mock(AiRecipeService.class), mock(VirtualCommerceService.class), mock(OperationalEventService.class));
+                mock(AiRecipeService.class), mock(VirtualCommerceService.class), mock(OperationalEventService.class), mock(RecommendationJobService.class));
 
         Recipe peanutDish = recipe(1L, "老醋花生", "花生 200g");
         Recipe tomatoDish = recipe(2L, "番茄炒蛋", "番茄 2 个，鸡蛋 3 个");
@@ -46,7 +47,7 @@ class RecipeControllerTest {
         RecipeInteractionRepository interactions = mock(RecipeInteractionRepository.class);
         UserFoodPreferenceRepository preferences = mock(UserFoodPreferenceRepository.class);
         RecipeController controller = new RecipeController(recipes, interactions, preferences,
-                mock(AiRecipeService.class), mock(VirtualCommerceService.class), mock(OperationalEventService.class));
+                mock(AiRecipeService.class), mock(VirtualCommerceService.class), mock(OperationalEventService.class), mock(RecommendationJobService.class));
 
         Recipe tomatoDish = recipe(1L, "番茄炒蛋", "番茄 2 个，鸡蛋 3 个");
         Recipe sichuanDish = recipe(2L, "麻婆豆腐", "豆腐 1 块，豆瓣酱适量");
@@ -69,7 +70,7 @@ class RecipeControllerTest {
         RecipeInteractionRepository interactions = mock(RecipeInteractionRepository.class);
         UserFoodPreferenceRepository preferences = mock(UserFoodPreferenceRepository.class);
         RecipeController controller = new RecipeController(recipes, interactions, preferences,
-                mock(AiRecipeService.class), mock(VirtualCommerceService.class), mock(OperationalEventService.class));
+                mock(AiRecipeService.class), mock(VirtualCommerceService.class), mock(OperationalEventService.class), mock(RecommendationJobService.class));
 
         Recipe tomatoDish = recipe(1L, "番茄炒蛋", "番茄 2 个，鸡蛋 3 个");
         UserFoodPreference preference = new UserFoodPreference();

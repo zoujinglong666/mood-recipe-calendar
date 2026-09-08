@@ -10,6 +10,7 @@ import com.moodrecipe.backend.repository.UserFoodPreferenceRepository;
 import com.moodrecipe.backend.service.AiRecipeService;
 import com.moodrecipe.backend.service.VirtualCommerceService;
 import com.moodrecipe.backend.service.OperationalEventService;
+import com.moodrecipe.backend.service.RecommendationJobService;
 import com.moodrecipe.backend.config.SessionAuthInterceptor;
 import org.springframework.web.bind.annotation.*;
 
@@ -35,14 +36,16 @@ public class RecipeController {
     private final AiRecipeService aiRecipeService;
     private final VirtualCommerceService virtualCommerceService;
     private final OperationalEventService operationalEvents;
+    private final RecommendationJobService recommendationJobs;
 
-    public RecipeController(RecipeRepository repository, RecipeInteractionRepository interactions, UserFoodPreferenceRepository preferences, AiRecipeService aiRecipeService, VirtualCommerceService virtualCommerceService, OperationalEventService operationalEvents) {
+    public RecipeController(RecipeRepository repository, RecipeInteractionRepository interactions, UserFoodPreferenceRepository preferences, AiRecipeService aiRecipeService, VirtualCommerceService virtualCommerceService, OperationalEventService operationalEvents, RecommendationJobService recommendationJobs) {
         this.repository = repository;
         this.interactions = interactions;
         this.preferences = preferences;
         this.aiRecipeService = aiRecipeService;
         this.virtualCommerceService = virtualCommerceService;
         this.operationalEvents = operationalEvents;
+        this.recommendationJobs = recommendationJobs;
     }
 
     /** 全部菜谱 */
@@ -57,22 +60,66 @@ public class RecipeController {
             @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
             @RequestParam(defaultValue = "平静") String mood) {
 
+        Recipe recipe = recommendInternal(openid, mood, null);
+        return recipe == null
+                ? ApiResponse.error(404, "没有找到符合当前忌口的菜，请到锅仔记忆里调整后再试")
+                : ApiResponse.ok(recipe);
+    }
+
+    /** 创建异步今日推荐任务；同一用户同一心情的进行中任务会被复用。 */
+    @PostMapping("/recommend-jobs")
+    public ApiResponse<RecommendationJobService.JobView> createRecommendationJob(
+            @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
+            @RequestBody RecommendJobRequest request) {
+        String mood = request == null || request.mood() == null || request.mood().isBlank()
+                ? "平静" : request.mood().trim();
+        return ApiResponse.ok(recommendationJobs.start(openid, mood,
+                progress -> recommendInternal(openid, mood, progress)));
+    }
+
+    /** 任务不存在和不属于当前用户统一返回 404，避免泄露他人任务。 */
+    @GetMapping("/recommend-jobs/{jobId}")
+    public ApiResponse<RecommendationJobService.JobView> recommendationJob(
+            @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
+            @PathVariable String jobId) {
+        return recommendationJobs.find(jobId, openid)
+                .map(ApiResponse::ok)
+                .orElseGet(() -> ApiResponse.error(404, "推荐任务已失效，请重新推荐"));
+    }
+
+    private Recipe recommendInternal(String openid, String mood, RecommendationJobService.Progress progress) {
+        update(progress, RecommendationJobService.Stage.MEMORY, RecommendationJobService.StepStatus.RUNNING,
+                "正在读取你告诉锅仔的口味");
         UserFoodPreference preference = preferences.findByOpenid(openid).orElse(null);
+        update(progress, RecommendationJobService.Stage.MEMORY, RecommendationJobService.StepStatus.COMPLETED,
+                preference == null ? "还没有口味记忆，这次先按心情推荐" : "已记起你的菜系、忌口和常吃习惯");
 
         // 优先 AI 真实推荐（结合用户口味偏好）
         try {
             String preferencePrompt = preferencePrompt(preference);
-            Optional<Recipe> aiRecipe = aiRecipeService.recommend(mood, preferencePrompt);
+            Optional<Recipe> aiRecipe = aiRecipeService.recommend(mood, preferencePrompt,
+                    event -> updateAiProgress(openid, progress, event));
             if (aiRecipe.isPresent()) {
-                Recipe recipe = aiRecipe.get();
-                recipe.setRecommendationReason("根据你现在「" + mood + "」的心情，锅仔特意为你想了这道菜。");
-                return ApiResponse.ok(recipe);
+                Recipe generated = aiRecipe.get();
+                update(progress, RecommendationJobService.Stage.FINALIZE, RecommendationJobService.StepStatus.RUNNING,
+                        "正在把菜名、食材和做法整理好");
+                generated.setRecommendationReason("根据你现在「" + mood + "」的心情，锅仔特意为你想了这道菜。");
+                update(progress, RecommendationJobService.Stage.FINALIZE, RecommendationJobService.StepStatus.COMPLETED,
+                        "菜谱已经整理完成");
+                return generated;
             }
         } catch (Exception ignored) {
             // AI 不可用时静默回退到数据库
         }
 
         // 回退：数据库菜谱推荐
+        update(progress, RecommendationJobService.Stage.TEXT, RecommendationJobService.StepStatus.DEGRADED,
+                "文本模型暂时不可用，改从锅仔菜谱库挑选");
+        update(progress, RecommendationJobService.Stage.IMAGE, RecommendationJobService.StepStatus.DEGRADED,
+                "本地菜谱使用已有封面");
+        if (progress != null) progress.usedFallback();
+        update(progress, RecommendationJobService.Stage.LOCAL_FALLBACK, RecommendationJobService.StepStatus.RUNNING,
+                "正在按忌口、喜欢和最近看过的菜筛选");
         List<RecipeInteraction> history = interactions.findTop30ByOpenidOrderByCreatedAtDesc(openid);
         Set<Long> rejected = interactions.findByOpenidAndAction(openid, "DISLIKE").stream()
                 .map(RecipeInteraction::getRecipeId).collect(Collectors.toSet());
@@ -90,7 +137,10 @@ public class RecipeController {
         if (candidates.isEmpty()) candidates = repository.findAll().stream()
                 .filter(r -> !rejected.contains(r.getId()) && allowedByPreference(r, preference)).toList();
         if (candidates.isEmpty()) {
-            return ApiResponse.error(404, "没有找到符合当前忌口的菜，请到锅仔记忆里调整后再试");
+            update(progress, RecommendationJobService.Stage.LOCAL_FALLBACK, RecommendationJobService.StepStatus.FAILED,
+                    "没有找到符合当前忌口的菜");
+            operationalEvents.record("AI_RECOMMEND_FAILED", "ALERT", openid, null, "AI unavailable and no local candidate");
+            return null;
         }
         List<Recipe> unseen = candidates.stream().filter(r -> !recentlyShown.contains(r.getId())).toList();
         if (!unseen.isEmpty()) candidates = unseen;
@@ -102,7 +152,43 @@ public class RecipeController {
             recipe.setRecommendationReason(recommendationReason(recipe, mood, preference, score));
             recordInteraction(openid, recipe.getId(), "SHOWN");
         }
-        return ApiResponse.ok(recipe);
+        update(progress, RecommendationJobService.Stage.LOCAL_FALLBACK, RecommendationJobService.StepStatus.COMPLETED,
+                "已从本地菜谱库找到合适的一道");
+        update(progress, RecommendationJobService.Stage.FINALIZE, RecommendationJobService.StepStatus.RUNNING,
+                "正在整理推荐理由和做法");
+        update(progress, RecommendationJobService.Stage.FINALIZE, RecommendationJobService.StepStatus.COMPLETED,
+                "菜谱已经整理完成");
+        return recipe;
+    }
+
+    private void updateAiProgress(String openid, RecommendationJobService.Progress progress, AiRecipeService.GenerationEvent event) {
+        if (event == AiRecipeService.GenerationEvent.TEXT_FAILED) {
+            recordAiFailure(openid, "text generation unavailable");
+        } else if (event == AiRecipeService.GenerationEvent.IMAGE_FAILED) {
+            recordAiFailure(openid, "cover generation unavailable");
+        }
+        if (progress == null) return;
+        switch (event) {
+            case TEXT_STARTED -> progress.update(RecommendationJobService.Stage.TEXT, RecommendationJobService.StepStatus.RUNNING, "正在请文本模型生成今天的菜谱");
+            case TEXT_COMPLETED -> progress.update(RecommendationJobService.Stage.TEXT, RecommendationJobService.StepStatus.COMPLETED, "菜名、食材和做法已经想好");
+            case TEXT_FAILED -> progress.update(RecommendationJobService.Stage.TEXT, RecommendationJobService.StepStatus.DEGRADED, "文本模型暂时不可用，准备切换本地菜谱");
+            case IMAGE_STARTED -> progress.update(RecommendationJobService.Stage.IMAGE, RecommendationJobService.StepStatus.RUNNING, "正在请图像模型制作菜品封面");
+            case IMAGE_COMPLETED -> progress.update(RecommendationJobService.Stage.IMAGE, RecommendationJobService.StepStatus.COMPLETED, "菜品封面已经做好");
+            case IMAGE_FAILED -> progress.update(RecommendationJobService.Stage.IMAGE, RecommendationJobService.StepStatus.DEGRADED, "封面暂时没做好，使用锅仔占位图");
+        }
+    }
+
+    private void recordAiFailure(String openid, String detail) {
+        try {
+            operationalEvents.record("AI_RECOMMEND_FAILED", "WARN", openid, null, detail);
+        } catch (Exception ignored) {
+            // 告警入库失败不能阻断用户拿到本地推荐。
+        }
+    }
+
+    private void update(RecommendationJobService.Progress progress, RecommendationJobService.Stage stage,
+                        RecommendationJobService.StepStatus status, String message) {
+        if (progress != null) progress.update(stage, status, message);
     }
 
     private boolean allowedByPreference(Recipe recipe, UserFoodPreference preference) {
@@ -260,4 +346,5 @@ public class RecipeController {
 
     public record DeepRecommendRequest(String mood, String ingredients, String maxMinutes, String preference) { }
     public record RecipeFeedbackRequest(String action) { }
+    public record RecommendJobRequest(String mood) { }
 }

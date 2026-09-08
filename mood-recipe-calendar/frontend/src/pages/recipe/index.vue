@@ -1,13 +1,12 @@
 <script setup lang="ts">
-import type { RecipeFeedbackAction, RecipeItem } from '../../api/recipes'
+import type { RecipeFeedbackAction, RecipeItem, RecommendationJob, RecommendationStep } from '../../api/recipes'
 import type { VirtualProduct } from '../../api/virtualCommerce'
 import { computed, nextTick, ref } from 'vue'
 import { navBack } from '@/composables/useNavBar'
-import { recommendRecipe, requestDeepRecipe, sendRecipeFeedback } from '../../api/recipes'
+import { createRecommendationJob, fetchRecommendationJob, requestDeepRecipe, sendRecipeFeedback } from '../../api/recipes'
 import { createVirtualOrder, fetchVirtualOrder, fetchVirtualProducts, getVirtualPaymentParams, requestWechatVirtualPayment } from '../../api/virtualCommerce'
 import Icon from '../../components/common/Icon.vue'
 import ErrorState from '../../components/guozai/ErrorState.vue'
-import LoadingState from '../../components/guozai/LoadingState.vue'
 import { ensureLogin } from '../../utils/login'
 import { toast, toastError, toastSuccess } from '../../utils/toast'
 
@@ -34,6 +33,8 @@ const HEALING_TEXTS: Record<string, string> = {
 const loading = ref(false)
 const error = ref('')
 const recipe = ref<RecipeItem | null>(null)
+const recommendationJob = ref<RecommendationJob | null>(null)
+const showToolTrace = ref(false)
 const imageFailed = ref(false)
 const showSteps = ref(false)
 const showAiPanel = ref(false)
@@ -48,6 +49,14 @@ const purchasingSku = ref('')
 const aiProducts = ref<VirtualProduct[]>([])
 const feedbackLoading = ref<RecipeFeedbackAction | ''>('')
 const likedRecipeId = ref<number | null>(null)
+const POLL_INTERVAL = 900
+const POLL_TIMEOUT = 90_000
+const MAX_POLL_FAILURES = 3
+let pollTimer: ReturnType<typeof setTimeout> | undefined
+let pollRun = 0
+let pollStartedAt = 0
+let pollFailures = 0
+let resumeRecommendation = false
 
 function parseStringList(value?: string): string[] {
   if (!value)
@@ -67,6 +76,21 @@ const feedbackAvailable = computed(() => Number(recipe.value?.id) > 0)
 const recipeImageAvailable = computed(() => Boolean(recipe.value?.image) && !imageFailed.value)
 const healingText = computed(() => recipe.value?.recommendationReason?.trim() || HEALING_TEXTS[mood.value] || recipe.value?.description || '好好吃饭，锅仔会陪你慢慢找到喜欢的味道。')
 const primaryText = computed(() => showSteps.value || !steps.value.length ? '做完了，记一笔' : '查看完整做法')
+const toolTrace = computed(() => recommendationJob.value?.steps.filter(step => step.status !== 'WAITING') || [])
+
+function stepStatusText(step: RecommendationStep) {
+  return {
+    WAITING: '等待中',
+    RUNNING: '进行中',
+    COMPLETED: '已完成',
+    DEGRADED: '已降级',
+    FAILED: '未完成',
+  }[step.status]
+}
+
+function stepSymbol(step: RecommendationStep) {
+  return step.status === 'COMPLETED' ? '✓' : step.status === 'DEGRADED' ? '↪' : step.status === 'FAILED' ? '!' : step.status === 'RUNNING' ? '•••' : '·'
+}
 
 function readableError(errorValue: unknown, fallback: string) {
   const message = errorValue instanceof Error ? errorValue.message : String((errorValue as any)?.message || '')
@@ -78,20 +102,102 @@ async function loadRecipe() {
     return
   loading.value = true
   error.value = ''
+  recipe.value = null
+  recommendationJob.value = null
+  showToolTrace.value = false
   imageFailed.value = false
   showSteps.value = false
+  clearPollTimer()
+  const run = ++pollRun
   try {
-    recipe.value = await recommendRecipe(mood.value) || null
+    await ensureLogin()
+    const created = await createRecommendationJob(mood.value)
+    if (run !== pollRun)
+      return
+    recommendationJob.value = created
+    pollStartedAt = Date.now()
+    pollFailures = 0
+    applyJob(created, run)
   }
   catch (e: any) {
+    if (run !== pollRun)
+      return
     error.value = readableError(e, '网络开小差了')
-  }
-  finally {
     loading.value = false
   }
 }
 
 onLoad(loadRecipe)
+onHide(() => {
+  if (loading.value)
+    resumeRecommendation = true
+  stopPolling()
+  loading.value = false
+})
+onShow(() => {
+  if (resumeRecommendation) {
+    resumeRecommendation = false
+    loadRecipe()
+  }
+})
+onUnload(stopPolling)
+
+function clearPollTimer() {
+  if (pollTimer !== undefined) {
+    clearTimeout(pollTimer)
+    pollTimer = undefined
+  }
+}
+
+function stopPolling() {
+  clearPollTimer()
+  pollRun += 1
+}
+
+function applyJob(job: RecommendationJob, run: number) {
+  recommendationJob.value = job
+  if (job.status === 'SUCCEEDED') {
+    recipe.value = job.recipe || null
+    loading.value = false
+    if (!job.recipe)
+      error.value = '推荐已经完成，但菜谱内容暂时不可用'
+    return
+  }
+  if (job.status === 'FAILED') {
+    loading.value = false
+    error.value = job.message || '锅仔这次没想好，重新推荐一次吧'
+    return
+  }
+  if (Date.now() - pollStartedAt >= POLL_TIMEOUT) {
+    loading.value = false
+    error.value = '这次推荐等得有点久，任务已停止自动查询'
+    return
+  }
+  pollTimer = setTimeout(() => pollRecommendation(job.jobId, run), POLL_INTERVAL)
+}
+
+async function pollRecommendation(jobId: string, run: number) {
+  if (run !== pollRun)
+    return
+  try {
+    const current = await fetchRecommendationJob(jobId)
+    if (run !== pollRun)
+      return
+    pollFailures = 0
+    applyJob(current, run)
+  }
+  catch (e: any) {
+    if (run !== pollRun)
+      return
+    pollFailures += 1
+    if (pollFailures >= MAX_POLL_FAILURES || Date.now() - pollStartedAt >= POLL_TIMEOUT) {
+      loading.value = false
+      error.value = readableError(e, '暂时读不到推荐进度，请重新试一次')
+      return
+    }
+    pollTimer = setTimeout(() => pollRecommendation(jobId, run), POLL_INTERVAL)
+  }
+}
 
 async function revealSteps() {
   showSteps.value = true
@@ -232,12 +338,42 @@ async function waitForDelivery(orderNo: string) {
 <template>
   <view class="recipe-page">
     <wd-navbar title="AI 今日推荐" left-arrow safe-area-inset-top custom-style="background-color: transparent !important;" @click-left="navBack" />
-    <view v-if="loading" class="recipe-state" aria-label="锅仔正在推荐菜谱">
-      <view class="recipe-state__media">
-        <LoadingState text="锅仔正在看你的心情和口味…" />
+    <view v-if="loading" class="thinking-card" aria-label="锅仔正在推荐菜谱" aria-live="polite">
+      <view class="thinking-card__hero">
+        <view class="thinking-card__halo" />
+        <image class="thinking-card__guozai" src="/static/guozai/action_10_thinking.png" mode="aspectFit" />
+        <view class="thinking-card__copy">
+          <text class="thinking-card__eyebrow">
+            锅仔正在工作
+          </text>
+          <text class="thinking-card__title">
+            {{ recommendationJob?.message || '正在连接锅仔厨房…' }}
+          </text>
+          <text class="thinking-card__subtitle">
+            只展示真实进度，慢一点时锅仔也不会假装完成。
+          </text>
+        </view>
       </view>
-      <view class="recipe-state__line recipe-state__line--title" />
-      <view class="recipe-state__line" />
+      <view v-if="recommendationJob?.steps?.length" class="thinking-steps">
+        <view v-for="step in recommendationJob.steps" :key="step.stage" class="thinking-step" :class="`is-${step.status.toLowerCase()}`">
+          <text class="thinking-step__symbol" aria-hidden="true">
+            {{ stepSymbol(step) }}
+          </text>
+          <view class="thinking-step__copy">
+            <view class="thinking-step__line">
+              <text class="thinking-step__label">
+                {{ step.label }}
+              </text>
+              <text class="thinking-step__status">
+                {{ stepStatusText(step) }}
+              </text>
+            </view>
+            <text v-if="step.status !== 'WAITING'" class="thinking-step__message">
+              {{ step.message }}
+            </text>
+          </view>
+        </view>
+      </view>
     </view>
     <view v-else-if="error" class="recipe-state recipe-state--center">
       <ErrorState :text="error" subtext="网络恢复后，锅仔会接着为你挑菜" @retry="loadRecipe" />
@@ -288,6 +424,37 @@ async function waitForDelivery(orderNo: string) {
           <text v-if="recipe.description" class="dish-description">
             {{ recipe.description }}
           </text>
+        </view>
+
+        <view v-if="toolTrace.length" class="tool-trace">
+          <view class="tool-trace__toggle pressable" role="button" :aria-expanded="showToolTrace" aria-label="查看锅仔本次推荐过程" @click="showToolTrace = !showToolTrace">
+            <view>
+              <text class="tool-trace__title">
+                锅仔这次做了什么
+              </text>
+              <text class="tool-trace__summary">
+                {{ recommendationJob?.usedFallback ? 'AI 暂时休息，已用本地口味推荐' : `${toolTrace.length} 个真实步骤已记录` }}
+              </text>
+            </view>
+            <text class="tool-trace__arrow" :class="{ 'is-open': showToolTrace }">
+              ›
+            </text>
+          </view>
+          <view v-if="showToolTrace" class="tool-trace__steps">
+            <view v-for="step in toolTrace" :key="step.stage" class="tool-trace__step">
+              <text class="tool-trace__mark">
+                {{ stepSymbol(step) }}
+              </text>
+              <view>
+                <text class="tool-trace__label">
+                  {{ step.label }} · {{ stepStatusText(step) }}
+                </text>
+                <text class="tool-trace__message">
+                  {{ step.message }}
+                </text>
+              </view>
+            </view>
+          </view>
         </view>
 
         <view v-if="feedbackAvailable" class="feedback-row" aria-label="告诉锅仔这道菜是否合胃口">
@@ -434,17 +601,37 @@ async function waitForDelivery(orderNo: string) {
 
 <style lang="scss" scoped>
 .recipe-page { min-height: 100vh; min-height: 100dvh; box-sizing: border-box; overflow-x: hidden; color: var(--mrc-text); background: radial-gradient(90% 36% at 8% 4%, var(--mrc-surface-sun) 0%, transparent 72%), var(--mrc-bg); }
-.recipe-content, .recipe-state { width: calc(100% - 48rpx); max-width: 820rpx; margin: 0 auto; box-sizing: border-box; }
+.recipe-content, .recipe-state, .thinking-card { width: calc(100% - 48rpx); max-width: 820rpx; margin: 0 auto; box-sizing: border-box; }
 .recipe-content { padding: 18rpx 0 calc(180rpx + env(safe-area-inset-bottom)); }
-.pressable { transition: transform 180ms ease, opacity 180ms ease, background-color 180ms ease; }
+.pressable { transition: transform 180ms cubic-bezier(.23, 1, .32, 1), opacity 180ms cubic-bezier(.23, 1, .32, 1), background-color 180ms cubic-bezier(.23, 1, .32, 1); }
 .pressable:active { transform: scale(.97); }
 .is-disabled { opacity: .52; pointer-events: none; }
 .recipe-state { min-height: 840rpx; padding: 24rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 36rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); }
 .recipe-state--center { display: flex; align-items: center; justify-content: center; }
-.recipe-state__media { height: 560rpx; overflow: hidden; border-radius: 28rpx; background: var(--mrc-surface-2); }
-.recipe-state__line { height: 24rpx; margin-top: 20rpx; border-radius: 12rpx; background: var(--mrc-surface-2); }
-.recipe-state__line--title { width: 58%; height: 42rpx; margin-top: 28rpx; }
 .recipe-state :deep(.gz-error__btn) { display: flex; align-items: center; justify-content: center; min-height: 88rpx; box-sizing: border-box; }
+.thinking-card { overflow: hidden; border: 2rpx solid var(--mrc-border-light); border-radius: 40rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-lift), var(--mrc-gloss); }
+.thinking-card__hero { position: relative; display: flex; align-items: center; min-height: 330rpx; padding: 36rpx 32rpx; box-sizing: border-box; overflow: hidden; background: radial-gradient(circle at 16% 44%, var(--mrc-surface-sun), transparent 44%), var(--mrc-surface-2); }
+.thinking-card__halo { position: absolute; top: 58rpx; left: 20rpx; width: 190rpx; height: 190rpx; border-radius: 50%; background: var(--mrc-surface-peach); opacity: .76; animation: thinking-pulse 1.8s ease-in-out infinite; }
+.thinking-card__guozai { position: relative; z-index: 1; width: 210rpx; height: 210rpx; flex-shrink: 0; animation: thinking-float 2.4s ease-in-out infinite; }
+.thinking-card__copy { position: relative; z-index: 1; display: flex; min-width: 0; flex-direction: column; margin-left: 18rpx; }
+.thinking-card__eyebrow { color: var(--mrc-accent); font-size: 21rpx; font-weight: 800; letter-spacing: 2rpx; }
+.thinking-card__title { margin-top: 12rpx; color: var(--mrc-text-strong); font-size: 35rpx; font-weight: 800; line-height: 1.35; }
+.thinking-card__subtitle { margin-top: 14rpx; color: var(--mrc-text-sub); font-size: 23rpx; line-height: 1.55; }
+.thinking-steps { padding: 18rpx 28rpx 30rpx; }
+.thinking-step { display: flex; gap: 18rpx; min-height: 96rpx; padding: 16rpx 0; box-sizing: border-box; border-bottom: 2rpx solid var(--mrc-border-light); opacity: .52; transition: opacity 180ms cubic-bezier(.23, 1, .32, 1), transform 180ms cubic-bezier(.23, 1, .32, 1); }
+.thinking-step:last-child { border-bottom: 0; }
+.thinking-step.is-running, .thinking-step.is-completed, .thinking-step.is-degraded, .thinking-step.is-failed { opacity: 1; }
+.thinking-step.is-running { transform: translateX(4rpx); }
+.thinking-step__symbol { display: flex; align-items: center; justify-content: center; width: 48rpx; height: 48rpx; flex-shrink: 0; border: 2rpx solid var(--mrc-border); border-radius: 50%; color: var(--mrc-text-sub); background: var(--mrc-bg); font-size: 20rpx; font-weight: 900; }
+.thinking-step.is-running .thinking-step__symbol { color: #fff; border-color: var(--mrc-primary-deep); background: var(--mrc-primary-deep); animation: status-pulse 1.2s linear infinite; }
+.thinking-step.is-completed .thinking-step__symbol { color: #fff; border-color: var(--mrc-primary-deep); background: var(--mrc-primary-deep); }
+.thinking-step.is-degraded .thinking-step__symbol { color: var(--mrc-accent); border-color: var(--mrc-accent); background: var(--mrc-surface-sun); }
+.thinking-step.is-failed .thinking-step__symbol { color: #fff; border-color: var(--mrc-accent); background: var(--mrc-accent); }
+.thinking-step__copy { flex: 1; min-width: 0; }
+.thinking-step__line { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; min-height: 48rpx; }
+.thinking-step__label { color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 800; }
+.thinking-step__status { flex-shrink: 0; color: var(--mrc-text-sub); font-size: 22rpx; font-weight: 700; }
+.thinking-step__message { display: block; margin-top: 4rpx; color: var(--mrc-text-sub); font-size: 22rpx; line-height: 1.45; }
 .recommend-card { overflow: hidden; border: 2rpx solid var(--mrc-border-light); border-radius: 40rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-lift), var(--mrc-gloss); }
 .recommend-card__topline { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; min-height: 88rpx; padding: 0 28rpx; }
 .mood-chip { display: inline-flex; align-items: center; gap: 12rpx; color: var(--mrc-text-deep); font-size: 24rpx; font-weight: 700; }
@@ -465,6 +652,18 @@ async function waitForDelivery(orderNo: string) {
 .guozai-note__label { display: block; color: var(--mrc-accent); font-size: 20rpx; font-weight: 800; letter-spacing: 1rpx; }
 .guozai-note__text { display: block; margin-top: 6rpx; color: var(--mrc-text-deep); font-size: 24rpx; line-height: 1.45; }
 .dish-description { display: block; padding: 20rpx 28rpx 26rpx; color: var(--mrc-text-sub); font-size: 25rpx; line-height: 1.6; }
+.tool-trace { margin-top: 20rpx; overflow: hidden; border: 2rpx solid var(--mrc-border-light); border-radius: 26rpx; background: var(--mrc-surface); }
+.tool-trace__toggle { display: flex; align-items: center; justify-content: space-between; gap: 18rpx; min-height: 104rpx; padding: 12rpx 24rpx; box-sizing: border-box; }
+.tool-trace__title { display: block; color: var(--mrc-text-deep); font-size: 25rpx; font-weight: 800; }
+.tool-trace__summary { display: block; margin-top: 6rpx; color: var(--mrc-text-sub); font-size: 21rpx; line-height: 1.4; }
+.tool-trace__arrow { color: var(--mrc-text-sub); font-size: 48rpx; transform: rotate(90deg); transition: transform 180ms cubic-bezier(.23, 1, .32, 1); }
+.tool-trace__arrow.is-open { transform: rotate(-90deg); }
+.tool-trace__steps { padding: 0 24rpx 18rpx; border-top: 2rpx solid var(--mrc-border-light); }
+.tool-trace__step { display: flex; align-items: flex-start; gap: 14rpx; padding: 18rpx 0; border-bottom: 2rpx solid var(--mrc-border-light); }
+.tool-trace__step:last-child { border-bottom: 0; }
+.tool-trace__mark { display: flex; align-items: center; justify-content: center; width: 38rpx; height: 38rpx; flex-shrink: 0; border-radius: 50%; color: var(--mrc-accent); background: var(--mrc-surface-sun); font-size: 18rpx; font-weight: 900; }
+.tool-trace__label { display: block; color: var(--mrc-text-deep); font-size: 23rpx; font-weight: 800; }
+.tool-trace__message { display: block; margin-top: 4rpx; color: var(--mrc-text-sub); font-size: 21rpx; line-height: 1.45; }
 .feedback-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx; margin-top: 20rpx; }
 .feedback-action { display: flex; align-items: center; justify-content: center; gap: 10rpx; min-height: 88rpx; padding: 0 16rpx; box-sizing: border-box; border: 2rpx solid var(--mrc-border); border-radius: 44rpx; color: var(--mrc-text-deep); background: var(--mrc-surface); font-size: 24rpx; font-weight: 700; }
 .custom-entry { display: flex; align-items: center; gap: 16rpx; min-height: 112rpx; margin-top: 28rpx; padding: 12rpx 20rpx; box-sizing: border-box; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; background: var(--mrc-surface-2); }
@@ -512,8 +711,11 @@ async function waitForDelivery(orderNo: string) {
 .ai-product__name { color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 800; }
 .ai-product__desc { color: var(--mrc-text-sub); font-size: 22rpx; line-height: 1.45; }
 .ai-product__buy { display: flex; align-items: center; justify-content: center; min-width: 132rpx; min-height: 88rpx; padding: 0 16rpx; box-sizing: border-box; border-radius: 44rpx; color: var(--mrc-accent); background: var(--mrc-surface-sun); font-size: 25rpx; font-weight: 800; }
-@media (max-width: 350px) { .recipe-content, .recipe-state { width: calc(100% - 32rpx); } .dish-copy__name { font-size: 42rpx; } .feedback-row, .ingredient-list { grid-template-columns: 1fr; } .custom-entry__subtitle { display: none; } }
+@keyframes thinking-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8rpx); } }
+@keyframes thinking-pulse { 0%, 100% { opacity: .62; transform: scale(.94); } 50% { opacity: .84; transform: scale(1); } }
+@keyframes status-pulse { 0%, 100% { opacity: .72; } 50% { opacity: 1; } }
+@media (max-width: 350px) { .recipe-content, .recipe-state, .thinking-card { width: calc(100% - 32rpx); } .thinking-card__hero { align-items: flex-start; } .thinking-card__guozai { width: 154rpx; height: 154rpx; } .thinking-card__title { font-size: 30rpx; } .dish-copy__name { font-size: 42rpx; } .feedback-row, .ingredient-list { grid-template-columns: 1fr; } .custom-entry__subtitle { display: none; } }
 @media (min-width: 500px) { .dish-media { padding-bottom: 56%; } }
-@media (min-width: 720px), (orientation: landscape) and (min-width: 640px) { .recipe-content, .recipe-state { max-width: 900rpx; } .dish-media { padding-bottom: 52%; } }
-@media (prefers-reduced-motion: reduce) { .pressable { transition: none; } .pressable:active { transform: none; } }
+@media (min-width: 720px), (orientation: landscape) and (min-width: 640px) { .recipe-content, .recipe-state, .thinking-card { max-width: 900rpx; } .dish-media { padding-bottom: 52%; } }
+@media (prefers-reduced-motion: reduce) { .pressable, .thinking-step, .tool-trace__arrow { transition: opacity 180ms linear; } .pressable:active, .thinking-step.is-running { transform: none; } .thinking-card__halo, .thinking-card__guozai, .thinking-step.is-running .thinking-step__symbol { animation: none; } }
 </style>

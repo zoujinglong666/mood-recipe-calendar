@@ -37,6 +37,7 @@ declare global {
   const createOrder: typeof import('./api/gallery')['createOrder']
   const createPinia: typeof import('pinia')['createPinia']
   const createReactiveFn: typeof import('@vueuse/core')['createReactiveFn']
+  const createRecommendationJob: typeof import('./api/recipes')['createRecommendationJob']
   const createReusableTemplate: typeof import('@vueuse/core')['createReusableTemplate']
   const createRouter: typeof import('@wot-ui/router')['createRouter']
   const createSharedComposable: typeof import('@vueuse/core')['createSharedComposable']
@@ -68,6 +69,7 @@ declare global {
   const fetchProducts: typeof import('./api/gallery')['fetchProducts']
   const fetchRecipeDetail: typeof import('./api/recipes')['fetchRecipeDetail']
   const fetchRecipesByMood: typeof import('./api/recipes')['fetchRecipesByMood']
+  const fetchRecommendationJob: typeof import('./api/recipes')['fetchRecommendationJob']
   const fetchRecords: typeof import('./api/records')['fetchRecords']
   const fetchRecordsByMonth: typeof import('./api/records')['fetchRecordsByMonth']
   const fetchStats: typeof import('./api/records')['fetchStats']
@@ -448,6 +450,7 @@ declare module 'vue' {
     readonly createOrder: UnwrapRef<typeof import('./api/gallery')['createOrder']>
     readonly createPinia: UnwrapRef<typeof import('pinia')['createPinia']>
     readonly createReactiveFn: UnwrapRef<typeof import('@vueuse/core')['createReactiveFn']>
+    readonly createRecommendationJob: UnwrapRef<typeof import('./api/recipes')['createRecommendationJob']>
     readonly createReusableTemplate: UnwrapRef<typeof import('@vueuse/core')['createReusableTemplate']>
     readonly createRouter: UnwrapRef<typeof import('@wot-ui/router')['createRouter']>
     readonly createSharedComposable: UnwrapRef<typeof import('@vueuse/core')['createSharedComposable']>
@@ -479,6 +482,7 @@ declare module 'vue' {
     readonly fetchProducts: UnwrapRef<typeof import('./api/gallery')['fetchProducts']>
     readonly fetchRecipeDetail: UnwrapRef<typeof import('./api/recipes')['fetchRecipeDetail']>
     readonly fetchRecipesByMood: UnwrapRef<typeof import('./api/recipes')['fetchRecipesByMood']>
+    readonly fetchRecommendationJob: UnwrapRef<typeof import('./api/recipes')['fetchRecommendationJob']>
     readonly fetchRecords: UnwrapRef<typeof import('./api/records')['fetchRecords']>
     readonly fetchRecordsByMonth: UnwrapRef<typeof import('./api/records')['fetchRecordsByMonth']>
     readonly fetchStats: UnwrapRef<typeof import('./api/records')['fetchStats']>
