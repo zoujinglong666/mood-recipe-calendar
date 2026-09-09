@@ -30,12 +30,12 @@ const dataUri = computed(() => {
   const svg = SVG_MAP[props.name] || ''
   const color = props.color || '#333333'
   const colored = svg.replace(/__COLOR__/g, color)
-  return 'data:image/svg+xml;utf8,' + encodeURIComponent(colored)
+  return `data:image/svg+xml;utf8,${encodeURIComponent(colored)}`
 })
 
 const sizeStyle = computed(() => ({
-  width: (props.size || 32) + 'rpx',
-  height: (props.size || 32) + 'rpx',
+  width: `${props.size || 32}rpx`,
+  height: `${props.size || 32}rpx`,
 }))
 </script>
 

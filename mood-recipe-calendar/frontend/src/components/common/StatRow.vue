@@ -1,15 +1,3 @@
-<template>
-  <view class="stat-row">
-    <view v-for="item in items" :key="item.label" class="stat-row__item">
-      <view class="stat-row__value">
-        <text class="stat-row__num">{{ item.value }}</text>
-        <text v-if="item.unit" class="stat-row__unit">{{ item.unit }}</text>
-      </view>
-      <text class="stat-row__label">{{ item.label }}</text>
-    </view>
-  </view>
-</template>
-
 <script setup lang="ts">
 export interface StatItem {
   label: string
@@ -21,6 +9,18 @@ defineProps<{
   items: StatItem[]
 }>()
 </script>
+
+<template>
+  <view class="stat-row">
+    <view v-for="item in items" :key="item.label" class="stat-row__item">
+      <view class="stat-row__value">
+        <text class="stat-row__num">{{ item.value }}</text>
+        <text v-if="item.unit" class="stat-row__unit">{{ item.unit }}</text>
+      </view>
+      <text class="stat-row__label">{{ item.label }}</text>
+    </view>
+  </view>
+</template>
 
 <style lang="scss" scoped>
 .stat-row {

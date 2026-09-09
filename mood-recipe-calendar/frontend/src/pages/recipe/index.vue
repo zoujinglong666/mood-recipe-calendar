@@ -7,6 +7,7 @@ import { createRecommendationJob, fetchRecommendationJob, requestDeepRecipe, sen
 import { createVirtualOrder, fetchVirtualOrder, fetchVirtualProducts, getVirtualPaymentParams, requestWechatVirtualPayment } from '../../api/virtualCommerce'
 import Icon from '../../components/common/Icon.vue'
 import ErrorState from '../../components/guozai/ErrorState.vue'
+import { exportRecipeShare, saveShareImage } from '../../utils/albumShare'
 import { ensureLogin } from '../../utils/login'
 import { toast, toastError, toastSuccess } from '../../utils/toast'
 
@@ -49,6 +50,11 @@ const purchasingSku = ref('')
 const aiProducts = ref<VirtualProduct[]>([])
 const feedbackLoading = ref<RecipeFeedbackAction | ''>('')
 const liked = ref(false)
+const showShareSheet = ref(false)
+const shareCardLoading = ref(false)
+const shareCardPath = ref('')
+const shareCardError = ref('')
+const shareCardSaved = ref(false)
 const POLL_INTERVAL = 900
 const POLL_TIMEOUT = 90_000
 const MAX_POLL_FAILURES = 3
@@ -108,6 +114,9 @@ async function loadRecipe() {
   showToolTrace.value = false
   imageFailed.value = false
   showSteps.value = false
+  shareCardPath.value = ''
+  shareCardError.value = ''
+  shareCardSaved.value = false
   clearPollTimer()
   const run = ++pollRun
   try {
@@ -142,6 +151,16 @@ onShow(() => {
   }
 })
 onUnload(stopPolling)
+
+onShareAppMessage(() => ({
+  title: recipe.value ? `锅仔推荐：${recipe.value.name}，适合${mood.value}的今天` : '让锅仔按心情推荐今天吃什么',
+  path: `/pages/recipe/index?mood=${encodeURIComponent(mood.value)}`,
+}))
+
+onShareTimeline(() => ({
+  title: recipe.value ? `今天吃${recipe.value.name}，锅仔说很适合${mood.value}的我` : '让锅仔按心情推荐今天吃什么',
+  query: `mood=${encodeURIComponent(mood.value)}`,
+}))
 
 function clearPollTimer() {
   if (pollTimer !== undefined) {
@@ -254,13 +273,71 @@ async function sendFeedback(action: RecipeFeedbackAction) {
   }
 }
 
-function onShare() {
+function openShareSheet() {
+  if (!recipe.value) {
+    toast('先等锅仔推荐好一餐吧')
+    return
+  }
+  showShareSheet.value = true
+}
+
+async function generateShareCard() {
+  if (!recipe.value || shareCardLoading.value)
+    return
+  shareCardLoading.value = true
+  shareCardError.value = ''
+  shareCardSaved.value = false
+  try {
+    await nextTick()
+    shareCardPath.value = await exportRecipeShare({
+      name: recipe.value.name,
+      mood: mood.value,
+      reason: healingText.value,
+      cookingTime: recipe.value.cookingTime,
+      difficulty: recipe.value.difficulty,
+      ingredients: ingredients.value,
+      image: recipe.value.image,
+      guozaiPath: '/static/guozai/action_16_chopsticks.png',
+    })
+  }
+  catch (e: any) {
+    shareCardPath.value = ''
+    shareCardError.value = readableError(e, '食谱卡生成失败，请重试')
+  }
+  finally {
+    shareCardLoading.value = false
+  }
+}
+
+async function saveRecipeCard() {
+  if (!recipe.value || shareCardLoading.value)
+    return
+  if (!shareCardPath.value)
+    await generateShareCard()
+  if (!shareCardPath.value)
+    return
+  shareCardLoading.value = true
+  shareCardError.value = ''
+  try {
+    await saveShareImage(shareCardPath.value, `${recipe.value.name}-锅仔食谱卡.png`)
+    shareCardSaved.value = true
+    toastSuccess('食谱卡已保存')
+  }
+  catch (e: any) {
+    shareCardError.value = readableError(e, '保存失败，请授权后重试')
+  }
+  finally {
+    shareCardLoading.value = false
+  }
+}
+
+function shareRecipeLink() {
   // #ifdef MP-WEIXIN
   ;(uni as any).showShareMenu({ menus: ['shareAppMessage', 'shareTimeline'] })
   toast('可以从右上角分享给好友')
   // #endif
   // #ifndef MP-WEIXIN
-  toast('分享功能请在微信小程序中使用')
+  toast('请使用浏览器菜单分享这张食谱卡')
   // #endif
 }
 
@@ -295,6 +372,9 @@ async function requestPersonalMenu() {
     imageFailed.value = false
     showAiPanel.value = false
     showSteps.value = false
+    shareCardPath.value = ''
+    shareCardError.value = ''
+    shareCardSaved.value = false
     toastSuccess('锅仔为你做好专属菜单啦')
   }
   catch (e: any) {
@@ -392,7 +472,7 @@ async function waitForDelivery(orderNo: string) {
             <view class="mood-chip">
               <text class="mood-chip__dot" /><text>今天有点{{ mood }}</text>
             </view>
-            <view class="recommend-card__share pressable" role="button" aria-label="分享今日推荐" @click="onShare">
+            <view class="recommend-card__share pressable" role="button" aria-label="生成或分享今日食谱卡" @click="openShareSheet">
               <Icon name="share" :size="36" color="#EF5A3C" />
             </view>
           </view>
@@ -539,6 +619,55 @@ async function waitForDelivery(orderNo: string) {
         <view class="primary-bar__inner">
           <view class="primary-action pressable" role="button" :aria-label="primaryText" @click="handlePrimaryAction">
             <Icon :name="showSteps || !steps.length ? 'camera' : 'book'" :size="36" color="#fff" /><text>{{ primaryText }}</text>
+          </view>
+        </view>
+      </view>
+
+      <canvas id="recipeShareCanvas" type="2d" class="recipe-share__canvas" />
+
+      <view v-if="showShareSheet" class="share-mask" @tap.self="showShareSheet = false">
+        <view class="share-sheet" role="dialog" aria-label="分享这份锅仔食谱">
+          <view class="share-sheet__head">
+            <view>
+              <text class="share-sheet__eyebrow">
+                GUOZAI RECIPE CARD
+              </text>
+              <text class="share-sheet__title">
+                把这顿饭分享出去
+              </text>
+              <text class="share-sheet__subtitle">
+                菜品是主角，锅仔把推荐理由写在卡片里。
+              </text>
+            </view>
+            <view class="share-sheet__close pressable" role="button" aria-label="关闭分享面板" @click="showShareSheet = false">
+              ×
+            </view>
+          </view>
+
+          <view v-if="shareCardPath" class="share-preview">
+            <image class="share-preview__image" :src="shareCardPath" mode="widthFix" aria-label="已生成的锅仔食谱卡预览" />
+            <text class="share-preview__hint">
+              食谱卡已生成，可以保存或重新生成。
+            </text>
+          </view>
+          <view v-else class="share-preview share-preview--empty">
+            <image src="/static/guozai/action_16_chopsticks.png" mode="aspectFit" />
+            <text>{{ shareCardLoading ? '锅仔正在排版这顿饭…' : '把今日推荐做成一张好看的食谱卡' }}</text>
+          </view>
+
+          <text v-if="shareCardError" class="share-sheet__error">
+            {{ shareCardError }}
+          </text>
+          <view class="share-sheet__actions">
+            <view class="share-sheet__action share-sheet__action--secondary pressable" :class="{ 'is-disabled': shareCardLoading }" role="button" @click="generateShareCard">
+              {{ shareCardLoading ? '生成中…' : shareCardPath ? '重新生成' : '生成食谱卡' }}
+            </view>
+            <view class="share-sheet__action share-sheet__action--primary pressable" :class="{ 'is-disabled': shareCardLoading }" role="button" @click="saveRecipeCard">
+              {{ shareCardLoading ? '请稍候…' : shareCardSaved ? '已保存' : '保存 PNG' }}
+            </view>
+          </view>
+          <view class="share-sheet__link pressable" role="button" @click="shareRecipeLink">
+            <Icon name="share" :size="30" color="var(--mrc-accent)" /><text>分享菜谱链接给朋友</text>
           </view>
         </view>
       </view>
@@ -695,6 +824,25 @@ async function waitForDelivery(orderNo: string) {
 .primary-bar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 30; padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom)); border-top: 2rpx solid var(--mrc-border-light); background: var(--mrc-surface); box-shadow: 0 -8rpx 24rpx rgba(40, 24, 16, .08); }
 .primary-bar__inner { max-width: 820rpx; margin: 0 auto; }
 .primary-action { display: flex; align-items: center; justify-content: center; gap: 12rpx; min-height: 96rpx; border-radius: 48rpx; color: #fff; background: var(--mrc-primary-grad); box-shadow: var(--mrc-shadow-coral); font-size: 30rpx; font-weight: 800; letter-spacing: 1rpx; }
+.recipe-share__canvas { position: fixed; top: -9999px; left: -9999px; width: 750px; height: 1120px; opacity: 0; pointer-events: none; }
+.share-mask { position: fixed; inset: 0; z-index: 61; display: flex; align-items: flex-end; background: rgba(24, 15, 10, .58); }
+.share-sheet { width: 100%; max-height: 90vh; max-height: 90dvh; overflow-y: auto; box-sizing: border-box; padding: 30rpx 32rpx calc(32rpx + env(safe-area-inset-bottom)); border-radius: 40rpx 40rpx 0 0; background: var(--mrc-surface); }
+.share-sheet__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20rpx; }
+.share-sheet__eyebrow { display: block; color: var(--mrc-accent); font-size: 19rpx; font-weight: 800; letter-spacing: 2rpx; }
+.share-sheet__title { display: block; margin-top: 8rpx; color: var(--mrc-text-strong); font-size: 38rpx; font-weight: 800; line-height: 1.3; }
+.share-sheet__subtitle { display: block; margin-top: 10rpx; color: var(--mrc-text-sub); font-size: 23rpx; line-height: 1.5; }
+.share-sheet__close { display: flex; align-items: center; justify-content: center; width: 88rpx; height: 88rpx; flex-shrink: 0; border-radius: 50%; color: var(--mrc-text-sub); background: var(--mrc-surface-2); font-size: 48rpx; line-height: 1; }
+.share-preview { display: flex; flex-direction: column; align-items: center; gap: 14rpx; max-height: 48vh; margin-top: 24rpx; padding: 18rpx; overflow: auto; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; background: var(--mrc-surface-2); }
+.share-preview__image { width: min(420rpx, 68vw); border-radius: 18rpx; box-shadow: var(--mrc-shadow-lift); }
+.share-preview__hint { color: var(--mrc-text-sub); font-size: 22rpx; }
+.share-preview--empty { justify-content: center; min-height: 250rpx; color: var(--mrc-text-sub); font-size: 25rpx; text-align: center; }
+.share-preview--empty image { width: 180rpx; height: 150rpx; }
+.share-sheet__error { display: block; margin: 16rpx 4rpx 0; color: var(--mrc-accent); font-size: 23rpx; line-height: 1.5; }
+.share-sheet__actions { display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx; margin-top: 22rpx; }
+.share-sheet__action { display: flex; align-items: center; justify-content: center; min-height: 92rpx; border-radius: 46rpx; font-size: 27rpx; font-weight: 800; }
+.share-sheet__action--secondary { border: 2rpx solid var(--mrc-border); color: var(--mrc-text-deep); background: var(--mrc-surface); }
+.share-sheet__action--primary { color: #fff; background: var(--mrc-primary-grad); box-shadow: var(--mrc-shadow-coral); }
+.share-sheet__link { display: flex; align-items: center; justify-content: center; gap: 10rpx; min-height: 84rpx; margin-top: 12rpx; color: var(--mrc-accent); font-size: 25rpx; font-weight: 800; }
 .ai-mask { position: fixed; inset: 0; z-index: 60; display: flex; align-items: flex-end; background: rgba(24, 15, 10, .58); }
 .ai-sheet { width: 100%; max-height: 88vh; max-height: 88dvh; overflow-y: auto; box-sizing: border-box; padding: 32rpx 32rpx calc(32rpx + env(safe-area-inset-bottom)); border-radius: 40rpx 40rpx 0 0; background: var(--mrc-surface); }
 .ai-sheet__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20rpx; margin-bottom: 28rpx; }

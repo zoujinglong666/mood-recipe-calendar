@@ -155,16 +155,12 @@ function askForLogout() {
 async function performLogout() {
   logoutLoading.value = true
   try {
-    await apiLogout()
+    await apiLogout().catch(() => {}) // 后端登出失败不影响本地清除
+  } finally {
     userStore.logout()
     nickname.value = ''
-    toastSuccess('已退出登录')
-  }
-  catch (error) {
-    toastError(error, '退出失败，当前登录状态已保留')
-  }
-  finally {
     logoutLoading.value = false
+    toastSuccess('已退出登录')
   }
 }
 </script>

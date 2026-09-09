@@ -13,6 +13,10 @@ onLaunch(() => {
   // 恢复登录状态
   const userStore = useUserStore()
   userStore.restoreFromStorage()
+  // 全局监听登录过期：请求拦截器清除 storage 后，同步清除内存状态
+  uni.$on('auth:expired', () => {
+    userStore.logout()
+  })
 })
 </script>
 

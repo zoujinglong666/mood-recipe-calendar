@@ -57,6 +57,7 @@ declare global {
   const effectScope: typeof import('vue')['effectScope']
   const ensureLogin: typeof import('./utils/login')['ensureLogin']
   const exportAlbumShare: typeof import('./utils/albumShare')['exportAlbumShare']
+  const exportRecipeShare: typeof import('./utils/albumShare')['exportRecipeShare']
   const extendRef: typeof import('@vueuse/core')['extendRef']
   const fetchAllRecipes: typeof import('./api/recipes')['fetchAllRecipes']
   const fetchCheckinStatus: typeof import('./api/gallery')['fetchCheckinStatus']
@@ -179,6 +180,7 @@ declare global {
   const resolveUnref: typeof import('@vueuse/core')['resolveUnref']
   const saveFoodPreference: typeof import('./api/preferences')['saveFoodPreference']
   const saveRecord: typeof import('./api/records')['saveRecord']
+  const saveShareImage: typeof import('./utils/albumShare')['saveShareImage']
   const sendRecipeFeedback: typeof import('./api/recipes')['sendRecipeFeedback']
   const setActivePinia: typeof import('pinia')['setActivePinia']
   const setMapStoreSuffix: typeof import('pinia')['setMapStoreSuffix']
@@ -464,6 +466,7 @@ declare module 'vue' {
     readonly effectScope: UnwrapRef<typeof import('vue')['effectScope']>
     readonly ensureLogin: UnwrapRef<typeof import('./utils/login')['ensureLogin']>
     readonly exportAlbumShare: UnwrapRef<typeof import('./utils/albumShare')['exportAlbumShare']>
+    readonly exportRecipeShare: UnwrapRef<typeof import('./utils/albumShare')['exportRecipeShare']>
     readonly extendRef: UnwrapRef<typeof import('@vueuse/core')['extendRef']>
     readonly fetchAllRecipes: UnwrapRef<typeof import('./api/recipes')['fetchAllRecipes']>
     readonly fetchCheckinStatus: UnwrapRef<typeof import('./api/gallery')['fetchCheckinStatus']>
@@ -585,6 +588,7 @@ declare module 'vue' {
     readonly resolveUnref: UnwrapRef<typeof import('@vueuse/core')['resolveUnref']>
     readonly saveFoodPreference: UnwrapRef<typeof import('./api/preferences')['saveFoodPreference']>
     readonly saveRecord: UnwrapRef<typeof import('./api/records')['saveRecord']>
+    readonly saveShareImage: UnwrapRef<typeof import('./utils/albumShare')['saveShareImage']>
     readonly sendRecipeFeedback: UnwrapRef<typeof import('./api/recipes')['sendRecipeFeedback']>
     readonly setActivePinia: UnwrapRef<typeof import('pinia')['setActivePinia']>
     readonly setMapStoreSuffix: UnwrapRef<typeof import('pinia')['setMapStoreSuffix']>
