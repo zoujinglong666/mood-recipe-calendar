@@ -208,7 +208,7 @@ function share() {
             <view class="rpt-top3__img" :style="{ background: top3Bg(i) }">{{ d.name.charAt(0) }}</view>
             <view class="rpt-top3__info">
               <text class="rpt-top3__name">{{ d.name }} <text class="rpt-top3__count">{{ d.count }}次</text></text>
-              <text class="rpt-top3__ai">AI: {{ top3Ai(i) }}</text>
+              <text class="rpt-top3__ai">锅仔说: {{ top3Ai(i) }}</text>
             </view>
           </view>
         </view>

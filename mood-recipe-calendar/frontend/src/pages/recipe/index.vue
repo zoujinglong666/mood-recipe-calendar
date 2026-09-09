@@ -337,7 +337,7 @@ async function waitForDelivery(orderNo: string) {
 
 <template>
   <view class="recipe-page">
-    <wd-navbar title="AI 今日推荐" left-arrow safe-area-inset-top custom-style="background-color: transparent !important;" @click-left="navBack" />
+    <wd-navbar title="锅仔食谱推荐" left-arrow safe-area-inset-top custom-style="background-color: transparent !important;" @click-left="navBack" />
     <view v-if="loading" class="thinking-card" aria-label="锅仔正在推荐菜谱" aria-live="polite">
       <view class="thinking-card__hero">
         <view class="thinking-card__halo" />
@@ -433,7 +433,7 @@ async function waitForDelivery(orderNo: string) {
                 锅仔这次做了什么
               </text>
               <text class="tool-trace__summary">
-                {{ recommendationJob?.usedFallback ? 'AI 暂时休息，已用本地口味推荐' : `${toolTrace.length} 个真实步骤已记录` }}
+                {{ recommendationJob?.usedFallback ? '锅仔暂时休息，已用本地口味推荐' : `${toolTrace.length} 个真实步骤已记录` }}
               </text>
             </view>
             <text class="tool-trace__arrow" :class="{ 'is-open': showToolTrace }">
@@ -538,11 +538,11 @@ async function waitForDelivery(orderNo: string) {
       </view>
 
       <view v-if="showAiPanel" class="ai-mask" @tap.stop>
-        <view class="ai-sheet" role="dialog" aria-label="锅仔 AI 私人菜单">
+        <view class="ai-sheet" role="dialog" aria-label="锅仔私人菜单">
           <view class="ai-sheet__head">
             <view>
               <text class="ai-sheet__eyebrow">
-                锅仔 AI 私人菜单
+                锅仔私人菜单
               </text><text class="ai-sheet__title">
                 家里有什么，就做什么
               </text><text class="ai-sheet__subtitle">
