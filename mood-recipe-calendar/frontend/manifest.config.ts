@@ -10,9 +10,9 @@
 import { defineManifestConfig } from '@uni-helper/vite-plugin-uni-manifest'
 
 export default defineManifestConfig({
-  'name': 'wot-starter',
+  'name': '心情菜谱日历',
   'appid': '__UNI__1208592',
-  'description': '',
+  'description': '根据心情推荐家常菜，记录每日三餐的饮食日历，锅仔陪你好好吃饭。',
   'versionName': '1.0.0',
   'versionCode': '100',
   'transformPx': false,
@@ -71,6 +71,7 @@ export default defineManifestConfig({
     usingComponents: true,
     darkmode: true,
     themeLocation: 'theme.json',
+    __usePrivacyCheck__: true,
   },
   'app-harmony': {},
   'mp-harmony': {},

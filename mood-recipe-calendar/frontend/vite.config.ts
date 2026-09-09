@@ -51,9 +51,6 @@ export default defineConfig({
       }, {
         from: '@wot-ui/ui',
         imports: ['useToast', 'useDialog', 'useNotify', 'CommonUtil'],
-      }, {
-        from: 'alova/client',
-        imports: ['usePagination', 'useRequest'],
       }],
       dts: 'src/auto-imports.d.ts',
       dirs: ['src/composables', 'src/store', 'src/utils', 'src/api'],

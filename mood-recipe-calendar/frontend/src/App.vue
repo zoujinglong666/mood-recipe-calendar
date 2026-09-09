@@ -1,6 +1,11 @@
+<template>
+  <PrivacyPopup />
+</template>
+
 <script setup lang="ts">
 import { useUserStore } from './stores/user'
 import { refreshNavMetrics } from './composables/useNavBar'
+import PrivacyPopup from './components/PrivacyPopup.vue'
 
 onLaunch(() => {
   // 适配微信状态栏与胶囊按钮
