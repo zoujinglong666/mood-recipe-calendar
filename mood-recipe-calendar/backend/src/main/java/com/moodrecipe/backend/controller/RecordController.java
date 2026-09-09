@@ -6,6 +6,7 @@ import com.moodrecipe.backend.entity.RecipeInteraction;
 import com.moodrecipe.backend.model.RecordRequest;
 import com.moodrecipe.backend.repository.UserRecordRepository;
 import com.moodrecipe.backend.repository.RecipeInteractionRepository;
+import com.moodrecipe.backend.service.RecommendationExposureService;
 import jakarta.validation.Valid;
 import com.moodrecipe.backend.config.SessionAuthInterceptor;
 import org.springframework.web.bind.annotation.*;
@@ -21,16 +22,25 @@ public class RecordController {
 
     private final UserRecordRepository repository;
     private final RecipeInteractionRepository recipeInteractions;
-    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private final RecommendationExposureService exposures;
+    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ISO_LOCAL_DATE;
 
-    public RecordController(UserRecordRepository repository, RecipeInteractionRepository recipeInteractions) {
+    public RecordController(UserRecordRepository repository, RecipeInteractionRepository recipeInteractions,
+                            RecommendationExposureService exposures) {
         this.repository = repository;
         this.recipeInteractions = recipeInteractions;
+        this.exposures = exposures;
     }
 
     /** 保存一条记录 */
     @PostMapping
     public ApiResponse<UserRecord> save(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @Valid @RequestBody RecordRequest req) {
+        String recordDate = req.recordDate() == null ? LocalDate.now().format(DATE_FMT) : req.recordDate();
+        try {
+            LocalDate.parse(recordDate, DATE_FMT);
+        } catch (RuntimeException ignored) {
+            return ApiResponse.error(400, "日期格式应为有效的 YYYY-MM-DD");
+        }
         UserRecord record = new UserRecord();
         record.setOpenid(openid);
         record.setImageUrl(req.imageUrl());
@@ -39,7 +49,7 @@ public class RecordController {
         record.setNote(req.note());
         record.setRecipeId(req.recipeId() != null ? String.valueOf(req.recipeId()) : null);
         record.setCookingTime(req.cookingTime());
-        record.setRecordDate(req.recordDate() != null ? req.recordDate() : LocalDate.now().format(DATE_FMT));
+        record.setRecordDate(recordDate);
         UserRecord saved = repository.save(record);
         try {
             if (req.recipeId() != null && !req.recipeId().isBlank()) {
@@ -51,6 +61,9 @@ public class RecordController {
             }
         } catch (NumberFormatException ignored) {
             // AI 临时菜谱没有持久化 id，仍保留用户的做菜记录。
+        }
+        if (req.exposureId() != null && !req.exposureId().isBlank()) {
+            exposures.feedback(openid, req.exposureId(), "MADE");
         }
         return ApiResponse.ok(saved);
     }
@@ -186,7 +199,8 @@ public class RecordController {
     private int calcLongestStreak(Set<String> dateSet) {
         if (dateSet.isEmpty()) return 0;
         List<LocalDate> dates = dateSet.stream()
-            .map(d -> LocalDate.parse(d, DATE_FMT))
+            .map(this::safeDate)
+            .flatMap(Optional::stream)
             .sorted()
             .collect(Collectors.toList());
         int longest = 1, current = 1;
@@ -199,5 +213,13 @@ public class RecordController {
             }
         }
         return longest;
+    }
+
+    private Optional<LocalDate> safeDate(String value) {
+        try {
+            return Optional.of(LocalDate.parse(value, DATE_FMT));
+        } catch (RuntimeException ignored) {
+            return Optional.empty();
+        }
     }
 }

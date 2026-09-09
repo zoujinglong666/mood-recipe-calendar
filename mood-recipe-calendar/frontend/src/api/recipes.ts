@@ -1,7 +1,8 @@
 import { get, post } from './request'
 
 export interface RecipeItem {
-  id: number
+  id?: number
+  exposureId?: string
   name: string
   description: string
   image: string
@@ -58,8 +59,11 @@ export function fetchRecommendationJob(jobId: string) {
 export type RecipeFeedbackAction = 'LIKE' | 'DISLIKE' | 'MADE'
 
 /** 只上传用户对菜谱的行为，用于下一次推荐排序。 */
-export function sendRecipeFeedback(id: number, action: RecipeFeedbackAction) {
-  return post<void>(`/recipes/${id}/feedback`, { action })
+export function sendRecipeFeedback(recipe: Pick<RecipeItem, 'id' | 'exposureId'>, action: RecipeFeedbackAction) {
+  const path = recipe.exposureId
+    ? `/recipes/exposures/${encodeURIComponent(recipe.exposureId)}/feedback`
+    : `/recipes/${recipe.id}/feedback`
+  return post<void>(path, { action })
 }
 
 /** 已解锁 AI 私人菜单后，按食材、时长与口味生成菜谱。 */

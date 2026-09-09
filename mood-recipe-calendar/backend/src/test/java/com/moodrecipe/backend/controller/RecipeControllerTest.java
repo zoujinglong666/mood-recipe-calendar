@@ -1,96 +1,110 @@
 package com.moodrecipe.backend.controller;
 
 import com.moodrecipe.backend.entity.Recipe;
-import com.moodrecipe.backend.entity.UserFoodPreference;
 import com.moodrecipe.backend.repository.RecipeInteractionRepository;
 import com.moodrecipe.backend.repository.RecipeRepository;
-import com.moodrecipe.backend.repository.UserFoodPreferenceRepository;
-import com.moodrecipe.backend.service.AiRecipeService;
+import com.moodrecipe.backend.entity.UserEntitlement;
+import com.moodrecipe.backend.service.GuozaiAgent;
 import com.moodrecipe.backend.service.OperationalEventService;
 import com.moodrecipe.backend.service.RecommendationJobService;
 import com.moodrecipe.backend.service.VirtualCommerceService;
+import com.moodrecipe.backend.service.RecommendationExposureService;
 import org.junit.jupiter.api.Test;
 
-import java.util.List;
-import java.util.Optional;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import java.util.Optional;
+
+/**
+ * RecipeController 现在是薄委托层，推荐逻辑由 GuozaiAgent 承担。
+ * 本地回退的详细测试见 GuozaiAgentTest。
+ */
 class RecipeControllerTest {
-    @Test
-    void excludesExplicitAvoidIngredients() {
-        RecipeRepository recipes = mock(RecipeRepository.class);
-        RecipeInteractionRepository interactions = mock(RecipeInteractionRepository.class);
-        UserFoodPreferenceRepository preferences = mock(UserFoodPreferenceRepository.class);
-        RecipeController controller = new RecipeController(recipes, interactions, preferences,
-                mock(AiRecipeService.class), mock(VirtualCommerceService.class), mock(OperationalEventService.class), mock(RecommendationJobService.class));
 
-        Recipe peanutDish = recipe(1L, "老醋花生", "花生 200g");
-        Recipe tomatoDish = recipe(2L, "番茄炒蛋", "番茄 2 个，鸡蛋 3 个");
-        UserFoodPreference preference = new UserFoodPreference();
-        preference.setAvoidIngredients("花生");
+    private RecipeController buildController(GuozaiAgent agent) {
+        return buildController(agent, mock(VirtualCommerceService.class));
+    }
 
-        when(interactions.findTop30ByOpenidOrderByCreatedAtDesc("user-1")).thenReturn(List.of());
-        when(interactions.findByOpenidAndAction("user-1", "DISLIKE")).thenReturn(List.of());
-        when(preferences.findByOpenid("user-1")).thenReturn(Optional.of(preference));
-        when(recipes.findByMoodTag("平静")).thenReturn(List.of(peanutDish, tomatoDish));
-
-        assertEquals("番茄炒蛋", controller.recommend("user-1", "平静").getData().getName());
+    private RecipeController buildController(GuozaiAgent agent, VirtualCommerceService commerce) {
+        return new RecipeController(
+                mock(RecipeRepository.class),
+                mock(RecipeInteractionRepository.class),
+                agent,
+                commerce,
+                mock(OperationalEventService.class),
+                mock(RecommendationJobService.class),
+                mock(RecommendationExposureService.class));
     }
 
     @Test
-    void boostsRecipesMatchingFavoriteCuisine() {
-        RecipeRepository recipes = mock(RecipeRepository.class);
-        RecipeInteractionRepository interactions = mock(RecipeInteractionRepository.class);
-        UserFoodPreferenceRepository preferences = mock(UserFoodPreferenceRepository.class);
-        RecipeController controller = new RecipeController(recipes, interactions, preferences,
-                mock(AiRecipeService.class), mock(VirtualCommerceService.class), mock(OperationalEventService.class), mock(RecommendationJobService.class));
+    void delegatesRecommendationToGuozaiAgent() {
+        GuozaiAgent agent = mock(GuozaiAgent.class);
+        Recipe expected = new Recipe();
+        expected.setId(1L);
+        expected.setName("番茄炒蛋");
+        when(agent.recommend(anyString(), anyString(), any())).thenReturn(expected);
 
-        Recipe tomatoDish = recipe(1L, "番茄炒蛋", "番茄 2 个，鸡蛋 3 个");
-        Recipe sichuanDish = recipe(2L, "麻婆豆腐", "豆腐 1 块，豆瓣酱适量");
-        UserFoodPreference preference = new UserFoodPreference();
-        preference.setFavoriteCuisines("川菜");
-
-        when(interactions.findTop30ByOpenidOrderByCreatedAtDesc("user-1")).thenReturn(List.of());
-        when(interactions.findByOpenidAndAction("user-1", "DISLIKE")).thenReturn(List.of());
-        when(preferences.findByOpenid("user-1")).thenReturn(Optional.of(preference));
-        when(recipes.findByMoodTag("平静")).thenReturn(List.of(tomatoDish, sichuanDish));
-
+        RecipeController controller = buildController(agent);
         Recipe result = controller.recommend("user-1", "平静").getData();
-        assertEquals("麻婆豆腐", result.getName());
-        assertTrue(result.getRecommendationReason().contains("川菜"));
+        assertEquals("番茄炒蛋", result.getName());
     }
 
     @Test
-    void fallsBackWhenNoRecipeMatchesFavoriteCuisine() {
-        RecipeRepository recipes = mock(RecipeRepository.class);
-        RecipeInteractionRepository interactions = mock(RecipeInteractionRepository.class);
-        UserFoodPreferenceRepository preferences = mock(UserFoodPreferenceRepository.class);
-        RecipeController controller = new RecipeController(recipes, interactions, preferences,
-                mock(AiRecipeService.class), mock(VirtualCommerceService.class), mock(OperationalEventService.class), mock(RecommendationJobService.class));
+    void restoresEntitlementOnceWhenDeepRecommendationThrows() {
+        GuozaiAgent agent = mock(GuozaiAgent.class);
+        VirtualCommerceService commerce = mock(VirtualCommerceService.class);
+        UserEntitlement entitlement = new UserEntitlement();
+        entitlement.setId(7L);
+        when(commerce.consumeEntitlement("user-1", "AI_DEEP_RECOMMEND"))
+                .thenReturn(Optional.of(entitlement));
+        when(agent.deepRecommend(anyString(), anyString(), any(), any(), any()))
+                .thenThrow(new IllegalStateException("boom"));
 
-        Recipe tomatoDish = recipe(1L, "番茄炒蛋", "番茄 2 个，鸡蛋 3 个");
-        UserFoodPreference preference = new UserFoodPreference();
-        preference.setFavoriteCuisines("粤菜");
+        RecipeController controller = buildController(agent, commerce);
+        var response = controller.deepRecommend("user-1",
+                new RecipeController.DeepRecommendRequest("平静", "番茄", "30", "清淡"));
 
-        when(interactions.findTop30ByOpenidOrderByCreatedAtDesc("user-1")).thenReturn(List.of());
-        when(interactions.findByOpenidAndAction("user-1", "DISLIKE")).thenReturn(List.of());
-        when(preferences.findByOpenid("user-1")).thenReturn(Optional.of(preference));
-        when(recipes.findByMoodTag("平静")).thenReturn(List.of(tomatoDish));
-
-        assertEquals("番茄炒蛋", controller.recommend("user-1", "平静").getData().getName());
+        assertEquals(503, response.getCode());
+        verify(commerce, times(1)).restoreEntitlement(7L);
     }
 
-    private Recipe recipe(Long id, String name, String ingredients) {
-        Recipe recipe = new Recipe();
-        recipe.setId(id);
-        recipe.setName(name);
-        recipe.setDescription("");
-        recipe.setIngredients(ingredients);
-        recipe.setMoodTags("平静");
-        return recipe;
+    @Test
+    void rejectsInvalidDeepRequestBeforeConsumingEntitlement() {
+        VirtualCommerceService commerce = mock(VirtualCommerceService.class);
+        RecipeController controller = buildController(mock(GuozaiAgent.class), commerce);
+
+        var response = controller.deepRecommend("user-1",
+                new RecipeController.DeepRecommendRequest("", "番茄", "30", "清淡"));
+
+        assertEquals(400, response.getCode());
+        verifyNoInteractions(commerce);
+    }
+
+    @Test
+    void keepsDatabaseRecipeFeedbackCompatible() {
+        RecipeRepository recipes = mock(RecipeRepository.class);
+        RecipeInteractionRepository interactions = mock(RecipeInteractionRepository.class);
+        when(recipes.existsById(1L)).thenReturn(true);
+        RecipeController controller = new RecipeController(
+                recipes,
+                interactions,
+                mock(GuozaiAgent.class),
+                mock(VirtualCommerceService.class),
+                mock(OperationalEventService.class),
+                mock(RecommendationJobService.class),
+                mock(RecommendationExposureService.class));
+
+        var response = controller.feedback(1L, "user-1",
+                new RecipeController.RecipeFeedbackRequest("LIKE"));
+
+        assertEquals(0, response.getCode());
+        verify(interactions).save(any());
     }
 }

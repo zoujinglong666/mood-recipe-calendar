@@ -27,6 +27,7 @@ const cookingTime = ref('30分钟')
 const dishImage = ref('')
 const imageUrl = ref('')
 const recipeId = ref<string | undefined>()
+const exposureId = ref<string | undefined>()
 const showSuccess = ref(false)
 const submitting = ref(false)
 const uploading = ref(false)
@@ -39,6 +40,7 @@ onShow(() => {
       if (d.dish) dishName.value = d.dish
       if (d.mood) selectedMood.value = d.mood
       if (d.recipeId !== undefined && d.recipeId !== null) recipeId.value = String(d.recipeId)
+      if (d.exposureId) exposureId.value = String(d.exposureId)
       uni.removeStorageSync('mrc_record_draft')
     }
   } catch (e) { /* ignore */ }
@@ -94,6 +96,7 @@ async function publish() {
       moodTag: selectedMood.value,
       note: note.value,
       recipeId: recipeId.value,
+      exposureId: exposureId.value,
       cookingTime: parseInt(cookingTime.value) || 30,
     })
     uni.removeStorageSync('mrc_companion_message')

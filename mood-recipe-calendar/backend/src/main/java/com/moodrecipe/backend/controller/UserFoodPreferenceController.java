@@ -5,6 +5,7 @@ import com.moodrecipe.backend.config.SessionAuthInterceptor;
 import com.moodrecipe.backend.entity.UserFoodPreference;
 import com.moodrecipe.backend.repository.UserFoodPreferenceRepository;
 import com.moodrecipe.backend.repository.RecipeInteractionRepository;
+import com.moodrecipe.backend.repository.RecommendationExposureRepository;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,10 +17,14 @@ public class UserFoodPreferenceController {
     private static final Set<String> SPICE_LEVELS = Set.of("NONE", "MILD", "NORMAL", "HOT");
     private final UserFoodPreferenceRepository repository;
     private final RecipeInteractionRepository interactions;
+    private final RecommendationExposureRepository exposures;
 
-    public UserFoodPreferenceController(UserFoodPreferenceRepository repository, RecipeInteractionRepository interactions) {
+    public UserFoodPreferenceController(UserFoodPreferenceRepository repository,
+                                        RecipeInteractionRepository interactions,
+                                        RecommendationExposureRepository exposures) {
         this.repository = repository;
         this.interactions = interactions;
+        this.exposures = exposures;
     }
 
     @GetMapping
@@ -59,6 +64,7 @@ public class UserFoodPreferenceController {
             @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
         repository.deleteByOpenid(openid);
         interactions.deleteByOpenid(openid);
+        exposures.deleteByOpenid(openid);
         return ApiResponse.ok();
     }
 

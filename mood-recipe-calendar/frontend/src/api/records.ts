@@ -8,6 +8,7 @@ export interface RecordItem {
   moodTag: string
   note?: string
   recipeId?: string
+  exposureId?: string
   cookingTime?: number
   recordDate: string
   createdAt?: string
@@ -20,6 +21,7 @@ export interface RecordPayload {
   moodTag: string
   note?: string
   recipeId?: string
+  exposureId?: string
   cookingTime?: number
   recordDate?: string
 }

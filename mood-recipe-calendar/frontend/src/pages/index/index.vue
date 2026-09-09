@@ -7,6 +7,10 @@ import { fetchCompanionMessage, fetchStats, fetchRecordsByMonth, type CompanionM
 
 definePage({ name: 'home', layout: 'tabbar', style: { navigationStyle: 'custom', navigationBarTitleText: '首页' } })
 const router = useRouter()
+interface HeroGuozai {
+  img: string
+  name: string
+}
 const isBouncing = ref(false)
 function bounceGuozai() {
   isBouncing.value = true

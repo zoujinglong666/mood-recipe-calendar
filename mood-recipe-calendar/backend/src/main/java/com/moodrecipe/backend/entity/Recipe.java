@@ -37,6 +37,10 @@ public class Recipe {
     @Transient
     private String recommendationReason;
 
+    /** AI 临时推荐的反馈标识，不进入公共菜谱表。 */
+    @Transient
+    private String exposureId;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

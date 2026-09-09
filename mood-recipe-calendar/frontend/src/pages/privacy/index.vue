@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import { navBack } from '@/composables/useNavBar'
 import Icon from '@/components/common/Icon.vue'
-import { useRouter } from 'vue-router'
+import { navBack } from '@/composables/useNavBar'
 
 definePage({ name: 'privacy', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '隐私政策' } })
 const router = useRouter()
@@ -15,7 +14,7 @@ const updatedAt = '2026 年 9 月 7 日'
       <view><text class="privacy-kicker">GUOZAI CARES</text><text class="privacy-title">你的每一餐，<br />只属于你。</text><text class="privacy-date">最近更新：{{ updatedAt }}</text></view>
       <image src="/static/guozai/action_06_glasses.png" mode="aspectFit" />
     </view>
-    <view class="privacy-card"><Icon name="heart" :size="40" color="var(--mrc-accent)" /><view><text class="privacy-card__title">我们收集什么</text><text>仅保存你主动提交的昵称、头像、菜品记录、图片、心情、反馈、数字权益订单，以及首页打开的粗粒度时段事件（如早晨、午间或晚间）。</text></view></view>
+    <view class="privacy-card"><Icon name="heart" :size="40" color="var(--mrc-accent)" /><view><text class="privacy-card__title">我们收集什么</text><text>仅保存你主动提交的昵称、头像、菜品记录、图片、心情、反馈、数字权益订单，以及首页打开的粗粒度时段事件。AI 推荐仅保存菜名的匿名指纹和“喜欢、不想吃、做过”状态，不保存模型推理或完整菜谱正文。</text></view></view>
     <view class="privacy-card"><Icon name="book" :size="40" color="var(--mrc-accent)" /><view><text class="privacy-card__title">如何使用</text><text>用于展示日历、时光机、画册、生成 AI 菜谱与锅仔个性寄语。发送给 AI 服务的仅是聚合习惯摘要，不含 openid、昵称、图片和日记正文；运营事件只记录类型与时间。</text></view></view>
     <view class="privacy-card"><Icon name="user" :size="40" color="var(--mrc-accent)" /><view><text class="privacy-card__title">你的选择</text><text>你可在“反馈建议”提交数据导出、删除或隐私相关请求。请求处理完成前，我们会先核验账号归属。</text></view></view>
     <view class="privacy-card"><Icon name="heart" :size="40" color="var(--mrc-accent)" /><view><text class="privacy-card__title">不会做的事</text><text>不会出售你的个人信息；不会把菜谱正文用于广告定向；不会把支付密钥、session_key 下发到客户端。</text></view></view>

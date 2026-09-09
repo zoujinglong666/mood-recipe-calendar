@@ -38,10 +38,13 @@ public class AiRecipeService {
         IMAGE_FAILED
     }
 
+    private record ChatResult(String content) {}
+
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(40);
 
     private final ObjectMapper objectMapper;
     private final AgnesRecipeImageService imageService;
+    private final GuozaiPersona persona;
     private final HttpClient httpClient;
     private final String apiKey;
     private final String baseUrl;
@@ -50,12 +53,14 @@ public class AiRecipeService {
     public AiRecipeService(
             ObjectMapper objectMapper,
             AgnesRecipeImageService imageService,
+            GuozaiPersona persona,
             @Value("${ai.recipe.api-key:}") String apiKey,
             @Value("${ai.recipe.base-url:https://apihub.agnes-ai.com/v1/chat/completions}") String baseUrl,
             @Value("${ai.recipe.model:agnes-2.5-flash}") String model
     ) {
         this.objectMapper = objectMapper;
         this.imageService = imageService;
+        this.persona = persona;
         this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(8)).build();
         this.apiKey = apiKey;
         this.baseUrl = baseUrl;
@@ -77,25 +82,112 @@ public class AiRecipeService {
             progress.accept(GenerationEvent.TEXT_FAILED);
             return Optional.empty();
         }
+        log.info("AI 菜谱生成开始，model={}", model);
+        progress.accept(GenerationEvent.TEXT_STARTED);
 
+        String systemPrompt = "你是锅仔，一位温暖、务实的中文家常菜助手。你只提供普通家庭可完成的菜谱，不提供医疗建议。";
+        String userPrompt = """
+                用户现在的心情是「%s」。请推荐一道适合此刻的中国家常菜。
+                用户补充的烹饪偏好是：「%s」。只在合理且安全的范围内遵循它；如果为空则忽略。
+                只返回一个合法 JSON 对象，不要 Markdown、不要解释。格式严格为：
+                {"name":"菜名","description":"30字以内的治愈理由","ingredients":["食材及用量"],"steps":["步骤"],"cookingTime":30,"difficulty":"简单","moodTags":"%s","season":"四季"}
+                规则：3-7 种常见食材；3-5 个步骤；20-45 分钟；食材用量明确；不虚构功效。
+                """.formatted(mood, sanitizePreference(preference), mood);
+
+        Optional<ChatResult> result = chatRaw(systemPrompt, userPrompt, 0.8, 1024, progress);
+        if (result.isEmpty()) {
+            progress.accept(GenerationEvent.TEXT_FAILED);
+            return Optional.empty();
+        }
+        Optional<Recipe> recipe = toRecipe(result.get().content(), mood);
+        if (recipe.isEmpty()) {
+            progress.accept(GenerationEvent.TEXT_FAILED);
+            return Optional.empty();
+        }
+        progress.accept(GenerationEvent.TEXT_COMPLETED);
+        progress.accept(GenerationEvent.IMAGE_STARTED);
+        Optional<String> cover = imageService.generateCover(recipe.get());
+        cover.ifPresent(recipe.get()::setImage);
+        progress.accept(cover.isPresent() ? GenerationEvent.IMAGE_COMPLETED : GenerationEvent.IMAGE_FAILED);
+        return recipe;
+    }
+
+    /**
+     * 智能体菜谱推荐——使用 GuozaiPersona 统一人格 prompt，
+     * userPrompt 由 GuozaiAgent 基于用户记忆、情绪趋势、历史偏好主动分析后构建。
+     * 与简单 recommend(mood, preference) 的区别：prompt 包含锅仔对用户的真实观察分析，
+     * 而不是仅传心情+口味字符串。
+     */
+    public Optional<Recipe> recommendWithPersona(String mood, String userPrompt, Consumer<GenerationEvent> progress) {
+        if (apiKey.isBlank() || model.isBlank()) {
+            progress.accept(GenerationEvent.TEXT_FAILED);
+            return Optional.empty();
+        }
+        log.info("锅仔智能体菜谱推荐开始，model={}", model);
+        progress.accept(GenerationEvent.TEXT_STARTED);
+
+        Optional<ChatResult> result = chatRaw(persona.systemPrompt(), userPrompt, 0.8, 1024, progress);
+        if (result.isEmpty()) {
+            progress.accept(GenerationEvent.TEXT_FAILED);
+            return Optional.empty();
+        }
+        Optional<Recipe> recipe = toRecipe(result.get().content(), mood);
+        if (recipe.isEmpty()) {
+            progress.accept(GenerationEvent.TEXT_FAILED);
+            return Optional.empty();
+        }
+        progress.accept(GenerationEvent.TEXT_COMPLETED);
+        progress.accept(GenerationEvent.IMAGE_STARTED);
+        Optional<String> cover = imageService.generateCover(recipe.get());
+        cover.ifPresent(recipe.get()::setImage);
+        progress.accept(cover.isPresent() ? GenerationEvent.IMAGE_COMPLETED : GenerationEvent.IMAGE_FAILED);
+        return recipe;
+    }
+
+    /** 只接收聚合后的习惯摘要，不上传日记、菜谱正文或身份标识。 */
+    public Optional<String> companionMessage(String context) {
+        return companionMessageWithPersona("根据这份不含身份信息的习惯摘要写一句20到36字的个性化寄语："
+                + sanitizePreference(context) + "。自然提到其中一个真实细节，不要引号、标题、表情符号或自称AI。");
+    }
+
+    /**
+     * 深度寄语——使用 GuozaiPersona 统一的人格 prompt 和传入的 user prompt。
+     * 用于锅仔主动分析后的个性化寄语。
+     */
+    public Optional<String> companionMessageWithPersona(String userPrompt) {
+        return chat(persona.systemPrompt(), userPrompt, 0.75, 40);
+    }
+
+    /**
+     * 情绪洞察——使用 GuozaiPersona 统一的人格 prompt，生成一句话情绪总结。
+     */
+    public Optional<String> insightMessageWithPersona(String userPrompt) {
+        return chat(persona.systemPrompt(), userPrompt, 0.7, 25);
+    }
+
+    private Optional<String> chat(String systemPrompt, String userPrompt, double temperature, int maxLength) {
+        return chatRaw(systemPrompt, userPrompt, temperature, 256, e -> {})
+                .map(r -> r.content())
+                .filter(text -> !text.isBlank())
+                .map(text -> text.substring(0, Math.min(text.length(), maxLength)));
+    }
+
+    /**
+     * 通用 Chat Completions 调用。模型内部推理和用户提示词不得写入日志或返回前端。
+     */
+    private Optional<ChatResult> chatRaw(String systemPrompt, String userPrompt,
+                                         double temperature, int maxTokens,
+                                         Consumer<GenerationEvent> progress) {
+        if (apiKey.isBlank() || model.isBlank()) return Optional.empty();
         try {
-            log.info("AI 菜谱生成开始，model={}, apiKeyConfigured={}", model, !apiKey.isBlank());
-            progress.accept(GenerationEvent.TEXT_STARTED);
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("model", model);
-            body.put("temperature", 0.8);
-            body.put("max_tokens", 1024);
+            body.put("temperature", temperature);
+            body.put("max_tokens", maxTokens);
             body.put("messages", List.of(
-                    Map.of("role", "system", "content", "你是锅仔，一位温暖、务实的中文家常菜助手。你只提供普通家庭可完成的菜谱，不提供医疗建议。"),
-                    Map.of("role", "user", "content", """
-                            用户现在的心情是「%s」。请推荐一道适合此刻的中国家常菜。
-                            用户补充的烹饪偏好是：「%s」。只在合理且安全的范围内遵循它；如果为空则忽略。
-                            只返回一个合法 JSON 对象，不要 Markdown、不要解释。格式严格为：
-                            {"name":"菜名","description":"30字以内的治愈理由","ingredients":["食材及用量"],"steps":["步骤"],"cookingTime":30,"difficulty":"简单","moodTags":"%s","season":"四季"}
-                            规则：3-7 种常见食材；3-5 个步骤；20-45 分钟；食材用量明确；不虚构功效。
-                            """.formatted(mood, sanitizePreference(preference), mood))
+                    Map.of("role", "system", "content", systemPrompt),
+                    Map.of("role", "user", "content", userPrompt)
             ));
-
             HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl))
                     .timeout(REQUEST_TIMEOUT)
                     .header("Authorization", "Bearer " + apiKey)
@@ -104,55 +196,16 @@ public class AiRecipeService {
                     .build();
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                log.warn("AI 文本接口返回非 2xx: status={}, body={}", response.statusCode(),
-                        response.body() == null ? "" : response.body().substring(0, Math.min(response.body().length(), 300)));
-                progress.accept(GenerationEvent.TEXT_FAILED);
+                log.warn("Chat API 返回非 2xx: status={}", response.statusCode());
                 return Optional.empty();
             }
-
-            JsonNode root = objectMapper.readTree(response.body());
-            String content = root.path("choices").path(0).path("message").path("content").asText();
-            Optional<Recipe> recipe = toRecipe(content, mood);
-            if (recipe.isEmpty()) {
-                progress.accept(GenerationEvent.TEXT_FAILED);
-                return Optional.empty();
-            }
-            progress.accept(GenerationEvent.TEXT_COMPLETED);
-            progress.accept(GenerationEvent.IMAGE_STARTED);
-            Optional<String> cover = imageService.generateCover(recipe.get());
-            cover.ifPresent(recipe.get()::setImage);
-            progress.accept(cover.isPresent() ? GenerationEvent.IMAGE_COMPLETED : GenerationEvent.IMAGE_FAILED);
-            return recipe;
+            JsonNode msg = objectMapper.readTree(response.body())
+                    .path("choices").path(0).path("message");
+            String content = msg.path("content").asText().replaceAll("[\\r\\n]+", " ").trim();
+            if (content.isBlank()) return Optional.empty();
+            return Optional.of(new ChatResult(content));
         } catch (Exception ex) {
-            log.warn("AI 菜谱文本生成失败，将回退本地菜谱库: {}", ex.toString());
-            progress.accept(GenerationEvent.TEXT_FAILED);
-            return Optional.empty();
-        }
-    }
-
-    /** 只接收聚合后的习惯摘要，不上传日记、菜谱正文或身份标识。 */
-    public Optional<String> companionMessage(String context) {
-        if (apiKey.isBlank() || model.isBlank()) return Optional.empty();
-        try {
-            Map<String, Object> body = new LinkedHashMap<>();
-            body.put("model", model);
-            body.put("temperature", 0.75);
-            body.put("messages", List.of(
-                    Map.of("role", "system", "content", "你是锅仔，一个温暖、克制、熟悉用户吃饭习惯的中文陪伴者。只谈吃饭和日常关心，不做医疗判断，不制造焦虑。"),
-                    Map.of("role", "user", "content", "根据这份不含身份信息的习惯摘要写一句20到36字的个性化寄语：" + sanitizePreference(context) + "。自然提到其中一个真实细节，不要引号、标题、表情符号或自称AI。")
-            ));
-            HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl))
-                    .timeout(REQUEST_TIMEOUT)
-                    .header("Authorization", "Bearer " + apiKey)
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)))
-                    .build();
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() < 200 || response.statusCode() >= 300) return Optional.empty();
-            String text = objectMapper.readTree(response.body()).path("choices").path(0).path("message").path("content").asText().replaceAll("[\\r\\n]+", " ").trim();
-            if (text.isBlank()) return Optional.empty();
-            return Optional.of(text.substring(0, Math.min(text.length(), 40)));
-        } catch (Exception ignored) {
+            log.warn("Chat API 调用失败: {}", ex.toString());
             return Optional.empty();
         }
     }

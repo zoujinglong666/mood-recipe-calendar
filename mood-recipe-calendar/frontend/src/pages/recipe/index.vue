@@ -48,7 +48,7 @@ const productsError = ref('')
 const purchasingSku = ref('')
 const aiProducts = ref<VirtualProduct[]>([])
 const feedbackLoading = ref<RecipeFeedbackAction | ''>('')
-const likedRecipeId = ref<number | null>(null)
+const liked = ref(false)
 const POLL_INTERVAL = 900
 const POLL_TIMEOUT = 90_000
 const MAX_POLL_FAILURES = 3
@@ -72,7 +72,7 @@ function parseStringList(value?: string): string[] {
 
 const ingredients = computed(() => parseStringList(recipe.value?.ingredients))
 const steps = computed(() => parseStringList(recipe.value?.steps))
-const feedbackAvailable = computed(() => Number(recipe.value?.id) > 0)
+const feedbackAvailable = computed(() => Number(recipe.value?.id) > 0 || Boolean(recipe.value?.exposureId))
 const recipeImageAvailable = computed(() => Boolean(recipe.value?.image) && !imageFailed.value)
 const healingText = computed(() => recipe.value?.recommendationReason?.trim() || HEALING_TEXTS[mood.value] || recipe.value?.description || '好好吃饭，锅仔会陪你慢慢找到喜欢的味道。')
 const primaryText = computed(() => showSteps.value || !steps.value.length ? '做完了，记一笔' : '查看完整做法')
@@ -103,6 +103,7 @@ async function loadRecipe() {
   loading.value = true
   error.value = ''
   recipe.value = null
+  liked.value = false
   recommendationJob.value = null
   showToolTrace.value = false
   imageFailed.value = false
@@ -220,19 +221,24 @@ function handlePrimaryAction() {
 function goRecord() {
   if (!recipe.value)
     return
-  uni.setStorageSync('mrc_record_draft', { dish: recipe.value.name, mood: mood.value, recipeId: recipe.value.id })
+  uni.setStorageSync('mrc_record_draft', {
+    dish: recipe.value.name,
+    mood: mood.value,
+    recipeId: recipe.value.id,
+    exposureId: recipe.value.exposureId,
+  })
   router.pushTab({ name: 'record' })
 }
 
 async function sendFeedback(action: RecipeFeedbackAction) {
-  if (!recipe.value?.id || feedbackLoading.value || (action === 'LIKE' && likedRecipeId.value === recipe.value.id))
+  if (!recipe.value || (!recipe.value.id && !recipe.value.exposureId) || feedbackLoading.value || (action === 'LIKE' && liked.value))
     return
   feedbackLoading.value = action
   try {
     await ensureLogin()
-    await sendRecipeFeedback(recipe.value.id, action)
+    await sendRecipeFeedback(recipe.value, action)
     if (action === 'LIKE') {
-      likedRecipeId.value = recipe.value.id
+      liked.value = true
       toast('锅仔记住啦，以后多推荐这类菜')
     }
     else {
@@ -458,8 +464,8 @@ async function waitForDelivery(orderNo: string) {
         </view>
 
         <view v-if="feedbackAvailable" class="feedback-row" aria-label="告诉锅仔这道菜是否合胃口">
-          <view class="feedback-action pressable" :class="{ 'is-disabled': feedbackLoading || likedRecipeId === recipe.id }" role="button" :aria-label="likedRecipeId === recipe.id ? '已喜欢这道菜' : '喜欢这道菜'" @click="sendFeedback('LIKE')">
-            <Icon name="heart" :size="30" color="#EF5A3C" /><text>{{ feedbackLoading === 'LIKE' ? '记住中…' : likedRecipeId === recipe.id ? '已经记住' : '喜欢这道' }}</text>
+          <view class="feedback-action pressable" :class="{ 'is-disabled': feedbackLoading || liked }" role="button" :aria-label="liked ? '已喜欢这道菜' : '喜欢这道菜'" @click="sendFeedback('LIKE')">
+            <Icon name="heart" :size="30" color="#EF5A3C" /><text>{{ feedbackLoading === 'LIKE' ? '记住中…' : liked ? '已经记住' : '喜欢这道' }}</text>
           </view>
           <view class="feedback-action pressable" :class="{ 'is-disabled': Boolean(feedbackLoading) }" role="button" aria-label="不想吃这道菜，换一道推荐" @click="sendFeedback('DISLIKE')">
             <Icon name="dice" :size="30" color="#A1826A" /><text>{{ feedbackLoading === 'DISLIKE' ? '换菜中…' : '不想吃，换一道' }}</text>
