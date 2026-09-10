@@ -33,6 +33,7 @@ export interface RecipeShareData {
   ingredients?: string[]
   image?: string
   guozaiPath: string
+  style?: 'classic' | 'guozai'
 }
 
 const COLORS = {
@@ -263,31 +264,53 @@ export async function exportRecipeShare(data: RecipeShareData, canvasId = 'recip
   ctx.beginPath()
   ctx.arc(W - 72, 148, 36, 0, Math.PI * 2)
   ctx.fill()
-  centerText(ctx, W / 2, 54, '锅仔 · 今日食谱', 26, COLORS.sub, 'bold')
+  const isGuozaiStyle = data.style === 'guozai'
+  centerText(ctx, W / 2, 54, isGuozaiStyle ? '锅仔 · 今日手账' : '锅仔 · 今日食谱', 26, COLORS.sub, 'bold')
 
   const heroX = 44
   const heroY = 118
   const heroW = W - 88
   const heroH = 340
-  ctx.fillStyle = COLORS.card
+  ctx.fillStyle = isGuozaiStyle ? '#FFE7C9' : COLORS.card
   roundRect(ctx, heroX, heroY, heroW, heroH, 38)
   ctx.fill()
-  if (data.image) {
+  if (isGuozaiStyle) {
     try {
-      drawCover(ctx, await loadCanvasImage(canvas, data.image), heroX, heroY, heroW, heroH, 38)
+      const guozai = await loadCanvasImage(canvas, data.guozaiPath)
+      ctx.drawImage(guozai, 252, 126, 272, 272)
     }
     catch {
-      /* 菜图不可用时保留柔和的纯色主视觉。 */
+      centerText(ctx, W / 2, 220, '🍲', 130, COLORS.text)
     }
+    ctx.fillStyle = COLORS.white
+    roundRect(ctx, 82, 154, 220, 164, 18)
+    ctx.fill()
+    if (data.image) {
+      try {
+        drawCover(ctx, await loadCanvasImage(canvas, data.image), 92, 164, 200, 144, 10)
+      }
+      catch { /* 菜图不可用时保留拍立得留白。 */ }
+    }
+    centerText(ctx, W / 2, 394, data.name.slice(0, 14), 42, COLORS.text, 'bold')
   }
-  ctx.fillStyle = 'rgba(90, 62, 43, .22)'
-  roundRect(ctx, heroX, heroY + heroH - 112, heroW, 112, 0)
-  ctx.fill()
+  else {
+    if (data.image) {
+      try {
+        drawCover(ctx, await loadCanvasImage(canvas, data.image), heroX, heroY, heroW, heroH, 38)
+      }
+      catch {
+        /* 菜图不可用时保留柔和的纯色主视觉。 */
+      }
+    }
+    ctx.fillStyle = 'rgba(90, 62, 43, .22)'
+    roundRect(ctx, heroX, heroY + heroH - 112, heroW, 112, 0)
+    ctx.fill()
+    centerText(ctx, W / 2, heroY + heroH - 82, data.name.slice(0, 14), 46, COLORS.white, 'bold')
+  }
   ctx.fillStyle = 'rgba(255,255,255,.92)'
   roundRect(ctx, heroX + 26, heroY + 24, 136, 54, 27)
   ctx.fill()
   centerText(ctx, heroX + 94, heroY + 39, `今日 · ${data.mood}`, 22, COLORS.text, 'bold')
-  centerText(ctx, W / 2, heroY + heroH - 82, data.name.slice(0, 14), 46, COLORS.white, 'bold')
 
   const meta = `${data.cookingTime || '--'} 分钟  ·  ${data.difficulty || '家常难度'}`
   centerText(ctx, W / 2, 500, meta, 26, COLORS.sub, 'bold')

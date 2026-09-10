@@ -96,7 +96,7 @@ public class GuozaiAgent {
                 update(progress, RecommendationJobService.Stage.FINALIZE,
                         RecommendationJobService.StepStatus.RUNNING, "锅仔正在整理这道菜");
                 // 动态推荐理由：结合记忆分析 + AI 生成的 description
-                generated.setRecommendationReason(buildSmartReason(mood, snapshot, generated.getDescription()));
+                generated.setRecommendationReason(buildSmartReason(mood, snapshot, preference, generated.getDescription()));
                 generated.setExposureId(exposures.recordShown(openid, generated, "AI"));
                 update(progress, RecommendationJobService.Stage.FINALIZE,
                         RecommendationJobService.StepStatus.COMPLETED, "菜谱已经整理完成");
@@ -232,11 +232,14 @@ public class GuozaiAgent {
      * 动态生成推荐理由——不是固定模板，而是结合用户记忆和 AI 描述。
      * 优先级：AI 生成的 description > 基于连续记录/常做菜的动态理由 > 固定模板
      */
-    private String buildSmartReason(String mood, GuozaiMemory.MemorySnapshot snap, String aiDescription) {
+    private String buildSmartReason(String mood, GuozaiMemory.MemorySnapshot snap,
+                                    UserFoodPreference preference, String aiDescription) {
+        String healthReason = healthRecommendationReason(preference);
         // 1. 如果 AI 生成了有意义的描述，直接用（它已经基于记忆分析）
         if (aiDescription != null && !aiDescription.isBlank() && aiDescription.length() > 4) {
-            return aiDescription;
+            return healthReason.isBlank() ? aiDescription : healthReason + aiDescription;
         }
+        if (!healthReason.isBlank()) return healthReason;
         // 2. 基于连续记录天数
         if (snap.streak() >= 7) {
             return "你已经连续记录 " + snap.streak() + " 天了，锅仔记得你常做 " + snap.topDish()
@@ -306,6 +309,8 @@ public class GuozaiAgent {
         if (snap.preference() != null && Boolean.FALSE.equals(snap.preference().getEatCilantro())) {
             candidates.add("不放香菜这件事我一直记得，放心把今天这顿交给我。");
         }
+        String healthMessage = healthCompanionMessage(snap.preference());
+        if (!healthMessage.isBlank()) candidates.add(healthMessage);
         candidates.add(switch (snap.period()) {
             case "早晨" -> "早饭不用复杂，热乎、顺口，就能给今天一个温柔的开始。";
             case "午间" -> "忙归忙，午饭还是要认真吃，锅仔帮你挑一道省心的。";
@@ -320,6 +325,7 @@ public class GuozaiAgent {
     private String buildInsight(GuozaiMemory.MemorySnapshot snap) {
         if (snap.isNewUser()) return "从第一顿开始认识你";
         if (snap.streak() >= 2) return "记得你已连续记录 " + snap.streak() + " 天";
+        if (!healthGoalLabel(snap.preference()).isBlank()) return "记得你想" + healthGoalLabel(snap.preference());
         if (!snap.favoriteCuisine().isBlank()) return "记得你喜欢 " + snap.favoriteCuisine();
         if (!snap.favorite().isBlank()) return "记得你喜欢 " + snap.favorite();
         if (snap.preference() != null && snap.preference().isOnboardingCompleted())
@@ -396,6 +402,12 @@ public class GuozaiAgent {
         score += terms(preference.getFavoriteCuisines()).stream()
                 .mapToInt(cuisine -> matchesCuisine(text, cuisine) ? 8 : 0).sum();
         if ("HOT".equals(preference.getSpiceLevel()) && matchesTag(text, "香辣")) score += 4;
+        if ("FITNESS".equals(healthGoal(preference)) && containsAny(text, "鸡", "牛", "鱼", "虾", "蛋", "豆腐", "豆", "瘦")) score += 8;
+        if ("LEAN".equals(healthGoal(preference))) {
+            if (containsAny(text, "蔬菜", "西兰花", "菌菇", "番茄", "清淡", "少油", "清蒸", "白灼")) score += 7;
+            if (containsAny(text, "鸡", "鱼", "虾", "蛋", "豆腐")) score += 4;
+            if (containsAny(text, "红烧", "回锅", "炸", "五花", "肥")) score -= 6;
+        }
         return score;
     }
 
@@ -419,6 +431,8 @@ public class GuozaiAgent {
 
     private String localRecommendationReason(Recipe recipe, String mood, UserFoodPreference preference,
                                              Map<Long, Integer> historyScore) {
+        String healthReason = healthRecommendationReason(preference);
+        if (!healthReason.isBlank()) return healthReason;
         if (historyScore.getOrDefault(recipe.getId(), 0) >= 5) {
             return "我记得你做过并喜欢这类菜，今天再吃一次也很合适。";
         }
@@ -447,7 +461,36 @@ public class GuozaiAgent {
                 + "，过敏" + safe(preference.getAllergens())
                 + "，葱" + answer(preference.getEatScallion())
                 + "，香菜" + answer(preference.getEatCilantro())
-                + "，辣度" + safe(preference.getSpiceLevel());
+                + "，辣度" + safe(preference.getSpiceLevel())
+                + "，饮食目标" + healthGoalLabel(preference);
+    }
+
+    private String healthGoal(UserFoodPreference preference) {
+        return preference == null || preference.getHealthGoal() == null ? "BALANCED" : preference.getHealthGoal();
+    }
+
+    private String healthGoalLabel(UserFoodPreference preference) {
+        return switch (healthGoal(preference)) {
+            case "FITNESS" -> "健身增肌";
+            case "LEAN" -> "轻盈减脂";
+            default -> "";
+        };
+    }
+
+    private String healthRecommendationReason(UserFoodPreference preference) {
+        return switch (healthGoal(preference)) {
+            case "FITNESS" -> "考虑到你正在健身增肌，锅仔优先挑了有优质蛋白、适量主食和蔬菜的搭配。";
+            case "LEAN" -> "考虑到你想轻盈减脂，锅仔优先挑了蔬菜、优质蛋白和少油做法的搭配。";
+            default -> "";
+        };
+    }
+
+    private String healthCompanionMessage(UserFoodPreference preference) {
+        return switch (healthGoal(preference)) {
+            case "FITNESS" -> "练完别只吃沙拉，今天给自己留够优质蛋白、主食和蔬菜。";
+            case "LEAN" -> "轻盈吃饭不是挨饿，今天把蔬菜、优质蛋白和少油做法安排好。";
+            default -> "";
+        };
     }
 
     private void recordInteraction(String openid, Long recipeId, String action) {

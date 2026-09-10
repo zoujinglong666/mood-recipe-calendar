@@ -15,6 +15,7 @@ import java.util.Set;
 @RequestMapping("/api/preferences")
 public class UserFoodPreferenceController {
     private static final Set<String> SPICE_LEVELS = Set.of("NONE", "MILD", "NORMAL", "HOT");
+    private static final Set<String> HEALTH_GOALS = Set.of("BALANCED", "FITNESS", "LEAN");
     private final UserFoodPreferenceRepository repository;
     private final RecipeInteractionRepository interactions;
     private final RecommendationExposureRepository exposures;
@@ -40,6 +41,11 @@ public class UserFoodPreferenceController {
         if (request == null || !SPICE_LEVELS.contains(request.spiceLevel())) {
             return ApiResponse.error(400, "辣度选择无效");
         }
+        String healthGoal = request.healthGoal() == null || request.healthGoal().isBlank()
+                ? "BALANCED" : request.healthGoal();
+        if (!HEALTH_GOALS.contains(healthGoal)) {
+            return ApiResponse.error(400, "健康目标选择无效");
+        }
         if (tooLong(request.favoriteTags()) || tooLong(request.favoriteCuisines()) || tooLong(request.favoriteDishes())
                 || tooLong(request.avoidIngredients()) || tooLong(request.allergens())) {
             return ApiResponse.error(400, "口味内容不能超过 500 字");
@@ -54,6 +60,7 @@ public class UserFoodPreferenceController {
         preference.setEatScallion(request.eatScallion());
         preference.setEatCilantro(request.eatCilantro());
         preference.setSpiceLevel(request.spiceLevel());
+        preference.setHealthGoal(healthGoal);
         preference.setOnboardingCompleted(true);
         return ApiResponse.ok(repository.save(preference));
     }
@@ -79,5 +86,6 @@ public class UserFoodPreferenceController {
             String allergens,
             Boolean eatScallion,
             Boolean eatCilantro,
-            String spiceLevel) { }
+            String spiceLevel,
+            String healthGoal) { }
 }

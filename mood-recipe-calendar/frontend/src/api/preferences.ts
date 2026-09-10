@@ -1,6 +1,7 @@
 import { del, get, put } from './request'
 
 export type SpiceLevel = 'NONE' | 'MILD' | 'NORMAL' | 'HOT'
+export type HealthGoal = 'BALANCED' | 'FITNESS' | 'LEAN'
 
 export interface FoodPreference {
   id?: number
@@ -12,6 +13,7 @@ export interface FoodPreference {
   eatScallion: boolean | null
   eatCilantro: boolean | null
   spiceLevel: SpiceLevel
+  healthGoal?: HealthGoal
   onboardingCompleted: boolean
   updatedAt?: string
 }

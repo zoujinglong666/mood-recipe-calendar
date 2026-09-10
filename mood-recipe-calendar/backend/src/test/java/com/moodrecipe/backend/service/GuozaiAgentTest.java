@@ -113,6 +113,28 @@ class GuozaiAgentTest {
     }
 
     @Test
+    void boostsProteinRecipeForFitnessGoal() {
+        RecipeRepository recipes = mock(RecipeRepository.class);
+        RecipeInteractionRepository interactions = mock(RecipeInteractionRepository.class);
+        UserFoodPreferenceRepository preferences = mock(UserFoodPreferenceRepository.class);
+        GuozaiAgent agent = buildAgent(recipes, interactions, preferences);
+
+        Recipe congee = recipe(1L, "青菜粥", "大米和青菜");
+        Recipe chicken = recipe(2L, "鸡胸肉西兰花", "鸡胸肉、西兰花和米饭");
+        UserFoodPreference preference = new UserFoodPreference();
+        preference.setHealthGoal("FITNESS");
+
+        when(interactions.findTop30ByOpenidOrderByCreatedAtDesc("user-1")).thenReturn(List.of());
+        when(interactions.findByOpenidAndAction("user-1", "DISLIKE")).thenReturn(List.of());
+        when(preferences.findByOpenid("user-1")).thenReturn(Optional.of(preference));
+        when(recipes.findByMoodTag("平静")).thenReturn(List.of(congee, chicken));
+
+        Recipe result = agent.recommend("user-1", "平静", null);
+        assertEquals("鸡胸肉西兰花", result.getName());
+        assertTrue(result.getRecommendationReason().contains("健身增肌"));
+    }
+
+    @Test
     void rejectsAiRecipeContainingAvoidIngredient() {
         RecipeRepository recipes = mock(RecipeRepository.class);
         RecipeInteractionRepository interactions = mock(RecipeInteractionRepository.class);

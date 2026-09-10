@@ -33,57 +33,47 @@ public class WechatService {
     }
 
     /**
-     * 是否使用 mock 模式（H5 本地开发调试）
-     * 判断依据：code 是否带 h5_dev_ 前缀，或 appid/secret 未配置
-     * 小程序真实 code 一律走微信 code2session
-     */
-    private boolean isMockCode(String code) {
-        if (appid == null || appid.isEmpty() || secret == null || secret.isEmpty()) {
-            return true;
-        }
-        return code != null && code.startsWith("h5_dev_");
-    }
-
-    /**
      * 微信登录：用 code 换 openid，然后创建/更新用户
      * 仅传 code；昵称/头像通过 PUT /api/auth/user 单独编辑
      */
     public Map<String, Object> login(String code) {
-        String openid;
-        String sessionKey = null;
-
-        if (isMockCode(code)) {
-            // Mock 模式（H5 开发调试）：用 code 作为 openid
-            openid = "mock_" + (code != null ? code : "dev");
-        } else {
-            // 真实微信登录：code2session 换 openid
-            String url = String.format(
-                "https://api.weixin.qq.com/sns/jscode2session?appid=%s&secret=%s&js_code=%s&grant_type=authorization_code",
-                appid, secret, code
-            );
-            try {
-                String response = restTemplate.getForObject(url, String.class);
-                JsonNode root = objectMapper.readTree(response);
-                if (root.has("errcode") && root.get("errcode").asInt() != 0) {
-                    throw new RuntimeException("微信登录失败: " + root.path("errmsg").asText());
-                }
-                openid = root.path("openid").asText();
-                if (openid == null || openid.isEmpty()) {
-                    throw new RuntimeException("微信登录失败: 未获取到 openid");
-                }
-                sessionKey = root.path("session_key").asText(null);
-            } catch (RuntimeException e) {
-                throw e;
-            } catch (Exception e) {
-                throw new RuntimeException("微信登录请求失败: " + e.getMessage());
-            }
+        if (appid == null || appid.isEmpty() || secret == null || secret.isEmpty()) {
+            throw new RuntimeException("微信登录配置缺失：appid / secret 未配置");
+        }
+        if (code == null || code.isBlank()) {
+            throw new RuntimeException("微信登录失败：code 不能为空");
         }
 
-        // 查找或创建用户（新用户默认昵称"小圆"，头像为空）
+        // 真实微信登录：code2session 换 openid
+        String url = String.format(
+            "https://api.weixin.qq.com/sns/jscode2session?appid=%s&secret=%s&js_code=%s&grant_type=authorization_code",
+            appid, secret, code
+        );
+        String openid;
+        String sessionKey = null;
+        try {
+            String response = restTemplate.getForObject(url, String.class);
+            JsonNode root = objectMapper.readTree(response);
+            if (root.has("errcode") && root.get("errcode").asInt() != 0) {
+                throw new RuntimeException("微信登录失败: " + root.path("errmsg").asText());
+            }
+            openid = root.path("openid").asText();
+            if (openid == null || openid.isEmpty()) {
+                throw new RuntimeException("微信登录失败: 未获取到 openid");
+            }
+            sessionKey = root.path("session_key").asText(null);
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException("微信登录请求失败: " + e.getMessage());
+        }
+
+        // 查找或创建用户（新用户默认昵称"小圆"+4位随机码，头像为空）
         User user = userRepository.findByOpenid(openid).orElseGet(() -> {
             User u = new User();
             u.setOpenid(openid);
-            u.setNickname("小圆");
+            String suffix = java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 4);
+            u.setNickname("小圆" + suffix);
             return userRepository.save(u);
         });
 

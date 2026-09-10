@@ -7,7 +7,7 @@ import Icon from '@/components/common/Icon.vue'
 import { useManualTheme } from '@/composables/useManualTheme'
 import { navBack } from '@/composables/useNavBar'
 import { useUserStore } from '@/stores/user'
-import { ensureLogin, refreshUserInfo } from '@/utils/login'
+import { refreshUserInfo } from '@/utils/login'
 import { toast, toastError, toastSuccess } from '@/utils/toast'
 
 definePage({
@@ -28,7 +28,6 @@ const { isDark, followSystem, currentThemeColor, themeColorOptions, toggleTheme,
 const nickname = ref('')
 const avatarUpdating = ref(false)
 const nicknameSaving = ref(false)
-const loginLoading = ref(false)
 const logoutLoading = ref(false)
 
 const avatar = computed(() => userStore.userInfo?.avatarUrl || '/static/guozai/mood_01_happy.png')
@@ -40,24 +39,6 @@ onShow(async () => {
     await refreshUserInfo()
   nickname.value = userStore.userInfo?.nickname || ''
 })
-
-async function loginNow() {
-  if (loginLoading.value)
-    return
-  loginLoading.value = true
-  try {
-    await ensureLogin()
-    await refreshUserInfo()
-    nickname.value = userStore.userInfo?.nickname || ''
-    toastSuccess('微信身份已连接')
-  }
-  catch (error) {
-    toastError(error, '登录失败，请稍后重试')
-  }
-  finally {
-    loginLoading.value = false
-  }
-}
 
 async function updateAvatar(filePath: string) {
   if (!userStore.isLoggedIn) {
@@ -156,7 +137,8 @@ async function performLogout() {
   logoutLoading.value = true
   try {
     await apiLogout().catch(() => {}) // 后端登出失败不影响本地清除
-  } finally {
+  }
+  finally {
     userStore.logout()
     nickname.value = ''
     logoutLoading.value = false
@@ -192,7 +174,7 @@ async function performLogout() {
           </text>
         </view>
 
-        <view class="account-card">
+        <view v-if="userStore.isLoggedIn" class="account-card">
           <!-- #ifdef MP-WEIXIN -->
           <button class="avatar-button" open-type="chooseAvatar" :disabled="avatarUpdating" aria-label="更换头像" @chooseavatar="onChooseAvatar">
             <view class="account-avatar">
@@ -222,25 +204,31 @@ async function performLogout() {
 
           <view class="account-main">
             <view class="account-state">
-              <text class="account-state__dot" :class="{ 'is-online': userStore.isLoggedIn }" /><text>{{ userStore.isLoggedIn ? '微信身份已连接' : '当前未登录' }}</text>
+              <text class="account-state__dot is-online" /><text>微信身份已连接</text>
             </view>
-            <template v-if="userStore.isLoggedIn">
-              <text class="field-label">
-                昵称
-              </text>
-              <!-- #ifdef MP-WEIXIN -->
-              <input v-model="nickname" class="nickname-input" type="nickname" :maxlength="24" placeholder="给自己取个昵称" confirm-type="done" @confirm="saveNickname">
-              <!-- #endif -->
-              <!-- #ifndef MP-WEIXIN -->
-              <input v-model="nickname" class="nickname-input" type="text" :maxlength="24" placeholder="给自己取个昵称" confirm-type="done" @confirm="saveNickname">
-              <!-- #endif -->
-              <view class="nickname-save pressable" :class="{ 'is-disabled': nicknameSaving || !nickname.trim() || nickname.trim() === userStore.userInfo?.nickname }" role="button" aria-label="保存昵称" @click="saveNickname">
-                {{ nicknameSaving ? '保存中…' : '保存昵称' }}
-              </view>
-            </template>
-            <view v-else class="login-button pressable" :class="{ 'is-disabled': loginLoading }" role="button" aria-label="微信登录" @click="loginNow">
-              {{ loginLoading ? '连接中…' : '微信登录' }}
+            <text class="field-label">
+              昵称
+            </text>
+            <!-- #ifdef MP-WEIXIN -->
+            <input v-model="nickname" class="nickname-input" type="nickname" :maxlength="24" placeholder="给自己取个昵称" confirm-type="done" @confirm="saveNickname">
+            <!-- #endif -->
+            <!-- #ifndef MP-WEIXIN -->
+            <input v-model="nickname" class="nickname-input" type="text" :maxlength="24" placeholder="给自己取个昵称" confirm-type="done" @confirm="saveNickname">
+            <!-- #endif -->
+            <view class="nickname-save pressable" :class="{ 'is-disabled': nicknameSaving || !nickname.trim() || nickname.trim() === userStore.userInfo?.nickname }" role="button" aria-label="保存昵称" @click="saveNickname">
+              {{ nicknameSaving ? '保存中…' : '保存昵称' }}
             </view>
+          </view>
+        </view>
+        <view v-else class="account-card account-card--signed-out">
+          <image class="account-card__guozai" src="/static/guozai/action_08_peek.png" mode="aspectFit" />
+          <view>
+            <text class="account-card__title">
+              还没有连接微信身份
+            </text>
+            <text class="account-card__hint">
+              请回到“我的”页，点击顶部卡片登录。
+            </text>
           </view>
         </view>
       </view>
@@ -315,7 +303,12 @@ async function performLogout() {
 .account-state__dot.is-online { background: var(--mrc-mint); box-shadow: 0 0 0 6rpx rgba(40, 194, 160, .12); }
 .field-label { display: block; margin-top: 12rpx; color: var(--mrc-text-deep); font-size: 23rpx; font-weight: 700; }
 .nickname-input { height: 76rpx; border-bottom: 2rpx solid var(--mrc-border); color: var(--mrc-text-deep); font-size: 30rpx; font-weight: 700; }
-.nickname-save, .login-button { display: flex; min-height: 88rpx; align-items: center; justify-content: center; margin-top: 14rpx; border-radius: 44rpx; color: #fff; background: var(--mrc-primary-grad); font-size: 27rpx; font-weight: 700; }
+.nickname-save { display: flex; min-height: 88rpx; align-items: center; justify-content: center; margin-top: 14rpx; border-radius: 44rpx; color: #fff; background: var(--mrc-primary-grad); font-size: 27rpx; font-weight: 700; }
+.account-card--signed-out { min-height: 136rpx; align-items: center; }
+.account-card__guozai { width: 126rpx; height: 126rpx; flex: 0 0 auto; }
+.account-card__title, .account-card__hint { display: block; }
+.account-card__title { color: var(--mrc-text-strong); font-size: 28rpx; font-weight: 800; }
+.account-card__hint { margin-top: 10rpx; color: var(--mrc-text-sub); font-size: 23rpx; line-height: 1.5; }
 .theme-card { padding-top: 12rpx; }
 .theme-options { display: flex; flex-direction: column; }
 .theme-option { display: flex; min-height: 96rpx; align-items: center; gap: 16rpx; border-bottom: 2rpx solid var(--mrc-border-light); color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 700; }

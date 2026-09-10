@@ -100,6 +100,8 @@ public class CompanionMessageService {
         if (today) result.add("今天这顿已经被我收好了，晚些时候也别忘了喝水休息。 ");
         if (!"还在了解".equals(usualPeriod)) result.add("你常在" + usualPeriod + "来找我，这个饭点我会提前替你多想一步。 ");
         if (preference != null && Boolean.FALSE.equals(preference.getEatCilantro())) result.add("不放香菜这件事我一直记得，放心把今天这顿交给我。 ");
+        if (preference != null && "FITNESS".equals(preference.getHealthGoal())) result.add("练完别只吃沙拉，今天给自己留够优质蛋白、主食和蔬菜。 ");
+        if (preference != null && "LEAN".equals(preference.getHealthGoal())) result.add("轻盈吃饭不是挨饿，今天把蔬菜、优质蛋白和少油做法安排好。 ");
         result.add(switch (period) {
             case "早晨" -> "早饭不用复杂，热乎、顺口，就能给今天一个温柔的开始。 ";
             case "午间" -> "忙归忙，午饭还是要认真吃，锅仔帮你挑一道省心的。 ";
@@ -113,6 +115,8 @@ public class CompanionMessageService {
     private String insight(String usualPeriod, String favorite, String favoriteCuisine, int streak, UserFoodPreference preference, boolean newUser) {
         if (newUser) return "从第一顿开始认识你";
         if (streak >= 2) return "记得你已连续记录 " + streak + " 天";
+        if (preference != null && "FITNESS".equals(preference.getHealthGoal())) return "记得你想健身增肌";
+        if (preference != null && "LEAN".equals(preference.getHealthGoal())) return "记得你想轻盈减脂";
         if (!favoriteCuisine.isBlank()) return "记得你喜欢 " + favoriteCuisine;
         if (!favorite.isBlank()) return "记得你喜欢 " + favorite;
         if (preference != null && preference.isOnboardingCompleted()) return "你的口味和忌口都收好了";
@@ -123,7 +127,8 @@ public class CompanionMessageService {
     private String preferenceSummary(UserFoodPreference p) {
         if (p == null) return "未设置";
         return "标签" + safe(p.getFavoriteTags()) + "，菜系" + safe(p.getFavoriteCuisines())
-                + "，辣度" + safe(p.getSpiceLevel()) + "，葱" + p.getEatScallion() + "，香菜" + p.getEatCilantro();
+                + "，辣度" + safe(p.getSpiceLevel()) + "，健康目标" + safe(p.getHealthGoal())
+                + "，葱" + p.getEatScallion() + "，香菜" + p.getEatCilantro();
     }
 
     private int currentStreak(List<UserRecord> recent) {

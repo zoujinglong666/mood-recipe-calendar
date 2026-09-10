@@ -42,6 +42,9 @@ public class UserFoodPreference {
     @Column(name = "spice_level", length = 16)
     private String spiceLevel = "NORMAL";
 
+    @Column(name = "health_goal", length = 16)
+    private String healthGoal = "BALANCED";
+
     @Column(name = "onboarding_completed", nullable = false)
     private boolean onboardingCompleted;
 

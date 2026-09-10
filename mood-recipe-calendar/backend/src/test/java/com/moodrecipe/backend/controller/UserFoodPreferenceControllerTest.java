@@ -24,7 +24,7 @@ class UserFoodPreferenceControllerTest {
         when(preferences.save(any(UserFoodPreference.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         UserFoodPreference result = controller.save("user-1", new UserFoodPreferenceController.PreferenceRequest(
-                "家常菜", "川菜,湘菜", "番茄炒蛋", "", "", true, false, "NORMAL")).getData();
+                "家常菜", "川菜,湘菜", "番茄炒蛋", "", "", true, false, "NORMAL", "BALANCED")).getData();
 
         assertEquals("川菜,湘菜", result.getFavoriteCuisines());
     }

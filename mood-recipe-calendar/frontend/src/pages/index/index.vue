@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { computed, ref } from 'vue'
 import Icon from '../../components/common/Icon.vue'
 import { ensureLogin } from '../../utils/login'
@@ -113,7 +113,8 @@ async function loadData() {
       return day ? parseInt(day, 10) : 0
     }).filter(d => d > 0))
   } catch (e: any) {
-    toastError(e, '加载失败，请稍后重试')
+    if (e?.message !== 'NOT_LOGGED_IN')
+      toastError(e, '加载失败，请稍后重试')
   } finally { loading.value = false }
 }
 

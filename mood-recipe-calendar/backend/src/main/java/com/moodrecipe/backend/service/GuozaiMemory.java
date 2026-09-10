@@ -151,6 +151,9 @@ public class GuozaiMemory {
             if ("NONE".equals(snap.preference().getSpiceLevel())) {
                 points.add("完全不吃辣");
             }
+            String healthGoal = snap.preference().getHealthGoal();
+            if ("FITNESS".equals(healthGoal)) points.add("正在健身增肌");
+            if ("LEAN".equals(healthGoal)) points.add("想轻盈减脂");
         }
 
         // 心情-菜品关联

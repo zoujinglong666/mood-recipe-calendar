@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { SpiceLevel } from '../../api/preferences'
+import type { HealthGoal, SpiceLevel } from '../../api/preferences'
 import { computed, ref } from 'vue'
 import { navBack } from '@/composables/useNavBar'
 import { clearFoodPreference, fetchFoodPreference, saveFoodPreference } from '../../api/preferences'
@@ -22,6 +22,7 @@ const favoriteDishes = ref('')
 const eatScallion = ref<boolean | null>(null)
 const eatCilantro = ref<boolean | null>(null)
 const spiceLevel = ref<SpiceLevel>('NORMAL')
+const healthGoal = ref<HealthGoal>('BALANCED')
 const avoidIngredients = ref('')
 const allergens = ref('')
 
@@ -32,6 +33,11 @@ const SPICE_LEVELS: { value: SpiceLevel, label: string }[] = [
   { value: 'MILD', label: '微辣' },
   { value: 'NORMAL', label: '正常辣' },
   { value: 'HOT', label: '很能吃辣' },
+]
+const HEALTH_GOALS: { value: HealthGoal, label: string, hint: string }[] = [
+  { value: 'BALANCED', label: '保持均衡', hint: '一荤一素一主食，吃得完整就很好' },
+  { value: 'FITNESS', label: '健身增肌', hint: '优先优质蛋白、适量主食和蔬菜' },
+  { value: 'LEAN', label: '轻盈减脂', hint: '优先蔬菜、优质蛋白和少油做法' },
 ]
 const onboarding = computed(() => route.query.from === 'onboarding')
 
@@ -45,6 +51,7 @@ onLoad(async () => {
     eatScallion.value = data.eatScallion
     eatCilantro.value = data.eatCilantro
     spiceLevel.value = data.spiceLevel || 'NORMAL'
+    healthGoal.value = data.healthGoal || 'BALANCED'
     avoidIngredients.value = data.avoidIngredients || ''
     allergens.value = data.allergens || ''
   }
@@ -82,6 +89,7 @@ async function save() {
       eatScallion: eatScallion.value,
       eatCilantro: eatCilantro.value,
       spiceLevel: spiceLevel.value,
+      healthGoal: healthGoal.value,
     })
     uni.removeStorageSync('mrc_companion_message')
     uni.setStorageSync('mrc_preference_onboarded', '1')
@@ -110,6 +118,7 @@ async function skip() {
   eatScallion.value = null
   eatCilantro.value = null
   spiceLevel.value = 'NORMAL'
+  healthGoal.value = 'BALANCED'
   avoidIngredients.value = ''
   allergens.value = ''
   await save()
@@ -134,6 +143,7 @@ function clearMemory() {
         eatScallion.value = null
         eatCilantro.value = null
         spiceLevel.value = 'NORMAL'
+        healthGoal.value = 'BALANCED'
         avoidIngredients.value = ''
         allergens.value = ''
         toast('口味记忆已清除')
@@ -269,6 +279,32 @@ function clearMemory() {
         </view>
       </view>
 
+      <view class="memory-section memory-section--health">
+        <text class="memory-section__title">
+          这阵子想怎么吃？
+        </text>
+        <text class="memory-section__hint">
+          锅仔会把它当作推荐倾向，不替代健康建议。
+        </text>
+        <view class="health-goals">
+          <view
+            v-for="goal in HEALTH_GOALS"
+            :key="goal.value"
+            class="health-goal"
+            :class="{ 'health-goal--selected': healthGoal === goal.value }"
+            role="radio"
+            :aria-checked="healthGoal === goal.value"
+            @click="healthGoal = goal.value"
+          >
+            <view class="health-goal__copy">
+              <text class="health-goal__label">{{ goal.label }}</text>
+              <text class="health-goal__hint">{{ goal.hint }}</text>
+            </view>
+            <text class="health-goal__check">{{ healthGoal === goal.value ? '✓' : '' }}</text>
+          </view>
+        </view>
+      </view>
+
       <view class="memory-section">
         <text class="memory-section__title">
           还有什么不吃？
@@ -327,6 +363,14 @@ function clearMemory() {
 .choice-chip--cuisine { gap: 8rpx; }
 .choice-chip__mark { width: 10rpx; height: 10rpx; flex-shrink: 0; border-radius: 50%; background: var(--mrc-primary); }
 .choice-chip:active, .binary-button:active { transform: scale(.96); }
+.memory-section--health { border-color: var(--mrc-border); background: linear-gradient(145deg, var(--mrc-surface), var(--mrc-surface-peach)); }
+.health-goals { display: flex; flex-direction: column; gap: 14rpx; margin-top: 22rpx; }
+.health-goal { display: flex; min-height: 104rpx; align-items: center; gap: 18rpx; padding: 18rpx 20rpx; box-sizing: border-box; border: 2rpx solid var(--mrc-border-light); border-radius: 22rpx; background: var(--mrc-surface); }
+.health-goal--selected { border-color: var(--mrc-primary); background: var(--mrc-surface-sun); }
+.health-goal__copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 6rpx; }
+.health-goal__label { color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 800; }
+.health-goal__hint { color: var(--mrc-text-sub); font-size: 22rpx; line-height: 1.45; }
+.health-goal__check { display: flex; width: 34rpx; height: 34rpx; flex: 0 0 34rpx; align-items: center; justify-content: center; border-radius: 50%; color: #fff; background: var(--mrc-primary); font-size: 22rpx; font-weight: 800; }
 .binary-row { min-height: 96rpx; display: flex; align-items: center; justify-content: space-between; gap: 20rpx; border-bottom: 2rpx solid var(--mrc-border-light); }
 .binary-row:last-child { border-bottom: 0; }
 .binary-row__label { color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 700; }

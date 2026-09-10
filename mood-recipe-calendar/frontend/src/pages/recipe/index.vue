@@ -50,11 +50,14 @@ const purchasingSku = ref('')
 const aiProducts = ref<VirtualProduct[]>([])
 const feedbackLoading = ref<RecipeFeedbackAction | ''>('')
 const liked = ref(false)
+type ShareStyle = 'classic' | 'guozai'
 const showShareSheet = ref(false)
 const shareCardLoading = ref(false)
-const shareCardPath = ref('')
+const shareCardPaths = ref<Partial<Record<ShareStyle, string>>>({})
 const shareCardError = ref('')
 const shareCardSaved = ref(false)
+const shareStyle = ref<ShareStyle>('classic')
+const selectedShareCardPath = computed(() => shareCardPaths.value[shareStyle.value] || '')
 const POLL_INTERVAL = 900
 const POLL_TIMEOUT = 90_000
 const MAX_POLL_FAILURES = 3
@@ -114,9 +117,10 @@ async function loadRecipe() {
   showToolTrace.value = false
   imageFailed.value = false
   showSteps.value = false
-  shareCardPath.value = ''
+  shareCardPaths.value = {}
   shareCardError.value = ''
   shareCardSaved.value = false
+  shareStyle.value = 'classic'
   clearPollTimer()
   const run = ++pollRun
   try {
@@ -279,29 +283,49 @@ function openShareSheet() {
     return
   }
   showShareSheet.value = true
+  shareCardPaths.value = {}
+  shareCardError.value = ''
+  shareCardSaved.value = false
+  shareStyle.value = 'classic'
+  void generateShareCards()
 }
 
-async function generateShareCard() {
+async function generateShareCards() {
   if (!recipe.value || shareCardLoading.value)
     return
   shareCardLoading.value = true
   shareCardError.value = ''
   shareCardSaved.value = false
+  shareCardPaths.value = {}
   try {
     await nextTick()
-    shareCardPath.value = await exportRecipeShare({
-      name: recipe.value.name,
-      mood: mood.value,
-      reason: healingText.value,
-      cookingTime: recipe.value.cookingTime,
-      difficulty: recipe.value.difficulty,
-      ingredients: ingredients.value,
-      image: recipe.value.image,
-      guozaiPath: '/static/guozai/action_16_chopsticks.png',
-    })
+    const cards: Partial<Record<ShareStyle, string>> = {}
+    const failed: ShareStyle[] = []
+    for (const style of ['classic', 'guozai'] as const) {
+      try {
+        cards[style] = await exportRecipeShare({
+          name: recipe.value.name,
+          mood: mood.value,
+          reason: healingText.value,
+          cookingTime: recipe.value.cookingTime,
+          difficulty: recipe.value.difficulty,
+          ingredients: ingredients.value,
+          image: recipe.value.image,
+          guozaiPath: '/static/guozai/action_16_chopsticks.png',
+          style,
+        })
+      }
+      catch {
+        failed.push(style)
+      }
+    }
+    shareCardPaths.value = cards
+    if (!cards[shareStyle.value])
+      shareStyle.value = cards.classic ? 'classic' : 'guozai'
+    if (failed.length)
+      shareCardError.value = failed.length === 2 ? '食谱卡生成失败，请重试' : '有一张食谱卡没生成好，可重试一次'
   }
-  catch (e: any) {
-    shareCardPath.value = ''
+  catch (e: unknown) {
     shareCardError.value = readableError(e, '食谱卡生成失败，请重试')
   }
   finally {
@@ -309,17 +333,24 @@ async function generateShareCard() {
   }
 }
 
+function selectShareStyle(style: ShareStyle) {
+  if (shareCardLoading.value || !shareCardPaths.value[style])
+    return
+  shareStyle.value = style
+  shareCardSaved.value = false
+}
+
 async function saveRecipeCard() {
   if (!recipe.value || shareCardLoading.value)
     return
-  if (!shareCardPath.value)
-    await generateShareCard()
-  if (!shareCardPath.value)
+  if (!selectedShareCardPath.value)
+    await generateShareCards()
+  if (!selectedShareCardPath.value)
     return
   shareCardLoading.value = true
   shareCardError.value = ''
   try {
-    await saveShareImage(shareCardPath.value, `${recipe.value.name}-锅仔食谱卡.png`)
+    await saveShareImage(selectedShareCardPath.value, `${recipe.value.name}-${shareStyle.value === 'guozai' ? '锅仔手账' : '今日食谱'}.png`)
     shareCardSaved.value = true
     toastSuccess('食谱卡已保存')
   }
@@ -372,7 +403,7 @@ async function requestPersonalMenu() {
     imageFailed.value = false
     showAiPanel.value = false
     showSteps.value = false
-    shareCardPath.value = ''
+    shareCardPaths.value = {}
     shareCardError.value = ''
     shareCardSaved.value = false
     toastSuccess('锅仔为你做好专属菜单啦')
@@ -635,35 +666,37 @@ async function waitForDelivery(orderNo: string) {
               <text class="share-sheet__title">
                 把这顿饭分享出去
               </text>
-              <text class="share-sheet__subtitle">
-                菜品是主角，锅仔把推荐理由写在卡片里。
-              </text>
+              <text class="share-sheet__subtitle">{{ shareCardLoading ? '锅仔正在一次生成两张卡…' : '两种风格都在这里，选一张保存就行。' }}</text>
             </view>
             <view class="share-sheet__close pressable" role="button" aria-label="关闭分享面板" @click="showShareSheet = false">
               ×
             </view>
           </view>
 
-          <view v-if="shareCardPath" class="share-preview">
-            <image class="share-preview__image" :src="shareCardPath" mode="widthFix" aria-label="已生成的锅仔食谱卡预览" />
-            <text class="share-preview__hint">
-              食谱卡已生成，可以保存或重新生成。
-            </text>
-          </view>
-          <view v-else class="share-preview share-preview--empty">
-            <image src="/static/guozai/action_16_chopsticks.png" mode="aspectFit" />
-            <text>{{ shareCardLoading ? '锅仔正在排版这顿饭…' : '把今日推荐做成一张好看的食谱卡' }}</text>
+          <view class="share-card-grid" aria-label="选择要保存的食谱卡">
+            <view class="share-card-option pressable" :class="{ 'is-selected': shareStyle === 'classic', 'is-loading': shareCardLoading }" role="button" @click="selectShareStyle('classic')">
+              <image v-if="shareCardPaths.classic" class="share-card-option__image" :src="shareCardPaths.classic" mode="widthFix" aria-label="今日食谱卡" />
+              <view v-else class="share-card-option__placeholder"><text>{{ shareCardLoading ? '生成中' : '生成失败' }}</text></view>
+              <text class="share-card-option__title">今日食谱</text>
+              <text class="share-card-option__desc">菜品是主角</text>
+            </view>
+            <view class="share-card-option pressable" :class="{ 'is-selected': shareStyle === 'guozai', 'is-loading': shareCardLoading }" role="button" @click="selectShareStyle('guozai')">
+              <image v-if="shareCardPaths.guozai" class="share-card-option__image" :src="shareCardPaths.guozai" mode="widthFix" aria-label="锅仔手账食谱卡" />
+              <view v-else class="share-card-option__placeholder"><image src="/static/guozai/action_16_chopsticks.png" mode="aspectFit" /><text>{{ shareCardLoading ? '生成中' : '生成失败' }}</text></view>
+              <text class="share-card-option__title">锅仔手账</text>
+              <text class="share-card-option__desc">锅仔陪你吃饭</text>
+            </view>
           </view>
 
           <text v-if="shareCardError" class="share-sheet__error">
             {{ shareCardError }}
           </text>
           <view class="share-sheet__actions">
-            <view class="share-sheet__action share-sheet__action--secondary pressable" :class="{ 'is-disabled': shareCardLoading }" role="button" @click="generateShareCard">
-              {{ shareCardLoading ? '生成中…' : shareCardPath ? '重新生成' : '生成食谱卡' }}
+            <view class="share-sheet__action share-sheet__action--secondary pressable" :class="{ 'is-disabled': shareCardLoading }" role="button" @click="generateShareCards">
+              {{ shareCardLoading ? '生成两张卡…' : '重新生成两张' }}
             </view>
-            <view class="share-sheet__action share-sheet__action--primary pressable" :class="{ 'is-disabled': shareCardLoading }" role="button" @click="saveRecipeCard">
-              {{ shareCardLoading ? '请稍候…' : shareCardSaved ? '已保存' : '保存 PNG' }}
+            <view class="share-sheet__action share-sheet__action--primary pressable" :class="{ 'is-disabled': shareCardLoading || !selectedShareCardPath }" role="button" @click="saveRecipeCard">
+              {{ shareCardLoading ? '请稍候…' : shareCardSaved ? '已保存' : '保存选中卡片' }}
             </view>
           </view>
           <view class="share-sheet__link pressable" role="button" @click="shareRecipeLink">
@@ -832,11 +865,16 @@ async function waitForDelivery(orderNo: string) {
 .share-sheet__title { display: block; margin-top: 8rpx; color: var(--mrc-text-strong); font-size: 38rpx; font-weight: 800; line-height: 1.3; }
 .share-sheet__subtitle { display: block; margin-top: 10rpx; color: var(--mrc-text-sub); font-size: 23rpx; line-height: 1.5; }
 .share-sheet__close { display: flex; align-items: center; justify-content: center; width: 88rpx; height: 88rpx; flex-shrink: 0; border-radius: 50%; color: var(--mrc-text-sub); background: var(--mrc-surface-2); font-size: 48rpx; line-height: 1; }
-.share-preview { display: flex; flex-direction: column; align-items: center; gap: 14rpx; max-height: 48vh; margin-top: 24rpx; padding: 18rpx; overflow: auto; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; background: var(--mrc-surface-2); }
-.share-preview__image { width: min(420rpx, 68vw); border-radius: 18rpx; box-shadow: var(--mrc-shadow-lift); }
-.share-preview__hint { color: var(--mrc-text-sub); font-size: 22rpx; }
-.share-preview--empty { justify-content: center; min-height: 250rpx; color: var(--mrc-text-sub); font-size: 25rpx; text-align: center; }
-.share-preview--empty image { width: 180rpx; height: 150rpx; }
+.share-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx; margin-top: 22rpx; }
+.share-card-option { min-width: 0; padding: 10rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 24rpx; background: var(--mrc-surface-2); }
+.share-card-option.is-selected { border-color: var(--mrc-accent); background: var(--mrc-surface-peach); box-shadow: inset 0 0 0 2rpx rgba(239, 90, 60, .1); }
+.share-card-option.is-loading { opacity: .72; }
+.share-card-option__image, .share-card-option__placeholder { display: flex; width: 100%; min-height: 300rpx; border-radius: 16rpx; background: #F9EBDD; }
+.share-card-option__image { box-shadow: var(--mrc-shadow-sm); }
+.share-card-option__placeholder { align-items: center; justify-content: center; flex-direction: column; gap: 10rpx; color: var(--mrc-text-sub); font-size: 22rpx; }
+.share-card-option__placeholder image { width: 112rpx; height: 112rpx; }
+.share-card-option__title { display: block; margin-top: 14rpx; color: var(--mrc-text-deep); font-size: 25rpx; font-weight: 800; }
+.share-card-option__desc { display: block; margin-top: 4rpx; color: var(--mrc-text-sub); font-size: 20rpx; }
 .share-sheet__error { display: block; margin: 16rpx 4rpx 0; color: var(--mrc-accent); font-size: 23rpx; line-height: 1.5; }
 .share-sheet__actions { display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx; margin-top: 22rpx; }
 .share-sheet__action { display: flex; align-items: center; justify-content: center; min-height: 92rpx; border-radius: 46rpx; font-size: 27rpx; font-weight: 800; }

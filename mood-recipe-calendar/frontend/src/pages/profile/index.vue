@@ -6,7 +6,7 @@ import { fetchRecords, fetchStats } from '../../api/records'
 import Icon from '../../components/common/Icon.vue'
 import { useUserStore } from '../../stores/user'
 import { ensureLogin, refreshUserInfo } from '../../utils/login'
-import { toastError } from '../../utils/toast'
+import { toastError, toastSuccess } from '../../utils/toast'
 
 definePage({
   name: 'profile',
@@ -23,6 +23,7 @@ const userStore = useUserStore()
 const nav = useNavBar()
 
 const loading = ref(true)
+const loginLoading = ref(false)
 const stats = ref({ totalRecords: 0, totalDays: 0, currentStreak: 0, topDishes: [] as { name: string, count: number }[] })
 const history = ref<RecordItem[]>([])
 
@@ -39,8 +40,15 @@ const MOOD_IMG_MAP: Record<string, string> = {
 
 async function loadData() {
   loading.value = true
+  userStore.restoreFromStorage()
+  if (!userStore.isLoggedIn) {
+    stats.value = { totalRecords: 0, totalDays: 0, currentStreak: 0, topDishes: [] }
+    history.value = []
+    loading.value = false
+    return
+  }
   try {
-    const openid = await ensureLogin()
+    const openid = userStore.openid
     await refreshUserInfo()
     const [statsData, records] = await Promise.all([
       fetchStats(openid),
@@ -50,7 +58,8 @@ async function loadData() {
     history.value = records.slice(0, 10)
   }
   catch (e: any) {
-    // 我的页登录/加载失败不展示缺省图，仅 toast 轻提示
+    stats.value = { totalRecords: 0, totalDays: 0, currentStreak: 0, topDishes: [] }
+    history.value = []
     toastError(e, '加载失败，请稍后重试')
   }
   finally {
@@ -61,6 +70,28 @@ async function loadData() {
 onShow(() => {
   loadData()
 })
+
+async function handleIdentityCard() {
+  if (userStore.isLoggedIn) {
+    goSettings()
+    return
+  }
+  if (loginLoading.value)
+    return
+  loginLoading.value = true
+  try {
+    userStore.clearLogoutFlag()
+    await ensureLogin()
+    await loadData()
+    toastSuccess('微信身份已连接')
+  }
+  catch (error) {
+    toastError(error, '登录失败，请稍后重试')
+  }
+  finally {
+    loginLoading.value = false
+  }
+}
 
 function goReport() {
   router.push({ name: 'report' })
@@ -102,37 +133,37 @@ function goFeedback() {
       </view>
     </view>
 
-    <view class="profile-identity" role="button" aria-label="打开设置修改个人资料" @click="goSettings">
+    <view class="profile-identity" role="button" :aria-label="userStore.isLoggedIn ? '打开设置修改个人资料' : '微信登录'" @click="handleIdentityCard">
       <view class="profile-identity__glow profile-identity__glow--one" />
       <view class="profile-identity__glow profile-identity__glow--two" />
-      <image class="profile-identity__companion" src="/static/guozai/action_08_peek.png" mode="aspectFit" />
+      <image class="profile-identity__companion" :src="userStore.isLoggedIn ? '/static/guozai/action_08_peek.png' : '/static/guozai/action_09_celebrate.png'" mode="aspectFit" />
 
       <view class="profile-identity__main">
         <view class="profile-avatar" :class="{ 'profile-avatar--logged': userStore.userInfo?.avatarUrl }">
           <image
             class="profile-avatar__img"
-            :src="userStore.userInfo?.avatarUrl || '/static/guozai/mood_01_happy.png'"
+            :src="userStore.isLoggedIn ? userStore.userInfo?.avatarUrl || '/static/guozai/mood_01_happy.png' : '/static/guozai/action_09_celebrate.png'"
             :mode="userStore.userInfo?.avatarUrl ? 'aspectFill' : 'aspectFit'"
           />
-          <view class="profile-avatar__edit">
+          <view v-if="userStore.isLoggedIn" class="profile-avatar__edit">
             <Icon name="gear" :size="26" color="#EF5A3C" />
           </view>
         </view>
 
         <view class="profile-userinfo">
           <text class="profile-userinfo__eyebrow">
-            锅仔的小饭友
+            {{ userStore.isLoggedIn ? '锅仔的小饭友' : '锅仔在这里等你' }}
           </text>
           <view class="profile-name-wrap">
             <text class="profile-name">
-              {{ userStore.userInfo?.nickname || '给自己取个昵称' }}
+              {{ userStore.isLoggedIn ? userStore.userInfo?.nickname || '给自己取个昵称' : '微信登录' }}
             </text>
             <text class="profile-name__arrow">
-              ›
+              {{ userStore.isLoggedIn ? '›' : loginLoading ? '…' : '›' }}
             </text>
           </view>
           <text class="profile-login-hint">
-            点击进入设置，修改头像和昵称
+            {{ userStore.isLoggedIn ? '点击进入设置，修改头像和昵称' : loginLoading ? '正在连接微信身份…' : '登录后让锅仔慢慢记住你的口味' }}
           </text>
         </view>
       </view>
@@ -140,7 +171,7 @@ function goFeedback() {
       <view class="profile-identity__footer">
         <view class="profile-login-state">
           <view class="profile-login-state__dot" :class="{ 'profile-login-state__dot--online': userStore.isLoggedIn }" />
-          <text>{{ userStore.isLoggedIn ? '微信身份已连接' : '正在连接微信身份…' }}</text>
+          <text>{{ userStore.isLoggedIn ? '微信身份已连接' : '点击即可微信登录' }}</text>
         </view>
         <text class="profile-identity__promise">
           今天也要好好吃饭
