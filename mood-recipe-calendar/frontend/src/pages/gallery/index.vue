@@ -307,7 +307,7 @@ const orderTypeText: Record<string, string> = {}
           {{ buyType === 'exchange' && !checkin.exchangeReady ? '签到满30天可兑换' : '周边筹备中，先预约关注' }}
         </view>
         <view class="buy-pop__close" @click="showBuy = false">
-          <Icon name="back" :size="32" color="var(--mrc-text-sub)" />
+          <Icon name="back" :size="32" color="#A1826A" />
         </view>
       </view>
     </view>

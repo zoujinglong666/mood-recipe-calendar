@@ -16,12 +16,14 @@ public class WeeklyMealPlanService {
     private final WeeklyMealPlanRepository plans;
     private final RecipeRepository recipes;
     private final AgnesRecipeImageService images;
+    private final WechatSubscriptionMessageService subscriptions;
     private final ObjectMapper json;
 
-    public WeeklyMealPlanService(WeeklyMealPlanRepository plans, RecipeRepository recipes, AgnesRecipeImageService images, ObjectMapper json) {
+    public WeeklyMealPlanService(WeeklyMealPlanRepository plans, RecipeRepository recipes, AgnesRecipeImageService images, WechatSubscriptionMessageService subscriptions, ObjectMapper json) {
         this.plans = plans;
         this.recipes = recipes;
         this.images = images;
+        this.subscriptions = subscriptions;
         this.json = json;
     }
 
@@ -36,7 +38,9 @@ public class WeeklyMealPlanService {
         plan.setOpenid(openid);
         plan.setPlanJson(write(result));
         plan.setShoppingJson(write(merge(result, List.of())));
-        return view(plans.save(plan));
+        PlanView view = view(plans.save(plan));
+        if (request.notify()) subscriptions.sendWeeklyPlanCompleted(openid, view.id());
+        return view;
     }
 
     public Optional<PlanView> current(String openid) {
@@ -141,7 +145,7 @@ public class WeeklyMealPlanService {
     private PlanView view(WeeklyMealPlan plan) { return new PlanView(plan.getId(), readDays(plan.getPlanJson()), readShopping(plan.getShoppingJson()), plan.isFavorite(), plan.getCreatedAt()); }
     private PlanSummary summary(WeeklyMealPlan plan) { return new PlanSummary(plan.getId(), plan.getCreatedAt(), plan.isFavorite(), readDays(plan.getPlanJson())); }
 
-    public record GenerateRequest(int people, int days, String healthGoal) {}
+    public record GenerateRequest(int people, int days, String healthGoal, boolean notify) {}
     public record PlanView(Long id, List<PlanDay> days, List<ShoppingItem> shopping, boolean favorite, LocalDateTime createdAt) {}
     public record PlanSummary(Long id, LocalDateTime createdAt, boolean favorite, List<PlanDay> days) {}
     public record PlanDay(String day, String dishName, List<String> ingredients, List<String> steps, String reuseHint, String healthTip, String imageUrl, String fallbackImageUrl) {

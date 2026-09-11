@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { WeeklyPlan, WeeklyPlanSummary } from '@/api/weeklyPlans'
 import { ref } from 'vue'
-import { generateWeeklyPlan, getCurrentPlan, getWeeklyPlanHistory, toggleWeeklyPlanFavorite } from '@/api/weeklyPlans'
+import { generateWeeklyPlan, getCurrentPlan, getWeeklyPlanHistory, requestWeeklyPlanCompletionNotice, toggleWeeklyPlanFavorite } from '@/api/weeklyPlans'
 import { navBack } from '@/composables/useNavBar'
 import { toastError } from '@/utils/toast'
 
@@ -44,7 +44,8 @@ async function generate() {
     return
   generating.value = true
   try {
-    const plan = await generateWeeklyPlan({ people: people.value, days: 7, healthGoal: healthGoal.value })
+    const notify = await requestWeeklyPlanCompletionNotice()
+    const plan = await generateWeeklyPlan({ people: people.value, days: 7, healthGoal: healthGoal.value, notify })
     router.replace({ name: 'weekly-plan-detail', query: { id: String(plan.id) } })
   }
   catch (error) {

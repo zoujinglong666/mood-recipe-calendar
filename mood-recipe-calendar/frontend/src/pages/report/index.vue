@@ -135,7 +135,7 @@ function share() {
     <wd-navbar title="年度报告" left-arrow safe-area-inset-top @click-left="navBack"  custom-style="background-color: transparent !important;" />
 
     <view class="report__share" @click="share">
-      <Icon name="share" :size="36" color="var(--mrc-text)" />
+      <Icon name="share" :size="36" color="#6A4A37" />
     </view>
 
     <!-- Loading -->

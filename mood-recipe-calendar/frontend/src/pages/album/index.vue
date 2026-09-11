@@ -157,7 +157,7 @@ const aiLines = computed(() => {
     <wd-navbar title="月度画册" left-arrow safe-area-inset-top @click-left="navBack"  custom-style="background-color: transparent !important;" />
 
     <view class="album-page__share" @click="onShare">
-      <Icon name="share" :size="36" color="var(--mrc-text)" />
+      <Icon name="share" :size="36" color="#6A4A37" />
     </view>
 
     <LoadingState v-if="loading" text="锅仔正在装订画册..." />

@@ -125,7 +125,7 @@ function goRecordFromEmpty() {
       <!-- 统计条 -->
       <view class="cal-stat">
         <view><text class="cal-stat__eyebrow">本月食光</text><text class="cal-stat__text">已记录 {{ stats.totalDays }} 天 · 连续 {{ stats.currentStreak }} 天</text></view>
-        <view class="cal-stat__icon"><Icon name="flame" :size="38" color="var(--mrc-accent)" /></view>
+        <view class="cal-stat__icon"><Icon name="flame" :size="38" color="#EF5A3C" /></view>
       </view>
 
       <!-- 日历 -->

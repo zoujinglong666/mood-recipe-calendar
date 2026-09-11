@@ -14,8 +14,31 @@ export function getWeeklyPlan(id: number) {
 export function getWeeklyPlanHistory() {
   return get<WeeklyPlanSummary[]>('/weekly-plans/history')
 }
-export function generateWeeklyPlan(data: { people: number, days: number, healthGoal: string }) {
+export function generateWeeklyPlan(data: { people: number, days: number, healthGoal: string, notify: boolean }) {
   return post<WeeklyPlan>('/weekly-plans/generate', data)
+}
+
+const WEEKLY_PLAN_TEMPLATE_ID = 'h00FlM2Xf_X64sXln5WoYGnbvtJBjasdEraRPjs4NOg'
+
+/** 只在用户点击生成按钮时调用；非微信端和拒绝授权均不影响生成计划。 */
+export function requestWeeklyPlanCompletionNotice(): Promise<boolean> {
+  return new Promise((resolve) => {
+    // #ifdef MP-WEIXIN
+    const requestSubscribeMessage = (uni as any).requestSubscribeMessage
+    if (typeof requestSubscribeMessage !== 'function') {
+      resolve(false)
+      return
+    }
+    requestSubscribeMessage({
+      tmplIds: [WEEKLY_PLAN_TEMPLATE_ID],
+      success: (result: Record<string, string>) => resolve(['accept', 'acceptWithAudio'].includes(result[WEEKLY_PLAN_TEMPLATE_ID])),
+      fail: () => resolve(false),
+    })
+    // #endif
+    // #ifndef MP-WEIXIN
+    resolve(false)
+    // #endif
+  })
 }
 export function replacePlanDay(id: number, index: number) {
   return post<WeeklyPlan>(`/weekly-plans/${id}/days/${index}/replace`)

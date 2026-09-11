@@ -700,7 +700,7 @@ async function waitForDelivery(orderNo: string) {
             </view>
           </view>
           <view class="share-sheet__link pressable" role="button" @click="shareRecipeLink">
-            <Icon name="share" :size="30" color="var(--mrc-accent)" /><text>分享菜谱链接给朋友</text>
+            <Icon name="share" :size="30" color="#EF5A3C" /><text>分享菜谱链接给朋友</text>
           </view>
         </view>
       </view>
