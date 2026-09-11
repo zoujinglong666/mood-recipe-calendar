@@ -78,6 +78,7 @@ declare global {
   const fetchVirtualOrders: typeof import('./api/virtualCommerce')['fetchVirtualOrders']
   const fetchVirtualProducts: typeof import('./api/virtualCommerce')['fetchVirtualProducts']
   const fetchYearStats: typeof import('./api/records')['fetchYearStats']
+  const generatePlanDayCover: typeof import('./api/weeklyPlans')['generatePlanDayCover']
   const generateWeeklyPlan: typeof import('./api/weeklyPlans')['generateWeeklyPlan']
   const get: typeof import('./api/request')['get']
   const getActivePinia: typeof import('pinia')['getActivePinia']
@@ -88,6 +89,8 @@ declare global {
   const getSystemTheme: typeof import('./utils/systemTheme')['getSystemTheme']
   const getUserInfo: typeof import('./api/auth')['getUserInfo']
   const getVirtualPaymentParams: typeof import('./api/virtualCommerce')['getVirtualPaymentParams']
+  const getWeeklyPlan: typeof import('./api/weeklyPlans')['getWeeklyPlan']
+  const getWeeklyPlanHistory: typeof import('./api/weeklyPlans')['getWeeklyPlanHistory']
   const h: typeof import('vue')['h']
   const hideLoading: typeof import('./utils/toast')['hideLoading']
   const ignorableWatch: typeof import('@vueuse/core')['ignorableWatch']
@@ -177,6 +180,7 @@ declare global {
   const replacePlanDay: typeof import('./api/weeklyPlans')['replacePlanDay']
   const requestDeepRecipe: typeof import('./api/recipes')['requestDeepRecipe']
   const requestWechatVirtualPayment: typeof import('./api/virtualCommerce')['requestWechatVirtualPayment']
+  const requestWeeklyPlanCompletionNotice: typeof import('./api/weeklyPlans')['requestWeeklyPlanCompletionNotice']
   const resolveAssetUrl: typeof import('./api/request')['resolveAssetUrl']
   const resolveComponent: typeof import('vue')['resolveComponent']
   const resolveRef: typeof import('@vueuse/core')['resolveRef']
@@ -209,6 +213,7 @@ declare global {
   const toastError: typeof import('./utils/toast')['toastError']
   const toastSuccess: typeof import('./utils/toast')['toastSuccess']
   const toggleShoppingItem: typeof import('./api/weeklyPlans')['toggleShoppingItem']
+  const toggleWeeklyPlanFavorite: typeof import('./api/weeklyPlans')['toggleWeeklyPlanFavorite']
   const triggerRef: typeof import('vue')['triggerRef']
   const tryOnBeforeMount: typeof import('@vueuse/core')['tryOnBeforeMount']
   const tryOnBeforeUnmount: typeof import('@vueuse/core')['tryOnBeforeUnmount']
@@ -491,6 +496,7 @@ declare module 'vue' {
     readonly fetchVirtualOrders: UnwrapRef<typeof import('./api/virtualCommerce')['fetchVirtualOrders']>
     readonly fetchVirtualProducts: UnwrapRef<typeof import('./api/virtualCommerce')['fetchVirtualProducts']>
     readonly fetchYearStats: UnwrapRef<typeof import('./api/records')['fetchYearStats']>
+    readonly generatePlanDayCover: UnwrapRef<typeof import('./api/weeklyPlans')['generatePlanDayCover']>
     readonly generateWeeklyPlan: UnwrapRef<typeof import('./api/weeklyPlans')['generateWeeklyPlan']>
     readonly get: UnwrapRef<typeof import('./api/request')['get']>
     readonly getActivePinia: UnwrapRef<typeof import('pinia')['getActivePinia']>
@@ -501,6 +507,8 @@ declare module 'vue' {
     readonly getSystemTheme: UnwrapRef<typeof import('./utils/systemTheme')['getSystemTheme']>
     readonly getUserInfo: UnwrapRef<typeof import('./api/auth')['getUserInfo']>
     readonly getVirtualPaymentParams: UnwrapRef<typeof import('./api/virtualCommerce')['getVirtualPaymentParams']>
+    readonly getWeeklyPlan: UnwrapRef<typeof import('./api/weeklyPlans')['getWeeklyPlan']>
+    readonly getWeeklyPlanHistory: UnwrapRef<typeof import('./api/weeklyPlans')['getWeeklyPlanHistory']>
     readonly h: UnwrapRef<typeof import('vue')['h']>
     readonly hideLoading: UnwrapRef<typeof import('./utils/toast')['hideLoading']>
     readonly ignorableWatch: UnwrapRef<typeof import('@vueuse/core')['ignorableWatch']>
@@ -589,6 +597,7 @@ declare module 'vue' {
     readonly replacePlanDay: UnwrapRef<typeof import('./api/weeklyPlans')['replacePlanDay']>
     readonly requestDeepRecipe: UnwrapRef<typeof import('./api/recipes')['requestDeepRecipe']>
     readonly requestWechatVirtualPayment: UnwrapRef<typeof import('./api/virtualCommerce')['requestWechatVirtualPayment']>
+    readonly requestWeeklyPlanCompletionNotice: UnwrapRef<typeof import('./api/weeklyPlans')['requestWeeklyPlanCompletionNotice']>
     readonly resolveAssetUrl: UnwrapRef<typeof import('./api/request')['resolveAssetUrl']>
     readonly resolveComponent: UnwrapRef<typeof import('vue')['resolveComponent']>
     readonly resolveRef: UnwrapRef<typeof import('@vueuse/core')['resolveRef']>
@@ -621,6 +630,7 @@ declare module 'vue' {
     readonly toastError: UnwrapRef<typeof import('./utils/toast')['toastError']>
     readonly toastSuccess: UnwrapRef<typeof import('./utils/toast')['toastSuccess']>
     readonly toggleShoppingItem: UnwrapRef<typeof import('./api/weeklyPlans')['toggleShoppingItem']>
+    readonly toggleWeeklyPlanFavorite: UnwrapRef<typeof import('./api/weeklyPlans')['toggleWeeklyPlanFavorite']>
     readonly triggerRef: UnwrapRef<typeof import('vue')['triggerRef']>
     readonly tryOnBeforeMount: UnwrapRef<typeof import('@vueuse/core')['tryOnBeforeMount']>
     readonly tryOnBeforeUnmount: UnwrapRef<typeof import('@vueuse/core')['tryOnBeforeUnmount']>

@@ -5,8 +5,8 @@ import { useNavBar } from '@/composables/useNavBar'
 import { fetchRecords, fetchStats } from '../../api/records'
 import Icon from '../../components/common/Icon.vue'
 import { useUserStore } from '../../stores/user'
-import { ensureLogin, refreshUserInfo } from '../../utils/login'
-import { toastError, toastSuccess } from '../../utils/toast'
+import { refreshUserInfo } from '../../utils/login'
+import { toastError } from '../../utils/toast'
 
 definePage({
   name: 'profile',
@@ -23,7 +23,6 @@ const userStore = useUserStore()
 const nav = useNavBar()
 
 const loading = ref(true)
-const loginLoading = ref(false)
 const stats = ref({ totalRecords: 0, totalDays: 0, currentStreak: 0, topDishes: [] as { name: string, count: number }[] })
 const history = ref<RecordItem[]>([])
 
@@ -76,21 +75,7 @@ async function handleIdentityCard() {
     goSettings()
     return
   }
-  if (loginLoading.value)
-    return
-  loginLoading.value = true
-  try {
-    userStore.clearLogoutFlag()
-    await ensureLogin()
-    await loadData()
-    toastSuccess('微信身份已连接')
-  }
-  catch (error) {
-    toastError(error, '登录失败，请稍后重试')
-  }
-  finally {
-    loginLoading.value = false
-  }
+  router.push({ name: 'login' })
 }
 
 function goReport() {
@@ -162,11 +147,11 @@ function goFeedback() {
               {{ userStore.isLoggedIn ? userStore.userInfo?.nickname || '给自己取个昵称' : '微信登录' }}
             </text>
             <text class="profile-name__arrow">
-              {{ userStore.isLoggedIn ? '›' : loginLoading ? '…' : '›' }}
+              ›
             </text>
           </view>
           <text class="profile-login-hint">
-            {{ userStore.isLoggedIn ? '点击进入设置，修改头像和昵称' : loginLoading ? '正在连接微信身份…' : '登录后让锅仔慢慢记住你的口味' }}
+            {{ userStore.isLoggedIn ? '点击进入设置，修改头像和昵称' : '登录后让锅仔慢慢记住你的口味' }}
           </text>
         </view>
       </view>
@@ -252,10 +237,16 @@ function goFeedback() {
     <view class="profile-weekly-plan" role="button" aria-label="让锅仔安排这一周晚餐" @click="goWeeklyPlan">
       <image class="profile-weekly-plan__guozai" src="/static/guozai/action_06_glasses.png" mode="aspectFit" />
       <view class="profile-weekly-plan__main">
-        <text class="profile-weekly-plan__title">锅仔帮你安排这一周</text>
-        <text class="profile-weekly-plan__sub">晚餐计划 · 买菜清单 · 少一点吃什么的纠结</text>
+        <text class="profile-weekly-plan__title">
+          锅仔帮你安排这一周
+        </text>
+        <text class="profile-weekly-plan__sub">
+          晚餐计划 · 买菜清单 · 少一点吃什么的纠结
+        </text>
       </view>
-      <text class="profile-weekly-plan__arrow">›</text>
+      <text class="profile-weekly-plan__arrow">
+        ›
+      </text>
     </view>
 
     <!-- 锅仔形象馆入口（核心变现模块） -->

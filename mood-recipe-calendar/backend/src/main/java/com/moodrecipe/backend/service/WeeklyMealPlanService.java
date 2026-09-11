@@ -39,7 +39,7 @@ public class WeeklyMealPlanService {
         plan.setPlanJson(write(result));
         plan.setShoppingJson(write(merge(result, List.of())));
         PlanView view = view(plans.save(plan));
-        if (request.notify()) subscriptions.sendWeeklyPlanCompleted(openid, view.id());
+        if (request.sendNotification()) subscriptions.sendWeeklyPlanCompleted(openid, view.id());
         return view;
     }
 
@@ -145,7 +145,7 @@ public class WeeklyMealPlanService {
     private PlanView view(WeeklyMealPlan plan) { return new PlanView(plan.getId(), readDays(plan.getPlanJson()), readShopping(plan.getShoppingJson()), plan.isFavorite(), plan.getCreatedAt()); }
     private PlanSummary summary(WeeklyMealPlan plan) { return new PlanSummary(plan.getId(), plan.getCreatedAt(), plan.isFavorite(), readDays(plan.getPlanJson())); }
 
-    public record GenerateRequest(int people, int days, String healthGoal, boolean notify) {}
+    public record GenerateRequest(int people, int days, String healthGoal, boolean sendNotification) {}
     public record PlanView(Long id, List<PlanDay> days, List<ShoppingItem> shopping, boolean favorite, LocalDateTime createdAt) {}
     public record PlanSummary(Long id, LocalDateTime createdAt, boolean favorite, List<PlanDay> days) {}
     public record PlanDay(String day, String dishName, List<String> ingredients, List<String> steps, String reuseHint, String healthTip, String imageUrl, String fallbackImageUrl) {

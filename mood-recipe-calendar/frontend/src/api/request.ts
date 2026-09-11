@@ -1,3 +1,5 @@
+import { beginAuthRecovery } from '@/utils/authRecovery'
+
 /**
  * 统一请求封装
  * 后端统一返回 { code, message, data }
@@ -7,7 +9,8 @@ export const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8
 const ASSET_ORIGIN = BASE_URL.replace(/\/api\/?$/, '')
 
 export function resolveAssetUrl(url?: string) {
-  if (!url || /^(https?:)?\/\//.test(url) || url.startsWith('data:')) return url || ''
+  if (!url || /^(?:https?:)?\/\//.test(url) || url.startsWith('data:'))
+    return url || ''
   return `${ASSET_ORIGIN}${url.startsWith('/') ? '' : '/'}${url}`
 }
 
@@ -23,12 +26,14 @@ function clearLocalAuth() {
     uni.removeStorageSync('openid')
     uni.removeStorageSync('sessionToken')
     uni.removeStorageSync('userInfo')
-    uni.$emit('auth:expired')
-  } catch {}
+    beginAuthRecovery()
+  }
+  catch {}
 }
 
 function isAuthExpired(res: any): boolean {
-  if (res?.statusCode === 401) return true
+  if (res?.statusCode === 401)
+    return true
   const data = res?.data
   return data?.code === 401 || /登录.*过期|未登录|请重新登录/.test(data?.message || '')
 }
@@ -48,7 +53,8 @@ function handleResponse<T>(res: any, resolve: (v: T) => void, reject: (e: Error)
   const data = res.data as ApiResult<T>
   if (data && data.code === 0) {
     resolve(data.data)
-  } else {
+  }
+  else {
     reject(new Error(data?.message || '请求失败'))
   }
 }
@@ -60,8 +66,8 @@ export function get<T = any>(url: string, params?: Record<string, any>): Promise
   return new Promise((resolve, reject) => {
     const query = params
       ? `?${Object.entries(params)
-          .filter(([, v]) => v !== undefined && v !== null)
-          .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
+        .filter(([, v]) => v !== undefined && v !== null)
+        .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
         .join('&')}`
       : ''
     uni.request({
@@ -69,7 +75,7 @@ export function get<T = any>(url: string, params?: Record<string, any>): Promise
       method: 'GET',
       header: authHeader(),
       success: (res: any) => handleResponse(res, resolve, reject),
-      fail: (err) => reject(new Error(err.errMsg || '网络错误')),
+      fail: err => reject(new Error(err.errMsg || '网络错误')),
     })
   })
 }
@@ -85,7 +91,7 @@ export function post<T = any>(url: string, data?: any): Promise<T> {
       data,
       header: { 'Content-Type': 'application/json', ...authHeader() },
       success: (res: any) => handleResponse(res, resolve, reject),
-      fail: (err) => reject(new Error(err.errMsg || '网络错误')),
+      fail: err => reject(new Error(err.errMsg || '网络错误')),
     })
   })
 }
@@ -101,7 +107,7 @@ export function put<T = any>(url: string, data?: any): Promise<T> {
       data,
       header: { 'Content-Type': 'application/json', ...authHeader() },
       success: (res: any) => handleResponse(res, resolve, reject),
-      fail: (err) => reject(new Error(err.errMsg || '网络错误')),
+      fail: err => reject(new Error(err.errMsg || '网络错误')),
     })
   })
 }
@@ -116,7 +122,7 @@ export function del<T = any>(url: string): Promise<T> {
       method: 'DELETE',
       header: authHeader(),
       success: (res: any) => handleResponse(res, resolve, reject),
-      fail: (err) => reject(new Error(err.errMsg || '网络错误')),
+      fail: err => reject(new Error(err.errMsg || '网络错误')),
     })
   })
 }
@@ -138,17 +144,19 @@ export function uploadFile(filePath: string): Promise<{ url: string, filename: s
           return
         }
         try {
-          const result = JSON.parse(res.data) as ApiResult<{ url: string; filename: string }>
+          const result = JSON.parse(res.data) as ApiResult<{ url: string, filename: string }>
           if (result.code === 0) {
             resolve({ ...result.data, url: resolveAssetUrl(result.data.url) })
-          } else {
+          }
+          else {
             reject(new Error(result.message || '上传失败'))
           }
-        } catch {
+        }
+        catch {
           reject(new Error('上传响应解析失败'))
         }
       },
-      fail: (err) => reject(new Error(err.errMsg || '上传失败')),
+      fail: err => reject(new Error(err.errMsg || '上传失败')),
     })
   })
 }

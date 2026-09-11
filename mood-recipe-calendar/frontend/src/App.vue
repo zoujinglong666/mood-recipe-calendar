@@ -1,11 +1,7 @@
-<template>
-  <PrivacyPopup />
-</template>
-
 <script setup lang="ts">
-import { useUserStore } from './stores/user'
-import { refreshNavMetrics } from './composables/useNavBar'
 import PrivacyPopup from './components/PrivacyPopup.vue'
+import { refreshNavMetrics } from './composables/useNavBar'
+import { useUserStore } from './stores/user'
 
 onLaunch(() => {
   // 适配微信状态栏与胶囊按钮
@@ -16,9 +12,17 @@ onLaunch(() => {
   // 全局监听登录过期：请求拦截器清除 storage 后，同步清除内存状态
   uni.$on('auth:expired', () => {
     userStore.logout()
+    const pages = getCurrentPages()
+    const current = pages[pages.length - 1] as any
+    if (current?.route !== 'pages/login/index')
+      uni.reLaunch({ url: '/pages/login/index' })
   })
 })
 </script>
+
+<template>
+  <PrivacyPopup />
+</template>
 
 <style lang="scss">
 @use '@wot-ui/ui/styles/theme/index.scss' as *;

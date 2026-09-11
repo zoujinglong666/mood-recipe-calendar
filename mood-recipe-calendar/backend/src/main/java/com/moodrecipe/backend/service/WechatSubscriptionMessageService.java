@@ -8,12 +8,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 /** 一次性订阅消息；发送失败绝不影响用户刚完成的服务。 */
@@ -73,7 +75,8 @@ public class WechatSubscriptionMessageService {
         if (appid.isBlank() || secret.isBlank()) return "";
         synchronized (this) {
             if (System.currentTimeMillis() < tokenExpiresAt) return token;
-            URI uri = URI.create("https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=" + appid + "&secret=" + secret);
+            URI uri = URI.create("https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid="
+                    + URLEncoder.encode(appid, StandardCharsets.UTF_8) + "&secret=" + URLEncoder.encode(secret, StandardCharsets.UTF_8));
             JsonNode response = json.readTree(http.send(HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(12)).GET().build(), HttpResponse.BodyHandlers.ofString()).body());
             String next = response.path("access_token").asText();
             if (next.isBlank()) return "";
