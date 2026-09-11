@@ -88,6 +88,18 @@ CREATE TABLE IF NOT EXISTS user_food_preferences (
   INDEX idx_pref_openid (openid)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='用户口味偏好';
 
+-- ---------- 每周备餐计划 ----------
+CREATE TABLE IF NOT EXISTS weekly_meal_plans (
+  id            BIGINT AUTO_INCREMENT PRIMARY KEY,
+  openid        VARCHAR(64) NOT NULL COMMENT '微信 openid',
+  plan_json     TEXT NOT NULL COMMENT '一周菜单计划JSON',
+  shopping_json TEXT NOT NULL COMMENT '买菜清单JSON',
+  created_at    DATETIME,
+  updated_at    DATETIME,
+  INDEX idx_weekly_plan_openid (openid)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='每周备餐计划';
+
+
 -- ---------- 菜谱推荐曝光记录 ----------
 CREATE TABLE IF NOT EXISTS recommendation_exposures (
   id         VARCHAR(36) PRIMARY KEY COMMENT 'UUID',

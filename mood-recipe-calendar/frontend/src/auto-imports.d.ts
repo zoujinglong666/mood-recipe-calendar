@@ -78,10 +78,12 @@ declare global {
   const fetchVirtualOrders: typeof import('./api/virtualCommerce')['fetchVirtualOrders']
   const fetchVirtualProducts: typeof import('./api/virtualCommerce')['fetchVirtualProducts']
   const fetchYearStats: typeof import('./api/records')['fetchYearStats']
+  const generateWeeklyPlan: typeof import('./api/weeklyPlans')['generateWeeklyPlan']
   const get: typeof import('./api/request')['get']
   const getActivePinia: typeof import('pinia')['getActivePinia']
   const getCurrentInstance: typeof import('vue')['getCurrentInstance']
   const getCurrentPath: typeof import('./utils/index')['getCurrentPath']
+  const getCurrentPlan: typeof import('./api/weeklyPlans')['getCurrentPlan']
   const getCurrentScope: typeof import('vue')['getCurrentScope']
   const getSystemTheme: typeof import('./utils/systemTheme')['getSystemTheme']
   const getUserInfo: typeof import('./api/auth')['getUserInfo']
@@ -172,6 +174,7 @@ declare global {
   const refWithControl: typeof import('@vueuse/core')['refWithControl']
   const refreshNavMetrics: typeof import('./composables/useNavBar')['refreshNavMetrics']
   const refreshUserInfo: typeof import('./utils/login')['refreshUserInfo']
+  const replacePlanDay: typeof import('./api/weeklyPlans')['replacePlanDay']
   const requestDeepRecipe: typeof import('./api/recipes')['requestDeepRecipe']
   const requestWechatVirtualPayment: typeof import('./api/virtualCommerce')['requestWechatVirtualPayment']
   const resolveAssetUrl: typeof import('./api/request')['resolveAssetUrl']
@@ -205,6 +208,7 @@ declare global {
   const toast: typeof import('./utils/toast')['toast']
   const toastError: typeof import('./utils/toast')['toastError']
   const toastSuccess: typeof import('./utils/toast')['toastSuccess']
+  const toggleShoppingItem: typeof import('./api/weeklyPlans')['toggleShoppingItem']
   const triggerRef: typeof import('vue')['triggerRef']
   const tryOnBeforeMount: typeof import('@vueuse/core')['tryOnBeforeMount']
   const tryOnBeforeUnmount: typeof import('@vueuse/core')['tryOnBeforeUnmount']
@@ -487,10 +491,12 @@ declare module 'vue' {
     readonly fetchVirtualOrders: UnwrapRef<typeof import('./api/virtualCommerce')['fetchVirtualOrders']>
     readonly fetchVirtualProducts: UnwrapRef<typeof import('./api/virtualCommerce')['fetchVirtualProducts']>
     readonly fetchYearStats: UnwrapRef<typeof import('./api/records')['fetchYearStats']>
+    readonly generateWeeklyPlan: UnwrapRef<typeof import('./api/weeklyPlans')['generateWeeklyPlan']>
     readonly get: UnwrapRef<typeof import('./api/request')['get']>
     readonly getActivePinia: UnwrapRef<typeof import('pinia')['getActivePinia']>
     readonly getCurrentInstance: UnwrapRef<typeof import('vue')['getCurrentInstance']>
     readonly getCurrentPath: UnwrapRef<typeof import('./utils/index')['getCurrentPath']>
+    readonly getCurrentPlan: UnwrapRef<typeof import('./api/weeklyPlans')['getCurrentPlan']>
     readonly getCurrentScope: UnwrapRef<typeof import('vue')['getCurrentScope']>
     readonly getSystemTheme: UnwrapRef<typeof import('./utils/systemTheme')['getSystemTheme']>
     readonly getUserInfo: UnwrapRef<typeof import('./api/auth')['getUserInfo']>
@@ -580,6 +586,7 @@ declare module 'vue' {
     readonly refWithControl: UnwrapRef<typeof import('@vueuse/core')['refWithControl']>
     readonly refreshNavMetrics: UnwrapRef<typeof import('./composables/useNavBar')['refreshNavMetrics']>
     readonly refreshUserInfo: UnwrapRef<typeof import('./utils/login')['refreshUserInfo']>
+    readonly replacePlanDay: UnwrapRef<typeof import('./api/weeklyPlans')['replacePlanDay']>
     readonly requestDeepRecipe: UnwrapRef<typeof import('./api/recipes')['requestDeepRecipe']>
     readonly requestWechatVirtualPayment: UnwrapRef<typeof import('./api/virtualCommerce')['requestWechatVirtualPayment']>
     readonly resolveAssetUrl: UnwrapRef<typeof import('./api/request')['resolveAssetUrl']>
@@ -613,6 +620,7 @@ declare module 'vue' {
     readonly toast: UnwrapRef<typeof import('./utils/toast')['toast']>
     readonly toastError: UnwrapRef<typeof import('./utils/toast')['toastError']>
     readonly toastSuccess: UnwrapRef<typeof import('./utils/toast')['toastSuccess']>
+    readonly toggleShoppingItem: UnwrapRef<typeof import('./api/weeklyPlans')['toggleShoppingItem']>
     readonly triggerRef: UnwrapRef<typeof import('vue')['triggerRef']>
     readonly tryOnBeforeMount: UnwrapRef<typeof import('@vueuse/core')['tryOnBeforeMount']>
     readonly tryOnBeforeUnmount: UnwrapRef<typeof import('@vueuse/core')['tryOnBeforeUnmount']>

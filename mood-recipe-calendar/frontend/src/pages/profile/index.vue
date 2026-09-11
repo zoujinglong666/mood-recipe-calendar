@@ -114,6 +114,9 @@ function goTimeline() {
 function goPreferences() {
   router.push({ name: 'preferences' })
 }
+function goWeeklyPlan() {
+  router.push({ name: 'weekly-plan' })
+}
 function goFeedback() {
   router.push({ name: 'feedback' })
 }
@@ -244,6 +247,15 @@ function goFeedback() {
       <text class="profile-memory__arrow">
         ›
       </text>
+    </view>
+
+    <view class="profile-weekly-plan" role="button" aria-label="让锅仔安排这一周晚餐" @click="goWeeklyPlan">
+      <image class="profile-weekly-plan__guozai" src="/static/guozai/action_06_glasses.png" mode="aspectFit" />
+      <view class="profile-weekly-plan__main">
+        <text class="profile-weekly-plan__title">锅仔帮你安排这一周</text>
+        <text class="profile-weekly-plan__sub">晚餐计划 · 买菜清单 · 少一点吃什么的纠结</text>
+      </view>
+      <text class="profile-weekly-plan__arrow">›</text>
     </view>
 
     <!-- 锅仔形象馆入口（核心变现模块） -->
@@ -384,6 +396,13 @@ function goFeedback() {
 .profile-login-state__dot { width: 12rpx; height: 12rpx; border-radius: 50%; background: var(--mrc-text-light); }
 .profile-login-state__dot--online { background: var(--mrc-mint); box-shadow: 0 0 0 6rpx rgba(40, 194, 160, .12); }
 .profile-identity__promise { padding-right: 92rpx; color: var(--mrc-accent); font-size: 21rpx; font-weight: 700; }
+.profile-weekly-plan { display:flex; min-height:138rpx; align-items:center; gap:18rpx; margin-bottom:16rpx; padding:22rpx 26rpx; box-sizing:border-box; border:2rpx solid var(--mrc-border); border-radius:30rpx; background:linear-gradient(135deg,var(--mrc-surface-sun),var(--mrc-surface-peach)); box-shadow:var(--mrc-shadow-soft),var(--mrc-gloss); }
+.profile-weekly-plan:active { transform: scale(.98); }
+.profile-weekly-plan__guozai { width:88rpx; height:88rpx; flex-shrink:0; }
+.profile-weekly-plan__main { flex:1; min-width:0; display:flex; flex-direction:column; gap:6rpx; }
+.profile-weekly-plan__title { color:var(--mrc-text-deep); font-size:32rpx; font-weight:var(--mrc-fw-heavy); }
+.profile-weekly-plan__sub { color:var(--mrc-text-sub); font-size:22rpx; line-height:1.45; }
+.profile-weekly-plan__arrow { color:var(--mrc-text-light); font-size:40rpx; }
 
 /* 统计卡 */
 .profile-stats {

@@ -18,7 +18,9 @@ type _LocationUrl =
   "/pages/record/index" |
   "/pages/report/index" |
   "/pages/settings/index" |
-  "/pages/timeline/index";
+  "/pages/timeline/index" |
+  "/pages/weekly-plan/detail" |
+  "/pages/weekly-plan/index";
 
 interface NavigateToOptions {
   url: _LocationUrl;
