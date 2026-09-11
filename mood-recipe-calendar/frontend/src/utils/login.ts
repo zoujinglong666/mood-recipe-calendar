@@ -61,14 +61,23 @@ export async function ensureLogin(): Promise<string> {
 
 /**
  * 刷新当前用户信息（登录后从后端拉取最新资料）
+ * 带5分钟缓存，避免频繁调用 /api/auth/user
+ * @param force 是否强制刷新（忽略缓存）
  */
-export async function refreshUserInfo(): Promise<void> {
+let lastUserInfoRefresh = 0
+const USER_INFO_CACHE_MS = 5 * 60 * 1000 // 5分钟
+
+export async function refreshUserInfo(force = false): Promise<void> {
   const userStore = useUserStore()
   if (!userStore.openid) return
+  // 缓存检查：5分钟内不重复调用，除非强制刷新
+  if (!force && Date.now() - lastUserInfoRefresh < USER_INFO_CACHE_MS)
+    return
   const { getUserInfo } = await import('../api/auth')
   try {
     const info = await getUserInfo(userStore.openid)
     userStore.setLogin(userStore.openid, userStore.sessionToken, info)
+    lastUserInfoRefresh = Date.now()
   } catch {
     // 静默失败，保留本地缓存
   }

@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import type { WeeklyPlan } from '@/api/weeklyPlans'
-import { computed, ref } from 'vue'
+import type { PlanDay, WeeklyPlan } from '@/api/weeklyPlans'
+import { computed, nextTick, ref } from 'vue'
 import { resolveAssetUrl } from '@/api/request'
 import { generatePlanDayCover, getCurrentPlan, getWeeklyPlan, replacePlanDay, toggleShoppingItem } from '@/api/weeklyPlans'
 import { navBack } from '@/composables/useNavBar'
-import { toastError } from '@/utils/toast'
+import { exportRecipeShare, saveShareImage } from '@/utils/albumShare'
+import { toastError, toastSuccess } from '@/utils/toast'
 
 definePage({ name: 'weekly-plan-detail', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '这一周吃什么' } })
 
@@ -17,6 +18,7 @@ const activeDay = ref(0)
 const shoppingOpen = ref(false)
 const detailsOpen = ref<Record<number, boolean>>({})
 const coverLoading = ref<Record<number, boolean>>({})
+const sharingDay = ref(-1)
 const weekdayNames = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
 const groups = computed(() => ['肉蛋豆', '蔬菜', '主食', '调料']
   .map(category => ({ category, items: plan.value?.shopping.filter(item => item.category === category) || [] }))
@@ -24,6 +26,10 @@ const groups = computed(() => ['肉蛋豆', '蔬菜', '主食', '调料']
 
 function weekday(index: number) {
   return weekdayNames[index] || `第${index + 1}天`
+}
+
+function dishesOf(day: PlanDay) {
+  return day.dishes?.length ? day.dishes : [{ name: day.dishName, ingredients: day.ingredients, steps: day.steps, fallbackImageUrl: day.fallbackImageUrl }]
 }
 
 function selectDay(index: number) {
@@ -103,6 +109,36 @@ function record(dish: string) {
   uni.setStorageSync('mrc_record_draft', { dish, mood: '满足' })
   router.pushTab({ name: 'record' })
 }
+
+async function shareDay(day: PlanDay, index: number) {
+  if (sharingDay.value >= 0)
+    return
+  const dish = dishesOf(day)[0]
+  if (!dish)
+    return
+  sharingDay.value = index
+  try {
+    await nextTick()
+    const path = await exportRecipeShare({
+      name: dish.name,
+      mood: '满足',
+      reason: day.healthTip,
+      ingredients: dish.ingredients,
+      steps: dish.steps,
+      image: resolveAssetUrl(day.imageUrl || dish.fallbackImageUrl),
+      guozaiPath: '/static/guozai/action_16_chopsticks.png',
+      style: 'guozai',
+    }, 'weeklyRecipeShareCanvas')
+    await saveShareImage(path, `${dish.name}-锅仔食谱卡.png`)
+    toastSuccess('食谱卡已保存，可以分享给朋友')
+  }
+  catch (error) {
+    toastError(error, '食谱卡生成失败，请重试')
+  }
+  finally {
+    sharingDay.value = -1
+  }
+}
 </script>
 
 <template>
@@ -124,7 +160,7 @@ function record(dish: string) {
             一周安排好啦
           </text>
           <text class="hero-copy">
-            一次只想一顿，慢慢把每餐做好。
+            一次只想一桌，慢慢把每餐做好。
           </text>
         </view>
       </view>
@@ -158,10 +194,10 @@ function record(dish: string) {
             <view class="day-card" :class="{ 'day-card--active': activeDay === index }">
               <view class="day-card__topline">
                 <text class="day-label">
-                  {{ weekday(index) }} · 今晚吃这个
+                  {{ weekday(index) }} · 今晚 {{ dishesOf(day).length }} 道菜
                 </text>
                 <view class="replace-action" role="button" :aria-label="`换掉${day.dishName}`" :aria-disabled="swapping >= 0" @click="replaceDay(index)">
-                  {{ swapping === index ? '正在换菜…' : '换一道' }}
+                  {{ swapping === index ? '正在换菜…' : '换一桌' }}
                 </view>
               </view>
 
@@ -189,6 +225,18 @@ function record(dish: string) {
                 <text>{{ day.reuseHint }}</text>
               </view>
 
+              <view class="share-day" :class="{ 'share-day--busy': sharingDay >= 0 }" role="button" :aria-label="`生成${dishesOf(day)[0]?.name}的食谱卡`" :aria-disabled="sharingDay >= 0" @click="shareDay(day, index)">
+                <image src="/static/guozai/action_16_chopsticks.png" mode="aspectFit" aria-label="拿着筷子的锅仔" />
+                <view>
+                  <text class="share-day__title">
+                    {{ sharingDay === index ? '锅仔正在排版食谱卡…' : '保存这道菜的食谱卡' }}
+                  </text><text>带图片、材料清单和做法，直接分享给朋友</text>
+                </view>
+                <text class="share-day__arrow">
+                  ›
+                </text>
+              </view>
+
               <view class="details-toggle" role="button" :aria-expanded="Boolean(detailsOpen[index])" :aria-label="detailsOpen[index] ? '收起食材与做法' : '展开食材与做法'" @click="toggleDetails(index)">
                 <text>{{ detailsOpen[index] ? '收起食材与做法' : '看食材和做法' }}</text>
                 <text class="details-toggle__arrow" :class="{ 'details-toggle__arrow--open': detailsOpen[index] }">
@@ -197,17 +245,22 @@ function record(dish: string) {
               </view>
 
               <view v-if="detailsOpen[index]" class="recipe-details">
-                <view class="ingredients">
-                  <text v-for="item in day.ingredients" :key="item">
-                    {{ item }}
+                <view v-for="(dish, dishIndex) in dishesOf(day)" :key="`${dish.name}-${dishIndex}`" class="menu-dish">
+                  <text class="menu-dish__title">
+                    {{ dishIndex + 1 }}. {{ dish.name }}
                   </text>
-                </view>
-                <view class="steps">
-                  <view v-for="(step, stepIndex) in day.steps" :key="step" class="step">
-                    <text class="step__number">
-                      {{ stepIndex + 1 }}
+                  <view class="ingredients">
+                    <text v-for="item in dish.ingredients" :key="item">
+                      {{ item }}
                     </text>
-                    <text>{{ step }}</text>
+                  </view>
+                  <view class="steps">
+                    <view v-for="(step, stepIndex) in dish.steps" :key="step" class="step">
+                      <text class="step__number">
+                        {{ stepIndex + 1 }}
+                      </text>
+                      <text>{{ step }}</text>
+                    </view>
                   </view>
                 </view>
               </view>
@@ -215,7 +268,7 @@ function record(dish: string) {
               <view class="record" role="button" :aria-label="`把${day.dishName}记进时光机`" @click="record(day.dishName)">
                 <view>
                   <text class="record__title">
-                    做好了？记进时光机
+                    做好这一桌？记进时光机
                   </text>
                   <text class="record__copy">
                     给这一顿留下一个小纪念
@@ -229,6 +282,8 @@ function record(dish: string) {
           </scroll-view>
         </swiper-item>
       </swiper>
+
+      <canvas id="weeklyRecipeShareCanvas" type="2d" class="weekly-recipe-share__canvas" />
 
       <view class="shopping-panel">
         <view class="shopping-toggle" role="button" :aria-expanded="shoppingOpen" aria-label="展开或收起本周采购清单" @click="shoppingOpen = !shoppingOpen">
@@ -297,10 +352,32 @@ function record(dish: string) {
 .health-tip { margin-top: 18rpx; color: var(--mrc-text); font-size: 26rpx; line-height: 1.65; }
 .reuse-note { margin-top: 26rpx; padding: 20rpx 22rpx; border-radius: 20rpx; background: var(--mrc-surface-sun); }
 .reuse-note text:last-child { margin-top: 6rpx; color: var(--mrc-text-sub); font-size: 23rpx; line-height: 1.55; }
+.share-day {
+  display: flex;
+  min-height: 112rpx;
+  box-sizing: border-box;
+  align-items: center;
+  gap: 14rpx;
+  margin-top: 18rpx;
+  padding: 14rpx 18rpx;
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 22rpx;
+  background: var(--mrc-surface-peach);
+  transition: transform 160ms ease-out, opacity 160ms ease-out;
+}
+
+.share-day image { width: 76rpx; height: 76rpx; flex: 0 0 auto; }
+.share-day view { min-width: 0; flex: 1; }
+.share-day text { display: block; color: var(--mrc-text-sub); font-size: 21rpx; line-height: 1.45; }
+.share-day__title { color: var(--mrc-text-strong) !important; font-size: 26rpx !important; font-weight: 800; }
+.share-day__arrow { flex: 0 0 auto; color: var(--mrc-accent) !important; font-size: 42rpx !important; }
+.share-day:active { transform: scale(.98); opacity: .82; }
+.share-day--busy { opacity: .56; }
+.weekly-recipe-share__canvas { position: fixed; top: -9999px; left: -9999px; width: 750px; height: 1500px; opacity: 0; pointer-events: none; }
 .details-toggle { min-height: 96rpx; display: flex; align-items: center; justify-content: space-between; margin-top: 18rpx; padding: 0 4rpx; border-top: 2rpx solid var(--mrc-border-light); color: var(--mrc-text); font-size: 25rpx; font-weight: 700; transition: transform 160ms ease-out, opacity 160ms ease-out; }
 .details-toggle__arrow { color: var(--mrc-text-sub); font-size: 32rpx; transition: transform 180ms cubic-bezier(.23, 1, .32, 1); }
 .details-toggle__arrow--open { transform: rotate(180deg); }
-.recipe-details { padding-bottom: 4rpx; }
+.recipe-details { padding-bottom: 4rpx; }.menu-dish + .menu-dish { margin-top: 28rpx; padding-top: 28rpx; border-top: 2rpx dashed var(--mrc-border); }.menu-dish__title { margin-bottom: 16rpx; color: var(--mrc-text-strong); font-size: 28rpx; font-weight: 800; }
 .ingredients { display: flex; flex-wrap: wrap; gap: 12rpx; }
 .ingredients text { padding: 10rpx 16rpx; border-radius: 16rpx; background: var(--mrc-surface-peach); color: var(--mrc-text); font-size: 22rpx; }
 .steps { margin-top: 24rpx; }
@@ -322,5 +399,5 @@ function record(dish: string) {
 .shop-item__quantity { color: var(--mrc-text-sub); font-size: 22rpx; }
 .done { color: var(--mrc-text-light) !important; text-decoration: line-through; }
 .checked { font-weight: 800; }
-@media (prefers-reduced-motion: reduce) { .week-tab, .day-card, .replace-action, .details-toggle, .details-toggle__arrow, .record, .shopping-toggle, .shop-item { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .week-tab, .day-card, .replace-action, .share-day, .details-toggle, .details-toggle__arrow, .record, .shopping-toggle, .shop-item { transition: none; } }
 </style>

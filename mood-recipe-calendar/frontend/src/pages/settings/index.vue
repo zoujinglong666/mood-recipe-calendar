@@ -51,7 +51,7 @@ async function updateAvatar(filePath: string) {
   try {
     const uploaded = await uploadFile(filePath)
     await updateUserInfo({ openid: userStore.openid, avatarUrl: uploaded.url })
-    await refreshUserInfo()
+    await refreshUserInfo(true)
     toastSuccess('头像已更新')
   }
   catch (error) {
@@ -96,7 +96,7 @@ async function saveNickname() {
   nicknameSaving.value = true
   try {
     await updateUserInfo({ openid: userStore.openid, nickname: value })
-    await refreshUserInfo()
+    await refreshUserInfo(true)
     nickname.value = userStore.userInfo?.nickname || value
     toastSuccess('昵称已保存')
   }

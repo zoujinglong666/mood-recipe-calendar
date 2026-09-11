@@ -31,6 +31,7 @@ export interface RecipeShareData {
   cookingTime?: number
   difficulty?: string
   ingredients?: string[]
+  steps?: string[]
   image?: string
   guozaiPath: string
   style?: 'classic' | 'guozai'
@@ -232,7 +233,21 @@ function wrapText(ctx: any, text: string, maxWidth: number, maxLines: number) {
   return lines
 }
 
-/** 将当前一条推荐画成可保存的食谱卡；图片资源失败时仍输出文字卡。 */
+function drawRecipeSection(ctx: any, title: string, label: string, y: number, height: number) {
+  ctx.fillStyle = COLORS.white
+  roundRect(ctx, 44, y, W - 88, height, 30)
+  ctx.fill()
+  ctx.fillStyle = COLORS.accent
+  ctx.font = 'bold 19px sans-serif'
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'top'
+  ctx.fillText(label, 76, y + 28)
+  ctx.fillStyle = COLORS.text
+  ctx.font = 'bold 29px sans-serif'
+  ctx.fillText(title, 76, y + 58)
+}
+
+/** 将当前一条推荐画成可保存的宣传型完整食谱卡；图片资源失败时仍输出文字卡。 */
 export async function exportRecipeShare(data: RecipeShareData, canvasId = 'recipeShareCanvas'): Promise<string> {
   const inst = getCurrentInstance()
   const query = uni.createSelectorQuery()
@@ -246,106 +261,123 @@ export async function exportRecipeShare(data: RecipeShareData, canvasId = 'recip
   })
 
   const W = 750
-  const H = 1120
+  const H = 1500
   const canvas = canvasInfo.node
   const ctx = canvas.getContext('2d')
   const dpr = uni.getSystemInfoSync().pixelRatio || 2
   canvas.width = W * dpr
   canvas.height = H * dpr
   ctx.scale(dpr, dpr)
-
   ctx.fillStyle = COLORS.bg
   ctx.fillRect(0, 0, W, H)
-  ctx.fillStyle = COLORS.yellow
-  ctx.beginPath()
-  ctx.arc(70, 86, 28, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.fillStyle = COLORS.blue
-  ctx.beginPath()
-  ctx.arc(W - 72, 148, 36, 0, Math.PI * 2)
-  ctx.fill()
+
   const isGuozaiStyle = data.style === 'guozai'
-  centerText(ctx, W / 2, 54, isGuozaiStyle ? '锅仔 · 今日手账' : '锅仔 · 今日食谱', 26, COLORS.sub, 'bold')
+  ctx.fillStyle = isGuozaiStyle ? '#FFE6C8' : COLORS.card
+  ctx.beginPath()
+  ctx.arc(72, 88, 34, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.fillStyle = isGuozaiStyle ? COLORS.yellow : COLORS.blue
+  ctx.beginPath()
+  ctx.arc(W - 66, 120, 42, 0, Math.PI * 2)
+  ctx.fill()
+  centerText(ctx, W / 2, 48, isGuozaiStyle ? 'GUOZAI · HOME COOKING' : 'GUOZAI · TODAY’S RECIPE', 22, COLORS.sub, 'bold')
 
   const heroX = 44
-  const heroY = 118
+  const heroY = 106
   const heroW = W - 88
-  const heroH = 340
-  ctx.fillStyle = isGuozaiStyle ? '#FFE7C9' : COLORS.card
+  const heroH = 330
+  ctx.fillStyle = isGuozaiStyle ? '#F8CFA5' : COLORS.card
   roundRect(ctx, heroX, heroY, heroW, heroH, 38)
   ctx.fill()
   if (isGuozaiStyle) {
     try {
       const guozai = await loadCanvasImage(canvas, data.guozaiPath)
-      ctx.drawImage(guozai, 252, 126, 272, 272)
+      ctx.drawImage(guozai, 350, 114, 282, 282)
     }
-    catch {
-      centerText(ctx, W / 2, 220, '🍲', 130, COLORS.text)
-    }
+    catch { centerText(ctx, 490, 178, '🍲', 120, COLORS.text) }
     ctx.fillStyle = COLORS.white
-    roundRect(ctx, 82, 154, 220, 164, 18)
+    roundRect(ctx, 78, 148, 274, 208, 18)
     ctx.fill()
     if (data.image) {
       try {
-        drawCover(ctx, await loadCanvasImage(canvas, data.image), 92, 164, 200, 144, 10)
+        drawCover(ctx, await loadCanvasImage(canvas, data.image), 90, 160, 250, 160, 12)
       }
-      catch { /* 菜图不可用时保留拍立得留白。 */ }
+      catch { /* 菜图失败时保留拍立得文字卡。 */ }
     }
-    centerText(ctx, W / 2, 394, data.name.slice(0, 14), 42, COLORS.text, 'bold')
+    centerText(ctx, W / 2, 386, data.name.slice(0, 15), 42, COLORS.text, 'bold')
   }
   else {
     if (data.image) {
       try {
         drawCover(ctx, await loadCanvasImage(canvas, data.image), heroX, heroY, heroW, heroH, 38)
       }
-      catch {
-        /* 菜图不可用时保留柔和的纯色主视觉。 */
-      }
+      catch { /* 菜图失败时保留柔和色块。 */ }
     }
-    ctx.fillStyle = 'rgba(90, 62, 43, .22)'
-    roundRect(ctx, heroX, heroY + heroH - 112, heroW, 112, 0)
+    ctx.fillStyle = 'rgba(58, 40, 28, .28)'
+    roundRect(ctx, heroX, heroY + heroH - 116, heroW, 116, 0)
     ctx.fill()
-    centerText(ctx, W / 2, heroY + heroH - 82, data.name.slice(0, 14), 46, COLORS.white, 'bold')
+    centerText(ctx, W / 2, heroY + heroH - 82, data.name.slice(0, 15), 46, COLORS.white, 'bold')
   }
-  ctx.fillStyle = 'rgba(255,255,255,.92)'
-  roundRect(ctx, heroX + 26, heroY + 24, 136, 54, 27)
+  ctx.fillStyle = 'rgba(255,255,255,.93)'
+  roundRect(ctx, 70, 132, 160, 54, 27)
   ctx.fill()
-  centerText(ctx, heroX + 94, heroY + 39, `今日 · ${data.mood}`, 22, COLORS.text, 'bold')
+  centerText(ctx, 150, 147, `今日 · ${data.mood}`, 21, COLORS.text, 'bold')
+  centerText(ctx, W / 2, 462, `${data.cookingTime || '--'} 分钟  ·  ${data.difficulty || '家常难度'}`, 25, COLORS.sub, 'bold')
 
-  const meta = `${data.cookingTime || '--'} 分钟  ·  ${data.difficulty || '家常难度'}`
-  centerText(ctx, W / 2, 500, meta, 26, COLORS.sub, 'bold')
-
-  ctx.fillStyle = COLORS.white
-  roundRect(ctx, 44, 550, W - 88, 216, 32)
-  ctx.fill()
+  drawRecipeSection(ctx, '锅仔为什么推荐它', 'GUOZAI’S NOTE', 510, 184)
   try {
     const guozai = await loadCanvasImage(canvas, data.guozaiPath)
-    ctx.drawImage(guozai, 68, 578, 118, 118)
+    ctx.drawImage(guozai, 72, 594, 78, 78)
   }
-  catch { /* 锅仔资源失败不影响推荐理由。 */ }
-  ctx.fillStyle = COLORS.accent
-  roundRect(ctx, 182, 584, 168, 42, 21)
-  ctx.fill()
-  centerText(ctx, 266, 594, '锅仔说', 20, COLORS.white, 'bold')
+  catch { /* 锅仔资源失败不影响文案。 */ }
   ctx.fillStyle = COLORS.text
-  ctx.font = '28px sans-serif'
+  ctx.font = '25px sans-serif'
   ctx.textAlign = 'left'
   ctx.textBaseline = 'top'
-  wrapText(ctx, data.reason, 480, 3).forEach((line, index) => ctx.fillText(line, 206, 644 + index * 39))
+  wrapText(ctx, data.reason, 520, 3).forEach((line, index) => ctx.fillText(line, 164, 594 + index * 33))
 
-  ctx.fillStyle = '#F9EBDD'
-  roundRect(ctx, 44, 802, W - 88, 154, 32)
-  ctx.fill()
-  ctx.fillStyle = COLORS.text
-  ctx.font = 'bold 25px sans-serif'
-  ctx.textAlign = 'left'
-  ctx.fillText('准备这些就可以开做', 78, 834)
-  ctx.font = '24px sans-serif'
-  const ingredientText = (data.ingredients || []).slice(0, 4).join('  ·  ') || '跟着锅仔慢慢做一顿热饭'
-  wrapText(ctx, ingredientText, W - 154, 2).forEach((line, index) => ctx.fillText(line, 78, 880 + index * 34))
+  drawRecipeSection(ctx, '材料清单', 'MATERIALS · 准备好再开火', 728, 232)
+  const ingredients = (data.ingredients || []).slice(0, 6)
+  ctx.font = '23px sans-serif'
+  ingredients.forEach((ingredient, index) => {
+    const column = index % 2
+    const row = Math.floor(index / 2)
+    const x = 78 + column * 316
+    const y = 822 + row * 40
+    ctx.fillStyle = COLORS.accent
+    ctx.beginPath()
+    ctx.arc(x, y + 11, 5, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.fillStyle = COLORS.text
+    ctx.textAlign = 'left'
+    ctx.fillText(String(ingredient).slice(0, 14), x + 16, y)
+  })
+  if (!ingredients.length)
+    centerText(ctx, W / 2, 850, '跟着锅仔慢慢做一顿热饭', 24, COLORS.sub)
 
-  centerText(ctx, W / 2, 1012, '心情菜谱日历', 30, COLORS.text, 'bold')
-  centerText(ctx, W / 2, 1062, '用一道菜，治愈今天的你', 24, COLORS.sub)
+  drawRecipeSection(ctx, '做法', 'COOK · 跟着做就好', 994, 322)
+  const steps = (data.steps || []).slice(0, 4)
+  ctx.font = '23px sans-serif'
+  steps.forEach((step, index) => {
+    const y = 1087 + index * 52
+    ctx.fillStyle = COLORS.accent
+    ctx.beginPath()
+    ctx.arc(88, y + 12, 14, 0, Math.PI * 2)
+    ctx.fill()
+    centerText(ctx, 88, y + 2, String(index + 1), 18, COLORS.white, 'bold')
+    ctx.fillStyle = COLORS.text
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'top'
+    const line = wrapText(ctx, step, 540, 1)[0] || ''
+    ctx.fillText(line, 118, y)
+  })
+  if (!steps.length)
+    centerText(ctx, W / 2, 1126, '热锅、下料、调味，慢慢做完这一餐。', 24, COLORS.sub)
+
+  ctx.fillStyle = COLORS.border
+  ctx.fillRect(76, 1360, W - 152, 2)
+  centerText(ctx, W / 2, 1396, '心情菜谱日历 · 锅仔陪你好好吃饭', 27, COLORS.text, 'bold')
+  centerText(ctx, W / 2, 1442, '一张食谱卡，分享一顿认真生活', 22, COLORS.sub)
 
   return await new Promise<string>((resolve, reject) => {
     uni.canvasToTempFilePath({

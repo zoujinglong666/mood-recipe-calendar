@@ -16,6 +16,7 @@ import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 /** 使用 Agnes Image 为 AI 菜谱生成封面；失败时不影响菜谱正文返回。 */
 @Service
@@ -31,6 +32,8 @@ public class AgnesRecipeImageService {
     private final String model;
     private final String size;
     private final String ratio;
+    /** 同一菜名的封面在进程内复用，避免每周计划反复等待同一张 AI 图。 */
+    private final Map<String, String> coverCache = new ConcurrentHashMap<>();
 
     public AgnesRecipeImageService(
             ObjectMapper objectMapper,
@@ -51,6 +54,9 @@ public class AgnesRecipeImageService {
 
     public Optional<String> generateCover(Recipe recipe) {
         if (apiKey.isBlank()) return Optional.empty();
+        String cacheKey = clip(recipe.getName(), 80);
+        String cached = cacheKey.isBlank() ? null : coverCache.get(cacheKey);
+        if (cached != null) return Optional.of(cached);
         try {
             HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl))
                     .timeout(REQUEST_TIMEOUT)
@@ -63,7 +69,9 @@ public class AgnesRecipeImageService {
                 log.warn("Agnes image request failed with HTTP {}", response.statusCode());
                 return Optional.empty();
             }
-            return imageUrl(response.body());
+            Optional<String> image = imageUrl(response.body());
+            if (!cacheKey.isBlank()) image.ifPresent(url -> coverCache.putIfAbsent(cacheKey, url));
+            return image;
         } catch (Exception exception) {
             log.warn("Agnes image request failed: {}", exception.getClass().getSimpleName());
             return Optional.empty();
@@ -93,10 +101,10 @@ public class AgnesRecipeImageService {
     }
 
     private String prompt(Recipe recipe) {
-        return "一道刚出锅的中国家常菜「" + clip(recipe.getName(), 40) + "」，"
-                + clip(recipe.getDescription(), 80) + "。主要食材参考：" + clip(recipe.getIngredients(), 240)
-                + "。真实美食摄影，三分之二俯拍，自然暖光，干净温暖的陶瓷餐具与木桌，食物细节清晰、令人有食欲，"
-                + "主体居中并留有舒适呼吸感，不出现人物、文字、水印、品牌标志或多余餐具。";
+        return "一道烹饪完成、刚出锅并已盛盘的中国家常菜「" + clip(recipe.getName(), 40) + "」。"
+                + "真实美食摄影，三分之二俯拍，自然暖光，干净温暖的陶瓷餐具与木桌，食物细节清晰、令人有食欲，"
+                + "主体居中并留有舒适呼吸感。画面只出现完成后的菜品；不要出现整颗或未切配食材、未烹饪原料、调料碟、"
+                + "调料瓶、包装、人物、文字、水印、品牌标志或多余餐具。";
     }
 
     private String clip(String value, int maxLength) {

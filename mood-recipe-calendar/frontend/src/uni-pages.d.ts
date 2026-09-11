@@ -10,6 +10,7 @@ type _LocationUrl =
   "/pages/calendar/index" |
   "/pages/feedback/index" |
   "/pages/gallery/index" |
+  "/pages/login/index" |
   "/pages/mood/index" |
   "/pages/preferences/index" |
   "/pages/privacy/index" |

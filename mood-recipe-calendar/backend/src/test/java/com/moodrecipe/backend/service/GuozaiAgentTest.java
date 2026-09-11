@@ -175,6 +175,31 @@ class GuozaiAgentTest {
         assertEquals("exposure-1", result.getExposureId());
     }
 
+    @Test
+    void plansTwoDifferentDishesAndHonorsAvoidIngredients() {
+        RecipeRepository recipes = mock(RecipeRepository.class);
+        RecipeInteractionRepository interactions = mock(RecipeInteractionRepository.class);
+        UserFoodPreferenceRepository preferences = mock(UserFoodPreferenceRepository.class);
+        GuozaiAgent agent = buildAgent(recipes, interactions, preferences);
+        Recipe peanutDish = recipe(1L, "老醋花生", "花生 200g");
+        Recipe chicken = recipe(2L, "清蒸鸡腿", "鸡腿 2 个");
+        Recipe broccoli = recipe(3L, "蒜蓉西兰花", "西兰花 1 颗");
+        UserFoodPreference preference = new UserFoodPreference();
+        preference.setAvoidIngredients("花生");
+
+        when(preferences.findByOpenid("user-1")).thenReturn(Optional.of(preference));
+        when(interactions.findTop30ByOpenidOrderByCreatedAtDesc("user-1")).thenReturn(List.of());
+        when(interactions.findByOpenidAndAction("user-1", "DISLIKE")).thenReturn(List.of());
+        when(recipes.findAll()).thenReturn(List.of(peanutDish, chicken, broccoli));
+
+        List<Recipe> menu = agent.planWeeklyMenu("user-1", 1, 2, "BALANCED");
+
+        assertEquals(2, menu.size());
+        assertTrue(menu.stream().noneMatch(recipe -> recipe.getName().contains("花生")));
+        assertEquals("清蒸鸡腿", menu.get(0).getName());
+        assertEquals("蒜蓉西兰花", menu.get(1).getName());
+    }
+
     private Recipe recipe(Long id, String name, String ingredients) {
         Recipe recipe = new Recipe();
         recipe.setId(id);

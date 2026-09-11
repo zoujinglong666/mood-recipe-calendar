@@ -132,6 +132,49 @@ public class GuozaiAgent {
         return generated;
     }
 
+    /**
+     * 周计划智能体：先读取长期记忆和近期反馈，再为每天选择主菜/配菜组合。
+     * 该规划完全基于本地菜谱库，因此文本模型不可用时也不会退化为顺序取菜。
+     */
+    public List<Recipe> planWeeklyMenu(String openid, int days, int dishesPerDay, String requestedHealthGoal) {
+        UserFoodPreference preference = preferences.findByOpenid(openid).orElse(null);
+        GuozaiMemory.MemorySnapshot snapshot = memory.snapshot(openid, java.time.LocalTime.now().getHour());
+        Set<Long> rejected = interactions.findByOpenidAndAction(openid, "DISLIKE").stream()
+                .map(RecipeInteraction::getRecipeId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Map<Long, Integer> feedback = new HashMap<>();
+        interactions.findTop30ByOpenidOrderByCreatedAtDesc(openid).forEach(interaction -> {
+            int value = switch (interaction.getAction()) {
+                case "MADE" -> 5;
+                case "LIKE" -> 3;
+                default -> 0;
+            };
+            feedback.merge(interaction.getRecipeId(), value, Integer::sum);
+        });
+        List<Recipe> candidates = recipeRepository.findAll().stream()
+                .filter(recipe -> !rejected.contains(recipe.getId()))
+                .filter(recipe -> allowedByPreference(recipe, preference)).toList();
+        if (candidates.isEmpty()) return List.of();
+
+        int safeDays = Math.max(1, Math.min(days, 7));
+        int safeDishes = Math.max(1, Math.min(dishesPerDay, 3));
+        Set<Long> used = new HashSet<>();
+        List<Recipe> menu = new ArrayList<>();
+        for (int day = 0; day < safeDays; day++) {
+            for (int course = 0; course < safeDishes; course++) {
+                boolean sideDish = safeDishes > 1 && course > 0;
+                List<Recipe> pool = candidates.stream().filter(recipe -> !used.contains(recipe.getId())).toList();
+                if (pool.isEmpty()) pool = candidates;
+                Recipe picked = pool.stream().max(Comparator.comparingInt(recipe -> weeklyPlanScore(
+                        recipe, preference, snapshot, feedback, requestedHealthGoal, sideDish))).orElse(null);
+                if (picked != null) {
+                    menu.add(picked);
+                    used.add(picked.getId());
+                }
+            }
+        }
+        return menu;
+    }
+
     private Recipe fallbackLocalRecipe(String openid, String mood, UserFoodPreference preference,
                                        RecommendationJobService.Progress progress) {
         update(progress, RecommendationJobService.Stage.TEXT,
@@ -186,6 +229,18 @@ public class GuozaiAgent {
         update(progress, RecommendationJobService.Stage.FINALIZE,
                 RecommendationJobService.StepStatus.COMPLETED, "菜谱已经整理完成");
         return recipe;
+    }
+
+    private int weeklyPlanScore(Recipe recipe, UserFoodPreference preference, GuozaiMemory.MemorySnapshot snapshot,
+                                Map<Long, Integer> feedback, String requestedHealthGoal, boolean sideDish) {
+        String text = searchableText(recipe);
+        int score = preferenceScore(recipe, preference) + feedback.getOrDefault(recipe.getId(), 0);
+        boolean lightSide = containsAny(text, "西兰花", "生菜", "油菜", "空心菜", "菜心", "黄瓜", "木耳", "百合", "菌菇", "汤");
+        score += sideDish == lightSide ? 7 : -3;
+        if (!snapshot.topDish().isBlank() && text.contains(snapshot.topDish())) score -= 4;
+        if ("FITNESS".equals(requestedHealthGoal) && containsAny(text, "鸡", "牛", "鱼", "虾", "蛋", "豆腐")) score += 5;
+        if ("LEAN".equals(requestedHealthGoal) && containsAny(text, "清蒸", "白灼", "蔬菜", "西兰花", "菌菇", "番茄")) score += 5;
+        return score;
     }
 
     // ==================== 能力二：深度陪伴寄语 ====================

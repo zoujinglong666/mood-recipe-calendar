@@ -20,6 +20,8 @@ declare global {
   const asyncComputed: typeof import('@vueuse/core')['asyncComputed']
   const autoLayout: typeof import('./utils/albumLayout')['autoLayout']
   const autoResetRef: typeof import('@vueuse/core')['autoResetRef']
+  const beginAuthRecovery: typeof import('./utils/authRecovery')['beginAuthRecovery']
+  const cancelAuthRecovery: typeof import('./utils/authRecovery')['cancelAuthRecovery']
   const chunkPages: typeof import('./utils/albumLayout')['chunkPages']
   const clearFoodPreference: typeof import('./api/preferences')['clearFoodPreference']
   const computed: typeof import('vue')['computed']
@@ -27,6 +29,7 @@ declare global {
   const computedEager: typeof import('@vueuse/core')['computedEager']
   const computedInject: typeof import('@vueuse/core')['computedInject']
   const computedWithControl: typeof import('@vueuse/core')['computedWithControl']
+  const consumeAuthReturn: typeof import('./utils/authRecovery')['consumeAuthReturn']
   const controlledComputed: typeof import('@vueuse/core')['controlledComputed']
   const controlledRef: typeof import('@vueuse/core')['controlledRef']
   const createApis: typeof import('./api/createApis')['createApis']
@@ -439,6 +442,8 @@ declare module 'vue' {
     readonly asyncComputed: UnwrapRef<typeof import('@vueuse/core')['asyncComputed']>
     readonly autoLayout: UnwrapRef<typeof import('./utils/albumLayout')['autoLayout']>
     readonly autoResetRef: UnwrapRef<typeof import('@vueuse/core')['autoResetRef']>
+    readonly beginAuthRecovery: UnwrapRef<typeof import('./utils/authRecovery')['beginAuthRecovery']>
+    readonly cancelAuthRecovery: UnwrapRef<typeof import('./utils/authRecovery')['cancelAuthRecovery']>
     readonly chunkPages: UnwrapRef<typeof import('./utils/albumLayout')['chunkPages']>
     readonly clearFoodPreference: UnwrapRef<typeof import('./api/preferences')['clearFoodPreference']>
     readonly computed: UnwrapRef<typeof import('vue')['computed']>
@@ -446,6 +451,7 @@ declare module 'vue' {
     readonly computedEager: UnwrapRef<typeof import('@vueuse/core')['computedEager']>
     readonly computedInject: UnwrapRef<typeof import('@vueuse/core')['computedInject']>
     readonly computedWithControl: UnwrapRef<typeof import('@vueuse/core')['computedWithControl']>
+    readonly consumeAuthReturn: UnwrapRef<typeof import('./utils/authRecovery')['consumeAuthReturn']>
     readonly controlledComputed: UnwrapRef<typeof import('@vueuse/core')['controlledComputed']>
     readonly controlledRef: UnwrapRef<typeof import('@vueuse/core')['controlledRef']>
     readonly createApp: UnwrapRef<typeof import('vue')['createApp']>

@@ -1,6 +1,7 @@
 import { get, post } from './request'
 
-export interface PlanDay { day: string, dishName: string, ingredients: string[], steps: string[], reuseHint: string, healthTip: string, imageUrl?: string, fallbackImageUrl?: string }
+export interface PlanDish { name: string, ingredients: string[], steps: string[], fallbackImageUrl?: string }
+export interface PlanDay { day: string, dishName: string, ingredients: string[], steps: string[], reuseHint: string, healthTip: string, imageUrl?: string, fallbackImageUrl?: string, dishes?: PlanDish[] }
 export interface ShoppingItem { name: string, category: string, quantity: string, purchased: boolean }
 export interface WeeklyPlan { id: number, days: PlanDay[], shopping: ShoppingItem[], favorite: boolean, createdAt: string }
 export interface WeeklyPlanSummary { id: number, createdAt: string, favorite: boolean, days: PlanDay[] }
@@ -14,7 +15,7 @@ export function getWeeklyPlan(id: number) {
 export function getWeeklyPlanHistory() {
   return get<WeeklyPlanSummary[]>('/weekly-plans/history')
 }
-export function generateWeeklyPlan(data: { people: number, days: number, healthGoal: string, notify: boolean }) {
+export function generateWeeklyPlan(data: { people: number, days: number, healthGoal: string, sendNotification: boolean, dishesPerDay: number }) {
   return post<WeeklyPlan>('/weekly-plans/generate', data)
 }
 

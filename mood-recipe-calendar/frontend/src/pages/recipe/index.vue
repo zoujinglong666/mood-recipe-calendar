@@ -310,6 +310,7 @@ async function generateShareCards() {
           cookingTime: recipe.value.cookingTime,
           difficulty: recipe.value.difficulty,
           ingredients: ingredients.value,
+          steps: steps.value,
           image: recipe.value.image,
           guozaiPath: '/static/guozai/action_16_chopsticks.png',
           style,
@@ -666,7 +667,9 @@ async function waitForDelivery(orderNo: string) {
               <text class="share-sheet__title">
                 把这顿饭分享出去
               </text>
-              <text class="share-sheet__subtitle">{{ shareCardLoading ? '锅仔正在一次生成两张卡…' : '两种风格都在这里，选一张保存就行。' }}</text>
+              <text class="share-sheet__subtitle">
+                {{ shareCardLoading ? '锅仔正在一次生成两张卡…' : '成品图、材料和做法都装进卡里，选一张保存就行。' }}
+              </text>
             </view>
             <view class="share-sheet__close pressable" role="button" aria-label="关闭分享面板" @click="showShareSheet = false">
               ×
@@ -676,15 +679,27 @@ async function waitForDelivery(orderNo: string) {
           <view class="share-card-grid" aria-label="选择要保存的食谱卡">
             <view class="share-card-option pressable" :class="{ 'is-selected': shareStyle === 'classic', 'is-loading': shareCardLoading }" role="button" @click="selectShareStyle('classic')">
               <image v-if="shareCardPaths.classic" class="share-card-option__image" :src="shareCardPaths.classic" mode="widthFix" aria-label="今日食谱卡" />
-              <view v-else class="share-card-option__placeholder"><text>{{ shareCardLoading ? '生成中' : '生成失败' }}</text></view>
-              <text class="share-card-option__title">今日食谱</text>
-              <text class="share-card-option__desc">菜品是主角</text>
+              <view v-else class="share-card-option__placeholder">
+                <text>{{ shareCardLoading ? '生成中' : '生成失败' }}</text>
+              </view>
+              <text class="share-card-option__title">
+                今日食谱
+              </text>
+              <text class="share-card-option__desc">
+                菜图、材料与做法
+              </text>
             </view>
             <view class="share-card-option pressable" :class="{ 'is-selected': shareStyle === 'guozai', 'is-loading': shareCardLoading }" role="button" @click="selectShareStyle('guozai')">
               <image v-if="shareCardPaths.guozai" class="share-card-option__image" :src="shareCardPaths.guozai" mode="widthFix" aria-label="锅仔手账食谱卡" />
-              <view v-else class="share-card-option__placeholder"><image src="/static/guozai/action_16_chopsticks.png" mode="aspectFit" /><text>{{ shareCardLoading ? '生成中' : '生成失败' }}</text></view>
-              <text class="share-card-option__title">锅仔手账</text>
-              <text class="share-card-option__desc">锅仔陪你吃饭</text>
+              <view v-else class="share-card-option__placeholder">
+                <image src="/static/guozai/action_16_chopsticks.png" mode="aspectFit" /><text>{{ shareCardLoading ? '生成中' : '生成失败' }}</text>
+              </view>
+              <text class="share-card-option__title">
+                锅仔手账
+              </text>
+              <text class="share-card-option__desc">
+                锅仔陪你做完这餐
+              </text>
             </view>
           </view>
 
@@ -857,7 +872,7 @@ async function waitForDelivery(orderNo: string) {
 .primary-bar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 30; padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom)); border-top: 2rpx solid var(--mrc-border-light); background: var(--mrc-surface); box-shadow: 0 -8rpx 24rpx rgba(40, 24, 16, .08); }
 .primary-bar__inner { max-width: 820rpx; margin: 0 auto; }
 .primary-action { display: flex; align-items: center; justify-content: center; gap: 12rpx; min-height: 96rpx; border-radius: 48rpx; color: #fff; background: var(--mrc-primary-grad); box-shadow: var(--mrc-shadow-coral); font-size: 30rpx; font-weight: 800; letter-spacing: 1rpx; }
-.recipe-share__canvas { position: fixed; top: -9999px; left: -9999px; width: 750px; height: 1120px; opacity: 0; pointer-events: none; }
+.recipe-share__canvas { position: fixed; top: -9999px; left: -9999px; width: 750px; height: 1500px; opacity: 0; pointer-events: none; }
 .share-mask { position: fixed; inset: 0; z-index: 61; display: flex; align-items: flex-end; background: rgba(24, 15, 10, .58); }
 .share-sheet { width: 100%; max-height: 90vh; max-height: 90dvh; overflow-y: auto; box-sizing: border-box; padding: 30rpx 32rpx calc(32rpx + env(safe-area-inset-bottom)); border-radius: 40rpx 40rpx 0 0; background: var(--mrc-surface); }
 .share-sheet__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20rpx; }
