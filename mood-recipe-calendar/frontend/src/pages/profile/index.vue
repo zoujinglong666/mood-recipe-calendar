@@ -379,7 +379,7 @@ function goFeedback() {
 .profile-identity__glow { position: absolute; border-radius: 50%; pointer-events: none; }
 .profile-identity__glow--one { width: 250rpx; height: 250rpx; right: -90rpx; top: -120rpx; background: rgba(255, 197, 61, .18); }
 .profile-identity__glow--two { width: 180rpx; height: 180rpx; left: -100rpx; bottom: -120rpx; background: rgba(255, 107, 91, .09); }
-.profile-identity__companion { position: absolute; right: 6rpx; bottom: 38rpx; width: 126rpx; height: 126rpx; opacity: .86; pointer-events: none; }
+.profile-identity__companion { position: absolute; right: 10rpx; bottom: 40rpx; width: 132rpx; height: 132rpx; opacity: .9; pointer-events: none; }
 .profile-identity__main { position: relative; z-index: 1; display: flex; align-items: center; gap: 26rpx; padding-right: 76rpx; }
 .profile-userinfo { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 7rpx; }
 .profile-userinfo__eyebrow { color: var(--mrc-accent); font-size: 21rpx; font-weight: 800; letter-spacing: 2rpx; }
@@ -519,32 +519,34 @@ function goFeedback() {
 .profile-action {
   flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
-  gap: 12rpx;
-  min-height: 138rpx;
-  background: var(--mrc-surface);
+  justify-content: center;
+  gap: 14rpx;
+  min-height: 168rpx;
+  background: linear-gradient(145deg, var(--mrc-surface) 0%, var(--mrc-surface-peach) 100%);
   border: 2rpx solid var(--mrc-border-light);
   border-radius: 28rpx;
-  padding: 20rpx;
+  padding: 24rpx 16rpx;
   box-sizing: border-box;
   box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss);
+  transition: transform 0.15s ease;
 }
-.profile-action__copy { min-width: 0; }
+.profile-action__copy { min-width: 0; text-align: center; }
 .profile-action__text {
   display: block;
-  font-size: 27rpx;
+  font-size: 28rpx;
   color: var(--mrc-text-deep);
-  font-weight: 600;
+  font-weight: 700;
 }
-.profile-action__sub { display: block; margin-top: 6rpx; color: var(--mrc-text-sub); font-size: 19rpx; line-height: 1.35; }
+.profile-action__sub { display: block; margin-top: 6rpx; color: var(--mrc-text-sub); font-size: 20rpx; line-height: 1.35; }
 .profile-action__guozai {
-  width: 64rpx;
-  height: 64rpx;
+  width: 72rpx;
+  height: 72rpx;
   flex-shrink: 0;
 }
 .profile-action:active {
-  transform: scale(0.97);
+  transform: scale(0.96);
 }
 
 /* 历史记录 */

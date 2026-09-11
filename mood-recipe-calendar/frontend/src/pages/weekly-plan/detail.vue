@@ -1,28 +1,78 @@
 <script setup lang="ts">
 import type { WeeklyPlan } from '@/api/weeklyPlans'
 import { computed, ref } from 'vue'
-import { getCurrentPlan, replacePlanDay, toggleShoppingItem } from '@/api/weeklyPlans'
+import { resolveAssetUrl } from '@/api/request'
+import { generatePlanDayCover, getCurrentPlan, getWeeklyPlan, replacePlanDay, toggleShoppingItem } from '@/api/weeklyPlans'
 import { navBack } from '@/composables/useNavBar'
 import { toastError } from '@/utils/toast'
 
 definePage({ name: 'weekly-plan-detail', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '这一周吃什么' } })
+
 const router = useRouter()
+const route = useRoute()
 const plan = ref<WeeklyPlan>()
 const loading = ref(true)
 const swapping = ref(-1)
-const groups = computed(() => ['肉蛋豆', '蔬菜', '主食', '调料'].map(category => ({ category, items: plan.value?.shopping.filter(item => item.category === category) || [] })).filter(group => group.items.length))
+const activeDay = ref(0)
+const shoppingOpen = ref(false)
+const detailsOpen = ref<Record<number, boolean>>({})
+const coverLoading = ref<Record<number, boolean>>({})
+const weekdayNames = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+const groups = computed(() => ['肉蛋豆', '蔬菜', '主食', '调料']
+  .map(category => ({ category, items: plan.value?.shopping.filter(item => item.category === category) || [] }))
+  .filter(group => group.items.length))
+
+function weekday(index: number) {
+  return weekdayNames[index] || `第${index + 1}天`
+}
+
+function selectDay(index: number) {
+  activeDay.value = index
+}
+
+function onDayChange(event: { detail: { current: number } }) {
+  activeDay.value = event.detail.current
+  ensureCover(activeDay.value)
+}
+
+function toggleDetails(index: number) {
+  detailsOpen.value = { ...detailsOpen.value, [index]: !detailsOpen.value[index] }
+}
+
 async function load() {
   loading.value = true
   try {
-    plan.value = await getCurrentPlan()
+    const id = Number(route.query.id)
+    plan.value = Number.isFinite(id) && id > 0 ? await getWeeklyPlan(id) : await getCurrentPlan()
+    activeDay.value = 0
+    ensureCover(0)
   }
   catch (error) {
     toastError(error, '还没有备餐计划')
     router.back()
   }
-  finally { loading.value = false }
+  finally {
+    loading.value = false
+  }
 }
+
 onShow(load)
+
+async function ensureCover(index: number) {
+  if (!plan.value || plan.value.days[index]?.imageUrl || coverLoading.value[index])
+    return
+  coverLoading.value = { ...coverLoading.value, [index]: true }
+  try {
+    plan.value = await generatePlanDayCover(plan.value.id, index)
+  }
+  catch {
+    // 图片失败不会打断查看菜谱；保留已有菜谱图或占位。
+  }
+  finally {
+    coverLoading.value = { ...coverLoading.value, [index]: false }
+  }
+}
+
 async function replaceDay(index: number) {
   if (!plan.value || swapping.value >= 0)
     return
@@ -30,17 +80,25 @@ async function replaceDay(index: number) {
   try {
     plan.value = await replacePlanDay(plan.value.id, index)
   }
-  catch (error) { toastError(error, '换菜失败，请重试') }
-  finally { swapping.value = -1 }
+  catch (error) {
+    toastError(error, '换菜失败，请重试')
+  }
+  finally {
+    swapping.value = -1
+  }
 }
+
 async function toggle(name: string) {
   if (!plan.value)
     return
   try {
     plan.value = await toggleShoppingItem(plan.value.id, name)
   }
-  catch (error) { toastError(error, '清单更新失败') }
+  catch (error) {
+    toastError(error, '清单更新失败')
+  }
 }
+
 function record(dish: string) {
   uni.setStorageSync('mrc_record_draft', { dish, mood: '满足' })
   router.pushTab({ name: 'record' })
@@ -50,45 +108,159 @@ function record(dish: string) {
 <template>
   <view class="detail-page">
     <wd-navbar title="这一周的晚餐" left-arrow safe-area-inset-top custom-style="background-color: transparent !important;" @click-left="navBack" />
-    <view v-if="loading" class="loading">
+
+    <view v-if="loading" class="loading" aria-live="polite">
       锅仔正在翻开备餐小本…
-    </view><template v-else-if="plan">
+    </view>
+
+    <template v-else-if="plan">
       <view class="detail-hero">
-        <image src="/static/guozai/action_09_celebrate.png" mode="aspectFit" /><view><text>一周安排好啦</text><text>买一次菜，慢慢把每一顿做好。</text></view>
-      </view><view v-for="(day, index) in plan.days" :key="day.day" class="day-card">
-        <view class="day-head">
-          <text>{{ day.day }}</text><text role="button" @click="replaceDay(index)">
-            {{ swapping === index ? '换菜中…' : '换一道' }}
+        <image src="/static/guozai/action_09_celebrate.png" mode="aspectFit" aria-label="庆祝的锅仔" />
+        <view>
+          <text class="eyebrow">
+            锅仔的一周备餐本
           </text>
-        </view><text class="dish">
-          {{ day.dishName }}
-        </text><text class="tip">
-          {{ day.healthTip }}
-        </text><text class="reuse">
-          {{ day.reuseHint }}
-        </text><view class="ingredients">
-          <text v-for="item in day.ingredients" :key="item">
-            {{ item }}
+          <text class="hero-title">
+            一周安排好啦
           </text>
-        </view><view class="steps">
-          <text v-for="(step, i) in day.steps" :key="step">
-            {{ i + 1 }}. {{ step }}
+          <text class="hero-copy">
+            一次只想一顿，慢慢把每餐做好。
           </text>
-        </view><view class="record" role="button" @click="record(day.dishName)">
-          做完这一餐，记进时光机 ›
         </view>
-      </view><view class="shopping">
-        <text class="shopping-title">
-          一次买齐的清单
-        </text><view v-for="group in groups" :key="group.category">
-          <text class="group-title">
-            {{ group.category }}
-          </text><view v-for="item in group.items" :key="item.name" class="shop-item" @click="toggle(item.name)">
-            <text :class="{ checked: item.purchased }">
-              {{ item.purchased ? '✓' : '○' }}
-            </text><text :class="{ done: item.purchased }">
-              {{ item.name }}
-            </text><text>{{ item.quantity }}</text>
+      </view>
+
+      <view class="week-switcher" role="tablist" aria-label="选择晚餐日期">
+        <view
+          v-for="(_, index) in plan.days"
+          :key="index"
+          class="week-tab"
+          :class="{ 'week-tab--active': activeDay === index }"
+          role="tab"
+          :aria-selected="activeDay === index"
+          :aria-label="`查看${weekday(index)}晚餐`"
+          @click="selectDay(index)"
+        >
+          <text>{{ weekday(index) }}</text>
+          <text class="week-tab__index">
+            {{ index + 1 }}
+          </text>
+        </view>
+      </view>
+
+      <view class="day-progress" aria-live="polite">
+        <text>{{ weekday(activeDay) }}晚餐</text>
+        <text>{{ activeDay + 1 }} / {{ plan.days.length }}</text>
+      </view>
+
+      <swiper class="recipe-swiper" :current="activeDay" :duration="220" @change="onDayChange">
+        <swiper-item v-for="(day, index) in plan.days" :key="`${day.day}-${index}`">
+          <scroll-view class="recipe-scroll" scroll-y>
+            <view class="day-card" :class="{ 'day-card--active': activeDay === index }">
+              <view class="day-card__topline">
+                <text class="day-label">
+                  {{ weekday(index) }} · 今晚吃这个
+                </text>
+                <view class="replace-action" role="button" :aria-label="`换掉${day.dishName}`" :aria-disabled="swapping >= 0" @click="replaceDay(index)">
+                  {{ swapping === index ? '正在换菜…' : '换一道' }}
+                </view>
+              </view>
+
+              <view class="dish-cover" :class="{ 'dish-cover--loading': coverLoading[index] }">
+                <image v-if="day.imageUrl || day.fallbackImageUrl" :src="resolveAssetUrl(day.imageUrl || day.fallbackImageUrl)" mode="aspectFill" :aria-label="`${day.dishName}菜品图片`" />
+                <view v-else class="dish-cover__empty">
+                  <text>{{ coverLoading[index] ? '锅仔正在画这道菜…' : '这道菜的照片正在路上' }}</text>
+                </view>
+                <text v-if="coverLoading[index]" class="dish-cover__loading">
+                  正在生成菜品图
+                </text>
+              </view>
+
+              <text class="dish">
+                {{ day.dishName }}
+              </text>
+              <text class="health-tip">
+                {{ day.healthTip }}
+              </text>
+
+              <view class="reuse-note">
+                <text class="reuse-note__label">
+                  食材安排
+                </text>
+                <text>{{ day.reuseHint }}</text>
+              </view>
+
+              <view class="details-toggle" role="button" :aria-expanded="Boolean(detailsOpen[index])" :aria-label="detailsOpen[index] ? '收起食材与做法' : '展开食材与做法'" @click="toggleDetails(index)">
+                <text>{{ detailsOpen[index] ? '收起食材与做法' : '看食材和做法' }}</text>
+                <text class="details-toggle__arrow" :class="{ 'details-toggle__arrow--open': detailsOpen[index] }">
+                  ⌄
+                </text>
+              </view>
+
+              <view v-if="detailsOpen[index]" class="recipe-details">
+                <view class="ingredients">
+                  <text v-for="item in day.ingredients" :key="item">
+                    {{ item }}
+                  </text>
+                </view>
+                <view class="steps">
+                  <view v-for="(step, stepIndex) in day.steps" :key="step" class="step">
+                    <text class="step__number">
+                      {{ stepIndex + 1 }}
+                    </text>
+                    <text>{{ step }}</text>
+                  </view>
+                </view>
+              </view>
+
+              <view class="record" role="button" :aria-label="`把${day.dishName}记进时光机`" @click="record(day.dishName)">
+                <view>
+                  <text class="record__title">
+                    做好了？记进时光机
+                  </text>
+                  <text class="record__copy">
+                    给这一顿留下一个小纪念
+                  </text>
+                </view>
+                <text class="record__arrow">
+                  ›
+                </text>
+              </view>
+            </view>
+          </scroll-view>
+        </swiper-item>
+      </swiper>
+
+      <view class="shopping-panel">
+        <view class="shopping-toggle" role="button" :aria-expanded="shoppingOpen" aria-label="展开或收起本周采购清单" @click="shoppingOpen = !shoppingOpen">
+          <view>
+            <text class="shopping-title">
+              本周采购清单
+            </text>
+            <text class="shopping-copy">
+              {{ plan.shopping.length }} 项食材，买菜时再打开
+            </text>
+          </view>
+          <text class="details-toggle__arrow" :class="{ 'details-toggle__arrow--open': shoppingOpen }">
+            ⌄
+          </text>
+        </view>
+
+        <view v-if="shoppingOpen" class="shopping-list">
+          <view v-for="group in groups" :key="group.category" class="shopping-group">
+            <text class="group-title">
+              {{ group.category }}
+            </text>
+            <view v-for="item in group.items" :key="item.name" class="shop-item" role="checkbox" :aria-checked="item.purchased" @click="toggle(item.name)">
+              <text class="shop-item__check" :class="{ checked: item.purchased }">
+                {{ item.purchased ? '✓' : '○' }}
+              </text>
+              <text class="shop-item__name" :class="{ done: item.purchased }">
+                {{ item.name }}
+              </text>
+              <text class="shop-item__quantity">
+                {{ item.quantity }}
+              </text>
+            </view>
           </view>
         </view>
       </view>
@@ -97,5 +269,58 @@ function record(dish: string) {
 </template>
 
 <style lang="scss" scoped>
-.detail-page{min-height:100vh;padding:0 32rpx calc(50rpx + env(safe-area-inset-bottom));background:var(--mrc-bg);box-sizing:border-box}.loading{padding:180rpx 0;text-align:center;color:var(--mrc-text-sub)}.detail-hero,.day-card,.shopping{margin-bottom:20rpx;padding:26rpx;border:2rpx solid var(--mrc-border-light);border-radius:28rpx;background:var(--mrc-surface);box-shadow:var(--mrc-shadow-soft)}.detail-hero{display:flex;align-items:center;background:linear-gradient(135deg,var(--mrc-surface-sun),var(--mrc-surface-peach))}.detail-hero image{width:130rpx;height:130rpx}.detail-hero text{display:block}.detail-hero text:first-child,.dish,.shopping-title{color:var(--mrc-text-strong);font-size:30rpx;font-weight:800}.detail-hero text:last-child,.tip,.reuse{margin-top:8rpx;color:var(--mrc-text-sub);font-size:22rpx;line-height:1.5}.day-head,.shop-item{display:flex;justify-content:space-between}.day-head text:first-child{color:var(--mrc-accent);font-weight:800}.day-head text:last-child{color:var(--mrc-text-sub);font-size:23rpx}.dish,.tip,.reuse,.steps text{display:block}.dish{margin-top:18rpx}.reuse{color:var(--mrc-accent)}.ingredients{display:flex;flex-wrap:wrap;gap:10rpx;margin-top:18rpx}.ingredients text{padding:8rpx 14rpx;border-radius:16rpx;background:var(--mrc-surface-peach);color:var(--mrc-text-sub);font-size:21rpx}.steps{margin-top:18rpx;padding-top:14rpx;border-top:2rpx solid var(--mrc-border-light)}.steps text{margin-top:8rpx;color:var(--mrc-text);font-size:23rpx;line-height:1.5}.record{margin-top:20rpx;color:var(--mrc-accent);font-size:24rpx;font-weight:800}.group-title{display:block;margin:24rpx 0 8rpx;color:var(--mrc-text-sub);font-size:22rpx;font-weight:700}.shop-item{min-height:72rpx;align-items:center;border-bottom:2rpx solid var(--mrc-border-light);color:var(--mrc-text)}.shop-item text:first-child{color:var(--mrc-primary);font-size:30rpx}.shop-item text:last-child{color:var(--mrc-text-sub);font-size:22rpx}.done{text-decoration:line-through;color:var(--mrc-text-light)!important}.checked{font-weight:800}
+.detail-page { min-height: 100vh; padding: 0 32rpx calc(50rpx + env(safe-area-inset-bottom)); box-sizing: border-box; background: var(--mrc-bg); }
+.loading { padding: 180rpx 0; color: var(--mrc-text-sub); text-align: center; }
+.detail-hero, .day-card, .shopping-panel { border: 2rpx solid var(--mrc-border-light); border-radius: 30rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); }
+.detail-hero { display: flex; align-items: center; gap: 12rpx; margin: 8rpx 0 20rpx; padding: 22rpx 24rpx; background: linear-gradient(135deg, var(--mrc-surface-sun), var(--mrc-surface-peach)); }
+.detail-hero image { width: 132rpx; height: 132rpx; flex: 0 0 auto; }
+.detail-hero text, .day-card text, .shopping-panel text { display: block; }
+.eyebrow, .day-label, .reuse-note__label, .group-title { color: var(--mrc-accent); font-size: 21rpx; font-weight: 800; letter-spacing: 1rpx; }
+.hero-title { margin-top: 4rpx; color: var(--mrc-text-strong); font-size: 32rpx; font-weight: 800; }
+.hero-copy, .shopping-copy { margin-top: 6rpx; color: var(--mrc-text-sub); font-size: 23rpx; line-height: 1.55; }
+.week-switcher { display: flex; gap: 8rpx; margin-bottom: 16rpx; }
+.week-tab { display: flex; min-width: 0; min-height: 88rpx; flex: 1; flex-direction: column; align-items: center; justify-content: center; border: 2rpx solid transparent; border-radius: 20rpx; color: var(--mrc-text-sub); font-size: 20rpx; transition: transform 180ms cubic-bezier(.23, 1, .32, 1), background-color 180ms cubic-bezier(.23, 1, .32, 1), color 180ms cubic-bezier(.23, 1, .32, 1); }
+.week-tab:active, .replace-action:active, .details-toggle:active, .record:active, .shopping-toggle:active, .shop-item:active { transform: scale(.98); opacity: .82; }
+.week-tab--active { border-color: var(--mrc-border-light); background: var(--mrc-surface-peach); color: var(--mrc-text-strong); }
+.week-tab__index { margin-top: 2rpx; font-size: 18rpx; opacity: .68; }
+.day-progress { display: flex; justify-content: space-between; margin-bottom: 12rpx; color: var(--mrc-text-sub); font-size: 22rpx; }
+.day-progress text:first-child { color: var(--mrc-text); font-weight: 700; }
+.recipe-swiper { height: 980rpx; }
+.recipe-scroll { height: 100%; box-sizing: border-box; }
+.day-card { min-height: 720rpx; margin: 0 2rpx; padding: 30rpx; box-sizing: border-box; transition: transform 220ms cubic-bezier(.23, 1, .32, 1), opacity 180ms ease-out; }
+.day-card--active { transform: translateY(0); opacity: 1; }
+.day-card__topline, .shopping-toggle, .shop-item, .record, .step { display: flex; align-items: center; }
+.day-card__topline, .shopping-toggle, .shop-item { justify-content: space-between; }
+.replace-action { min-width: 112rpx; min-height: 72rpx; display: flex; align-items: center; justify-content: center; border-radius: 18rpx; background: var(--mrc-surface-peach); color: var(--mrc-accent); font-size: 22rpx; font-weight: 800; transition: transform 160ms ease-out, opacity 160ms ease-out; }
+.dish-cover { position: relative; height: 300rpx; margin-top: 24rpx; overflow: hidden; border-radius: 24rpx; background: var(--mrc-surface-peach); }.dish-cover image, .dish-cover__empty { width: 100%; height: 100%; }.dish-cover__empty { display: flex; align-items: center; justify-content: center; padding: 32rpx; box-sizing: border-box; color: var(--mrc-text-sub); font-size: 24rpx; text-align: center; }.dish-cover__loading { position: absolute; right: 16rpx; bottom: 16rpx; padding: 8rpx 14rpx; border-radius: 14rpx; background: rgba(0, 0, 0, .55); color: #fff; font-size: 20rpx; }.dish-cover--loading image { opacity: .72; }
+.dish { margin-top: 34rpx; color: var(--mrc-text-strong); font-size: 48rpx; font-weight: 800; line-height: 1.22; }
+.health-tip { margin-top: 18rpx; color: var(--mrc-text); font-size: 26rpx; line-height: 1.65; }
+.reuse-note { margin-top: 26rpx; padding: 20rpx 22rpx; border-radius: 20rpx; background: var(--mrc-surface-sun); }
+.reuse-note text:last-child { margin-top: 6rpx; color: var(--mrc-text-sub); font-size: 23rpx; line-height: 1.55; }
+.details-toggle { min-height: 96rpx; display: flex; align-items: center; justify-content: space-between; margin-top: 18rpx; padding: 0 4rpx; border-top: 2rpx solid var(--mrc-border-light); color: var(--mrc-text); font-size: 25rpx; font-weight: 700; transition: transform 160ms ease-out, opacity 160ms ease-out; }
+.details-toggle__arrow { color: var(--mrc-text-sub); font-size: 32rpx; transition: transform 180ms cubic-bezier(.23, 1, .32, 1); }
+.details-toggle__arrow--open { transform: rotate(180deg); }
+.recipe-details { padding-bottom: 4rpx; }
+.ingredients { display: flex; flex-wrap: wrap; gap: 12rpx; }
+.ingredients text { padding: 10rpx 16rpx; border-radius: 16rpx; background: var(--mrc-surface-peach); color: var(--mrc-text); font-size: 22rpx; }
+.steps { margin-top: 24rpx; }
+.step { align-items: flex-start; gap: 14rpx; margin-top: 14rpx; color: var(--mrc-text); font-size: 24rpx; line-height: 1.6; }
+.step__number { width: 34rpx; height: 34rpx; flex: 0 0 auto; border-radius: 50%; background: var(--mrc-primary); color: var(--mrc-surface); font-size: 20rpx; font-weight: 800; line-height: 34rpx; text-align: center; }
+.record { justify-content: space-between; gap: 20rpx; min-height: 108rpx; margin-top: 34rpx; padding: 18rpx 22rpx; border-radius: 22rpx; background: var(--mrc-primary); transition: transform 160ms ease-out, opacity 160ms ease-out; }
+.record__title { color: var(--mrc-surface); font-size: 27rpx; font-weight: 800; }
+.record__copy { margin-top: 4rpx; color: var(--mrc-surface); font-size: 21rpx; opacity: .78; }
+.record__arrow { color: var(--mrc-surface); font-size: 48rpx; font-weight: 300; }
+.shopping-panel { margin: 12rpx 2rpx 20rpx; overflow: hidden; }
+.shopping-toggle { min-height: 112rpx; padding: 16rpx 26rpx; box-sizing: border-box; transition: transform 160ms ease-out, opacity 160ms ease-out; }
+.shopping-title { color: var(--mrc-text-strong); font-size: 27rpx; font-weight: 800; }
+.shopping-list { padding: 0 26rpx 26rpx; border-top: 2rpx solid var(--mrc-border-light); }
+.shopping-group + .shopping-group { margin-top: 18rpx; }
+.group-title { margin: 22rpx 0 6rpx; }
+.shop-item { min-height: 84rpx; gap: 16rpx; border-bottom: 2rpx solid var(--mrc-border-light); transition: transform 160ms ease-out, opacity 160ms ease-out; }
+.shop-item__check { width: 38rpx; color: var(--mrc-primary); font-size: 30rpx; text-align: center; }
+.shop-item__name { flex: 1; color: var(--mrc-text); font-size: 25rpx; }
+.shop-item__quantity { color: var(--mrc-text-sub); font-size: 22rpx; }
+.done { color: var(--mrc-text-light) !important; text-decoration: line-through; }
+.checked { font-weight: 800; }
+@media (prefers-reduced-motion: reduce) { .week-tab, .day-card, .replace-action, .details-toggle, .details-toggle__arrow, .record, .shopping-toggle, .shop-item { transition: none; } }
 </style>

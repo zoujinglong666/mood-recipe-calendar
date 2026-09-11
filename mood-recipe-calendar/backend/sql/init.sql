@@ -94,6 +94,7 @@ CREATE TABLE IF NOT EXISTS weekly_meal_plans (
   openid        VARCHAR(64) NOT NULL COMMENT '微信 openid',
   plan_json     TEXT NOT NULL COMMENT '一周菜单计划JSON',
   shopping_json TEXT NOT NULL COMMENT '买菜清单JSON',
+  favorite      TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否收藏',
   created_at    DATETIME,
   updated_at    DATETIME,
   INDEX idx_weekly_plan_openid (openid)

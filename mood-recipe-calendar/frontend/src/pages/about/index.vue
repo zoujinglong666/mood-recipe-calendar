@@ -1,11 +1,51 @@
 <script setup lang="ts">
+import { ref, onMounted } from 'vue'
 import Icon from '@/components/common/Icon.vue'
 import { navBack } from '@/composables/useNavBar'
+import { fetchCompanionMessage } from '@/api/records'
+import { useUserStore } from '@/stores/user'
 
 definePage({
   name: 'about',
   layout: 'default',
   style: { navigationStyle: 'custom', navigationBarTitleText: '关于' },
+})
+
+const userStore = useUserStore()
+
+// 预设温暖寄语（≤12字，围绕吃饭最大）
+const FALLBACK_QUOTES = [
+  '好好吃饭，是头等大事',
+  '吃饭最大，烦恼靠后',
+  '人间烟火，最抚人心',
+  '一餐一饭，皆是温柔',
+  '吃好每顿，过好每天',
+  '胃暖了，心就暖了',
+  '认真吃饭，就是爱自己',
+  '美食在前，万事可期',
+  '吃饱喝足，继续出发',
+  '今日份开心，从吃饭开始',
+  '生活再忙，也要好好吃饭',
+  '一碗热饭，治愈一切',
+]
+
+const heroQuote = ref(FALLBACK_QUOTES[Math.floor(Math.random() * FALLBACK_QUOTES.length)])
+
+onMounted(async () => {
+  if (!userStore.isLoggedIn)
+    return
+  try {
+    const hour = new Date().getHours()
+    const msg = await fetchCompanionMessage(hour)
+    // 优先用 message，控制在12字以内
+    const text = (msg.message || msg.greeting || '').replace(/[。！！\s]/g, '')
+    if (text && text.length <= 14) {
+      heroQuote.value = text.length > 12 ? text.slice(0, 12) : text
+    }
+  }
+  catch {
+    // 失败时保持预设寄语
+  }
 })
 </script>
 
@@ -18,7 +58,7 @@ definePage({
           GUOZAI'S KITCHEN
         </text>
         <text class="about-hero__title">
-          把每一餐，<br>留成温柔的日常。
+          {{ heroQuote }}
         </text>
         <text class="about-hero__sub">
           锅仔陪你记录心情，也提醒你认真吃饭。
@@ -39,7 +79,7 @@ definePage({
     <view class="about-points">
       <view class="about-point">
         <view class="about-point__icon">
-          <Icon name="heart" :size="36" color="var(--mrc-accent)" />
+          <Icon name="heart" :size="36" color="#FF6B5B" />
         </view><view>
           <text class="about-point__title">
             跟着心情吃饭
@@ -50,7 +90,7 @@ definePage({
       </view>
       <view class="about-point">
         <view class="about-point__icon">
-          <Icon name="calendar" :size="36" color="var(--mrc-accent)" />
+          <Icon name="book" :size="36" color="#FF6B5B" />
         </view><view>
           <text class="about-point__title">
             把日子装订成册
@@ -61,7 +101,7 @@ definePage({
       </view>
       <view class="about-point">
         <view class="about-point__icon">
-          <Icon name="heart" :size="36" color="var(--mrc-accent)" />
+          <Icon name="gear" :size="36" color="#FF6B5B" />
         </view><view>
           <text class="about-point__title">
             隐私与数据
