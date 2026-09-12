@@ -1,0 +1,10 @@
+# Docker 构建时排除的文件（backend build context）
+# 只需要 target/backend-0.0.1-SNAPSHOT.jar
+target/*
+!target/backend-0.0.1-SNAPSHOT.jar
+.mvn
+src
+*.md
+.gitignore
+.env
+.env.example

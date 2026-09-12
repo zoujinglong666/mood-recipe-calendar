@@ -20,11 +20,15 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/upload")
 public class FileUploadController {
+
+    /** 支持的上传场景：image=菜品/记录图片，avatar=用户头像 */
+    private static final Set<String> SCENES = Set.of("image", "avatar");
 
     @Value("${upload.dir:./uploads}")
     private String uploadDir;
@@ -35,17 +39,33 @@ public class FileUploadController {
     @Value("${tencent.cos.secret-key:}") private String cosSecretKey;
     @Value("${tencent.cos.region:}") private String cosRegion;
     @Value("${tencent.cos.bucket:}") private String cosBucket;
-    @Value("${tencent.cos.prefix:uploads/}") private String cosPrefix;
+    /** 项目级前缀：bucket 被多个项目共用，所有 key 统一带该前缀区分项目 */
+    @Value("${tencent.cos.prefix:mood-recipe/}") private String cosPrefix;
+    /** 普通图片（菜品/记录照片）场景子目录 */
+    @Value("${tencent.cos.image-dir:uploads/}") private String cosImageDir;
+    /** 用户头像场景子目录 */
+    @Value("${tencent.cos.avatar-dir:avatar/}") private String cosAvatarDir;
+    /** COS 自定义/回源 CDN 域名（bucket 公共读时可直接访问） */
+    @Value("${tencent.cos.domain:}") private String cosDomain;
 
     /**
      * 图片上传
-     * POST /api/upload/image
+     * POST /api/upload/image?type=image|avatar
      * form-data: file
+     *
+     * COS 模式 key 结构：{项目前缀}/{场景目录}/{日期}_{随机}.{ext}
+     *   - 普通图片：mood-recipe/uploads/20260912_xxxxxxxx.jpg
+     *   - 用户头像：mood-recipe/avatar/20260912_xxxxxxxx.jpg
      */
     @PostMapping("/image")
-    public ApiResponse<Map<String, String>> uploadImage(@RequestParam("file") MultipartFile file) {
+    public ApiResponse<Map<String, String>> uploadImage(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "type", defaultValue = "image") String type) {
         if (file.isEmpty()) {
             return ApiResponse.error("文件不能为空");
+        }
+        if (!SCENES.contains(type)) {
+            return ApiResponse.error(400, "type 仅支持 image 或 avatar");
         }
         String contentType = file.getContentType();
         Map<String, String> extensions = Map.of(
@@ -66,23 +86,22 @@ public class FileUploadController {
         String ext = extensions.get(contentType);
         String dateStr = new SimpleDateFormat("yyyyMMdd").format(new Date());
         String filename = dateStr + "_" + UUID.randomUUID().toString().substring(0, 8) + ext;
-        if (cosEnabled) return uploadToCos(file, contentType, filename);
+        String sceneDir = "avatar".equals(type) ? cosAvatarDir : cosImageDir;
+        if (cosEnabled) return uploadToCos(file, contentType, filename, sceneDir);
 
+        // 本地兜底：./uploads/{image|avatar}/<filename>
         try {
-            // 确保目录存在
-            Path dirPath = Paths.get(uploadDir);
+            Path dirPath = Paths.get(uploadDir).resolve(sceneDir);
             if (!Files.exists(dirPath)) {
                 Files.createDirectories(dirPath);
             }
 
             // 不信任原文件名；仅按已校验的 MIME 类型决定扩展名。
-            // 保存文件
             Path filePath = dirPath.resolve(filename);
             file.transferTo(filePath.toFile());
 
-            // 返回可访问的 URL
             Map<String, String> result = new HashMap<>();
-            String path = "/uploads/" + filename;
+            String path = "/uploads/" + sceneDir + "/" + filename;
             result.put("url", publicBaseUrl == null || publicBaseUrl.isBlank() ? path : publicBaseUrl.replaceAll("/$", "") + path);
             result.put("filename", filename);
             return ApiResponse.ok(result);
@@ -92,19 +111,30 @@ public class FileUploadController {
         }
     }
 
-    private ApiResponse<Map<String, String>> uploadToCos(MultipartFile file, String contentType, String filename) {
+    private ApiResponse<Map<String, String>> uploadToCos(MultipartFile file, String contentType, String filename, String sceneDir) {
         if (cosSecretId.isBlank() || cosSecretKey.isBlank() || cosRegion.isBlank() || cosBucket.isBlank()) return ApiResponse.error(500, "腾讯云 COS 配置不完整");
         COSClient client = new COSClient(new BasicCOSCredentials(cosSecretId, cosSecretKey), new ClientConfig(new Region(cosRegion)));
         try (InputStream input = file.getInputStream()) {
-            String key = (cosPrefix.endsWith("/") ? cosPrefix : cosPrefix + "/") + filename;
+            String base = cosPrefix.endsWith("/") ? cosPrefix : cosPrefix + "/";
+            String dir = sceneDir.endsWith("/") ? sceneDir : sceneDir + "/";
+            String key = base + dir + filename;
             ObjectMetadata metadata = new ObjectMetadata();
             metadata.setContentLength(file.getSize()); metadata.setContentType(contentType);
             client.putObject(new PutObjectRequest(cosBucket, key, input, metadata));
-            String origin = publicBaseUrl == null || publicBaseUrl.isBlank() ? "https://" + cosBucket + ".cos." + cosRegion + ".myqcloud.com" : publicBaseUrl.replaceAll("/$", "");
-            return ApiResponse.ok(Map.of("url", origin + "/" + key, "filename", filename));
+            return ApiResponse.ok(Map.of("url", resolveOrigin() + "/" + key, "filename", filename));
         } catch (IOException exception) {
             return ApiResponse.error("上传到腾讯云 COS 失败");
         } finally { client.shutdown(); }
+    }
+
+    /** 对外访问域名优先级：upload.public-base-url > tencent.cos.domain > COS 默认域名 */
+    private String resolveOrigin() {
+        if (publicBaseUrl != null && !publicBaseUrl.isBlank()) return publicBaseUrl.replaceAll("/$", "");
+        if (cosDomain != null && !cosDomain.isBlank()) {
+            String d = cosDomain.replaceAll("/$", "");
+            return d.startsWith("http") ? d : "https://" + d;
+        }
+        return "https://" + cosBucket + ".cos." + cosRegion + ".myqcloud.com";
     }
 
     private boolean matchesMagic(String type, byte[] value) {

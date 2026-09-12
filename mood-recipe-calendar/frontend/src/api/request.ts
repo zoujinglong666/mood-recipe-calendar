@@ -123,11 +123,12 @@ export function del<T = any>(url: string): Promise<T> {
 
 /**
  * 文件上传
+ * @param type 上传场景：image=菜品/记录图片（COS 内 mood-recipe/uploads/），avatar=用户头像（mood-recipe/avatar/）
  */
-export function uploadFile(filePath: string): Promise<{ url: string, filename: string }> {
+export function uploadFile(filePath: string, type: 'image' | 'avatar' = 'image'): Promise<{ url: string, filename: string }> {
   return new Promise((resolve, reject) => {
     uni.uploadFile({
-      url: `${BASE_URL}/upload/image`,
+      url: `${BASE_URL}/upload/image?type=${type}`,
       filePath,
       name: 'file',
       header: authHeader(),
