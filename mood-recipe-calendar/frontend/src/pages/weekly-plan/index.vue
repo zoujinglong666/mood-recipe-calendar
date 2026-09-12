@@ -10,6 +10,7 @@ definePage({ name: 'weekly-plan', layout: 'default', style: { navigationStyle: '
 const router = useRouter()
 const people = ref(3)
 const dishesPerDay = ref(2)
+const cookingDays = ref([0, 1, 2, 3, 4, 5, 6])
 const healthGoal = ref('BALANCED')
 const generating = ref(false)
 const loading = ref(true)
@@ -19,6 +20,7 @@ const currentPlan = ref<WeeklyPlan>()
 const history = ref<WeeklyPlanSummary[]>([])
 const goals = [{ value: 'BALANCED', label: '均衡吃' }, { value: 'FITNESS', label: '练得好' }, { value: 'LEAN', label: '轻一点' }]
 const dishCounts = [{ value: 1, label: '1 道', copy: '简单吃' }, { value: 2, label: '2 道', copy: '吃得完整' }, { value: 3, label: '3 道', copy: '吃得丰盛' }]
+const weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
 
 function dishesOf(day?: PlanDay) {
   return day?.dishes?.length ? day.dishes : day ? [{ name: day.dishName, ingredients: day.ingredients, steps: day.steps, fallbackImageUrl: day.fallbackImageUrl }] : []
@@ -33,6 +35,18 @@ function dateLabel(value?: string) {
 
 function openPlan(id?: number) {
   router.push({ name: 'weekly-plan-detail', query: id ? { id: String(id) } : {} })
+}
+
+function toggleCookingDay(index: number) {
+  if (cookingDays.value.includes(index)) {
+    if (cookingDays.value.length === 1) {
+      toastError(null, '至少选一天，锅仔才知道何时为你开火')
+      return
+    }
+    cookingDays.value = cookingDays.value.filter(day => day !== index)
+    return
+  }
+  cookingDays.value = [...cookingDays.value, index].sort((a, b) => a - b)
 }
 
 async function load() {
@@ -51,7 +65,7 @@ async function generate() {
   generating.value = true
   try {
     const notify = await requestWeeklyPlanCompletionNotice()
-    const plan = await generateWeeklyPlan({ people: people.value, days: 7, healthGoal: healthGoal.value, sendNotification: notify, dishesPerDay: dishesPerDay.value })
+    const plan = await generateWeeklyPlan({ people: people.value, days: cookingDays.value.length, cookingDays: cookingDays.value, healthGoal: healthGoal.value, sendNotification: notify, dishesPerDay: dishesPerDay.value })
     router.replace({ name: 'weekly-plan-detail', query: { id: String(plan.id) } })
   }
   catch (error) {
@@ -240,6 +254,21 @@ async function toggleFavorite(id: number) {
             03
           </text><view>
             <text class="composer-question__title">
+              这一周哪几天做饭？
+            </text><text class="cooking-days-hint">
+              默认全选；有事的日子点一下跳过，锅仔就不排这顿。
+            </text><view class="cooking-days">
+              <view v-for="(day, index) in weekdays" :key="day" :class="{ selected: cookingDays.includes(index) }" role="button" :aria-pressed="cookingDays.includes(index)" :aria-label="`${cookingDays.includes(index) ? '取消' : '选择'}${day}晚餐`" @click="toggleCookingDay(index)">
+                {{ day }}
+              </view>
+            </view>
+          </view>
+        </view>
+        <view class="composer-question">
+          <text class="composer-question__index">
+            04
+          </text><view>
+            <text class="composer-question__title">
               这一阵子想怎么吃？
             </text><view class="goals">
               <view v-for="goal in goals" :key="goal.value" :class="{ selected: healthGoal === goal.value }" role="button" :aria-pressed="healthGoal === goal.value" @click="healthGoal = goal.value">
@@ -249,9 +278,9 @@ async function toggleFavorite(id: number) {
           </view>
         </view>
         <text class="notice">
-          默认安排 7 天晚餐、每天 {{ dishesPerDay }} 道菜。锅仔会带入口味、忌口和健康目标。
+          已安排 {{ cookingDays.length }} 天晚餐、每天 {{ dishesPerDay }} 道菜。锅仔会带入口味、忌口和健康目标。
         </text>
-        <button class="generate" :disabled="generating" @click="generate">
+        <button class="generate" :disabled="generating || !cookingDays.length" @click="generate">
           {{ generating ? '锅仔正在排菜单…' : '生成这一册晚餐单' }}
         </button>
       </view>
@@ -282,6 +311,6 @@ async function toggleFavorite(id: number) {
 .counter { width: 420rpx; margin-top: 20rpx; }.counter text { width: 76rpx; height: 76rpx; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--mrc-surface-peach); font-size: 32rpx; font-weight: 800; }.counter text:nth-child(2) { width: auto; background: transparent; color: var(--mrc-accent); font-size: 30rpx; }
 .goals { display: flex; gap: 10rpx; margin-top: 20rpx; }.goals view { min-width: 118rpx; min-height: 76rpx; display: flex; align-items: center; justify-content: center; padding: 0 12rpx; border: 2rpx solid var(--mrc-border); border-radius: 18rpx; color: var(--mrc-text-sub); font-size: 22rpx; font-weight: 700; }.goals .selected, .dish-count-options .selected { border-color: var(--mrc-primary); background: var(--mrc-surface-peach); color: var(--mrc-accent); }
 .dish-count-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16rpx; margin-top: 22rpx; }.dish-count-options view { min-height: 96rpx; display: flex; align-items: center; justify-content: center; border: 2rpx solid var(--mrc-border); border-radius: 20rpx; color: var(--mrc-text); background: var(--mrc-surface); }.dish-count-options view text { font-size: 30rpx; font-weight: 800; }.dish-count-options .selected text { color: var(--mrc-accent); }.dish-count-hint { display: block; margin-top: 16rpx; color: var(--mrc-text-sub); font-size: 22rpx; line-height: 1.55; }
-.notice { margin-top: 22rpx; }.start-button:active, .active-menu:active, .new-plan-link:active, .archive-toggle:active, .archive-card:active, .favorite:active, .counter text:active, .goals view:active, .dish-count-options view:active { transform: scale(.985); opacity: .84; }.start-button, .active-menu, .new-plan-link, .archive-toggle, .archive-card, .favorite, .counter text, .goals view, .dish-count-options view { transition: transform 160ms ease-out, opacity 160ms ease-out; }
-@media (prefers-reduced-motion: reduce) { .start-button, .active-menu, .new-plan-link, .archive-toggle, .archive-card, .favorite, .counter text, .goals view, .dish-count-options view, .archive-toggle__arrow { transition: none; } }
+.cooking-days-hint { display: block; margin-top: 12rpx; color: var(--mrc-text-sub); font-size: 22rpx; line-height: 1.55; }.cooking-days { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12rpx; margin-top: 20rpx; }.cooking-days view { min-height: 76rpx; display: flex; align-items: center; justify-content: center; border: 2rpx solid var(--mrc-border); border-radius: 18rpx; color: var(--mrc-text-sub); background: var(--mrc-surface); font-size: 23rpx; font-weight: 700; }.cooking-days .selected { border-color: var(--mrc-primary); background: var(--mrc-surface-peach); color: var(--mrc-accent); }.notice { margin-top: 22rpx; }.start-button:active, .active-menu:active, .new-plan-link:active, .archive-toggle:active, .archive-card:active, .favorite:active, .counter text:active, .goals view:active, .dish-count-options view:active, .cooking-days view:active { transform: scale(.985); opacity: .84; }.start-button, .active-menu, .new-plan-link, .archive-toggle, .archive-card, .favorite, .counter text, .goals view, .dish-count-options view, .cooking-days view { transition: transform 160ms ease-out, opacity 160ms ease-out; }
+@media (prefers-reduced-motion: reduce) { .start-button, .active-menu, .new-plan-link, .archive-toggle, .archive-card, .favorite, .counter text, .goals view, .dish-count-options view, .cooking-days view, .archive-toggle__arrow { transition: none; } }
 </style>

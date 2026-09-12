@@ -82,6 +82,7 @@ declare global {
   const fetchVirtualProducts: typeof import('./api/virtualCommerce')['fetchVirtualProducts']
   const fetchYearStats: typeof import('./api/records')['fetchYearStats']
   const generatePlanDayCover: typeof import('./api/weeklyPlans')['generatePlanDayCover']
+  const generatePlanDishCover: typeof import('./api/weeklyPlans')['generatePlanDishCover']
   const generateWeeklyPlan: typeof import('./api/weeklyPlans')['generateWeeklyPlan']
   const get: typeof import('./api/request')['get']
   const getActivePinia: typeof import('pinia')['getActivePinia']
@@ -503,6 +504,7 @@ declare module 'vue' {
     readonly fetchVirtualProducts: UnwrapRef<typeof import('./api/virtualCommerce')['fetchVirtualProducts']>
     readonly fetchYearStats: UnwrapRef<typeof import('./api/records')['fetchYearStats']>
     readonly generatePlanDayCover: UnwrapRef<typeof import('./api/weeklyPlans')['generatePlanDayCover']>
+    readonly generatePlanDishCover: UnwrapRef<typeof import('./api/weeklyPlans')['generatePlanDishCover']>
     readonly generateWeeklyPlan: UnwrapRef<typeof import('./api/weeklyPlans')['generateWeeklyPlan']>
     readonly get: UnwrapRef<typeof import('./api/request')['get']>
     readonly getActivePinia: UnwrapRef<typeof import('pinia')['getActivePinia']>

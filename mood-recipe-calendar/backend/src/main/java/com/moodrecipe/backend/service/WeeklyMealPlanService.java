@@ -28,14 +28,15 @@ public class WeeklyMealPlanService {
 
     /** 每次生成保留旧计划，历史页可直接回看，不会覆盖收藏。 */
     public PlanView generate(String openid, GenerateRequest request) {
-        int days = Math.max(3, Math.min(request.days(), 7));
+        List<Integer> cookingDays = cookingDays(request);
+        int days = cookingDays.size();
         int dishesPerDay = request.dishesPerDay() > 0
                 ? Math.max(1, Math.min(request.dishesPerDay(), 3))
                 : request.people() >= 3 ? 2 : 1;
         List<Recipe> source = agent.planWeeklyMenu(openid, days, dishesPerDay, request.healthGoal());
         if (source.isEmpty()) throw new IllegalStateException("没有找到符合你口味和忌口的菜谱，请先完善锅仔记忆");
         List<PlanDay> result = new ArrayList<>();
-        for (int i = 0; i < days; i++) result.add(toDay(source, i, dishesPerDay, request.healthGoal()));
+        for (int i = 0; i < days; i++) result.add(toDay(source, i, cookingDays.get(i), dishesPerDay, request.healthGoal()));
         WeeklyMealPlan plan = new WeeklyMealPlan();
         plan.setOpenid(openid);
         plan.setPlanJson(write(result));
@@ -68,17 +69,30 @@ public class WeeklyMealPlanService {
 
     /** 图片只在用户看到该卡片时生成，失败时保留静态图或无图状态。 */
     public Optional<PlanView> ensureCover(String openid, Long id, int index) {
+        return ensureCover(openid, id, index, 0);
+    }
+
+    /** 一天多道菜时，每道菜各自保存封面，避免把配菜误用成主菜的图片。 */
+    public Optional<PlanView> ensureCover(String openid, Long id, int index, int dishIndex) {
         return owned(openid, id).map(plan -> {
             WeeklyMealPlan saved = plan;
             List<PlanDay> days = readDays(plan.getPlanJson());
             if (index < 0 || index >= days.size()) throw new IllegalArgumentException("计划日期无效");
             PlanDay day = days.get(index);
-            if (day.imageUrl() == null || day.imageUrl().isBlank()) {
+            List<PlanDish> dishes = dishesFor(day);
+            if (dishIndex < 0 || dishIndex >= dishes.size()) throw new IllegalArgumentException("菜品无效");
+            PlanDish dish = dishes.get(dishIndex);
+            if (dish.imageUrl() == null || dish.imageUrl().isBlank()) {
                 Recipe coverRecipe = new Recipe();
-                coverRecipe.setName(dishesFor(day).get(0).name());
+                coverRecipe.setName(dish.name());
                 coverRecipe.setDescription(day.healthTip());
-                coverRecipe.setIngredients(write(day.ingredients()));
-                images.generateCover(coverRecipe).ifPresent(url -> days.set(index, day.withImage(url)));
+                coverRecipe.setIngredients(write(dish.ingredients()));
+                images.generateCover(coverRecipe).ifPresent(url -> {
+                    List<PlanDish> updatedDishes = new ArrayList<>(dishes);
+                    updatedDishes.set(dishIndex, dish.withImage(url));
+                    PlanDay updatedDay = day.withDishes(updatedDishes);
+                    days.set(index, dishIndex == 0 ? updatedDay.withImage(url) : updatedDay);
+                });
                 plan.setPlanJson(write(days));
                 saved = plans.save(plan);
             }
@@ -93,7 +107,7 @@ public class WeeklyMealPlanService {
             int dishesPerDay = Math.max(1, dishesFor(days.get(index)).size());
             List<Recipe> source = agent.planWeeklyMenu(openid, 1, dishesPerDay, "BALANCED");
             if (source.isEmpty()) throw new IllegalStateException("没有找到符合你口味和忌口的替换菜谱");
-            days.set(index, toDay(source, 0, dishesPerDay, "BALANCED"));
+            days.set(index, toDay(source, 0, weekdayIndex(days.get(index).day()), dishesPerDay, "BALANCED"));
             plan.setPlanJson(write(days));
             plan.setShoppingJson(write(merge(days, readShopping(plan.getShoppingJson()))));
             return view(plans.save(plan));
@@ -113,7 +127,7 @@ public class WeeklyMealPlanService {
         return plans.findById(id).filter(plan -> plan.getOpenid().equals(openid));
     }
 
-    private PlanDay toDay(List<Recipe> source, int index, int dishesPerDay, String healthGoal) {
+    private PlanDay toDay(List<Recipe> source, int index, int weekdayIndex, int dishesPerDay, String healthGoal) {
         List<PlanDish> dishes = new ArrayList<>();
         for (int offset = 0; offset < dishesPerDay; offset++) {
             Recipe recipe = source.get((index * dishesPerDay + offset) % source.size());
@@ -121,7 +135,7 @@ public class WeeklyMealPlanService {
         }
         PlanDish mainDish = dishes.get(0);
         String dishName = dishes.stream().map(PlanDish::name).reduce((first, second) -> first + " · " + second).orElse("今晚的菜单");
-        return new PlanDay("周" + "一二三四五六日".charAt(index), dishName, mainDish.ingredients(), mainDish.steps(),
+        return new PlanDay(dayName(weekdayIndex), dishName, mainDish.ingredients(), mainDish.steps(),
                 index == 0 ? "这周会优先复用常见蔬菜和调料。" : "和前几天共用部分调料，少买一点也够用。",
                 "FITNESS".equals(healthGoal) ? "搭配优质蛋白、主食和蔬菜。" : "LEAN".equals(healthGoal) ? "搭配蔬菜、优质蛋白和少油做法。" : "搭配一份主食和蔬菜，吃得更完整。",
                 null, mainDish.fallbackImageUrl(), dishes);
@@ -131,7 +145,7 @@ public class WeeklyMealPlanService {
         List<String> ingredients = ingredients(recipe.getIngredients());
         List<String> steps = steps(recipe.getSteps());
         if (steps.isEmpty()) steps = List.of("食材洗净切好。", "锅中少油加热。", "按食材易熟程度依次下锅。", "调味后炒熟即可。");
-        return new PlanDish(recipe.getName(), ingredients, steps.stream().limit(5).toList(), recipe.getImage());
+        return new PlanDish(recipe.getName(), ingredients, steps.stream().limit(5).toList(), recipe.getImage(), null);
     }
 
     private List<ShoppingItem> merge(List<PlanDay> days, List<ShoppingItem> old) {
@@ -150,9 +164,18 @@ public class WeeklyMealPlanService {
     }
 
     private String normalize(String raw) { return raw.replaceAll("[0-9０-９]+(?:g|克|个|根|颗|块|勺|适量|份)?", "").replaceAll("[，,、].*", "").trim(); }
+    private List<Integer> cookingDays(GenerateRequest request) {
+        if (request.cookingDays() != null && !request.cookingDays().isEmpty()) {
+            List<Integer> selected = request.cookingDays().stream().filter(day -> day >= 0 && day < 7).distinct().sorted().toList();
+            if (!selected.isEmpty()) return selected;
+        }
+        return java.util.stream.IntStream.range(0, Math.max(1, Math.min(request.days(), 7))).boxed().toList();
+    }
+    private int weekdayIndex(String day) { return "一二三四五六日".indexOf(day == null || day.length() < 2 ? "一" : day.substring(1)); }
+    private String dayName(int index) { return "周" + "一二三四五六日".charAt(Math.max(0, Math.min(index, 6))); }
     private List<PlanDish> dishesFor(PlanDay day) {
         if (day.dishes() != null && !day.dishes().isEmpty()) return day.dishes();
-        return List.of(new PlanDish(day.dishName(), day.ingredients(), day.steps(), day.fallbackImageUrl()));
+        return List.of(new PlanDish(day.dishName(), day.ingredients(), day.steps(), day.fallbackImageUrl(), day.imageUrl()));
     }
     private List<String> ingredients(String value) { return readStrings(value); }
     private List<String> steps(String value) { return readStrings(value); }
@@ -163,12 +186,15 @@ public class WeeklyMealPlanService {
     private PlanView view(WeeklyMealPlan plan) { return new PlanView(plan.getId(), readDays(plan.getPlanJson()), readShopping(plan.getShoppingJson()), plan.isFavorite(), plan.getCreatedAt()); }
     private PlanSummary summary(WeeklyMealPlan plan) { return new PlanSummary(plan.getId(), plan.getCreatedAt(), plan.isFavorite(), readDays(plan.getPlanJson())); }
 
-    public record GenerateRequest(int people, int days, String healthGoal, boolean sendNotification, int dishesPerDay) {}
+    public record GenerateRequest(int people, int days, List<Integer> cookingDays, String healthGoal, boolean sendNotification, int dishesPerDay) {}
     public record PlanView(Long id, List<PlanDay> days, List<ShoppingItem> shopping, boolean favorite, LocalDateTime createdAt) {}
     public record PlanSummary(Long id, LocalDateTime createdAt, boolean favorite, List<PlanDay> days) {}
     public record PlanDay(String day, String dishName, List<String> ingredients, List<String> steps, String reuseHint, String healthTip, String imageUrl, String fallbackImageUrl, List<PlanDish> dishes) {
         PlanDay withImage(String imageUrl) { return new PlanDay(day, dishName, ingredients, steps, reuseHint, healthTip, imageUrl, fallbackImageUrl, dishes); }
+        PlanDay withDishes(List<PlanDish> dishes) { return new PlanDay(day, dishName, ingredients, steps, reuseHint, healthTip, imageUrl, fallbackImageUrl, dishes); }
     }
-    public record PlanDish(String name, List<String> ingredients, List<String> steps, String fallbackImageUrl) {}
+    public record PlanDish(String name, List<String> ingredients, List<String> steps, String fallbackImageUrl, String imageUrl) {
+        PlanDish withImage(String imageUrl) { return new PlanDish(name, ingredients, steps, fallbackImageUrl, imageUrl); }
+    }
     public static class ShoppingItem { public String name; public String category; public String quantity; public boolean purchased; public ShoppingItem() {} ShoppingItem(String n, String c, String q, boolean p) { name = n; category = c; quantity = q; purchased = p; } public String name() { return name; } }
 }

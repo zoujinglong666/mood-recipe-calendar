@@ -1,6 +1,6 @@
 import { get, post } from './request'
 
-export interface PlanDish { name: string, ingredients: string[], steps: string[], fallbackImageUrl?: string }
+export interface PlanDish { name: string, ingredients: string[], steps: string[], fallbackImageUrl?: string, imageUrl?: string }
 export interface PlanDay { day: string, dishName: string, ingredients: string[], steps: string[], reuseHint: string, healthTip: string, imageUrl?: string, fallbackImageUrl?: string, dishes?: PlanDish[] }
 export interface ShoppingItem { name: string, category: string, quantity: string, purchased: boolean }
 export interface WeeklyPlan { id: number, days: PlanDay[], shopping: ShoppingItem[], favorite: boolean, createdAt: string }
@@ -15,7 +15,7 @@ export function getWeeklyPlan(id: number) {
 export function getWeeklyPlanHistory() {
   return get<WeeklyPlanSummary[]>('/weekly-plans/history')
 }
-export function generateWeeklyPlan(data: { people: number, days: number, healthGoal: string, sendNotification: boolean, dishesPerDay: number }) {
+export function generateWeeklyPlan(data: { people: number, days: number, cookingDays: number[], healthGoal: string, sendNotification: boolean, dishesPerDay: number }) {
   return post<WeeklyPlan>('/weekly-plans/generate', data)
 }
 
@@ -49,6 +49,9 @@ export function toggleWeeklyPlanFavorite(id: number) {
 }
 export function generatePlanDayCover(id: number, index: number) {
   return post<WeeklyPlan>(`/weekly-plans/${id}/days/${index}/cover`)
+}
+export function generatePlanDishCover(id: number, dayIndex: number, dishIndex: number) {
+  return post<WeeklyPlan>(`/weekly-plans/${id}/days/${dayIndex}/cover/${dishIndex}`)
 }
 export function toggleShoppingItem(id: number, name: string) {
   return post<WeeklyPlan>(`/weekly-plans/${id}/shopping/${encodeURIComponent(name)}`)

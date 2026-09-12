@@ -2,7 +2,7 @@
 import type { PlanDay, WeeklyPlan } from '@/api/weeklyPlans'
 import { computed, nextTick, ref } from 'vue'
 import { resolveAssetUrl } from '@/api/request'
-import { generatePlanDayCover, getCurrentPlan, getWeeklyPlan, replacePlanDay, toggleShoppingItem } from '@/api/weeklyPlans'
+import { generatePlanDishCover, getCurrentPlan, getWeeklyPlan, replacePlanDay, toggleShoppingItem } from '@/api/weeklyPlans'
 import { navBack } from '@/composables/useNavBar'
 import { exportRecipeShare, saveShareImage } from '@/utils/albumShare'
 import { toastError, toastSuccess } from '@/utils/toast'
@@ -17,28 +17,58 @@ const swapping = ref(-1)
 const activeDay = ref(0)
 const shoppingOpen = ref(false)
 const detailsOpen = ref<Record<number, boolean>>({})
-const coverLoading = ref<Record<number, boolean>>({})
+const coverLoading = ref<Record<string, boolean>>({})
+const activeDish = ref<Record<number, number>>({})
 const sharingDay = ref(-1)
+let coverQueue = Promise.resolve()
 const weekdayNames = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
 const groups = computed(() => ['肉蛋豆', '蔬菜', '主食', '调料']
   .map(category => ({ category, items: plan.value?.shopping.filter(item => item.category === category) || [] }))
   .filter(group => group.items.length))
 
-function weekday(index: number) {
-  return weekdayNames[index] || `第${index + 1}天`
+function weekday(day: PlanDay | undefined, index: number) {
+  return day?.day || weekdayNames[index] || `第${index + 1}天`
 }
 
 function dishesOf(day: PlanDay) {
   return day.dishes?.length ? day.dishes : [{ name: day.dishName, ingredients: day.ingredients, steps: day.steps, fallbackImageUrl: day.fallbackImageUrl }]
 }
 
+function currentDish(day: PlanDay, dayIndex: number) {
+  return dishesOf(day)[activeDish.value[dayIndex] || 0] || dishesOf(day)[0]
+}
+
+function coverKey(dayIndex: number, dishIndex: number) {
+  return `${dayIndex}-${dishIndex}`
+}
+
+function coverOf(day: PlanDay, dishIndex: number) {
+  const dish = dishesOf(day)[dishIndex]
+  return dish?.imageUrl || (dishIndex === 0 ? day.imageUrl : '') || dish?.fallbackImageUrl
+}
+
+function hasGeneratedCover(day: PlanDay | undefined, dishIndex: number) {
+  const dish = day && dishesOf(day)[dishIndex]
+  return Boolean(dish?.imageUrl || (dishIndex === 0 && day?.imageUrl))
+}
+
 function selectDay(index: number) {
   activeDay.value = index
+  queueCovers(index)
 }
 
 function onDayChange(event: { detail: { current: number } }) {
   activeDay.value = event.detail.current
-  ensureCover(activeDay.value)
+  queueCovers(activeDay.value)
+}
+
+function selectDish(dayIndex: number, dishIndex: number) {
+  activeDish.value = { ...activeDish.value, [dayIndex]: dishIndex }
+  queueCovers(dayIndex)
+}
+
+function onDishChange(dayIndex: number, event: { detail: { current: number } }) {
+  selectDish(dayIndex, event.detail.current)
 }
 
 function toggleDetails(index: number) {
@@ -51,7 +81,7 @@ async function load() {
     const id = Number(route.query.id)
     plan.value = Number.isFinite(id) && id > 0 ? await getWeeklyPlan(id) : await getCurrentPlan()
     activeDay.value = 0
-    ensureCover(0)
+    queueCovers(0)
   }
   catch (error) {
     toastError(error, '还没有备餐计划')
@@ -64,18 +94,29 @@ async function load() {
 
 onShow(load)
 
-async function ensureCover(index: number) {
-  if (!plan.value || plan.value.days[index]?.imageUrl || coverLoading.value[index])
+function queueCovers(dayIndex: number) {
+  coverQueue = coverQueue.then(async () => {
+    const day = plan.value?.days[dayIndex]
+    if (!day)
+      return
+    for (let dishIndex = 0; dishIndex < dishesOf(day).length; dishIndex++)
+      await ensureDishCover(dayIndex, dishIndex)
+  }).catch(() => undefined)
+}
+
+async function ensureDishCover(dayIndex: number, dishIndex: number) {
+  const key = coverKey(dayIndex, dishIndex)
+  if (!plan.value || hasGeneratedCover(plan.value.days[dayIndex], dishIndex) || coverLoading.value[key])
     return
-  coverLoading.value = { ...coverLoading.value, [index]: true }
+  coverLoading.value = { ...coverLoading.value, [key]: true }
   try {
-    plan.value = await generatePlanDayCover(plan.value.id, index)
+    plan.value = await generatePlanDishCover(plan.value.id, dayIndex, dishIndex)
   }
   catch {
     // 图片失败不会打断查看菜谱；保留已有菜谱图或占位。
   }
   finally {
-    coverLoading.value = { ...coverLoading.value, [index]: false }
+    coverLoading.value = { ...coverLoading.value, [key]: false }
   }
 }
 
@@ -85,6 +126,8 @@ async function replaceDay(index: number) {
   swapping.value = index
   try {
     plan.value = await replacePlanDay(plan.value.id, index)
+    activeDish.value = { ...activeDish.value, [index]: 0 }
+    queueCovers(index)
   }
   catch (error) {
     toastError(error, '换菜失败，请重试')
@@ -113,7 +156,8 @@ function record(dish: string) {
 async function shareDay(day: PlanDay, index: number) {
   if (sharingDay.value >= 0)
     return
-  const dish = dishesOf(day)[0]
+  const dishIndex = activeDish.value[index] || 0
+  const dish = currentDish(day, index)
   if (!dish)
     return
   sharingDay.value = index
@@ -125,7 +169,7 @@ async function shareDay(day: PlanDay, index: number) {
       reason: day.healthTip,
       ingredients: dish.ingredients,
       steps: dish.steps,
-      image: resolveAssetUrl(day.imageUrl || dish.fallbackImageUrl),
+      image: resolveAssetUrl(coverOf(day, dishIndex)),
       guozaiPath: '/static/guozai/action_16_chopsticks.png',
       style: 'guozai',
     }, 'weeklyRecipeShareCanvas')
@@ -167,16 +211,16 @@ async function shareDay(day: PlanDay, index: number) {
 
       <view class="week-switcher" role="tablist" aria-label="选择晚餐日期">
         <view
-          v-for="(_, index) in plan.days"
+          v-for="(day, index) in plan.days"
           :key="index"
           class="week-tab"
           :class="{ 'week-tab--active': activeDay === index }"
           role="tab"
           :aria-selected="activeDay === index"
-          :aria-label="`查看${weekday(index)}晚餐`"
+          :aria-label="`查看${weekday(day, index)}晚餐`"
           @click="selectDay(index)"
         >
-          <text>{{ weekday(index) }}</text>
+          <text>{{ weekday(day, index) }}</text>
           <text class="week-tab__index">
             {{ index + 1 }}
           </text>
@@ -184,7 +228,7 @@ async function shareDay(day: PlanDay, index: number) {
       </view>
 
       <view class="day-progress" aria-live="polite">
-        <text>{{ weekday(activeDay) }}晚餐</text>
+        <text>{{ weekday(plan.days[activeDay], activeDay) }}晚餐</text>
         <text>{{ activeDay + 1 }} / {{ plan.days.length }}</text>
       </view>
 
@@ -194,25 +238,38 @@ async function shareDay(day: PlanDay, index: number) {
             <view class="day-card" :class="{ 'day-card--active': activeDay === index }">
               <view class="day-card__topline">
                 <text class="day-label">
-                  {{ weekday(index) }} · 今晚 {{ dishesOf(day).length }} 道菜
+                  {{ weekday(day, index) }} · 今晚 {{ dishesOf(day).length }} 道菜
                 </text>
                 <view class="replace-action" role="button" :aria-label="`换掉${day.dishName}`" :aria-disabled="swapping >= 0" @click="replaceDay(index)">
                   {{ swapping === index ? '正在换菜…' : '换一桌' }}
                 </view>
               </view>
 
-              <view class="dish-cover" :class="{ 'dish-cover--loading': coverLoading[index] }">
-                <image v-if="day.imageUrl || day.fallbackImageUrl" :src="resolveAssetUrl(day.imageUrl || day.fallbackImageUrl)" mode="aspectFill" :aria-label="`${day.dishName}菜品图片`" />
-                <view v-else class="dish-cover__empty">
-                  <text>{{ coverLoading[index] ? '锅仔正在画这道菜…' : '这道菜的照片正在路上' }}</text>
+              <swiper class="dish-cover-carousel" :current="activeDish[index] || 0" :duration="220" @change="onDishChange(index, $event)">
+                <swiper-item v-for="(dish, dishIndex) in dishesOf(day)" :key="`${dish.name}-${dishIndex}`">
+                  <view class="dish-cover" :class="{ 'dish-cover--loading': coverLoading[coverKey(index, dishIndex)] }">
+                    <image v-if="coverOf(day, dishIndex)" :src="resolveAssetUrl(coverOf(day, dishIndex))" mode="aspectFill" :aria-label="`${dish.name}菜品图片`" />
+                    <view v-else class="dish-cover__empty">
+                      <text>{{ coverLoading[coverKey(index, dishIndex)] ? '锅仔正在画这道菜…' : '这道菜的照片正在路上' }}</text>
+                    </view>
+                    <text v-if="coverLoading[coverKey(index, dishIndex)]" class="dish-cover__loading">
+                      正在生成菜品图
+                    </text>
+                    <text v-if="dishesOf(day).length > 1" class="dish-cover__count">
+                      {{ dishIndex + 1 }} / {{ dishesOf(day).length }}
+                    </text>
+                  </view>
+                </swiper-item>
+              </swiper>
+
+              <view v-if="dishesOf(day).length > 1" class="dish-pager" role="tablist" aria-label="选择今晚的菜品">
+                <view v-for="(dish, dishIndex) in dishesOf(day)" :key="`${dish.name}-${dishIndex}`" class="dish-pager__item" :class="{ 'dish-pager__item--active': (activeDish[index] || 0) === dishIndex }" role="tab" :aria-selected="(activeDish[index] || 0) === dishIndex" :aria-label="`查看第${dishIndex + 1}道${dish.name}`" @click="selectDish(index, dishIndex)">
+                  <text>{{ dishIndex + 1 }}</text><text>{{ dish.name }}</text>
                 </view>
-                <text v-if="coverLoading[index]" class="dish-cover__loading">
-                  正在生成菜品图
-                </text>
               </view>
 
               <text class="dish">
-                {{ day.dishName }}
+                {{ currentDish(day, index).name }}
               </text>
               <text class="health-tip">
                 {{ day.healthTip }}
@@ -225,7 +282,7 @@ async function shareDay(day: PlanDay, index: number) {
                 <text>{{ day.reuseHint }}</text>
               </view>
 
-              <view class="share-day" :class="{ 'share-day--busy': sharingDay >= 0 }" role="button" :aria-label="`生成${dishesOf(day)[0]?.name}的食谱卡`" :aria-disabled="sharingDay >= 0" @click="shareDay(day, index)">
+              <view class="share-day" :class="{ 'share-day--busy': sharingDay >= 0 }" role="button" :aria-label="`生成${currentDish(day, index).name}的食谱卡`" :aria-disabled="sharingDay >= 0" @click="shareDay(day, index)">
                 <image src="/static/guozai/action_16_chopsticks.png" mode="aspectFit" aria-label="拿着筷子的锅仔" />
                 <view>
                   <text class="share-day__title">
@@ -347,7 +404,21 @@ async function shareDay(day: PlanDay, index: number) {
 .day-card__topline, .shopping-toggle, .shop-item, .record, .step { display: flex; align-items: center; }
 .day-card__topline, .shopping-toggle, .shop-item { justify-content: space-between; }
 .replace-action { min-width: 112rpx; min-height: 72rpx; display: flex; align-items: center; justify-content: center; border-radius: 18rpx; background: var(--mrc-surface-peach); color: var(--mrc-accent); font-size: 22rpx; font-weight: 800; transition: transform 160ms ease-out, opacity 160ms ease-out; }
-.dish-cover { position: relative; height: 300rpx; margin-top: 24rpx; overflow: hidden; border-radius: 24rpx; background: var(--mrc-surface-peach); }.dish-cover image, .dish-cover__empty { width: 100%; height: 100%; }.dish-cover__empty { display: flex; align-items: center; justify-content: center; padding: 32rpx; box-sizing: border-box; color: var(--mrc-text-sub); font-size: 24rpx; text-align: center; }.dish-cover__loading { position: absolute; right: 16rpx; bottom: 16rpx; padding: 8rpx 14rpx; border-radius: 14rpx; background: rgba(0, 0, 0, .55); color: #fff; font-size: 20rpx; }.dish-cover--loading image { opacity: .72; }
+.dish-cover-carousel { height: 300rpx; margin-top: 24rpx; overflow: hidden; border-radius: 24rpx; }
+.dish-cover { position: relative; width: 100%; height: 100%; overflow: hidden; border-radius: 24rpx; background: var(--mrc-surface-peach); }
+.dish-cover image, .dish-cover__empty { width: 100%; height: 100%; }
+.dish-cover__empty { display: flex; align-items: center; justify-content: center; padding: 32rpx; box-sizing: border-box; color: var(--mrc-text-sub); font-size: 24rpx; text-align: center; }
+.dish-cover__loading, .dish-cover__count { position: absolute; bottom: 16rpx; padding: 8rpx 14rpx; border-radius: 14rpx; background: rgba(0, 0, 0, .55); color: #fff; font-size: 20rpx; }
+.dish-cover__loading { right: 16rpx; }
+.dish-cover__count { left: 16rpx; }
+.dish-cover--loading image { opacity: .72; }
+.dish-pager { display: flex; gap: 10rpx; margin-top: 16rpx; overflow-x: auto; }
+.dish-pager__item { display: flex; min-width: 0; min-height: 64rpx; flex: 1; align-items: center; gap: 8rpx; padding: 0 14rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 16rpx; color: var(--mrc-text-sub); transition: transform 160ms ease-out, opacity 160ms ease-out, background-color 160ms ease-out; box-sizing: border-box; }
+.dish-pager__item text:first-child { display: flex; width: 28rpx; height: 28rpx; flex: 0 0 auto; align-items: center; justify-content: center; border-radius: 50%; background: var(--mrc-border-light); color: var(--mrc-text-sub); font-size: 18rpx; font-weight: 800; }
+.dish-pager__item text:last-child { overflow: hidden; font-size: 21rpx; font-weight: 700; white-space: nowrap; text-overflow: ellipsis; }
+.dish-pager__item--active { border-color: var(--mrc-primary); background: var(--mrc-surface-peach); color: var(--mrc-text-strong); }
+.dish-pager__item--active text:first-child { background: var(--mrc-primary); color: var(--mrc-surface); }
+.dish-pager__item:active { transform: scale(.98); opacity: .82; }
 .dish { margin-top: 34rpx; color: var(--mrc-text-strong); font-size: 48rpx; font-weight: 800; line-height: 1.22; }
 .health-tip { margin-top: 18rpx; color: var(--mrc-text); font-size: 26rpx; line-height: 1.65; }
 .reuse-note { margin-top: 26rpx; padding: 20rpx 22rpx; border-radius: 20rpx; background: var(--mrc-surface-sun); }
@@ -399,5 +470,5 @@ async function shareDay(day: PlanDay, index: number) {
 .shop-item__quantity { color: var(--mrc-text-sub); font-size: 22rpx; }
 .done { color: var(--mrc-text-light) !important; text-decoration: line-through; }
 .checked { font-weight: 800; }
-@media (prefers-reduced-motion: reduce) { .week-tab, .day-card, .replace-action, .share-day, .details-toggle, .details-toggle__arrow, .record, .shopping-toggle, .shop-item { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .week-tab, .day-card, .replace-action, .dish-pager__item, .share-day, .details-toggle, .details-toggle__arrow, .record, .shopping-toggle, .shop-item { transition: none; } }
 </style>
