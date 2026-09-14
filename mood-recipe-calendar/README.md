@@ -126,8 +126,23 @@ pnpm dev                             # http://localhost:5173/（被占用则 517
 | GET  | `/api/records/month?openid=&month=2026-09` | 某月记录 |
 | DELETE | `/api/records/{id}` | 删除记录 |
 | GET  | `/api/records/stats?openid=demo-user` | 统计（总条数/天数/心情分布） |
+| POST | `/api/upload/image?type=image\|avatar` | 图片上传：菜品/记录图片走 `mood-recipe/uploads/`，头像走 `mood-recipe/avatar/`（腾讯云 COS，密钥走 `.env`） |
 
 前端已封装 `src/api/record.ts`：记录发布时**本地存储兜底 + 同步写入 MySQL**（后端未启动时静默降级，前端演示不断）。
+
+### 图片上传（腾讯云 COS）
+
+上传接口默认启用腾讯云 COS（存储桶 `lq-picture-1367878423`，为多项目共用）。所有对象 key 统一带项目前缀 `mood-recipe/`，按场景分目录：
+
+| 场景 | type | COS key 前缀 | 示例 URL |
+| ---- | ---- | ---- | ---- |
+| 菜品/记录图片 | `image`（默认） | `mood-recipe/uploads/` | `https://static.image-zero.art/mood-recipe/uploads/20260912_xxxxxxxx.jpg` |
+| 用户头像 | `avatar` | `mood-recipe/avatar/` | `https://static.image-zero.art/mood-recipe/avatar/20260912_xxxxxxxx.jpg` |
+
+- 密钥写在 `backend/.env`（已加入 `.gitignore`，**绝不提交仓库**），由 `spring.config.import` 自动加载；也可通过环境变量 `TENCENT_COS_SECRET_ID` / `TENCENT_COS_SECRET_KEY` 覆盖。
+- 对外访问域名优先级：`upload.public-base-url` > `tencent.cos.domain`（默认 `static.image-zero.art`）> COS 默认域名。
+- 前端调用：`uploadFile(filePath)` 上传普通图片，`uploadFile(filePath, 'avatar')` 上传头像（`frontend/src/api/request.ts`）。
+- 未配置密钥或 COS 关闭时自动回退本地目录 `./uploads/{image|avatar}/`（仅开发兜底）。
 
 ### 虚拟支付接入状态
 
@@ -180,5 +195,5 @@ wot list                  # 组件列表
 - [ ] 微信登录换取真实 openid，替换 `DEMO_OPENID`
 - [ ] 菜谱库接入 `recipes` 表，`/api/recipes/today` 按心情查库
 - [ ] 月度画册/年度报告的 AI 寄语接大模型 API
-- [ ] 图片上传到本地/云存储（当前 record 存的是本地临时路径）
+- [x] 图片上传到腾讯云 COS（`/api/upload/image`，项目前缀 `mood-recipe/`，头像走 `avatar/` 子目录；密钥在 `backend/.env`）
 - [ ] 分享长图 / 广告 / 会员等变现场景

@@ -49,7 +49,7 @@ async function updateAvatar(filePath: string) {
     return
   avatarUpdating.value = true
   try {
-    const uploaded = await uploadFile(filePath)
+    const uploaded = await uploadFile(filePath, 'avatar')
     await updateUserInfo({ openid: userStore.openid, avatarUrl: uploaded.url })
     await refreshUserInfo(true)
     toastSuccess('头像已更新')
