@@ -104,7 +104,7 @@ onShow(loadHistory)
       </view>
       <view class="guozai-stage">
         <view class="stage-glow" />
-        <image src="/static/guozai/action_08_peek.png" mode="aspectFit" />
+        <image src="https://static.image-zero.art/mood-recipe/static/guozai/action_08_peek.png" mode="aspectFit" />
       </view>
     </view>
 
@@ -252,7 +252,7 @@ onShow(loadHistory)
       </view>
 
       <view v-else class="history-empty">
-        <image src="/static/guozai/action_07_empty.png" mode="aspectFit" />
+        <image src="https://static.image-zero.art/mood-recipe/static/guozai/action_07_empty.png" mode="aspectFit" />
         <view>
           <text class="empty-title">
             还没有反馈记录

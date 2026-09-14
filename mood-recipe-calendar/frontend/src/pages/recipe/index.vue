@@ -312,7 +312,7 @@ async function generateShareCards() {
           ingredients: ingredients.value,
           steps: steps.value,
           image: recipe.value.image,
-          guozaiPath: '/static/guozai/action_16_chopsticks.png',
+          guozaiPath: 'https://static.image-zero.art/mood-recipe/static/guozai/action_16_chopsticks.png',
           style,
         })
       }
@@ -459,7 +459,7 @@ async function waitForDelivery(orderNo: string) {
     <view v-if="loading" class="thinking-card" aria-label="锅仔正在推荐菜谱" aria-live="polite">
       <view class="thinking-card__hero">
         <view class="thinking-card__halo" />
-        <image class="thinking-card__guozai" src="/static/guozai/action_10_thinking.png" mode="aspectFit" />
+        <image class="thinking-card__guozai" src="https://static.image-zero.art/mood-recipe/static/guozai/action_10_thinking.png" mode="aspectFit" />
         <view class="thinking-card__copy">
           <text class="thinking-card__eyebrow">
             锅仔正在工作
@@ -525,11 +525,11 @@ async function waitForDelivery(orderNo: string) {
           <view class="dish-media">
             <image v-if="recipeImageAvailable" class="dish-media__image" :src="recipe.image" mode="aspectFill" aria-label="推荐菜品图片" @error="imageFailed = true" />
             <view v-else class="dish-media__fallback">
-              <image src="/static/guozai/action_01_bowl.png" mode="aspectFit" />
+              <image src="https://static.image-zero.art/mood-recipe/static/guozai/action_01_bowl.png" mode="aspectFit" />
             </view>
           </view>
           <view class="guozai-note">
-            <image class="guozai-note__avatar guozai-breathe" src="/static/guozai/action_16_chopsticks.png" mode="aspectFit" aria-label="锅仔" />
+            <image class="guozai-note__avatar guozai-breathe" src="https://static.image-zero.art/mood-recipe/static/guozai/action_16_chopsticks.png" mode="aspectFit" aria-label="锅仔" />
             <view class="guozai-note__bubble">
               <text class="guozai-note__label">
                 锅仔为什么推荐它
@@ -585,7 +585,7 @@ async function waitForDelivery(orderNo: string) {
         </view>
 
         <view class="custom-entry pressable" role="button" aria-label="打开按食材定制菜单" @click="openAiPanel">
-          <image class="custom-entry__image" src="/static/guozai/action_10_thinking.png" mode="aspectFit" />
+          <image class="custom-entry__image" src="https://static.image-zero.art/mood-recipe/static/guozai/action_10_thinking.png" mode="aspectFit" />
           <view class="custom-entry__copy">
             <text class="custom-entry__title">
               家里有现成食材？
@@ -692,7 +692,7 @@ async function waitForDelivery(orderNo: string) {
             <view class="share-card-option pressable" :class="{ 'is-selected': shareStyle === 'guozai', 'is-loading': shareCardLoading }" role="button" @click="selectShareStyle('guozai')">
               <image v-if="shareCardPaths.guozai" class="share-card-option__image" :src="shareCardPaths.guozai" mode="widthFix" aria-label="锅仔手账食谱卡" />
               <view v-else class="share-card-option__placeholder">
-                <image src="/static/guozai/action_16_chopsticks.png" mode="aspectFit" /><text>{{ shareCardLoading ? '生成中' : '生成失败' }}</text>
+                <image src="https://static.image-zero.art/mood-recipe/static/guozai/action_16_chopsticks.png" mode="aspectFit" /><text>{{ shareCardLoading ? '生成中' : '生成失败' }}</text>
               </view>
               <text class="share-card-option__title">
                 锅仔手账

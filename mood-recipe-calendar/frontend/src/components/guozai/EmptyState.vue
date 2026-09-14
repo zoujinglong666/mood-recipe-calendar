@@ -16,7 +16,7 @@ const emit = defineEmits<{ (e: 'action'): void }>()
   <view class="gz-empty">
     <image
       class="gz-empty__img guozai-breathe"
-      src="/static/guozai/state_01_empty.png"
+      src="https://static.image-zero.art/mood-recipe/static/guozai/state_01_empty.png"
       mode="aspectFit"
     />
     <text class="gz-empty__text">{{ text }}</text>

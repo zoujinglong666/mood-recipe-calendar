@@ -134,7 +134,7 @@ function chooseCookingTime() {
         <text class="record-intro__title">把这一餐，留给以后的你</text>
         <text class="record-intro__sub">锅仔会记住味道，也记住你今天的心情</text>
       </view>
-      <image class="record-intro__guozai" src="/static/guozai/action_03_camera.png" mode="aspectFit" />
+      <image class="record-intro__guozai" src="https://static.image-zero.art/mood-recipe/static/guozai/action_03_camera.png" mode="aspectFit" />
     </view>
 
     <!-- 拍照区 -->

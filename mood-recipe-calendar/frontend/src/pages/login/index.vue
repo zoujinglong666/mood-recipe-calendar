@@ -49,7 +49,7 @@ function backToProfile() {
     <view class="login-orb login-orb--two" />
 
     <view class="login-hero">
-      <image src="/static/guozai/action_09_celebrate.png" mode="aspectFit" aria-label="欢迎你的锅仔" />
+      <image src="https://static.image-zero.art/mood-recipe/static/guozai/action_09_celebrate.png" mode="aspectFit" aria-label="欢迎你的锅仔" />
       <text class="login-kicker">
         锅仔在这里等你
       </text>

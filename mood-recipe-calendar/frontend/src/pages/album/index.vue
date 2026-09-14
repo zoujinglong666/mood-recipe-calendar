@@ -118,7 +118,7 @@ async function onShare() {
       topDish: topDishes.value[0]?.name || '—',
       topMood: topMood ? `${topMood.mood} ${topMood.count}天` : '—',
       slogan: '用一道菜，治愈今天的你',
-      guozaiPath: '/static/guozai/mood_01_happy.png',
+      guozaiPath: 'https://static.image-zero.art/mood-recipe/static/guozai/mood_01_happy.png',
       footer: '「锅仔」· 你的情绪味蕾搭子',
     })
     toastSuccess('已保存到相册')
@@ -185,7 +185,7 @@ const aiLines = computed(() => {
               <text class="album-cover__title">{{ monthNum }}月干饭日记</text>
               <text class="album-cover__subtitle">{{ yearNum }}年{{ monthNum }}月 · 共记录{{ stats.totalDays }}天</text>
               <view class="album-cover__guozai-wrap">
-                <image class="album-cover__guozai" src="/static/guozai/action_05_album.png" mode="aspectFit" />
+                <image class="album-cover__guozai" src="https://static.image-zero.art/mood-recipe/static/guozai/action_05_album.png" mode="aspectFit" />
                 <text class="album-cover__deco album-cover__deco--star1">⭐</text>
                 <text class="album-cover__deco album-cover__deco--star2">⭐</text>
                 <text class="album-cover__deco album-cover__deco--heart1">❤️</text>
@@ -204,7 +204,7 @@ const aiLines = computed(() => {
           <view class="album-stats">
             <view class="album-stats__header">
               <text class="album-stats__title">{{ monthNum }}月盘点</text>
-              <image class="album-stats__guozai-icon" src="/static/guozai/mood_10_content.png" mode="aspectFit" />
+              <image class="album-stats__guozai-icon" src="https://static.image-zero.art/mood-recipe/static/guozai/mood_10_content.png" mode="aspectFit" />
             </view>
 
             <view class="album-stats__big">
@@ -253,7 +253,7 @@ const aiLines = computed(() => {
               <text class="album-streak__text">天</text>
             </view>
 
-            <image class="album-stats__guozai" src="/static/guozai/mood_10_content.png" mode="aspectFit" />
+            <image class="album-stats__guozai" src="https://static.image-zero.art/mood-recipe/static/guozai/mood_10_content.png" mode="aspectFit" />
           </view>
         </swiper-item>
 
@@ -283,7 +283,7 @@ const aiLines = computed(() => {
               </view>
             </view>
             <view class="album-daily__guozai-wrap">
-              <image class="album-daily__guozai" src="/static/guozai/mood_01_happy.png" mode="aspectFit" />
+              <image class="album-daily__guozai" src="https://static.image-zero.art/mood-recipe/static/guozai/mood_01_happy.png" mode="aspectFit" />
               <text class="album-daily__deco album-daily__deco--star1">⭐</text>
               <text class="album-daily__deco album-daily__deco--star2">⭐</text>
             </view>
@@ -293,7 +293,7 @@ const aiLines = computed(() => {
           <view class="album-daily album-daily--empty">
             <text class="album-daily__title">每日记录</text>
             <view class="album-daily__empty-tip">
-              <image class="album-daily__empty-guozai" src="/static/guozai/action_07_empty.png" mode="aspectFit" />
+              <image class="album-daily__empty-guozai" src="https://static.image-zero.art/mood-recipe/static/guozai/action_07_empty.png" mode="aspectFit" />
               <text class="album-daily__empty-text">这个月还没有记录\n去吃点好吃的吧！</text>
             </view>
           </view>
@@ -303,7 +303,7 @@ const aiLines = computed(() => {
         <swiper-item>
           <view class="album-message">
             <view class="album-message__guozai-wrap">
-              <image class="album-message__guozai" src="/static/guozai/action_06_glasses.png" mode="aspectFit" />
+              <image class="album-message__guozai" src="https://static.image-zero.art/mood-recipe/static/guozai/action_06_glasses.png" mode="aspectFit" />
               <text class="album-message__deco album-message__deco--star1">⭐</text>
               <text class="album-message__deco album-message__deco--star2">⭐</text>
               <text class="album-message__deco album-message__deco--heart1">❤️</text>
@@ -323,7 +323,7 @@ const aiLines = computed(() => {
           <view class="album-share">
             <view class="album-share__header">
               <text class="album-share__brand">心情菜谱日历</text>
-              <image class="album-share__guozai-sm" src="/static/guozai/mood_01_happy.png" mode="aspectFit" />
+              <image class="album-share__guozai-sm" src="https://static.image-zero.art/mood-recipe/static/guozai/mood_01_happy.png" mode="aspectFit" />
             </view>
             <view class="album-share__card">
               <text class="album-share__label">记录了</text>
@@ -338,7 +338,7 @@ const aiLines = computed(() => {
               <view class="album-share__bubble">
                 <text>用一道菜，治愈今天的你。</text>
               </view>
-              <image class="album-share__guozai" src="/static/guozai/action_09_celebrate.png" mode="aspectFit" />
+              <image class="album-share__guozai" src="https://static.image-zero.art/mood-recipe/static/guozai/action_09_celebrate.png" mode="aspectFit" />
             </view>
             <view class="album-share__btn" @click="onShare">
               <text class="album-share__btn-text">保存我的{{ monthNum }}月干饭分享图</text>

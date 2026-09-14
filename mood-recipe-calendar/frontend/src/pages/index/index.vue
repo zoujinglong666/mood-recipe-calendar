@@ -23,52 +23,52 @@ const dateTitle = `${now.getMonth() + 1}月${now.getDate()}日 周${weekCN[now.g
 const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 /** 全部锅仔形象池（点击切换时遍历全部，不受时间段限制） */
 const ALL_HERO_GUOZAI: HeroGuozai[] = [
-  { img: '/static/guozai/action_01_bowl.png', name: '端碗锅仔' },
-  { img: '/static/guozai/action_02_soup.png', name: '喝汤锅仔' },
-  { img: '/static/guozai/action_06_glasses.png', name: '学者锅仔' },
-  { img: '/static/guozai/action_07_empty.png', name: '空空锅仔' },
-  { img: '/static/guozai/action_08_peek.png', name: '探头锅仔' },
-  { img: '/static/guozai/action_09_celebrate.png', name: '庆祝锅仔' },
-  { img: '/static/guozai/action_10_thinking.png', name: '思考锅仔' },
-  { img: '/static/guozai/action_11_cooking.png', name: '厨师锅仔' },
-  { img: '/static/guozai/action_12_heart.png', name: '比心锅仔' },
-  { img: '/static/guozai/action_13_wave.png', name: '挥手锅仔' },
-  { img: '/static/guozai/action_14_clap.png', name: '鼓掌锅仔' },
-  { img: '/static/guozai/action_15_sleepy.png', name: '困困锅仔' },
-  { img: '/static/guozai/action_16_chopsticks.png', name: '干饭锅仔' },
-  { img: '/static/guozai/action_17_full.png', name: '饱饱锅仔' },
-  { img: '/static/guozai/action_18_cheer.png', name: '加油锅仔' },
-  { img: '/static/guozai/action_19_kungfu.png', name: '功夫锅仔' },
-  { img: '/static/guozai/action_20_panda.png', name: '熊猫锅仔' },
+  { img: 'https://static.image-zero.art/mood-recipe/static/guozai/action_01_bowl.png', name: '端碗锅仔' },
+  { img: 'https://static.image-zero.art/mood-recipe/static/guozai/action_02_soup.png', name: '喝汤锅仔' },
+  { img: 'https://static.image-zero.art/mood-recipe/static/guozai/action_06_glasses.png', name: '学者锅仔' },
+  { img: 'https://static.image-zero.art/mood-recipe/static/guozai/action_07_empty.png', name: '空空锅仔' },
+  { img: 'https://static.image-zero.art/mood-recipe/static/guozai/action_08_peek.png', name: '探头锅仔' },
+  { img: 'https://static.image-zero.art/mood-recipe/static/guozai/action_09_celebrate.png', name: '庆祝锅仔' },
+  { img: 'https://static.image-zero.art/mood-recipe/static/guozai/action_10_thinking.png', name: '思考锅仔' },
+  { img: 'https://static.image-zero.art/mood-recipe/static/guozai/action_11_cooking.png', name: '厨师锅仔' },
+  { img: 'https://static.image-zero.art/mood-recipe/static/guozai/action_12_heart.png', name: '比心锅仔' },
+  { img: 'https://static.image-zero.art/mood-recipe/static/guozai/action_13_wave.png', name: '挥手锅仔' },
+  { img: 'https://static.image-zero.art/mood-recipe/static/guozai/action_14_clap.png', name: '鼓掌锅仔' },
+  { img: 'https://static.image-zero.art/mood-recipe/static/guozai/action_15_sleepy.png', name: '困困锅仔' },
+  { img: 'https://static.image-zero.art/mood-recipe/static/guozai/action_16_chopsticks.png', name: '干饭锅仔' },
+  { img: 'https://static.image-zero.art/mood-recipe/static/guozai/action_17_full.png', name: '饱饱锅仔' },
+  { img: 'https://static.image-zero.art/mood-recipe/static/guozai/action_18_cheer.png', name: '加油锅仔' },
+  { img: 'https://static.image-zero.art/mood-recipe/static/guozai/action_19_kungfu.png', name: '功夫锅仔' },
+  { img: 'https://static.image-zero.art/mood-recipe/static/guozai/action_20_panda.png', name: '熊猫锅仔' },
 ]
 /** 时间段 → 初始锅仔（与寄语呼应，仅用于首次展示） */
 const HERO_GUOZAI_BY_PERIOD: Record<string, HeroGuozai[]> = {
   morning: [
-    { img: '/static/guozai/action_01_bowl.png', name: '端碗锅仔' },
-    { img: '/static/guozai/action_13_wave.png', name: '挥手锅仔' },
-    { img: '/static/guozai/action_11_cooking.png', name: '厨师锅仔' },
+    { img: 'https://static.image-zero.art/mood-recipe/static/guozai/action_01_bowl.png', name: '端碗锅仔' },
+    { img: 'https://static.image-zero.art/mood-recipe/static/guozai/action_13_wave.png', name: '挥手锅仔' },
+    { img: 'https://static.image-zero.art/mood-recipe/static/guozai/action_11_cooking.png', name: '厨师锅仔' },
   ],
   noon: [
-    { img: '/static/guozai/action_02_soup.png', name: '喝汤锅仔' },
-    { img: '/static/guozai/action_16_chopsticks.png', name: '干饭锅仔' },
-    { img: '/static/guozai/action_17_full.png', name: '饱饱锅仔' },
+    { img: 'https://static.image-zero.art/mood-recipe/static/guozai/action_02_soup.png', name: '喝汤锅仔' },
+    { img: 'https://static.image-zero.art/mood-recipe/static/guozai/action_16_chopsticks.png', name: '干饭锅仔' },
+    { img: 'https://static.image-zero.art/mood-recipe/static/guozai/action_17_full.png', name: '饱饱锅仔' },
   ],
   afternoon: [
-    { img: '/static/guozai/action_10_thinking.png', name: '思考锅仔' },
-    { img: '/static/guozai/action_14_clap.png', name: '鼓掌锅仔' },
-    { img: '/static/guozai/action_12_heart.png', name: '比心锅仔' },
-    { img: '/static/guozai/action_20_panda.png', name: '熊猫锅仔' },
+    { img: 'https://static.image-zero.art/mood-recipe/static/guozai/action_10_thinking.png', name: '思考锅仔' },
+    { img: 'https://static.image-zero.art/mood-recipe/static/guozai/action_14_clap.png', name: '鼓掌锅仔' },
+    { img: 'https://static.image-zero.art/mood-recipe/static/guozai/action_12_heart.png', name: '比心锅仔' },
+    { img: 'https://static.image-zero.art/mood-recipe/static/guozai/action_20_panda.png', name: '熊猫锅仔' },
   ],
   evening: [
-    { img: '/static/guozai/action_09_celebrate.png', name: '庆祝锅仔' },
-    { img: '/static/guozai/action_18_cheer.png', name: '加油锅仔' },
-    { img: '/static/guozai/action_06_glasses.png', name: '学者锅仔' },
-    { img: '/static/guozai/action_19_kungfu.png', name: '功夫锅仔' },
+    { img: 'https://static.image-zero.art/mood-recipe/static/guozai/action_09_celebrate.png', name: '庆祝锅仔' },
+    { img: 'https://static.image-zero.art/mood-recipe/static/guozai/action_18_cheer.png', name: '加油锅仔' },
+    { img: 'https://static.image-zero.art/mood-recipe/static/guozai/action_06_glasses.png', name: '学者锅仔' },
+    { img: 'https://static.image-zero.art/mood-recipe/static/guozai/action_19_kungfu.png', name: '功夫锅仔' },
   ],
   late: [
-    { img: '/static/guozai/action_08_peek.png', name: '探头锅仔' },
-    { img: '/static/guozai/action_15_sleepy.png', name: '困困锅仔' },
-    { img: '/static/guozai/action_07_empty.png', name: '空空锅仔' },
+    { img: 'https://static.image-zero.art/mood-recipe/static/guozai/action_08_peek.png', name: '探头锅仔' },
+    { img: 'https://static.image-zero.art/mood-recipe/static/guozai/action_15_sleepy.png', name: '困困锅仔' },
+    { img: 'https://static.image-zero.art/mood-recipe/static/guozai/action_07_empty.png', name: '空空锅仔' },
   ],
 }
 function getPeriod(hour: number) {
@@ -169,7 +169,7 @@ function goto(name: string, q?: Record<string, string>) { router.push({ name, qu
         </view>
         <image class="home-hero__img" :class="{ 'guozai-breathe': !isBouncing && !isHeroCycling, 'guozai-bounce': isBouncing, 'guozai-cycle': isHeroCycling }" :src="heroGuozai.img" :key="heroGuozai.img" mode="aspectFit" role="button" aria-label="点击切换锅仔形象" @click.stop="cycleHeroGuozai" />
         <view class="home-hero__profile" role="button" aria-label="打开我的页面" @click.stop="goto('profile')">
-          <image src="/static/guozai/mood_01_happy.png" mode="aspectFit" />
+          <image src="https://static.image-zero.art/mood-recipe/static/guozai/mood_01_happy.png" mode="aspectFit" />
         </view>
         <view class="home-hero__bubble"><text>{{ companion.actionText }}</text><text class="home-hero__bubble-arrow">›</text></view>
         <view class="home-hero__spark home-hero__spark--one" /><view class="home-hero__spark home-hero__spark--two" />
@@ -177,7 +177,7 @@ function goto(name: string, q?: Record<string, string>) { router.push({ name, qu
 
       <view class="home-lucky" role="button" aria-label="让锅仔随机推荐一道菜" @click="gotoLucky">
         <view class="home-lucky__content">
-          <image class="home-lucky__guozai" src="/static/guozai/action_10_thinking.png" mode="aspectFit" />
+          <image class="home-lucky__guozai" src="https://static.image-zero.art/mood-recipe/static/guozai/action_10_thinking.png" mode="aspectFit" />
           <view><text class="home-lucky__eyebrow">没想法的时候</text><text class="home-lucky__main">让锅仔替你决定</text><text class="home-lucky__sub">抽一道今日治愈菜</text></view>
         </view>
         <view class="home-lucky__arrow">›</view>
@@ -186,11 +186,11 @@ function goto(name: string, q?: Record<string, string>) { router.push({ name, qu
       <view class="home-actions">
         <view class="home-actions__item home-actions__item--recipe" role="button" aria-label="再推荐一道菜" @click="gotoLucky">
           <view class="home-actions__text"><text class="home-actions__label">今日菜单</text><text class="home-actions__name">再来一道</text></view>
-          <image class="home-actions__guozai" src="/static/guozai/action_02_soup.png" mode="aspectFit" />
+          <image class="home-actions__guozai" src="https://static.image-zero.art/mood-recipe/static/guozai/action_02_soup.png" mode="aspectFit" />
         </view>
         <view class="home-actions__item home-actions__item--record" role="button" aria-label="记录一餐" @click="router.pushTab({ name: 'record' })">
           <view class="home-actions__text"><text class="home-actions__label">吃过什么</text><text class="home-actions__name">记录一餐</text></view>
-          <image class="home-actions__guozai" src="/static/guozai/action_03_camera.png" mode="aspectFit" />
+          <image class="home-actions__guozai" src="https://static.image-zero.art/mood-recipe/static/guozai/action_03_camera.png" mode="aspectFit" />
         </view>
       </view>
 

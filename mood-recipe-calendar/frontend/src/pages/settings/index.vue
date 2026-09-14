@@ -30,7 +30,7 @@ const avatarUpdating = ref(false)
 const nicknameSaving = ref(false)
 const logoutLoading = ref(false)
 
-const avatar = computed(() => userStore.userInfo?.avatarUrl || '/static/guozai/mood_01_happy.png')
+const avatar = computed(() => userStore.userInfo?.avatarUrl || 'https://static.image-zero.art/mood-recipe/static/guozai/mood_01_happy.png')
 const themeChoice = computed<ThemeChoice>(() => followSystem.value ? 'system' : isDark.value ? 'dark' : 'light')
 
 onShow(async () => {
@@ -161,7 +161,7 @@ async function performLogout() {
             把这里调成<br>最舒服的样子
           </text>
         </view>
-        <image class="settings-intro__image guozai-breathe" src="/static/guozai/action_06_glasses.png" mode="aspectFit" />
+        <image class="settings-intro__image guozai-breathe" src="https://static.image-zero.art/mood-recipe/static/guozai/action_06_glasses.png" mode="aspectFit" />
       </view>
 
       <view class="settings-section">
@@ -221,7 +221,7 @@ async function performLogout() {
           </view>
         </view>
         <view v-else class="account-card account-card--signed-out">
-          <image class="account-card__guozai" src="/static/guozai/action_08_peek.png" mode="aspectFit" />
+          <image class="account-card__guozai" src="https://static.image-zero.art/mood-recipe/static/guozai/action_08_peek.png" mode="aspectFit" />
           <view>
             <text class="account-card__title">
               还没有连接微信身份

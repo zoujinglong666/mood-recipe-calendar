@@ -24,7 +24,7 @@ function handleConfirm() {
       <view class="gz-modal__guozai-wrap">
         <image
           class="gz-modal__guozai guozai-spin"
-          src="/static/guozai/action_09_celebrate.png"
+          src="https://static.image-zero.art/mood-recipe/static/guozai/action_09_celebrate.png"
           mode="aspectFit"
         />
         <!-- 星星装饰 -->

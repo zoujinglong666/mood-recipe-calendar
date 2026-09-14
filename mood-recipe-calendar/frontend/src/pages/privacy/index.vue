@@ -12,7 +12,7 @@ const updatedAt = '2026 年 9 月 7 日'
     <wd-navbar title="隐私政策" left-arrow safe-area-inset-top @click-left="navBack" custom-style="background-color: transparent !important;" />
     <view class="privacy-hero">
       <view><text class="privacy-kicker">GUOZAI CARES</text><text class="privacy-title">你的每一餐，<br />只属于你。</text><text class="privacy-date">最近更新：{{ updatedAt }}</text></view>
-      <image src="/static/guozai/action_06_glasses.png" mode="aspectFit" />
+      <image src="https://static.image-zero.art/mood-recipe/static/guozai/action_06_glasses.png" mode="aspectFit" />
     </view>
     <view class="privacy-card"><Icon name="heart" :size="40" color="#EF5A3C" /><view><text class="privacy-card__title">我们收集什么</text><text>仅保存你主动提交的昵称、头像、菜品记录、图片、心情、反馈、数字权益订单，以及首页打开的粗粒度时段事件。AI 推荐仅保存菜名的匿名指纹和“喜欢、不想吃、做过”状态，不保存模型推理或完整菜谱正文。</text></view></view>
     <view class="privacy-card"><Icon name="book" :size="40" color="#EF5A3C" /><view><text class="privacy-card__title">如何使用</text><text>用于展示日历、时光机、画册、生成 AI 菜谱与锅仔个性寄语。发送给 AI 服务的仅是聚合习惯摘要，不含 openid、昵称、图片和日记正文；运营事件只记录类型与时间。</text></view></view>

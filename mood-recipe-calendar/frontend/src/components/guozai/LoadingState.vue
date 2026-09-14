@@ -12,7 +12,7 @@ withDefaults(defineProps<Props>(), {
     <view class="gz-loading__wrap">
       <image
         class="gz-loading__img"
-        src="/static/guozai/state_02_loading.png"
+        src="https://static.image-zero.art/mood-recipe/static/guozai/state_02_loading.png"
         mode="aspectFit"
       />
       <!-- 旋转的加载环（覆盖在图片的加载环位置） -->

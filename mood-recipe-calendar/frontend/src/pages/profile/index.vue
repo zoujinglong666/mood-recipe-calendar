@@ -27,14 +27,14 @@ const stats = ref({ totalRecords: 0, totalDays: 0, currentStreak: 0, topDishes: 
 const history = ref<RecordItem[]>([])
 
 const MOOD_IMG_MAP: Record<string, string> = {
-  开心: '/static/guozai/mood_01_happy.png',
-  平静: '/static/guozai/mood_02_calm.png',
-  疲惫: '/static/guozai/mood_03_tired.png',
-  焦虑: '/static/guozai/mood_04_anxious.png',
-  难过: '/static/guozai/mood_05_sad.png',
-  嘴馋: '/static/guozai/mood_06_hungry.png',
-  低落: '/static/guozai/mood_07_low.png',
-  想家: '/static/guozai/mood_08_homesick.png',
+  开心: 'https://static.image-zero.art/mood-recipe/static/guozai/mood_01_happy.png',
+  平静: 'https://static.image-zero.art/mood-recipe/static/guozai/mood_02_calm.png',
+  疲惫: 'https://static.image-zero.art/mood-recipe/static/guozai/mood_03_tired.png',
+  焦虑: 'https://static.image-zero.art/mood-recipe/static/guozai/mood_04_anxious.png',
+  难过: 'https://static.image-zero.art/mood-recipe/static/guozai/mood_05_sad.png',
+  嘴馋: 'https://static.image-zero.art/mood-recipe/static/guozai/mood_06_hungry.png',
+  低落: 'https://static.image-zero.art/mood-recipe/static/guozai/mood_07_low.png',
+  想家: 'https://static.image-zero.art/mood-recipe/static/guozai/mood_08_homesick.png',
 }
 
 async function loadData() {
@@ -124,13 +124,13 @@ function goFeedback() {
     <view class="profile-identity" role="button" :aria-label="userStore.isLoggedIn ? '打开设置修改个人资料' : '微信登录'" @click="handleIdentityCard">
       <view class="profile-identity__glow profile-identity__glow--one" />
       <view class="profile-identity__glow profile-identity__glow--two" />
-      <image class="profile-identity__companion" :src="userStore.isLoggedIn ? '/static/guozai/action_08_peek.png' : '/static/guozai/action_09_celebrate.png'" mode="aspectFit" />
+      <image class="profile-identity__companion" :src="userStore.isLoggedIn ? 'https://static.image-zero.art/mood-recipe/static/guozai/action_08_peek.png' : 'https://static.image-zero.art/mood-recipe/static/guozai/action_09_celebrate.png'" mode="aspectFit" />
 
       <view class="profile-identity__main">
         <view class="profile-avatar" :class="{ 'profile-avatar--logged': userStore.userInfo?.avatarUrl }">
           <image
             class="profile-avatar__img"
-            :src="userStore.isLoggedIn ? userStore.userInfo?.avatarUrl || '/static/guozai/mood_01_happy.png' : '/static/guozai/action_09_celebrate.png'"
+            :src="userStore.isLoggedIn ? userStore.userInfo?.avatarUrl || 'https://static.image-zero.art/mood-recipe/static/guozai/mood_01_happy.png' : 'https://static.image-zero.art/mood-recipe/static/guozai/action_09_celebrate.png'"
             :mode="userStore.userInfo?.avatarUrl ? 'aspectFill' : 'aspectFit'"
           />
           <view v-if="userStore.isLoggedIn" class="profile-avatar__edit">
@@ -217,7 +217,7 @@ function goFeedback() {
     </view>
 
     <view class="profile-memory" role="button" aria-label="打开我的口味与忌口" @click="goPreferences">
-      <image class="profile-memory__guozai" src="/static/guozai/action_10_thinking.png" mode="aspectFit" />
+      <image class="profile-memory__guozai" src="https://static.image-zero.art/mood-recipe/static/guozai/action_10_thinking.png" mode="aspectFit" />
       <view class="profile-memory__main">
         <text class="profile-memory__eyebrow">
           锅仔会一直记得
@@ -235,7 +235,7 @@ function goFeedback() {
     </view>
 
     <view class="profile-weekly-plan" role="button" aria-label="让锅仔安排这一周晚餐" @click="goWeeklyPlan">
-      <image class="profile-weekly-plan__guozai" src="/static/guozai/action_06_glasses.png" mode="aspectFit" />
+      <image class="profile-weekly-plan__guozai" src="https://static.image-zero.art/mood-recipe/static/guozai/action_06_glasses.png" mode="aspectFit" />
       <view class="profile-weekly-plan__main">
         <text class="profile-weekly-plan__title">
           锅仔帮你安排这一周
@@ -251,7 +251,7 @@ function goFeedback() {
 
     <!-- 锅仔形象馆入口（核心变现模块） -->
     <view class="profile-gallery" role="button" aria-label="打开锅仔形象馆" @click="goGallery">
-      <image class="profile-gallery__guozai" src="/static/guozai/mood_06_hungry.png" mode="aspectFit" />
+      <image class="profile-gallery__guozai" src="https://static.image-zero.art/mood-recipe/static/guozai/mood_06_hungry.png" mode="aspectFit" />
       <view class="profile-gallery__main">
         <text class="profile-gallery__title">
           锅仔形象馆
@@ -271,7 +271,7 @@ function goFeedback() {
     <!-- 功能按钮 -->
     <view class="profile-actions">
       <view class="profile-action" role="button" aria-label="打开我的年度报告" @click="goReport">
-        <image class="profile-action__guozai" src="/static/guozai/action_09_celebrate.png" mode="aspectFit" />
+        <image class="profile-action__guozai" src="https://static.image-zero.art/mood-recipe/static/guozai/action_09_celebrate.png" mode="aspectFit" />
         <view class="profile-action__copy">
           <text class="profile-action__text">
             年度报告
@@ -281,7 +281,7 @@ function goFeedback() {
         </view>
       </view>
       <view class="profile-action" role="button" aria-label="打开菜谱时光机" @click="goTimeline">
-        <image class="profile-action__guozai" src="/static/guozai/action_06_glasses.png" mode="aspectFit" />
+        <image class="profile-action__guozai" src="https://static.image-zero.art/mood-recipe/static/guozai/action_06_glasses.png" mode="aspectFit" />
         <view class="profile-action__copy">
           <text class="profile-action__text">
             菜谱时光机
@@ -303,7 +303,7 @@ function goFeedback() {
         </text>
       </view>
       <view v-if="history.length === 0" class="profile-history__empty">
-        <image src="/static/guozai/action_08_peek.png" mode="aspectFit" />
+        <image src="https://static.image-zero.art/mood-recipe/static/guozai/action_08_peek.png" mode="aspectFit" />
         <view>
           <text class="profile-history__empty-title">
             第一顿饭，等你来记
@@ -325,7 +325,7 @@ function goFeedback() {
           <text class="profile-history__dish">
             {{ item.dishName }}
           </text>
-          <image class="profile-history__mood" :src="MOOD_IMG_MAP[item.moodTag] || '/static/guozai/mood_01_happy.png'" mode="aspectFit" />
+          <image class="profile-history__mood" :src="MOOD_IMG_MAP[item.moodTag] || 'https://static.image-zero.art/mood-recipe/static/guozai/mood_01_happy.png'" mode="aspectFit" />
         </view>
         <text class="profile-history__arrow">
           ›
@@ -346,7 +346,7 @@ function goFeedback() {
       <text class="profile-footer__link" role="button" @click="goAbout">
         关于我们
       </text>
-      <image class="profile-footer__guozai" src="/static/guozai/mood_01_happy.png" mode="aspectFit" />
+      <image class="profile-footer__guozai" src="https://static.image-zero.art/mood-recipe/static/guozai/mood_01_happy.png" mode="aspectFit" />
     </view>
   </view>
 </template>

@@ -52,11 +52,11 @@ async function removeSelected() {
   <view class="timeline-page">
     <wd-navbar title="菜谱时光机" left-arrow safe-area-inset-top @click-left="navBack"  custom-style="background-color: transparent !important;" />
     <LoadingState v-if="loading" text="锅仔正在翻找你的餐桌回忆…" />
-    <EmptyState v-else-if="!records.length" image="/static/guozai/action_07_empty.png" title="时光机还是空的" text="记录第一餐，让锅仔替你把今天收好。" action-text="去记录" @action="router.pushTab({ name: 'record' })" />
+    <EmptyState v-else-if="!records.length" image="https://static.image-zero.art/mood-recipe/static/guozai/action_07_empty.png" title="时光机还是空的" text="记录第一餐，让锅仔替你把今天收好。" action-text="去记录" @action="router.pushTab({ name: 'record' })" />
     <scroll-view v-else scroll-y class="timeline-scroll" @scroll="onScroll">
       <view class="timeline-hero">
         <view><text class="timeline-kicker">GUOZAI TIME MACHINE</text><text class="timeline-title">你的每一餐，<br />都值得被记住。</text><text class="timeline-sub">向下滑回到更久以前，向上回到今天。</text></view>
-        <image class="timeline-hero__img" src="/static/guozai/action_04_calendar.png" mode="aspectFit" />
+        <image class="timeline-hero__img" src="https://static.image-zero.art/mood-recipe/static/guozai/action_04_calendar.png" mode="aspectFit" />
       </view>
       <view class="today-chip" :class="{ 'today-chip--active': nearToday }"><text>{{ nearToday ? '已回到今天' : '继续向上，回到今天' }}</text></view>
       <view v-for="group in grouped" :key="group.month" class="timeline-group">
@@ -70,7 +70,7 @@ async function removeSelected() {
           </view>
         </view>
       </view>
-      <view class="timeline-end"><image src="/static/guozai/action_08_peek.png" mode="aspectFit" /><text>再往下，就是更久以前的你啦。</text></view>
+      <view class="timeline-end"><image src="https://static.image-zero.art/mood-recipe/static/guozai/action_08_peek.png" mode="aspectFit" /><text>再往下，就是更久以前的你啦。</text></view>
     </scroll-view>
     <view v-if="selected" class="detail-mask" @click.self="selected=null"><view class="detail-sheet"><image :src="selected.imageUrl" mode="aspectFill"/><text class="detail-title">{{selected.dishName}}</text><text class="detail-meta">{{selected.recordDate}} · {{selected.moodTag}}</text><text v-if="selected.note" class="detail-note">{{selected.note}}</text><view class="detail-delete" @click="removeSelected">删除这条记录</view><view class="detail-close" @click="selected=null">收起</view></view></view>
   </view>

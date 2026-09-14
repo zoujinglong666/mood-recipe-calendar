@@ -64,7 +64,7 @@ onMounted(async () => {
           锅仔陪你记录心情，也提醒你认真吃饭。
         </text>
       </view>
-      <image class="about-hero__img guozai-breathe" src="/static/guozai/action_06_glasses.png" mode="aspectFit" />
+      <image class="about-hero__img guozai-breathe" src="https://static.image-zero.art/mood-recipe/static/guozai/action_06_glasses.png" mode="aspectFit" />
     </view>
 
     <view class="about-card">
@@ -113,7 +113,7 @@ onMounted(async () => {
     </view>
 
     <view class="about-card about-card--service">
-      <image class="about-card__service-img" src="/static/guozai/action_08_peek.png" mode="aspectFit" />
+      <image class="about-card__service-img" src="https://static.image-zero.art/mood-recipe/static/guozai/action_08_peek.png" mode="aspectFit" />
       <view>
         <text class="about-card__title">
           需要帮忙？

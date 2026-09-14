@@ -170,7 +170,7 @@ async function shareDay(day: PlanDay, index: number) {
       ingredients: dish.ingredients,
       steps: dish.steps,
       image: resolveAssetUrl(coverOf(day, dishIndex)),
-      guozaiPath: '/static/guozai/action_16_chopsticks.png',
+      guozaiPath: 'https://static.image-zero.art/mood-recipe/static/guozai/action_16_chopsticks.png',
       style: 'guozai',
     }, 'weeklyRecipeShareCanvas')
     await saveShareImage(path, `${dish.name}-锅仔食谱卡.png`)
@@ -195,7 +195,7 @@ async function shareDay(day: PlanDay, index: number) {
 
     <template v-else-if="plan">
       <view class="detail-hero">
-        <image src="/static/guozai/action_09_celebrate.png" mode="aspectFit" aria-label="庆祝的锅仔" />
+        <image src="https://static.image-zero.art/mood-recipe/static/guozai/action_09_celebrate.png" mode="aspectFit" aria-label="庆祝的锅仔" />
         <view>
           <text class="eyebrow">
             锅仔的一周备餐本
@@ -283,7 +283,7 @@ async function shareDay(day: PlanDay, index: number) {
               </view>
 
               <view class="share-day" :class="{ 'share-day--busy': sharingDay >= 0 }" role="button" :aria-label="`生成${currentDish(day, index).name}的食谱卡`" :aria-disabled="sharingDay >= 0" @click="shareDay(day, index)">
-                <image src="/static/guozai/action_16_chopsticks.png" mode="aspectFit" aria-label="拿着筷子的锅仔" />
+                <image src="https://static.image-zero.art/mood-recipe/static/guozai/action_16_chopsticks.png" mode="aspectFit" aria-label="拿着筷子的锅仔" />
                 <view>
                   <text class="share-day__title">
                     {{ sharingDay === index ? '锅仔正在排版食谱卡…' : '保存这道菜的食谱卡' }}

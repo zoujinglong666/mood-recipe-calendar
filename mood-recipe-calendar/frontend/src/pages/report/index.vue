@@ -154,7 +154,7 @@ function share() {
           <text class="rpt-cover__title-line">你的</text>
           <text class="rpt-cover__title-line">{{ currentYear }}干饭报告</text>
         </view>
-        <image class="rpt-cover__guozai" src="/static/guozai/action_06_glasses.png" mode="aspectFit" />
+        <image class="rpt-cover__guozai" src="https://static.image-zero.art/mood-recipe/static/guozai/action_06_glasses.png" mode="aspectFit" />
         <view class="rpt-cover__footer">
           <text class="rpt-cover__slogan">⭐ {{ currentYear }}年度 · 用一道菜治愈每一天 ❤️</text>
           <view class="rpt-cover__divider">
@@ -187,7 +187,7 @@ function share() {
             <text class="rpt-overview__label">平均频率</text>
           </view>
         </view>
-        <image class="rpt-guozai" src="/static/guozai/mood_10_content.png" mode="aspectFit" />
+        <image class="rpt-guozai" src="https://static.image-zero.art/mood-recipe/static/guozai/mood_10_content.png" mode="aspectFit" />
         <view class="rpt-overview__footer">
           <view class="rpt-overview__line" />
           <text class="rpt-overview__text">你在{{ currentYear }}年认真对待了每一餐</text>
@@ -212,7 +212,7 @@ function share() {
             </view>
           </view>
         </view>
-        <image class="rpt-guozai rpt-guozai--sm" src="/static/guozai/mood_11_proud.png" mode="aspectFit" />
+        <image class="rpt-guozai rpt-guozai--sm" src="https://static.image-zero.art/mood-recipe/static/guozai/mood_11_proud.png" mode="aspectFit" />
       </view>
       </swiper-item>
 
@@ -231,7 +231,7 @@ function share() {
           </view>
         </view>
         <text class="rpt-mood__text">这一年你有{{ happyDays }}天是开心的，疲惫的日子也不少，但你总能用美食治愈自己。</text>
-        <image class="rpt-guozai rpt-guozai--sm" src="/static/guozai/mood_01_happy.png" mode="aspectFit" />
+        <image class="rpt-guozai rpt-guozai--sm" src="https://static.image-zero.art/mood-recipe/static/guozai/mood_01_happy.png" mode="aspectFit" />
       </view>
       </swiper-item>
 
@@ -259,7 +259,7 @@ function share() {
         </view>
         <text class="rpt-heatmap__text">{{ peakMonth.count > 0 ? peakMonth.month + '月是你最勤快的一个月' : '本月还没开始记录，去好好吃饭吧' }}</text>
         <view class="rpt-heatmap__guozai-wrap">
-          <image class="rpt-guozai rpt-guozai--sm" src="/static/guozai/mood_11_proud.png" mode="aspectFit" />
+          <image class="rpt-guozai rpt-guozai--sm" src="https://static.image-zero.art/mood-recipe/static/guozai/mood_11_proud.png" mode="aspectFit" />
           <text class="rpt-heatmap__deco rpt-heatmap__deco--s1">⭐</text>
           <text class="rpt-heatmap__deco rpt-heatmap__deco--s2">⭐</text>
           <text class="rpt-heatmap__deco rpt-heatmap__deco--h1">❤️</text>
@@ -297,7 +297,7 @@ function share() {
             </view>
           </view>
         </view>
-        <image class="rpt-guozai rpt-guozai--sm" src="/static/guozai/mood_10_content.png" mode="aspectFit" />
+        <image class="rpt-guozai rpt-guozai--sm" src="https://static.image-zero.art/mood-recipe/static/guozai/mood_10_content.png" mode="aspectFit" />
       </view>
       </swiper-item>
 
@@ -305,7 +305,7 @@ function share() {
       <swiper-item>
       <view class="rpt-message rpt-page">
         <view class="rpt-message__guozai-wrap">
-          <image class="rpt-message__guozai" src="/static/guozai/action_06_glasses.png" mode="aspectFit" />
+          <image class="rpt-message__guozai" src="https://static.image-zero.art/mood-recipe/static/guozai/action_06_glasses.png" mode="aspectFit" />
           <text class="rpt-message__deco rpt-message__deco--s1">⭐</text>
           <text class="rpt-message__deco rpt-message__deco--s2">⭐</text>
           <text class="rpt-message__deco rpt-message__deco--h1">❤️</text>
@@ -325,7 +325,7 @@ function share() {
       <view class="rpt-share rpt-page">
         <view class="rpt-share__header">
           <text class="rpt-share__brand">心情菜谱日历</text>
-          <image class="rpt-share__guozai-sm" src="/static/guozai/action_09_celebrate.png" mode="aspectFit" />
+          <image class="rpt-share__guozai-sm" src="https://static.image-zero.art/mood-recipe/static/guozai/action_09_celebrate.png" mode="aspectFit" />
         </view>
         <view class="rpt-share__grid">
           <view class="rpt-share__card">
@@ -345,7 +345,7 @@ function share() {
             <text class="rpt-share__card-sub">{{ top3.length ? top3[0].count + '次本命菜' : '记录中…' }}</text>
           </view>
         </view>
-        <image class="rpt-share__guozai" src="/static/guozai/action_09_celebrate.png" mode="aspectFit" />
+        <image class="rpt-share__guozai" src="https://static.image-zero.art/mood-recipe/static/guozai/action_09_celebrate.png" mode="aspectFit" />
         <view class="rpt-share__btn" @click="share">
           <text class="rpt-share__btn-text">分享我的{{ currentYear }}干饭报告</text>
           <view class="rpt-share__qrcode"><view class="rpt-share__qr-grid" /></view>

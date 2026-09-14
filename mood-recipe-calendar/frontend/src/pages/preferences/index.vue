@@ -165,7 +165,7 @@ function clearMemory() {
     </view>
     <template v-else>
       <view class="memory-hero">
-        <image class="memory-hero__image" src="/static/guozai/action_10_thinking.png" mode="aspectFit" />
+        <image class="memory-hero__image" src="https://static.image-zero.art/mood-recipe/static/guozai/action_10_thinking.png" mode="aspectFit" />
         <view class="memory-hero__copy">
           <text class="memory-hero__eyebrow">
             只记你愿意告诉我的
