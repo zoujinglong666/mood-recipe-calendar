@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ThemeMode } from '@/composables/useManualTheme'
+import { STATIC_BASE_URL } from '@/utils/assets'
 import { computed, ref } from 'vue'
 import { logout as apiLogout, updateUserInfo } from '@/api/auth'
 import { uploadFile } from '@/api/request'
@@ -32,7 +33,7 @@ const avatarUpdating = ref(false)
 const nicknameSaving = ref(false)
 const logoutLoading = ref(false)
 
-const avatar = computed(() => userStore.userInfo?.avatarUrl || 'https://static.image-zero.art/mood-recipe/static/guozai/mood_01_happy.png')
+const avatar = computed(() => userStore.userInfo?.avatarUrl || STATIC_BASE_URL + '/static/guozai/mood_01_happy.png')
 const themeChoice = computed<ThemeChoice>(() => followSystem.value ? 'system' : isDark.value ? 'dark' : 'light')
 
 /** 后端服务切换 */
@@ -198,7 +199,7 @@ async function performLogout() {
             把这里调成<br>最舒服的样子
           </text>
         </view>
-        <image class="settings-intro__image guozai-breathe" src="https://static.image-zero.art/mood-recipe/static/guozai/action_06_glasses.png" mode="aspectFit" />
+        <image class="settings-intro__image guozai-breathe" :src="STATIC_BASE_URL + '/static/guozai/action_06_glasses.png'" mode="aspectFit" />
       </view>
 
       <view class="settings-section">
@@ -258,7 +259,7 @@ async function performLogout() {
           </view>
         </view>
         <view v-else class="account-card account-card--signed-out">
-          <image class="account-card__guozai" src="https://static.image-zero.art/mood-recipe/static/guozai/action_08_peek.png" mode="aspectFit" />
+          <image class="account-card__guozai" :src="STATIC_BASE_URL + '/static/guozai/action_08_peek.png'" mode="aspectFit" />
           <view>
             <text class="account-card__title">
               还没有连接微信身份

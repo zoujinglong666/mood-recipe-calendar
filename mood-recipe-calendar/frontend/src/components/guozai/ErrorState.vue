@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { STATIC_BASE_URL } from '@/utils/assets'
+
 interface Props {
   text?: string
   subtext?: string
@@ -16,7 +18,7 @@ const emit = defineEmits<{ (e: 'retry'): void }>()
   <view class="gz-error">
     <image
       class="gz-error__img guozai-breathe"
-      src="https://static.image-zero.art/mood-recipe/static/guozai/state_03_error.png"
+      :src="STATIC_BASE_URL + '/static/guozai/state_03_error.png'"
       mode="aspectFit"
     />
     <text class="gz-error__text">{{ text }}</text>

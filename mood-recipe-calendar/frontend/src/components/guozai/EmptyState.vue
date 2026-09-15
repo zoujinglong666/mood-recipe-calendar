@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { STATIC_BASE_URL } from '@/utils/assets'
+
 interface Props {
   text?: string
   subtext?: string
@@ -16,7 +18,7 @@ const emit = defineEmits<{ (e: 'action'): void }>()
   <view class="gz-empty">
     <image
       class="gz-empty__img guozai-breathe"
-      src="https://static.image-zero.art/mood-recipe/static/guozai/state_01_empty.png"
+      :src="STATIC_BASE_URL + '/static/guozai/state_01_empty.png'"
       mode="aspectFit"
     />
     <text class="gz-empty__text">{{ text }}</text>

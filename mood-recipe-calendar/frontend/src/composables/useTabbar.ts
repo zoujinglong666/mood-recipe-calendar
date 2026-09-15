@@ -1,3 +1,4 @@
+import { STATIC_BASE_URL } from '@/utils/assets'
 export interface TabbarItem {
   name: string
   value?: number
@@ -14,24 +15,24 @@ const tabbarItems = ref<TabbarItem[]>([
     active: true,
     title: '首页',
     icon: 'home',
-    activeIcon: 'https://static.image-zero.art/mood-recipe/static/guozai/action_01_bowl.png',
-    inactiveIcon: 'https://static.image-zero.art/mood-recipe/static/guozai/action_01_bowl.png',
+    activeIcon: STATIC_BASE_URL + '/static/guozai/action_01_bowl.png',
+    inactiveIcon: STATIC_BASE_URL + '/static/guozai/action_01_bowl.png',
   },
   {
     name: 'record',
     active: false,
     title: '记录',
     icon: 'camera',
-    activeIcon: 'https://static.image-zero.art/mood-recipe/static/guozai/action_03_camera.png',
-    inactiveIcon: 'https://static.image-zero.art/mood-recipe/static/guozai/action_03_camera.png',
+    activeIcon: STATIC_BASE_URL + '/static/guozai/action_03_camera.png',
+    inactiveIcon: STATIC_BASE_URL + '/static/guozai/action_03_camera.png',
   },
   {
     name: 'profile',
     active: false,
     title: '我的',
     icon: 'user',
-    activeIcon: 'https://static.image-zero.art/mood-recipe/static/guozai/action_06_glasses.png',
-    inactiveIcon: 'https://static.image-zero.art/mood-recipe/static/guozai/action_06_glasses.png',
+    activeIcon: STATIC_BASE_URL + '/static/guozai/action_06_glasses.png',
+    inactiveIcon: STATIC_BASE_URL + '/static/guozai/action_06_glasses.png',
   },
 ])
 

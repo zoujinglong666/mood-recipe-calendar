@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { PlanDay, WeeklyPlan, WeeklyPlanSummary } from '@/api/weeklyPlans'
+import { STATIC_BASE_URL } from '@/utils/assets'
 import { ref } from 'vue'
 import { generateWeeklyPlan, getCurrentPlan, getWeeklyPlanHistory, requestWeeklyPlanCompletionNotice, toggleWeeklyPlanFavorite } from '@/api/weeklyPlans'
 import { navBack } from '@/composables/useNavBar'
@@ -106,7 +107,7 @@ async function toggleFavorite(id: number) {
           </text>
         </view>
         <view class="cover-character">
-          <view class="cover-character__ring" /><image src="https://static.image-zero.art/mood-recipe/static/guozai/action_10_thinking.png" mode="aspectFit" aria-label="思考菜单的锅仔" />
+          <view class="cover-character__ring" /><image :src="STATIC_BASE_URL + '/static/guozai/action_10_thinking.png'" mode="aspectFit" aria-label="思考菜单的锅仔" />
         </view>
       </view>
       <view class="menu-cover__footer">
@@ -134,7 +135,7 @@ async function toggleFavorite(id: number) {
                 {{ currentPlan.days.length }} 天、每天 {{ dishesOf(currentPlan.days[0]).length }} 道菜。锅仔已经替你把这一桌想好了。
               </text>
             </view>
-            <image class="active-menu__character" src="https://static.image-zero.art/mood-recipe/static/guozai/action_11_cooking.png" mode="aspectFit" aria-label="端着晚餐的锅仔" />
+            <image class="active-menu__character" :src="STATIC_BASE_URL + '/static/guozai/action_11_cooking.png'" mode="aspectFit" aria-label="端着晚餐的锅仔" />
           </view>
           <view class="active-menu__tape">
             GUOZAI MADE THIS
@@ -174,7 +175,7 @@ async function toggleFavorite(id: number) {
           </view><text>{{ history.length }} 册</text>
         </view>
         <view v-if="history.length === 0" class="archive-empty">
-          <image src="https://static.image-zero.art/mood-recipe/static/guozai/action_08_peek.png" mode="aspectFit" /><view><text>这里会收下你的晚餐单</text><text>常吃的组合，以后不用重新想。</text></view>
+          <image :src="STATIC_BASE_URL + '/static/guozai/action_08_peek.png'" mode="aspectFit" /><view><text>这里会收下你的晚餐单</text><text>常吃的组合，以后不用重新想。</text></view>
         </view>
         <view v-else class="archive-toggle" role="button" :aria-expanded="showHistory" @click="showHistory = !showHistory">
           <text>{{ showHistory ? '收起最近的菜单' : '翻开最近的菜单' }}</text><text class="archive-toggle__arrow" :class="{ 'archive-toggle__arrow--open': showHistory }">
@@ -197,7 +198,7 @@ async function toggleFavorite(id: number) {
               </text>
             </view>
             <view class="archive-card__side">
-              <image src="https://static.image-zero.art/mood-recipe/static/guozai/action_08_peek.png" mode="aspectFit" aria-label="探出头的锅仔" />
+              <image :src="STATIC_BASE_URL + '/static/guozai/action_08_peek.png'" mode="aspectFit" aria-label="探出头的锅仔" />
               <view class="favorite" role="button" :aria-label="item.favorite ? '取消收藏这份计划' : '收藏这份计划'" @click.stop="toggleFavorite(item.id)">
                 {{ item.favorite ? '★' : '☆' }}
               </view>

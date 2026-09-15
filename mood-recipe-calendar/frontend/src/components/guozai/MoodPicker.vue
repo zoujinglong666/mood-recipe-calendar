@@ -7,6 +7,7 @@
  * - confirmText 提供时：选中后弹出底部确认条，点击确认后 emit confirm
  */
 import { computed, ref } from 'vue'
+import { STATIC_BASE_URL } from '@/utils/assets'
 
 interface MoodOption {
   key: string
@@ -15,18 +16,18 @@ interface MoodOption {
 }
 
 const MOOD_OPTIONS: MoodOption[] = [
-  { key: '开心', img: 'https://static.image-zero.art/mood-recipe/static/guozai/mood_01_happy.png', tip: '今天也要闪闪发光呀！' },
-  { key: '平静', img: 'https://static.image-zero.art/mood-recipe/static/guozai/mood_02_calm.png', tip: '稳稳的，就是幸福。' },
-  { key: '疲惫', img: 'https://static.image-zero.art/mood-recipe/static/guozai/mood_03_tired.png', tip: '累了就歇会儿，我陪你。' },
-  { key: '焦虑', img: 'https://static.image-zero.art/mood-recipe/static/guozai/mood_04_anxious.png', tip: '慢慢来，锅仔在呢。' },
-  { key: '难过', img: 'https://static.image-zero.art/mood-recipe/static/guozai/mood_05_sad.png', tip: '别难过，有我在。' },
-  { key: '嘴馋', img: 'https://static.image-zero.art/mood-recipe/static/guozai/mood_06_hungry.png', tip: '走！咱去吃点好的。' },
-  { key: '低落', img: 'https://static.image-zero.art/mood-recipe/static/guozai/mood_07_low.png', tip: '抱抱你，天会亮的。' },
-  { key: '想家', img: 'https://static.image-zero.art/mood-recipe/static/guozai/mood_08_homesick.png', tip: '家的味道，最暖。' },
-  { key: '期待', img: 'https://static.image-zero.art/mood-recipe/static/guozai/mood_09_excited.png', tip: '前方有好事发生！' },
-  { key: '满足', img: 'https://static.image-zero.art/mood-recipe/static/guozai/mood_10_content.png', tip: '这样刚刚好。' },
-  { key: '得意', img: 'https://static.image-zero.art/mood-recipe/static/guozai/mood_11_proud.png', tip: '我可太厉害了！' },
-  { key: '害羞', img: 'https://static.image-zero.art/mood-recipe/static/guozai/mood_12_shy.png', tip: '被你发现啦～' },
+  { key: '开心', img: STATIC_BASE_URL + '/static/guozai/mood_01_happy.png', tip: '今天也要闪闪发光呀！' },
+  { key: '平静', img: STATIC_BASE_URL + '/static/guozai/mood_02_calm.png', tip: '稳稳的，就是幸福。' },
+  { key: '疲惫', img: STATIC_BASE_URL + '/static/guozai/mood_03_tired.png', tip: '累了就歇会儿，我陪你。' },
+  { key: '焦虑', img: STATIC_BASE_URL + '/static/guozai/mood_04_anxious.png', tip: '慢慢来，锅仔在呢。' },
+  { key: '难过', img: STATIC_BASE_URL + '/static/guozai/mood_05_sad.png', tip: '别难过，有我在。' },
+  { key: '嘴馋', img: STATIC_BASE_URL + '/static/guozai/mood_06_hungry.png', tip: '走！咱去吃点好的。' },
+  { key: '低落', img: STATIC_BASE_URL + '/static/guozai/mood_07_low.png', tip: '抱抱你，天会亮的。' },
+  { key: '想家', img: STATIC_BASE_URL + '/static/guozai/mood_08_homesick.png', tip: '家的味道，最暖。' },
+  { key: '期待', img: STATIC_BASE_URL + '/static/guozai/mood_09_excited.png', tip: '前方有好事发生！' },
+  { key: '满足', img: STATIC_BASE_URL + '/static/guozai/mood_10_content.png', tip: '这样刚刚好。' },
+  { key: '得意', img: STATIC_BASE_URL + '/static/guozai/mood_11_proud.png', tip: '我可太厉害了！' },
+  { key: '害羞', img: STATIC_BASE_URL + '/static/guozai/mood_12_shy.png', tip: '被你发现啦～' },
 ]
 
 const props = withDefaults(

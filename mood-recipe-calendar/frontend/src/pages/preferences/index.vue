@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { FoodMemoryBehavior, HealthGoal, SpiceLevel } from '../../api/preferences'
+import { STATIC_BASE_URL } from '@/utils/assets'
 import { computed, ref } from 'vue'
 import { navBack } from '@/composables/useNavBar'
 import { clearFoodPreference, fetchFoodMemory, saveFoodPreference } from '../../api/preferences'
@@ -169,7 +170,7 @@ function clearMemory() {
     </view>
     <template v-else>
       <view class="memory-hero">
-        <image class="memory-hero__image" src="https://static.image-zero.art/mood-recipe/static/guozai/action_10_thinking.png" mode="aspectFit" />
+        <image class="memory-hero__image" :src="STATIC_BASE_URL + '/static/guozai/action_10_thinking.png'" mode="aspectFit" />
         <view class="memory-hero__copy">
           <text class="memory-hero__eyebrow">
             只记你愿意告诉我的

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { navBack } from '@/composables/useNavBar'
+import { STATIC_BASE_URL } from '@/utils/assets'
 import { ref, computed } from 'vue'
 import Icon from '../../components/common/Icon.vue'
 import SuccessModal from '../../components/guozai/SuccessModal.vue'
@@ -160,7 +161,7 @@ function chooseCookingTime() {
         <text class="record-intro__title">把这一餐，留给以后的你</text>
         <text class="record-intro__sub">锅仔会记住味道，也记住你今天的心情</text>
       </view>
-      <image class="record-intro__guozai" src="https://static.image-zero.art/mood-recipe/static/guozai/action_03_camera.png" mode="aspectFit" />
+      <image class="record-intro__guozai" :src="STATIC_BASE_URL + '/static/guozai/action_03_camera.png'" mode="aspectFit" />
     </view>
 
     <!-- 拍照区 -->

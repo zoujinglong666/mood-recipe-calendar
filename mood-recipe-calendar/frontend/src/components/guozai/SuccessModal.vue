@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { STATIC_BASE_URL } from '@/utils/assets'
+
 interface Props {
   visible: boolean
   title?: string
@@ -24,7 +26,7 @@ function handleConfirm() {
       <view class="gz-modal__guozai-wrap">
         <image
           class="gz-modal__guozai guozai-spin"
-          src="https://static.image-zero.art/mood-recipe/static/guozai/action_09_celebrate.png"
+          :src="`${STATIC_BASE_URL}/static/guozai/action_09_celebrate.png`"
           mode="aspectFit"
         />
         <!-- 星星装饰 -->

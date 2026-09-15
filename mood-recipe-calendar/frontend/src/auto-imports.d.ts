@@ -17,10 +17,12 @@ declare global {
   const MOOD_COLOR: typeof import('./utils/albumLayout')['MOOD_COLOR']
   const MOOD_EMOJI: typeof import('./utils/albumLayout')['MOOD_EMOJI']
   const RECORD_DRAFT_KEY: typeof import('./utils/cookingDraft')['RECORD_DRAFT_KEY']
+  const STATIC_BASE_URL: typeof import('./utils/assets')['STATIC_BASE_URL']
   const acceptHMRUpdate: typeof import('pinia')['acceptHMRUpdate']
   const alovaInstance: typeof import('./api/index')['alovaInstance']
   const api: typeof import('./api/index')['default']
   const apiDefinitions: typeof import('./api/apiDefinitions')['default']
+  const assetUrl: typeof import('./utils/assets')['assetUrl']
   const asyncComputed: typeof import('@vueuse/core')['asyncComputed']
   const autoLayout: typeof import('./utils/albumLayout')['autoLayout']
   const autoResetRef: typeof import('@vueuse/core')['autoResetRef']
@@ -454,7 +456,9 @@ declare module 'vue' {
     readonly MOOD_COLOR: UnwrapRef<typeof import('./utils/albumLayout')['MOOD_COLOR']>
     readonly MOOD_EMOJI: UnwrapRef<typeof import('./utils/albumLayout')['MOOD_EMOJI']>
     readonly RECORD_DRAFT_KEY: UnwrapRef<typeof import('./utils/cookingDraft')['RECORD_DRAFT_KEY']>
+    readonly STATIC_BASE_URL: UnwrapRef<typeof import('./utils/assets')['STATIC_BASE_URL']>
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>
+    readonly assetUrl: UnwrapRef<typeof import('./utils/assets')['assetUrl']>
     readonly asyncComputed: UnwrapRef<typeof import('@vueuse/core')['asyncComputed']>
     readonly autoLayout: UnwrapRef<typeof import('./utils/albumLayout')['autoLayout']>
     readonly autoResetRef: UnwrapRef<typeof import('@vueuse/core')['autoResetRef']>

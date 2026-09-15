@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { navBack } from '@/composables/useNavBar'
+import { STATIC_BASE_URL } from '@/utils/assets'
 import { computed, ref } from 'vue'
 import Icon from '../../components/common/Icon.vue'
 import LoadingState from '../../components/guozai/LoadingState.vue'
@@ -154,12 +155,12 @@ function goRecordFromEmpty() {
             </template>
           </view>
         </view>
-        <image class="cal-board__guozai guozai-breathe" src="https://static.image-zero.art/mood-recipe/static/guozai/action_04_calendar.png" mode="aspectFit" />
+        <image class="cal-board__guozai guozai-breathe" :src="STATIC_BASE_URL + '/static/guozai/action_04_calendar.png'" mode="aspectFit" />
       </view>
 
       <!-- 生成月度画册按钮 -->
       <view class="cal-album" @click="goAlbum">
-        <image class="cal-album__guozai" src="https://static.image-zero.art/mood-recipe/static/guozai/action_05_album.png" mode="aspectFit" />
+        <image class="cal-album__guozai" :src="STATIC_BASE_URL + '/static/guozai/action_05_album.png'" mode="aspectFit" />
         <text class="cal-album__text">生成月度画册</text>
       </view>
     </template>
@@ -167,7 +168,7 @@ function goRecordFromEmpty() {
     <!-- 空状态弹窗 -->
     <view v-if="showEmpty" class="cal-empty-mask" @click="showEmpty = false">
       <view class="cal-empty-sheet pop-in" @click.stop>
-        <image class="cal-empty-sheet__guozai guozai-breathe" src="https://static.image-zero.art/mood-recipe/static/guozai/state_01_empty.png" mode="aspectFit" />
+        <image class="cal-empty-sheet__guozai guozai-breathe" :src="STATIC_BASE_URL + '/static/guozai/state_01_empty.png'" mode="aspectFit" />
         <text class="cal-empty-sheet__title">{{ month }}月{{ emptyDay }}日还没记录哦</text>
         <text class="cal-empty-sheet__sub">去吃点好吃的吧～</text>
         <view class="cal-empty-sheet__btn" @click="goRecordFromEmpty">去记录</view>

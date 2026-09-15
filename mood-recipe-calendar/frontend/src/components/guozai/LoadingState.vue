@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { STATIC_BASE_URL } from '@/utils/assets'
+
 interface Props {
   text?: string
 }
@@ -12,7 +14,7 @@ withDefaults(defineProps<Props>(), {
     <view class="gz-loading__wrap">
       <image
         class="gz-loading__img"
-        src="https://static.image-zero.art/mood-recipe/static/guozai/state_02_loading.png"
+        :src="STATIC_BASE_URL + '/static/guozai/state_02_loading.png'"
         mode="aspectFit"
       />
       <!-- 旋转的加载环（覆盖在图片的加载环位置） -->

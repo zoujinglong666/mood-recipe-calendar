@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { STATIC_BASE_URL } from '@/utils/assets'
 import { navBack } from '@/composables/useNavBar'
 import Icon from '../../components/common/Icon.vue'
 import { COOKING_PROGRESS_KEY, loadCookingDraft, saveRecordDraft } from '../../utils/cookingDraft'
@@ -160,7 +161,7 @@ onUnload(() => { syncRemaining(); stopTicker() })
     <wd-navbar title="跟锅仔做菜" left-arrow safe-area-inset-top custom-style="background-color: transparent !important;" @click-left="navBack" />
 
     <view v-if="!recipe || !steps.length" class="cooking-empty">
-      <image src="https://static.image-zero.art/mood-recipe/static/guozai/action_07_empty.png" mode="aspectFit" />
+      <image :src="STATIC_BASE_URL + '/static/guozai/action_07_empty.png'" mode="aspectFit" />
       <text class="cooking-empty__title">这道菜还没有完整做法</text>
       <text class="cooking-empty__text">回到推荐页换一道，锅仔再陪你开始。</text>
       <view class="cooking-empty__button pressable" role="button" aria-label="返回上一页" @click="navBack">返回推荐</view>
@@ -173,7 +174,7 @@ onUnload(() => { syncRemaining(); stopTicker() })
           <text class="cook-hero__title">{{ recipe.name }}</text>
           <text class="cook-hero__meta">{{ recipe.cookingTime || '--' }} 分钟 · {{ recipe.difficulty || '家常难度' }}</text>
         </view>
-        <image class="cook-hero__guozai" src="https://static.image-zero.art/mood-recipe/static/guozai/action_16_chopsticks.png" mode="aspectFit" aria-label="锅仔陪你做菜" />
+        <image class="cook-hero__guozai" :src="STATIC_BASE_URL + '/static/guozai/action_16_chopsticks.png'" mode="aspectFit" aria-label="锅仔陪你做菜" />
       </view>
 
       <view class="cook-progress" aria-label="做菜步骤进度">
@@ -187,7 +188,7 @@ onUnload(() => { syncRemaining(); stopTicker() })
         <text class="step-focus__label">现在只做这一件事</text>
         <text class="step-focus__text">{{ currentStep }}</text>
         <view class="step-focus__aside">
-          <image src="https://static.image-zero.art/mood-recipe/static/guozai/action_10_thinking.png" mode="aspectFit" />
+          <image :src="STATIC_BASE_URL + '/static/guozai/action_10_thinking.png'" mode="aspectFit" />
           <text>慢慢来，做好这一步再继续。</text>
         </view>
       </view>

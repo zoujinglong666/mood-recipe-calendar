@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { navBack } from '@/composables/useNavBar'
+import { STATIC_BASE_URL } from '@/utils/assets'
 import { ref, computed } from 'vue'
 import Icon from '../../components/common/Icon.vue'
 import LoadingState from '../../components/guozai/LoadingState.vue'
@@ -39,37 +40,37 @@ const STICKER_GROUPS = [
   {
     title: '心情表情',
     items: [
-      { name: '开心', src: 'https://static.image-zero.art/mood-recipe/static/guozai/mood_01_happy.png' },
-      { name: '平静', src: 'https://static.image-zero.art/mood-recipe/static/guozai/mood_02_calm.png' },
-      { name: '疲惫', src: 'https://static.image-zero.art/mood-recipe/static/guozai/mood_03_tired.png' },
-      { name: '焦虑', src: 'https://static.image-zero.art/mood-recipe/static/guozai/mood_04_anxious.png' },
-      { name: '难过', src: 'https://static.image-zero.art/mood-recipe/static/guozai/mood_05_sad.png' },
-      { name: '嘴馋', src: 'https://static.image-zero.art/mood-recipe/static/guozai/mood_06_hungry.png' },
-      { name: '低落', src: 'https://static.image-zero.art/mood-recipe/static/guozai/mood_07_low.png' },
-      { name: '想家', src: 'https://static.image-zero.art/mood-recipe/static/guozai/mood_08_homesick.png' },
+      { name: '开心', src: STATIC_BASE_URL + '/static/guozai/mood_01_happy.png' },
+      { name: '平静', src: STATIC_BASE_URL + '/static/guozai/mood_02_calm.png' },
+      { name: '疲惫', src: STATIC_BASE_URL + '/static/guozai/mood_03_tired.png' },
+      { name: '焦虑', src: STATIC_BASE_URL + '/static/guozai/mood_04_anxious.png' },
+      { name: '难过', src: STATIC_BASE_URL + '/static/guozai/mood_05_sad.png' },
+      { name: '嘴馋', src: STATIC_BASE_URL + '/static/guozai/mood_06_hungry.png' },
+      { name: '低落', src: STATIC_BASE_URL + '/static/guozai/mood_07_low.png' },
+      { name: '想家', src: STATIC_BASE_URL + '/static/guozai/mood_08_homesick.png' },
     ],
   },
   {
     title: '动作表情',
     items: [
-      { name: '端碗', src: 'https://static.image-zero.art/mood-recipe/static/guozai/action_01_bowl.png' },
-      { name: '端汤', src: 'https://static.image-zero.art/mood-recipe/static/guozai/action_02_soup.png' },
-      { name: '拍照', src: 'https://static.image-zero.art/mood-recipe/static/guozai/action_03_camera.png' },
-      { name: '日历', src: 'https://static.image-zero.art/mood-recipe/static/guozai/action_04_calendar.png' },
-      { name: '画册', src: 'https://static.image-zero.art/mood-recipe/static/guozai/action_05_album.png' },
-      { name: '眼镜', src: 'https://static.image-zero.art/mood-recipe/static/guozai/action_06_glasses.png' },
-      { name: '空碗', src: 'https://static.image-zero.art/mood-recipe/static/guozai/action_07_empty.png' },
-      { name: '探头', src: 'https://static.image-zero.art/mood-recipe/static/guozai/action_08_peek.png' },
-      { name: '庆祝', src: 'https://static.image-zero.art/mood-recipe/static/guozai/action_09_celebrate.png' },
-      { name: '思考', src: 'https://static.image-zero.art/mood-recipe/static/guozai/action_10_thinking.png' },
+      { name: '端碗', src: STATIC_BASE_URL + '/static/guozai/action_01_bowl.png' },
+      { name: '端汤', src: STATIC_BASE_URL + '/static/guozai/action_02_soup.png' },
+      { name: '拍照', src: STATIC_BASE_URL + '/static/guozai/action_03_camera.png' },
+      { name: '日历', src: STATIC_BASE_URL + '/static/guozai/action_04_calendar.png' },
+      { name: '画册', src: STATIC_BASE_URL + '/static/guozai/action_05_album.png' },
+      { name: '眼镜', src: STATIC_BASE_URL + '/static/guozai/action_06_glasses.png' },
+      { name: '空碗', src: STATIC_BASE_URL + '/static/guozai/action_07_empty.png' },
+      { name: '探头', src: STATIC_BASE_URL + '/static/guozai/action_08_peek.png' },
+      { name: '庆祝', src: STATIC_BASE_URL + '/static/guozai/action_09_celebrate.png' },
+      { name: '思考', src: STATIC_BASE_URL + '/static/guozai/action_10_thinking.png' },
     ],
   },
   {
     title: '状态表情',
     items: [
-      { name: '空状态', src: 'https://static.image-zero.art/mood-recipe/static/guozai/state_01_empty.png' },
-      { name: '加载中', src: 'https://static.image-zero.art/mood-recipe/static/guozai/state_02_loading.png' },
-      { name: '网络错误', src: 'https://static.image-zero.art/mood-recipe/static/guozai/state_03_error.png' },
+      { name: '空状态', src: STATIC_BASE_URL + '/static/guozai/state_01_empty.png' },
+      { name: '加载中', src: STATIC_BASE_URL + '/static/guozai/state_02_loading.png' },
+      { name: '网络错误', src: STATIC_BASE_URL + '/static/guozai/state_03_error.png' },
     ],
   },
 ]
@@ -175,7 +176,7 @@ const orderTypeText: Record<string, string> = {}
         <view class="checkin-card__right">
           <image
             class="checkin-card__guozai"
-            :src="checkin.exchangeReady ? 'https://static.image-zero.art/mood-recipe/static/guozai/action_09_celebrate.png' : (checkin.checkedIn ? 'https://static.image-zero.art/mood-recipe/static/guozai/mood_01_happy.png' : 'https://static.image-zero.art/mood-recipe/static/guozai/action_08_peek.png')"
+            :src="checkin.exchangeReady ? STATIC_BASE_URL + '/static/guozai/action_09_celebrate.png' : (checkin.checkedIn ? STATIC_BASE_URL + '/static/guozai/mood_01_happy.png' : STATIC_BASE_URL + '/static/guozai/action_08_peek.png')"
             mode="aspectFit"
           />
           <view
@@ -191,7 +192,7 @@ const orderTypeText: Record<string, string> = {}
       <!-- ============ 内容资产区：锅仔表情包 ============ -->
       <view>
         <view class="asset-intro">
-          <image class="asset-intro__guozai" src="https://static.image-zero.art/mood-recipe/static/guozai/mood_06_hungry.png" mode="aspectFit" />
+          <image class="asset-intro__guozai" :src="STATIC_BASE_URL + '/static/guozai/mood_06_hungry.png'" mode="aspectFit" />
           <view class="asset-intro__text">
             <text class="asset-intro__title">锅仔专属表情包</text>
             <text class="asset-intro__sub">点击即可保存到相册，让锅仔住进你的聊天里</text>
@@ -216,7 +217,7 @@ const orderTypeText: Record<string, string> = {}
       <!-- 实物周边暂不开放：保留为无商品的内容介绍，避免伪支付入口。 -->
       <view v-if="false">
         <view v-if="products.length === 0" class="gallery-empty">
-          <image class="gallery-empty__img" src="https://static.image-zero.art/mood-recipe/static/guozai/action_07_empty.png" mode="aspectFit" />
+          <image class="gallery-empty__img" :src="STATIC_BASE_URL + '/static/guozai/action_07_empty.png'" mode="aspectFit" />
           <text class="gallery-empty__text">周边正在赶工中，锅仔先去喝口水～</text>
         </view>
         <view class="shop-grid">
@@ -239,11 +240,11 @@ const orderTypeText: Record<string, string> = {}
 
       <view v-if="false">
         <view v-if="orders.length === 0" class="gallery-empty">
-          <image class="gallery-empty__img" src="https://static.image-zero.art/mood-recipe/static/guozai/action_07_empty.png" mode="aspectFit" />
+          <image class="gallery-empty__img" :src="STATIC_BASE_URL + '/static/guozai/action_07_empty.png'" mode="aspectFit" />
           <text class="gallery-empty__text">还没有订单，去带一只锅仔回家吧～</text>
         </view>
         <view v-for="o in orders" :key="o.id" class="order-card">
-          <image class="order-card__img" :src="o.productImage || 'https://static.image-zero.art/mood-recipe/static/guozai/mood_01_happy.png'" mode="aspectFill" />
+          <image class="order-card__img" :src="o.productImage || STATIC_BASE_URL + '/static/guozai/mood_01_happy.png'" mode="aspectFill" />
           <view class="order-card__main">
             <text class="order-card__name">{{ o.productName }}</text>
             <text class="order-card__type">{{ orderTypeText[o.payType] || o.payType }}</text>
@@ -259,7 +260,7 @@ const orderTypeText: Record<string, string> = {}
       </view>
 
       <view class="gallery-footer">
-        <image class="gallery-footer__guozai" src="https://static.image-zero.art/mood-recipe/static/guozai/mood_02_calm.png" mode="aspectFit" />
+        <image class="gallery-footer__guozai" :src="STATIC_BASE_URL + '/static/guozai/mood_02_calm.png'" mode="aspectFit" />
         <text class="gallery-footer__text">「用一道菜，治愈今天的你。」</text>
       </view>
     </template>

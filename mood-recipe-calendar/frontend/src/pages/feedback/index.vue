@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { toast, toastError, toastSuccess } from '../../utils/toast'
+import { STATIC_BASE_URL } from '@/utils/assets'
 import type { Feedback, FeedbackCategory } from '../../api/feedback'
 import { computed, ref } from 'vue'
 import { navBack } from '@/composables/useNavBar'
@@ -104,7 +105,7 @@ onShow(loadHistory)
       </view>
       <view class="guozai-stage">
         <view class="stage-glow" />
-        <image src="https://static.image-zero.art/mood-recipe/static/guozai/action_08_peek.png" mode="aspectFit" />
+        <image :src="STATIC_BASE_URL + '/static/guozai/action_08_peek.png'" mode="aspectFit" />
       </view>
     </view>
 
@@ -252,7 +253,7 @@ onShow(loadHistory)
       </view>
 
       <view v-else class="history-empty">
-        <image src="https://static.image-zero.art/mood-recipe/static/guozai/action_07_empty.png" mode="aspectFit" />
+        <image :src="STATIC_BASE_URL + '/static/guozai/action_07_empty.png'" mode="aspectFit" />
         <view>
           <text class="empty-title">
             还没有反馈记录

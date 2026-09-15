@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { STATIC_BASE_URL } from '@/utils/assets'
 import { useUserStore } from '@/stores/user'
 import { cancelAuthRecovery, consumeAuthReturn } from '@/utils/authRecovery'
 import { ensureLogin } from '@/utils/login'
@@ -49,7 +50,7 @@ function backToProfile() {
     <view class="login-orb login-orb--two" />
 
     <view class="login-hero">
-      <image src="https://static.image-zero.art/mood-recipe/static/guozai/action_09_celebrate.png" mode="aspectFit" aria-label="欢迎你的锅仔" />
+      <image :src="STATIC_BASE_URL + '/static/guozai/action_09_celebrate.png'" mode="aspectFit" aria-label="欢迎你的锅仔" />
       <text class="login-kicker">
         锅仔在这里等你
       </text>
