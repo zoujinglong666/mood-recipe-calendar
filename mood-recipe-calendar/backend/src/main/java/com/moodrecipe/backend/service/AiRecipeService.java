@@ -158,6 +158,11 @@ public class AiRecipeService {
         return chat(persona.systemPrompt(), userPrompt, 0.75, 40);
     }
 
+    /** 月度回信允许完整表达两项以上的真实记录事实。 */
+    public Optional<String> monthlyCompanionMessage(String userPrompt) {
+        return chat(persona.systemPrompt(), userPrompt, 0.65, 90);
+    }
+
     /**
      * 情绪洞察——使用 GuozaiPersona 统一的人格 prompt，生成一句话情绪总结。
      */

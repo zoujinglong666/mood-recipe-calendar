@@ -28,6 +28,7 @@ declare global {
   const autoResetRef: typeof import('@vueuse/core')['autoResetRef']
   const beginAuthRecovery: typeof import('./utils/authRecovery')['beginAuthRecovery']
   const cancelAuthRecovery: typeof import('./utils/authRecovery')['cancelAuthRecovery']
+  const chooseImageFile: typeof import('./utils/chooseImage')['chooseImageFile']
   const chunkPages: typeof import('./utils/albumLayout')['chunkPages']
   const clearFoodPreference: typeof import('./api/preferences')['clearFoodPreference']
   const computed: typeof import('vue')['computed']
@@ -464,6 +465,7 @@ declare module 'vue' {
     readonly autoResetRef: UnwrapRef<typeof import('@vueuse/core')['autoResetRef']>
     readonly beginAuthRecovery: UnwrapRef<typeof import('./utils/authRecovery')['beginAuthRecovery']>
     readonly cancelAuthRecovery: UnwrapRef<typeof import('./utils/authRecovery')['cancelAuthRecovery']>
+    readonly chooseImageFile: UnwrapRef<typeof import('./utils/chooseImage')['chooseImageFile']>
     readonly chunkPages: UnwrapRef<typeof import('./utils/albumLayout')['chunkPages']>
     readonly clearFoodPreference: UnwrapRef<typeof import('./api/preferences')['clearFoodPreference']>
     readonly computed: UnwrapRef<typeof import('vue')['computed']>

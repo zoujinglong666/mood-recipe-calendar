@@ -3,6 +3,7 @@ package com.moodrecipe.backend.service;
 import com.moodrecipe.backend.entity.Recipe;
 import com.moodrecipe.backend.entity.RecipeInteraction;
 import com.moodrecipe.backend.entity.UserFoodPreference;
+import com.moodrecipe.backend.entity.UserRecord;
 import com.moodrecipe.backend.repository.RecipeInteractionRepository;
 import com.moodrecipe.backend.repository.RecipeRepository;
 import com.moodrecipe.backend.repository.UserFoodPreferenceRepository;
@@ -32,6 +33,7 @@ class GuozaiAgentTest {
         when(ai.recommendWithPersona(anyString(), anyString(), any())).thenReturn(Optional.empty());
         when(ai.recommend(anyString(), anyString(), any())).thenReturn(Optional.empty());
         when(ai.recommend(anyString(), anyString())).thenReturn(Optional.empty());
+        when(ai.monthlyCompanionMessage(anyString())).thenReturn(Optional.empty());
 
         return buildAgent(recipes, interactions, preferences, ai, mock(RecommendationExposureService.class));
     }
@@ -222,6 +224,22 @@ class GuozaiAgentTest {
 
         assertEquals("青椒肉丝", result.getName());
         verify(interactions).save(any(RecipeInteraction.class));
+    }
+
+    @Test
+    void monthlyLetterUsesThisUsersActualRecords() {
+        RecipeRepository recipes = mock(RecipeRepository.class);
+        RecipeInteractionRepository interactions = mock(RecipeInteractionRepository.class);
+        UserFoodPreferenceRepository preferences = mock(UserFoodPreferenceRepository.class);
+        GuozaiAgent agent = buildAgent(recipes, interactions, preferences);
+
+        UserRecord first = UserRecord.builder().recordDate("2026-09-01").dishName("小炒黄牛肉").moodTag("开心").build();
+        UserRecord second = UserRecord.builder().recordDate("2026-09-02").dishName("小炒黄牛肉").moodTag("开心").build();
+        String letter = agent.monthlyLetter("2026-09", List.of(first, second));
+
+        assertTrue(letter.contains("2天"));
+        assertTrue(letter.contains("小炒黄牛肉"));
+        assertTrue(letter.contains("开心"));
     }
 
     private Recipe recipe(Long id, String name, String ingredients) {

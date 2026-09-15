@@ -5,10 +5,13 @@ import com.moodrecipe.backend.entity.MonthlyAlbum;
 import com.moodrecipe.backend.entity.UserRecord;
 import com.moodrecipe.backend.repository.MonthlyAlbumRepository;
 import com.moodrecipe.backend.repository.UserRecordRepository;
+import com.moodrecipe.backend.service.GuozaiAgent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moodrecipe.backend.config.SessionAuthInterceptor;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -18,11 +21,14 @@ public class AlbumController {
 
     private final MonthlyAlbumRepository albumRepository;
     private final UserRecordRepository recordRepository;
+    private final GuozaiAgent guozaiAgent;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public AlbumController(MonthlyAlbumRepository albumRepository, UserRecordRepository recordRepository) {
+    public AlbumController(MonthlyAlbumRepository albumRepository, UserRecordRepository recordRepository,
+                           GuozaiAgent guozaiAgent) {
         this.albumRepository = albumRepository;
         this.recordRepository = recordRepository;
+        this.guozaiAgent = guozaiAgent;
     }
 
     /**
@@ -34,22 +40,26 @@ public class AlbumController {
         if (month == null || !month.matches("\\d{4}-(0[1-9]|1[0-2])")) {
             return ApiResponse.error(400, "month 格式应为 YYYY-MM");
         }
-        // 先查是否已生成
-        Optional<MonthlyAlbum> existing = albumRepository.findByOpenidAndMonth(openid, month);
-        if (existing.isPresent()) {
-            return ApiResponse.ok(existing.get());
-        }
-
-        // 从记录数据生成
         List<UserRecord> records = recordRepository.findByOpenidAndRecordDateStartingWith(openid, month);
         if (records.isEmpty()) {
             return ApiResponse.error("本月暂无记录，无法生成画册");
         }
 
-        MonthlyAlbum album = new MonthlyAlbum();
+        String recordIds = records.stream().map(UserRecord::getId).filter(Objects::nonNull)
+            .sorted().map(String::valueOf).collect(Collectors.joining(","));
+        Optional<MonthlyAlbum> existing = albumRepository.findByOpenidAndMonth(openid, month);
+        if (existing.isPresent() && recordIds.equals(existing.get().getRecordIds())
+                && !isLegacySummary(existing.get().getAiSummary())
+                && records.stream().map(UserRecord::getUpdatedAt).filter(Objects::nonNull)
+                    .noneMatch(updated -> existing.get().getGeneratedAt() == null
+                            || updated.isAfter(existing.get().getGeneratedAt()))) {
+            return ApiResponse.ok(existing.get());
+        }
+
+        MonthlyAlbum album = existing.orElseGet(MonthlyAlbum::new);
         album.setOpenid(openid);
         album.setMonth(month);
-        album.setRecordIds(records.stream().map(r -> String.valueOf(r.getId())).collect(Collectors.joining(",")));
+        album.setRecordIds(recordIds);
         album.setCoverText("小圆同学的" + month.substring(5) + "月干饭日记");
 
         // 统计
@@ -61,7 +71,7 @@ public class AlbumController {
         stats.put("moodDistribution", moodDist);
         // 最常做菜 Top3
         Map<String, Long> dishCount = records.stream()
-            .filter(r -> r.getDishName() != null)
+            .filter(r -> r.getDishName() != null && !r.getDishName().isBlank())
             .collect(Collectors.groupingBy(UserRecord::getDishName, Collectors.counting()));
         List<Map<String, Object>> topDishes = dishCount.entrySet().stream()
             .sorted(Map.Entry.<String, Long>comparingByValue().reversed())
@@ -73,6 +83,7 @@ public class AlbumController {
                 return d;
             }).collect(Collectors.toList());
         stats.put("topDishes", topDishes);
+        stats.put("longestStreak", longestStreak(records));
 
         try {
             album.setStats(objectMapper.writeValueAsString(stats));
@@ -80,16 +91,28 @@ public class AlbumController {
             album.setStats("{}");
         }
 
-        // AI 寄语（MVP 阶段用模板）
-        album.setAiSummary(generateAiSummary(month, stats));
+        album.setAiSummary(guozaiAgent.monthlyLetter(month, records));
+        album.setGeneratedAt(LocalDateTime.now());
 
         return ApiResponse.ok(albumRepository.save(album));
     }
 
-    private String generateAiSummary(String month, Map<String, Object> stats) {
-        long totalDays = (long) stats.getOrDefault("totalDays", 0L);
-        String monthNum = month.substring(5);
-        return monthNum + "月，你记录了 " + totalDays + " 天的美食。每一道菜都是对自己的温柔。" +
-            "不管心情如何，你都没饿着自己。下个月，也要继续好好吃饭哦。";
+    private boolean isLegacySummary(String summary) {
+        return summary == null || summary.isBlank() || summary.contains("每一道菜都是对自己的温柔");
+    }
+
+    private int longestStreak(List<UserRecord> records) {
+        List<LocalDate> dates = records.stream().map(UserRecord::getRecordDate)
+            .filter(value -> value != null && value.matches("\\d{4}-\\d{2}-\\d{2}"))
+            .distinct().sorted().map(LocalDate::parse).toList();
+        int longest = 0;
+        int current = 0;
+        LocalDate previous = null;
+        for (LocalDate date : dates) {
+            current = previous != null && previous.plusDays(1).equals(date) ? current + 1 : 1;
+            longest = Math.max(longest, current);
+            previous = date;
+        }
+        return longest;
     }
 }

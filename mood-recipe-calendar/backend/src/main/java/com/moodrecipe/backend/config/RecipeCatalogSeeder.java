@@ -19,7 +19,7 @@ import java.util.Map;
 /** 把随版本发布的菜谱目录幂等补齐到数据库，不改已有主键。 */
 @Component
 public class RecipeCatalogSeeder implements ApplicationRunner {
-    static final String RESOURCE = "recipe-catalog-v1.psv";
+    static final String RESOURCE = "recipe-catalog-v2.psv";
     private static final String FALLBACK_IMAGE = "/static/dish_tomato_beef.png";
     private final RecipeRepository recipes;
 

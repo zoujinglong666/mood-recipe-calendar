@@ -1,12 +1,12 @@
 <script setup lang="ts">
+import type { RecordItem } from '../../api/records'
+import { computed, ref } from 'vue'
 import { navBack } from '@/composables/useNavBar'
 import { STATIC_BASE_URL } from '@/utils/assets'
-import { computed, ref } from 'vue'
-import Icon from '../../components/common/Icon.vue'
-import LoadingState from '../../components/guozai/LoadingState.vue'
+import { fetchRecordsByMonth, fetchStats } from '../../api/records'
 import ErrorState from '../../components/guozai/ErrorState.vue'
+import LoadingState from '../../components/guozai/LoadingState.vue'
 import { ensureLogin } from '../../utils/login'
-import { fetchRecordsByMonth, fetchStats, type RecordItem } from '../../api/records'
 
 definePage({
   name: 'calendar',
@@ -25,6 +25,7 @@ const year = now.getFullYear()
 const month = now.getMonth() + 1
 const today = now.getDate()
 const monthStr = `${year}-${String(month).padStart(2, '0')}`
+const monthNumber = String(month).padStart(2, '0')
 
 const loading = ref(true)
 const error = ref('')
@@ -34,9 +35,10 @@ const stats = ref({ totalDays: 0, currentStreak: 0 })
 // 记录日期映射
 const recordMap = computed(() => {
   const map = new Map<number, RecordItem>()
-  records.value.forEach(r => {
-    const day = parseInt(r.recordDate?.split('-')[2] || '0', 10)
-    if (day > 0) map.set(day, r)
+  records.value.forEach((r) => {
+    const day = Number.parseInt(r.recordDate?.split('-')[2] || '0', 10)
+    if (day > 0)
+      map.set(day, r)
   })
   return map
 })
@@ -45,7 +47,7 @@ const firstDay = new Date(year, month - 1, 1).getDay()
 const daysInMonth = new Date(year, month, 0).getDate()
 
 const calCells = computed(() => {
-  const cells: ({ day: number; hasRecord: boolean; isToday: boolean; dishImg: string; mood: string } | null)[] = []
+  const cells: ({ day: number, hasRecord: boolean, isToday: boolean, dishImg: string, mood: string } | null)[] = []
   for (let i = 0; i < firstDay; i++) cells.push(null)
   for (let d = 1; d <= daysInMonth; d++) {
     const rec = recordMap.value.get(d)
@@ -79,9 +81,11 @@ async function loadData() {
     ])
     records.value = monthRecords
     stats.value = { totalDays: statsData.totalDays, currentStreak: statsData.currentStreak }
-  } catch (e: any) {
+  }
+  catch (e: any) {
     error.value = e.message || '加载失败'
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 }
@@ -93,14 +97,15 @@ onShow(() => {
 function goAlbum() {
   router.push({ name: 'album' })
 }
-function handleCellClick(c: { day: number; hasRecord: boolean }) {
+function handleCellClick(c: { day: number, hasRecord: boolean }) {
   if (c.hasRecord) {
     const rec = recordMap.value.get(c.day)
     if (rec) {
       detailRecord.value = rec
       showDetail.value = true
     }
-  } else {
+  }
+  else {
     emptyDay.value = c.day
     showEmpty.value = true
   }
@@ -113,7 +118,7 @@ function goRecordFromEmpty() {
 
 <template>
   <view class="cal-page">
-    <wd-navbar :title="`${year}年${month}月`" left-arrow safe-area-inset-top @click-left="navBack"  custom-style="background-color: transparent !important;" />
+    <wd-navbar title="食光日历" left-arrow safe-area-inset-top custom-style="background-color: transparent !important;" @click-left="navBack" />
 
     <!-- Loading -->
     <LoadingState v-if="loading" text="锅仔正在翻日历..." />
@@ -123,16 +128,56 @@ function goRecordFromEmpty() {
 
     <!-- 内容 -->
     <template v-else>
-      <!-- 统计条 -->
-      <view class="cal-stat">
-        <view><text class="cal-stat__eyebrow">本月食光</text><text class="cal-stat__text">已记录 {{ stats.totalDays }} 天 · 连续 {{ stats.currentStreak }} 天</text></view>
-        <view class="cal-stat__icon"><Icon name="flame" :size="38" color="#EF5A3C" /></view>
+      <view class="cal-intro">
+        <view class="cal-intro__topline">
+          <text>GUOZAI FOOD DIARY</text><text>{{ year }} / {{ monthNumber }}</text>
+        </view>
+        <view class="cal-intro__content">
+          <view class="cal-intro__copy">
+            <text class="cal-intro__eyebrow">
+              锅仔替你收好的本月食光
+            </text>
+            <text class="cal-intro__title">
+              这个月，认真吃过
+            </text>
+            <view class="cal-intro__stats">
+              <view>
+                <text>本月记录</text><text>
+                  {{ recordMap.size }}<text class="cal-intro__unit">
+                    天
+                  </text>
+                </text>
+              </view>
+              <view>
+                <text>连续打卡</text><text>
+                  {{ stats.currentStreak }}<text class="cal-intro__unit">
+                    天
+                  </text>
+                </text>
+              </view>
+            </view>
+          </view>
+          <image :src="`${STATIC_BASE_URL}/static/guozai/action_04_calendar.png`" mode="aspectFit" aria-label="抱着日历的锅仔" />
+        </view>
       </view>
 
-      <!-- 日历 -->
       <view class="cal-board">
+        <view class="cal-board__heading">
+          <view>
+            <text class="cal-board__kicker">
+              MONTHLY TABLE
+            </text><text class="cal-board__title">
+              {{ month }}月食光簿
+            </text>
+          </view>
+          <view class="cal-board__legend">
+            <view /><text>有记录</text>
+          </view>
+        </view>
         <view class="cal-week">
-          <text v-for="w in weekCN" :key="w" class="cal-week__item">{{ w }}</text>
+          <text v-for="w in weekCN" :key="w" class="cal-week__item">
+            {{ w }}
+          </text>
         </view>
         <view class="cal-grid">
           <view
@@ -143,35 +188,69 @@ function goRecordFromEmpty() {
               'cal-cell--today': c && c.isToday,
               'cal-cell--record': c && c.hasRecord,
             }"
+            :role="c ? 'button' : undefined"
+            :aria-label="c ? `${month}月${c.day}日，${c.hasRecord ? '查看饮食记录' : '还没有记录，点击去记录'}` : undefined"
             @click="c && handleCellClick(c)"
           >
             <template v-if="c">
-              <image v-if="c.hasRecord && c.dishImg" class="cal-cell__img" :src="c.dishImg" mode="aspectFill" />
-              <view v-else-if="c.hasRecord" class="cal-cell__mood">{{ c.mood?.charAt(0) }}</view>
-              <template v-else>
-                <text class="cal-cell__day">{{ c.day }}</text>
-                <view class="cal-cell__dot" />
+              <template v-if="c.hasRecord">
+                <image v-if="c.dishImg" class="cal-cell__img" :src="c.dishImg" mode="aspectFill" />
+                <view v-else class="cal-cell__mood">
+                  {{ c.mood?.charAt(0) }}
+                </view>
+                <text class="cal-cell__record-day">
+                  {{ c.day }}
+                </text>
               </template>
+              <template v-else>
+                <text class="cal-cell__day">
+                  {{ c.day }}
+                </text>
+              </template>
+              <text v-if="c.isToday" class="cal-cell__today-tag">
+                今
+              </text>
             </template>
           </view>
         </view>
-        <image class="cal-board__guozai guozai-breathe" :src="STATIC_BASE_URL + '/static/guozai/action_04_calendar.png'" mode="aspectFit" />
+        <view class="cal-board__note">
+          <image class="guozai-breathe" :src="`${STATIC_BASE_URL}/static/guozai/action_08_peek.png`" mode="aspectFit" aria-label="提醒查看食光的锅仔" />
+          <view><text>锅仔的小提示</text><text>有照片的日子可以点开，回看那天吃了什么。</text></view>
+        </view>
       </view>
 
-      <!-- 生成月度画册按钮 -->
-      <view class="cal-album" @click="goAlbum">
-        <image class="cal-album__guozai" :src="STATIC_BASE_URL + '/static/guozai/action_05_album.png'" mode="aspectFit" />
-        <text class="cal-album__text">生成月度画册</text>
+      <view class="cal-album" role="button" aria-label="生成本月食光画册" @click="goAlbum">
+        <image class="cal-album__guozai" :src="`${STATIC_BASE_URL}/static/guozai/action_05_album.png`" mode="aspectFit" aria-label="翻看画册的锅仔" />
+        <view class="cal-album__copy">
+          <text class="cal-album__eyebrow">
+            MONTHLY ALBUM
+          </text>
+          <text class="cal-album__title">
+            把{{ month }}月装订成册
+          </text>
+          <text class="cal-album__sub">
+            锅仔会把本月的菜与心情排成一本画册
+          </text>
+        </view>
+        <text class="cal-album__arrow">
+          ›
+        </text>
       </view>
     </template>
 
     <!-- 空状态弹窗 -->
     <view v-if="showEmpty" class="cal-empty-mask" @click="showEmpty = false">
       <view class="cal-empty-sheet pop-in" @click.stop>
-        <image class="cal-empty-sheet__guozai guozai-breathe" :src="STATIC_BASE_URL + '/static/guozai/state_01_empty.png'" mode="aspectFit" />
-        <text class="cal-empty-sheet__title">{{ month }}月{{ emptyDay }}日还没记录哦</text>
-        <text class="cal-empty-sheet__sub">去吃点好吃的吧～</text>
-        <view class="cal-empty-sheet__btn" @click="goRecordFromEmpty">去记录</view>
+        <image class="cal-empty-sheet__guozai guozai-breathe" :src="`${STATIC_BASE_URL}/static/guozai/state_01_empty.png`" mode="aspectFit" />
+        <text class="cal-empty-sheet__title">
+          {{ month }}月{{ emptyDay }}日还没记录哦
+        </text>
+        <text class="cal-empty-sheet__sub">
+          去吃点好吃的吧～
+        </text>
+        <view class="cal-empty-sheet__btn" @click="goRecordFromEmpty">
+          去记录
+        </view>
       </view>
     </view>
 
@@ -179,10 +258,18 @@ function goRecordFromEmpty() {
     <view v-if="showDetail && detailRecord" class="cal-empty-mask" @click="showDetail = false">
       <view class="cal-empty-sheet pop-in" @click.stop>
         <image v-if="detailRecord.imageUrl" class="cal-detail__img" :src="detailRecord.imageUrl" mode="aspectFill" />
-        <text class="cal-empty-sheet__title">{{ detailRecord.dishName }}</text>
-        <text class="cal-detail__mood">心情：{{ detailRecord.moodTag }}</text>
-        <text v-if="detailRecord.note" class="cal-detail__note">{{ detailRecord.note }}</text>
-        <view class="cal-empty-sheet__btn" @click="showDetail = false">知道了</view>
+        <text class="cal-empty-sheet__title">
+          {{ detailRecord.dishName }}
+        </text>
+        <text class="cal-detail__mood">
+          心情：{{ detailRecord.moodTag }}
+        </text>
+        <text v-if="detailRecord.note" class="cal-detail__note">
+          {{ detailRecord.note }}
+        </text>
+        <view class="cal-empty-sheet__btn" @click="showDetail = false">
+          知道了
+        </view>
       </view>
     </view>
   </view>
@@ -191,71 +278,142 @@ function goRecordFromEmpty() {
 <style lang="scss" scoped>
 .cal-page {
   min-height: 100vh;
-  background: var(--mrc-bg);
   padding: 0 32rpx;
   padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
+  background: var(--mrc-bg);
   box-sizing: border-box;
 }
 
-/* 统计条 */
-.cal-stat {
+.cal-intro {
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 24rpx;
+  padding: 24rpx 26rpx 20rpx;
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 36rpx 36rpx 24rpx 24rpx;
+  background: linear-gradient(145deg, var(--mrc-surface-sun), var(--mrc-surface-peach));
+  box-shadow: var(--mrc-shadow-soft);
+}
+.cal-intro::after {
+  position: absolute;
+  right: -86rpx;
+  bottom: -100rpx;
+  width: 290rpx;
+  height: 290rpx;
+  border: 2rpx dashed var(--mrc-border);
+  border-radius: 50%;
+  content: '';
+}
+.cal-intro__topline,
+.cal-intro__stats,
+.cal-board__heading,
+.cal-board__legend,
+.cal-board__note,
+.cal-album {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12rpx;
-  background: var(--mrc-surface);
-  border: 2rpx solid var(--mrc-border-light);
-  border-radius: 28rpx;
-  padding: 24rpx 28rpx;
-  box-shadow: var(--mrc-shadow-soft);
-  margin-bottom: 28rpx;
 }
-.cal-stat__text {
-  display: block;
-  font-size: 30rpx;
-  color: var(--mrc-text-deep);
-  font-weight: 600;
-}
-.cal-stat__eyebrow {
-  display: block;
-  margin-bottom: 4rpx;
-  font-size: 21rpx;
+.cal-intro__topline {
+  position: relative;
+  z-index: 1;
   color: var(--mrc-accent);
-  font-weight: 700;
+  font-size: 18rpx;
+  font-weight: 850;
   letter-spacing: 2rpx;
 }
-.cal-stat__icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 68rpx;
-  height: 68rpx;
-  border-radius: 22rpx;
-  background: var(--mrc-surface-peach);
+.cal-intro__content {
+  position: relative;
+  z-index: 1;
+  display: block;
+  min-height: 230rpx;
+  padding-top: 24rpx;
+}
+.cal-intro__copy { position: relative; z-index: 2; width: 68%; }
+.cal-intro__eyebrow {
+  display: block;
+  color: var(--mrc-accent);
+  font-size: 21rpx;
+  font-weight: 800;
+}
+.cal-intro__title {
+  display: block;
+  margin-top: 8rpx;
+  color: var(--mrc-text-strong);
+  font-size: 38rpx;
+  font-weight: 850;
+  line-height: 1.2;
+}
+.cal-intro__stats {
+  justify-content: flex-start;
+  gap: 14rpx;
+  margin-top: 26rpx;
+}
+.cal-intro__stats > view {
+  min-width: 132rpx;
+  padding: 12rpx 16rpx;
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 18rpx;
+  background: var(--mrc-surface);
+}
+.cal-intro__stats > view > text:first-child {
+  display: block;
+  color: var(--mrc-text-sub);
+  font-size: 18rpx;
+}
+.cal-intro__stats > view > text:last-child {
+  display: block;
+  margin-top: 2rpx;
+  color: var(--mrc-text-strong);
+  font-size: 30rpx;
+  font-weight: 850;
+}
+.cal-intro__unit { display: inline !important; font-size: 18rpx !important; font-weight: 650 !important; }
+.cal-intro__content > image {
+  position: absolute;
+  right: -12rpx;
+  bottom: -24rpx;
+  width: 250rpx;
+  height: 250rpx;
 }
 
-/* 日历板 */
 .cal-board {
-  position: relative;
-  background: var(--mrc-surface);
+  overflow: hidden;
+  margin-bottom: 24rpx;
+  padding: 26rpx 20rpx 20rpx;
   border: 2rpx solid var(--mrc-border-light);
   border-radius: 32rpx;
-  padding: 24rpx 20rpx 152rpx;
-  box-shadow: var(--mrc-shadow);
-  margin-bottom: 32rpx;
-  overflow: hidden;
+  background: var(--mrc-surface);
+  box-shadow: var(--mrc-shadow-soft);
 }
+.cal-board__heading { padding: 0 6rpx 18rpx; border-bottom: 2rpx solid var(--mrc-border-light); }
+.cal-board__kicker {
+  display: block;
+  color: var(--mrc-accent);
+  font-size: 18rpx;
+  font-weight: 850;
+  letter-spacing: 2rpx;
+}
+.cal-board__title {
+  display: block;
+  margin-top: 4rpx;
+  color: var(--mrc-text-strong);
+  font-size: 30rpx;
+  font-weight: 850;
+}
+.cal-board__legend { gap: 8rpx; color: var(--mrc-text-sub); font-size: 19rpx; }
+.cal-board__legend view { width: 14rpx; height: 14rpx; border-radius: 50%; background: var(--mrc-primary); }
 .cal-week {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  margin-bottom: 12rpx;
+  margin: 18rpx 0 10rpx;
 }
 .cal-week__item {
-  text-align: center;
-  font-size: 28rpx;
+  padding: 8rpx 0;
   color: var(--mrc-text-sub);
-  font-weight: 600;
-  padding: 12rpx 0;
+  font-size: 22rpx;
+  font-weight: 750;
+  text-align: center;
 }
 .cal-grid {
   display: grid;
@@ -263,83 +421,76 @@ function goRecordFromEmpty() {
   gap: 8rpx;
 }
 .cal-cell {
-  aspect-ratio: 1;
+  position: relative;
   display: flex;
-  flex-direction: column;
+  aspect-ratio: 1;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+  border: 2rpx solid transparent;
   border-radius: 16rpx;
-  position: relative;
   background: var(--mrc-surface-sun);
+  transition: transform 160ms ease-out, opacity 160ms ease-out;
 }
-.cal-cell--today {
-  border: 3rpx solid var(--mrc-accent);
-  background: var(--mrc-warm-light);
-}
-.cal-cell--record {
-  background: transparent;
-  padding: 4rpx;
-}
-.cal-cell__img {
-  width: 100%;
-  height: 100%;
-  border-radius: 12rpx;
-}
-.cal-cell__day {
-  font-size: 30rpx;
-  color: var(--mrc-text-deep);
-  font-weight: 600;
-}
-.cal-cell--today .cal-cell__day {
-  color: var(--mrc-accent);
-  font-weight: 700;
-}
-.cal-cell__dot {
-  width: 10rpx;
-  height: 10rpx;
-  border-radius: 50%;
-  background: var(--mrc-text-light);
-  margin-top: 4rpx;
-}
-.cal-board__guozai {
+.cal-cell:active { transform: scale(.94); opacity: .82; }
+.cal-cell--today { border-color: var(--mrc-primary); background: var(--mrc-surface-peach); }
+.cal-cell--record { border-color: var(--mrc-border); background: var(--mrc-surface-peach); }
+.cal-cell__img { width: 100%; height: 100%; }
+.cal-cell__day { color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 750; }
+.cal-cell__record-day {
   position: absolute;
-  bottom: -14rpx;
-  right: 24rpx;
-  left: auto;
-  transform: none;
-  width: 180rpx;
-  height: 180rpx;
-  z-index: 3;
+  bottom: 4rpx;
+  left: 5rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28rpx;
+  height: 28rpx;
+  padding: 0 4rpx;
+  border-radius: 9rpx;
+  background: rgba(0, 0, 0, .62);
+  color: #fff;
+  font-size: 16rpx;
+  font-weight: 800;
 }
+.cal-cell__today-tag {
+  position: absolute;
+  top: 4rpx;
+  right: 4rpx;
+  padding: 2rpx 5rpx;
+  border-radius: 8rpx;
+  background: var(--mrc-primary);
+  color: #fff;
+  font-size: 14rpx;
+  font-weight: 800;
+}
+.cal-cell__mood { color: var(--mrc-accent); font-size: 22rpx; font-weight: 800; }
+.cal-board__note { gap: 14rpx; justify-content: flex-start; min-height: 112rpx; margin-top: 18rpx; padding: 10rpx 16rpx 4rpx; border-top: 2rpx dashed var(--mrc-border); }
+.cal-board__note image { width: 96rpx; height: 96rpx; flex: 0 0 auto; }
+.cal-board__note text:first-child { display: block; color: var(--mrc-accent); font-size: 20rpx; font-weight: 800; }
+.cal-board__note text:last-child { display: block; margin-top: 4rpx; color: var(--mrc-text-sub); font-size: 21rpx; line-height: 1.45; }
 
-/* 生成画册按钮 */
 .cal-album {
   position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 120rpx;
+  min-height: 154rpx;
+  justify-content: flex-start;
+  gap: 14rpx;
+  overflow: hidden;
+  padding: 18rpx 24rpx 18rpx 18rpx;
+  border-radius: 30rpx;
   background: var(--mrc-primary-grad);
-  border-radius: 32rpx;
   box-shadow: var(--mrc-shadow-coral);
+  transition: transform 160ms ease-out, opacity 160ms ease-out;
+  box-sizing: border-box;
 }
-.cal-album__guozai {
-  position: absolute;
-  top: -50rpx;
-  left: 40rpx;
-  width: 120rpx;
-  height: 120rpx;
-  z-index: 2;
-}
-.cal-album__text {
-  font-size: 38rpx;
-  color: #fff;
-  font-weight: 700;
-  letter-spacing: 4rpx;
-}
-.cal-album:active {
-  transform: scale(0.98);
-}
+.cal-album::after { position: absolute; right: -40rpx; width: 170rpx; height: 170rpx; border: 2rpx dashed rgba(255, 255, 255, .42); border-radius: 50%; content: ''; }
+.cal-album__guozai { position: relative; z-index: 1; width: 118rpx; height: 118rpx; flex: 0 0 auto; }
+.cal-album__copy { position: relative; z-index: 1; min-width: 0; flex: 1; }
+.cal-album__eyebrow { display: block; color: rgba(255, 255, 255, .78); font-size: 17rpx; font-weight: 850; letter-spacing: 2rpx; }
+.cal-album__title { display: block; margin-top: 5rpx; color: #fff; font-size: 30rpx; font-weight: 850; }
+.cal-album__sub { display: block; margin-top: 5rpx; color: rgba(255, 255, 255, .82); font-size: 19rpx; line-height: 1.4; }
+.cal-album__arrow { position: relative; z-index: 1; flex: 0 0 auto; color: #fff; font-size: 48rpx; }
+.cal-album:active { transform: scale(.985); opacity: .84; }
 
 /* 空状态弹窗 */
 .cal-empty-mask {
@@ -355,7 +506,7 @@ function goRecordFromEmpty() {
 }
 .cal-empty-sheet {
   width: 100%;
-  background: var(--mrc-white);
+  background: var(--mrc-surface);
   border-radius: 40rpx 40rpx 0 0;
   padding: 48rpx 40rpx calc(48rpx + env(safe-area-inset-bottom));
   display: flex;
@@ -414,9 +565,10 @@ function goRecordFromEmpty() {
   margin-bottom: 24rpx;
   line-height: 1.6;
 }
-.cal-cell__mood {
-  font-size: 24rpx;
-  color: var(--mrc-accent);
-  font-weight: 700;
+@media (prefers-reduced-motion: reduce) {
+  .cal-cell,
+  .cal-album {
+    transition: none;
+  }
 }
 </style>

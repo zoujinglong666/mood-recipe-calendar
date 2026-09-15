@@ -1,16 +1,20 @@
 <script setup lang="ts">
+import type { AlbumItem } from '../../api/albums'
+import type { RecordItem } from '../../api/records'
+import type { LayoutBox } from '../../utils/albumLayout'
+import { computed, ref } from 'vue'
 import { navBack } from '@/composables/useNavBar'
 import { STATIC_BASE_URL } from '@/utils/assets'
+import { fetchMonthAlbum } from '../../api/albums'
+import { fetchRecordsByMonth } from '../../api/records'
 import Icon from '../../components/common/Icon.vue'
-import { ref, computed } from 'vue'
-import LoadingState from '../../components/guozai/LoadingState.vue'
 import ErrorState from '../../components/guozai/ErrorState.vue'
-import { ensureLogin } from '../../utils/login'
-import { toast, toastError, toastSuccess } from '../../utils/toast'
-import { fetchMonthAlbum, type AlbumItem } from '../../api/albums'
-import { fetchRecordsByMonth, type RecordItem } from '../../api/records'
-import { autoLayout, chunkPages, MOOD_EMOJI, MOOD_COLOR, type LayoutBox } from '../../utils/albumLayout'
+import LoadingState from '../../components/guozai/LoadingState.vue'
+import { useUserStore } from '../../stores/user'
+import { autoLayout, chunkPages, MOOD_COLOR, MOOD_EMOJI } from '../../utils/albumLayout'
 import { exportAlbumShare } from '../../utils/albumShare'
+import { ensureLogin } from '../../utils/login'
+import { toastError, toastSuccess } from '../../utils/toast'
 
 definePage({
   name: 'album',
@@ -26,22 +30,24 @@ const loading = ref(true)
 const error = ref('')
 const album = ref<AlbumItem | null>(null)
 const records = ref<RecordItem[]>([])
+const userStore = useUserStore()
 
 const now = new Date()
 const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 const monthNum = now.getMonth() + 1
 const yearNum = now.getFullYear()
-type AlbumStats = {
+interface AlbumStats {
   totalDays: number
   moodDistribution: Record<string, number>
-  topDishes: { name: string; count: number }[]
+  topDishes: { name: string, count: number }[]
   longestStreak: number
 }
 const EMPTY_STATS: AlbumStats = { totalDays: 0, moodDistribution: {}, topDishes: [], longestStreak: 0 }
 
 // ---------- 数据解析 ----------
 const stats = computed<AlbumStats>(() => {
-  if (!album.value?.stats) return EMPTY_STATS
+  if (!album.value?.stats)
+    return EMPTY_STATS
   try {
     const parsed = JSON.parse(album.value.stats) as Partial<AlbumStats>
     return {
@@ -50,7 +56,8 @@ const stats = computed<AlbumStats>(() => {
       topDishes: Array.isArray(parsed.topDishes) ? parsed.topDishes : [],
       longestStreak: Number(parsed.longestStreak) || 0,
     }
-  } catch { return EMPTY_STATS }
+  }
+  catch { return EMPTY_STATS }
 })
 
 const moodList = computed(() => {
@@ -61,14 +68,29 @@ const moodList = computed(() => {
 })
 
 const topDishes = computed(() => (stats.value.topDishes || []).slice(0, 3))
+const ownerName = computed(() => userStore.userInfo?.nickname?.trim() || '我的')
+const recordCount = computed(() => records.value.length)
+const monthlyInsight = computed(() => {
+  if (!recordCount.value)
+    return '第一顿记录，会成为锅仔认识你的开始。'
+  const mood = moodList.value[0]?.mood
+  const dish = topDishes.value[0]?.name
+  if (mood && dish)
+    return `你常在「${mood}」时留下饭香，也最常做「${dish}」。`
+  return `你留下了 ${recordCount.value} 顿真实的饭，锅仔都收好了。`
+})
+const personalFacts = computed(() => [
+  moodList.value[0] ? `最常记录 · ${moodList.value[0].mood} ${moodList.value[0].count}次` : '',
+  topDishes.value[0] ? `熟悉味道 · ${topDishes.value[0].name}` : '',
+].filter(Boolean))
 
 // ---------- 每日记录：智能排版分页 ----------
 const recordPages = computed(() => chunkPages(records.value))
 
 // 每日记录内容区（rpx）：x/y/w/h
-const DAILY_AREA = { x: 40, y: 200, w: 670, h: 960 }
+const DAILY_AREA = { x: 0, y: 0, w: 678, h: 690 }
 const dailyBoxes = computed<LayoutBox[][]>(() =>
-  recordPages.value.map((pg) => autoLayout(pg.length, DAILY_AREA, 22)),
+  recordPages.value.map(pg => autoLayout(pg.length, DAILY_AREA, 22)),
 )
 
 // ---------- 画册页数 ----------
@@ -81,9 +103,11 @@ async function loadAlbum() {
     const openid = await ensureLogin()
     album.value = await fetchMonthAlbum(openid, monthStr)
     records.value = await fetchRecordsByMonth(openid, monthStr)
-  } catch (e: any) {
+  }
+  catch (e: any) {
     error.value = e.message || '加载失败'
-  } finally {
+  }
+  finally {
     loading.value = false
   }
 }
@@ -98,16 +122,19 @@ function onSwiperChange(e: any) {
   currentPage.value = e.detail.current
 }
 function next() {
-  if (currentPage.value < totalPages.value - 1) currentPage.value++
+  if (currentPage.value < totalPages.value - 1)
+    currentPage.value++
 }
 function prev() {
-  if (currentPage.value > 0) currentPage.value--
+  if (currentPage.value > 0)
+    currentPage.value--
 }
 
 // ---------- 分享导出 ----------
 const sharing = ref(false)
 async function onShare() {
-  if (sharing.value) return
+  if (sharing.value)
+    return
   sharing.value = true
   uni.showLoading({ title: '正在生成分享图...' })
   try {
@@ -119,13 +146,15 @@ async function onShare() {
       topDish: topDishes.value[0]?.name || '—',
       topMood: topMood ? `${topMood.mood} ${topMood.count}天` : '—',
       slogan: '用一道菜，治愈今天的你',
-      guozaiPath: STATIC_BASE_URL + '/static/guozai/mood_01_happy.png',
+      guozaiPath: `${STATIC_BASE_URL}/static/guozai/mood_01_happy.png`,
       footer: '「锅仔」· 你的情绪味蕾搭子',
     })
     toastSuccess('已保存到相册')
-  } catch (e: any) {
+  }
+  catch (e: any) {
     toastError(e, '导出失败')
-  } finally {
+  }
+  finally {
     uni.hideLoading()
     sharing.value = false
   }
@@ -134,8 +163,7 @@ async function onShare() {
 // 心情分布色块（宽度占比）
 function moodSegStyle(mood: string, count: number) {
   const total = moodList.value.reduce((s, m) => s + m.count, 0) || 1
-  const w = (count / total) * 670
-  return { width: `${Math.max(w, 60)}rpx`, background: MOOD_COLOR[mood] || '#E8836B' }
+  return { width: `${Math.max((count / total) * 100, 8)}%`, background: MOOD_COLOR[mood] || '#E8836B' }
 }
 
 function dailyCellStyle(box: LayoutBox) {
@@ -146,18 +174,23 @@ function dailyTagSize(name: string) {
   return name && name.length > 5 ? '20rpx' : '24rpx'
 }
 
+function recordDateLabel(date: string) {
+  return date?.slice(5).replace('-', '.') || '本月'
+}
+
 const aiLines = computed(() => {
   const t = album.value?.aiSummary
-  if (!t) return ['这个月，你好好吃饭了。', '下个月，请继续对自己好一点。']
+  if (!t)
+    return ['这个月，你好好吃饭了。', '下个月，请继续对自己好一点。']
   return t.split('\n').filter(Boolean)
 })
 </script>
 
 <template>
   <view class="album-page">
-    <wd-navbar title="月度画册" left-arrow safe-area-inset-top @click-left="navBack"  custom-style="background-color: transparent !important;" />
+    <wd-navbar title="月度画册" left-arrow safe-area-inset-top custom-style="background-color: transparent !important;" @click-left="navBack" />
 
-    <view class="album-page__share" @click="onShare">
+    <view class="album-page__share" role="button" aria-label="保存月度画册分享图" @click="onShare">
       <Icon name="share" :size="36" color="#6A4A37" />
     </view>
 
@@ -168,8 +201,8 @@ const aiLines = computed(() => {
       <swiper
         class="album-swiper"
         :current="currentPage"
-        @change="onSwiperChange"
         :duration="320"
+        @change="onSwiperChange"
       >
         <!-- ======== 第1页：封面 ======== -->
         <swiper-item>
@@ -181,17 +214,20 @@ const aiLines = computed(() => {
               <view class="album-cover__blob album-cover__blob--4" />
             </view>
             <view class="album-cover__content">
-              <text class="album-cover__brand">心情菜谱日历</text>
-              <text class="album-cover__title">小圆同学的</text>
-              <text class="album-cover__title">{{ monthNum }}月干饭日记</text>
-              <text class="album-cover__subtitle">{{ yearNum }}年{{ monthNum }}月 · 共记录{{ stats.totalDays }}天</text>
+              <text class="album-cover__brand">
+                心情菜谱日历
+              </text>
+              <text class="album-cover__title">
+                {{ ownerName }}的
+              </text>
+              <text class="album-cover__title">
+                {{ monthNum }}月干饭日记
+              </text>
+              <text class="album-cover__subtitle">
+                {{ yearNum }}年{{ monthNum }}月 · 共记录{{ stats.totalDays }}天
+              </text>
               <view class="album-cover__guozai-wrap">
-                <image class="album-cover__guozai" :src="STATIC_BASE_URL + '/static/guozai/action_05_album.png'" mode="aspectFit" />
-                <text class="album-cover__deco album-cover__deco--star1">⭐</text>
-                <text class="album-cover__deco album-cover__deco--star2">⭐</text>
-                <text class="album-cover__deco album-cover__deco--heart1">❤️</text>
-                <text class="album-cover__deco album-cover__deco--heart2">🧡</text>
-                <text class="album-cover__deco album-cover__deco--cloud">☁️</text>
+                <image class="album-cover__guozai" :src="`${STATIC_BASE_URL}/static/guozai/action_05_album.png`" mode="aspectFit" />
               </view>
               <view class="album-cover__bubble">
                 <text>帮你把回忆装订成册啦！</text>
@@ -204,26 +240,55 @@ const aiLines = computed(() => {
         <swiper-item>
           <view class="album-stats">
             <view class="album-stats__header">
-              <text class="album-stats__title">{{ monthNum }}月盘点</text>
-              <image class="album-stats__guozai-icon" :src="STATIC_BASE_URL + '/static/guozai/mood_10_content.png'" mode="aspectFit" />
+              <view>
+                <text class="album-kicker">
+                  MONTHLY TASTE NOTES
+                </text>
+                <text class="album-stats__title">
+                  {{ monthNum }}月，锅仔读懂了这些
+                </text>
+              </view>
+              <text class="album-folio">
+                {{ yearNum }} / {{ String(monthNum).padStart(2, '0') }}
+              </text>
             </view>
 
-            <view class="album-stats__big">
-              <text class="album-stats__number">{{ stats.totalDays || 0 }}</text>
-              <text class="album-stats__label">本月记录天数</text>
+            <view class="album-stats__overview">
+              <view class="album-stats__big">
+                <text class="album-stats__number">
+                  {{ stats.totalDays || 0 }}
+                </text>
+                <text class="album-stats__label">
+                  天有认真吃饭
+                </text>
+              </view>
+              <view class="album-stats__minis">
+                <view><text>{{ recordCount }}</text><text>顿被记住</text></view>
+                <view><text>{{ stats.longestStreak || 0 }}</text><text>天最长连续</text></view>
+              </view>
+              <image class="album-stats__hero-guozai" :src="`${STATIC_BASE_URL}/static/guozai/mood_10_content.png`" mode="aspectFit" />
             </view>
 
-            <!-- 心情分布 -->
             <view class="album-card">
-              <text class="album-card__title">心情分布</text>
-              <view v-if="moodList.length" class="album-mood-bar">
+              <view class="album-card__head">
+                <text class="album-card__index">
+                  01
+                </text><text class="album-card__title">
+                  这一月的心情味道
+                </text>
+              </view>
+              <view v-if="moodList.length" class="album-mood-list">
                 <view
-                  v-for="m in moodList"
+                  v-for="m in moodList.slice(0, 3)"
                   :key="m.mood"
-                  class="album-mood-seg"
-                  :style="moodSegStyle(m.mood, m.count)"
+                  class="album-mood-row"
                 >
-                  <text class="album-mood-seg__txt">{{ m.mood }} {{ m.count }}</text>
+                  <view class="album-mood-row__label">
+                    <text>{{ m.mood }}</text><text>{{ m.count }}次</text>
+                  </view>
+                  <view class="album-mood-row__track">
+                    <view :style="moodSegStyle(m.mood, m.count)" />
+                  </view>
                 </view>
               </view>
               <view v-else class="album-card__empty">
@@ -231,14 +296,25 @@ const aiLines = computed(() => {
               </view>
             </view>
 
-            <!-- 最常做的菜 TOP3 -->
             <view class="album-card">
-              <text class="album-card__title">最常做的菜 TOP3</text>
+              <view class="album-card__head">
+                <text class="album-card__index">
+                  02
+                </text><text class="album-card__title">
+                  反复想念的味道
+                </text>
+              </view>
               <view v-if="topDishes.length" class="album-dishes">
                 <view v-for="(dish, i) in topDishes" :key="dish.name" class="album-dish">
-                  <text class="album-dish__medal">{{ ['🥇', '🥈', '🥉'][i] }}</text>
-                  <text class="album-dish__name">{{ dish.name }}</text>
-                  <text class="album-dish__count">{{ dish.count }}次</text>
+                  <text class="album-dish__medal">
+                    0{{ i + 1 }}
+                  </text>
+                  <text class="album-dish__name">
+                    {{ dish.name }}
+                  </text>
+                  <text class="album-dish__count">
+                    {{ dish.count }}次
+                  </text>
                 </view>
               </view>
               <view v-else class="album-card__empty">
@@ -246,56 +322,74 @@ const aiLines = computed(() => {
               </view>
             </view>
 
-            <!-- 最长连续记录 -->
-            <view class="album-streak">
-              <text class="album-streak__text">最长连续记录</text>
-              <text class="album-streak__num">{{ stats.longestStreak || 0 }}</text>
-              <text class="album-streak__fire">🔥</text>
-              <text class="album-streak__text">天</text>
+            <view class="album-stats__note">
+              <view class="album-stats__note-mark" />
+              <text>{{ monthlyInsight }}</text>
             </view>
-
-            <image class="album-stats__guozai" :src="STATIC_BASE_URL + '/static/guozai/mood_10_content.png'" mode="aspectFit" />
           </view>
         </swiper-item>
 
         <!-- ======== 每日记录（智能排版，可多页） ======== -->
-        <swiper-item v-for="(pg, pi) in recordPages" :key="'daily-' + pi">
+        <swiper-item v-for="(pg, pi) in recordPages" :key="`daily-${pi}`">
           <view class="album-daily">
-            <text class="album-daily__title">每日记录</text>
-            <view class="album-daily__layout">
-              <view
-                v-for="(rec, idx) in pg"
-                :key="rec.id"
-                class="album-daily__cell"
-                :style="dailyCellStyle(dailyBoxes[pi][idx])"
-              >
-                <image
-                  v-if="rec.imageUrl"
-                  class="album-daily__cell-img"
-                  :src="rec.imageUrl"
-                  mode="aspectFill"
-                />
-                <view v-else class="album-daily__cell-empty">
-                  <text class="album-daily__cell-emoji">{{ MOOD_EMOJI[rec.moodTag] || '🍽️' }}</text>
-                </view>
-                <view class="album-daily__cell-tag">
-                  <text class="album-daily__cell-tag-txt" :style="{ fontSize: dailyTagSize(rec.dishName) }">{{ rec.dishName }}</text>
+            <view class="album-daily__header">
+              <view>
+                <text class="album-kicker">
+                  MY FOOD MOMENTS
+                </text><text class="album-daily__title">
+                  每日记录
+                </text>
+              </view>
+              <text class="album-folio">
+                {{ String(pi + 1).padStart(2, '0') }} / {{ String(recordPages.length).padStart(2, '0') }}
+              </text>
+            </view>
+            <view class="album-daily__paper">
+              <view class="album-daily__layout">
+                <view
+                  v-for="(rec, idx) in pg"
+                  :key="rec.id"
+                  class="album-daily__cell"
+                  :style="dailyCellStyle(dailyBoxes[pi][idx])"
+                >
+                  <image
+                    v-if="rec.imageUrl"
+                    class="album-daily__cell-img"
+                    :src="rec.imageUrl"
+                    mode="aspectFill"
+                  />
+                  <view v-else class="album-daily__cell-empty">
+                    <text class="album-daily__cell-emoji">
+                      {{ MOOD_EMOJI[rec.moodTag] || '🍽️' }}
+                    </text>
+                  </view>
+                  <view class="album-daily__cell-tag">
+                    <text class="album-daily__cell-tag-meta">
+                      {{ recordDateLabel(rec.recordDate) }} · {{ rec.moodTag || '一顿饭' }}
+                    </text>
+                    <text class="album-daily__cell-tag-txt" :style="{ fontSize: dailyTagSize(rec.dishName) }">
+                      {{ rec.dishName }}
+                    </text>
+                  </view>
                 </view>
               </view>
             </view>
-            <view class="album-daily__guozai-wrap">
-              <image class="album-daily__guozai" :src="STATIC_BASE_URL + '/static/guozai/mood_01_happy.png'" mode="aspectFit" />
-              <text class="album-daily__deco album-daily__deco--star1">⭐</text>
-              <text class="album-daily__deco album-daily__deco--star2">⭐</text>
+            <view class="album-daily__caption">
+              <image class="album-daily__guozai" :src="`${STATIC_BASE_URL}/static/guozai/mood_01_happy.png`" mode="aspectFit" />
+              <view><text>锅仔的食光批注</text><text>不是打卡，是把认真生活的证据留了下来。</text></view>
             </view>
           </view>
         </swiper-item>
         <swiper-item v-if="!recordPages.length">
           <view class="album-daily album-daily--empty">
-            <text class="album-daily__title">每日记录</text>
+            <text class="album-daily__title">
+              每日记录
+            </text>
             <view class="album-daily__empty-tip">
-              <image class="album-daily__empty-guozai" :src="STATIC_BASE_URL + '/static/guozai/action_07_empty.png'" mode="aspectFit" />
-              <text class="album-daily__empty-text">这个月还没有记录\n去吃点好吃的吧！</text>
+              <image class="album-daily__empty-guozai" :src="`${STATIC_BASE_URL}/static/guozai/action_07_empty.png`" mode="aspectFit" />
+              <text class="album-daily__empty-text">
+                这个月还没有记录\n去吃点好吃的吧！
+              </text>
             </view>
           </view>
         </swiper-item>
@@ -303,19 +397,40 @@ const aiLines = computed(() => {
         <!-- ======== AI 寄语 ======== -->
         <swiper-item>
           <view class="album-message">
-            <view class="album-message__guozai-wrap">
-              <image class="album-message__guozai" :src="STATIC_BASE_URL + '/static/guozai/action_06_glasses.png'" mode="aspectFit" />
-              <text class="album-message__deco album-message__deco--star1">⭐</text>
-              <text class="album-message__deco album-message__deco--star2">⭐</text>
-              <text class="album-message__deco album-message__deco--heart1">❤️</text>
-              <text class="album-message__deco album-message__deco--heart2">🧡</text>
-              <text class="album-message__deco album-message__deco--cloud1">☁️</text>
-              <text class="album-message__deco album-message__deco--cloud2">☁️</text>
+            <view class="album-message__header">
+              <view>
+                <text class="album-kicker">
+                  A LETTER FROM GUOZAI
+                </text><text class="album-message__title">
+                  写给{{ ownerName }}的{{ monthNum }}月回信
+                </text>
+              </view>
+              <text class="album-folio">
+                PRIVATE
+              </text>
             </view>
-            <view class="album-message__text">
-              <text v-for="(line, i) in aiLines" :key="i">{{ line }}</text>
+            <view class="album-message__letter">
+              <view class="album-message__stamp">
+                锅仔<br>食光邮局
+              </view>
+              <view class="album-message__facts">
+                <text v-for="fact in personalFacts" :key="fact">
+                  {{ fact }}
+                </text>
+              </view>
+              <view class="album-message__text">
+                <text v-for="(line, i) in aiLines" :key="i">
+                  {{ line }}
+                </text>
+              </view>
+              <view class="album-message__sign">
+                <view><text>一直记得你每顿饭的</text><text>锅仔</text></view>
+                <image class="album-message__guozai" :src="`${STATIC_BASE_URL}/static/guozai/action_06_glasses.png`" mode="aspectFit" />
+              </view>
             </view>
-            <text class="album-message__sign">—— 锅仔</text>
+            <text class="album-message__privacy">
+              只分析菜名、心情与记录频率，不读取你的日记正文
+            </text>
           </view>
         </swiper-item>
 
@@ -323,26 +438,40 @@ const aiLines = computed(() => {
         <swiper-item>
           <view class="album-share">
             <view class="album-share__header">
-              <text class="album-share__brand">心情菜谱日历</text>
-              <image class="album-share__guozai-sm" :src="STATIC_BASE_URL + '/static/guozai/mood_01_happy.png'" mode="aspectFit" />
+              <text class="album-share__brand">
+                心情菜谱日历
+              </text>
+              <image class="album-share__guozai-sm" :src="`${STATIC_BASE_URL}/static/guozai/mood_01_happy.png`" mode="aspectFit" />
             </view>
             <view class="album-share__card">
-              <text class="album-share__label">记录了</text>
+              <text class="album-share__label">
+                记录了
+              </text>
               <view class="album-share__big">
-                <text class="album-share__num">{{ stats.totalDays || 0 }}</text>
-                <text class="album-share__unit">天</text>
+                <text class="album-share__num">
+                  {{ stats.totalDays || 0 }}
+                </text>
+                <text class="album-share__unit">
+                  天
+                </text>
               </view>
-              <text class="album-share__info">最常做：{{ topDishes[0]?.name || '—' }}</text>
-              <text class="album-share__info">心情：{{ moodList[0] ? moodList[0].mood + '最多' : '—' }}</text>
+              <text class="album-share__info">
+                最常做：{{ topDishes[0]?.name || '—' }}
+              </text>
+              <text class="album-share__info">
+                心情：{{ moodList[0] ? `${moodList[0].mood}最多` : '—' }}
+              </text>
             </view>
             <view class="album-share__guozai-wrap">
               <view class="album-share__bubble">
                 <text>用一道菜，治愈今天的你。</text>
               </view>
-              <image class="album-share__guozai" :src="STATIC_BASE_URL + '/static/guozai/action_09_celebrate.png'" mode="aspectFit" />
+              <image class="album-share__guozai" :src="`${STATIC_BASE_URL}/static/guozai/action_09_celebrate.png`" mode="aspectFit" />
             </view>
             <view class="album-share__btn" @click="onShare">
-              <text class="album-share__btn-text">保存我的{{ monthNum }}月干饭分享图</text>
+              <text class="album-share__btn-text">
+                保存我的{{ monthNum }}月干饭分享图
+              </text>
               <view class="album-share__qrcode">
                 <view class="album-share__qr-grid" />
               </view>
@@ -353,7 +482,9 @@ const aiLines = computed(() => {
 
       <!-- 翻页控制 -->
       <view class="album-nav">
-        <view v-if="currentPage > 0" class="album-nav__btn" @click="prev">上一页</view>
+        <view v-if="currentPage > 0" class="album-nav__btn" @click="prev">
+          上一页
+        </view>
         <view class="album-nav__dots">
           <view
             v-for="i in totalPages"
@@ -362,12 +493,16 @@ const aiLines = computed(() => {
             :class="{ 'album-nav__dot--active': currentPage === i - 1 }"
           />
         </view>
-        <view v-if="currentPage < totalPages - 1" class="album-nav__btn album-nav__btn--primary" @click="next">下一页</view>
-        <view v-else class="album-nav__btn album-nav__btn--primary" @click="onShare">保存分享图</view>
+        <view v-if="currentPage < totalPages - 1" class="album-nav__btn album-nav__btn--primary" @click="next">
+          下一页
+        </view>
+        <view v-else class="album-nav__btn album-nav__btn--primary" @click="onShare">
+          保存分享图
+        </view>
       </view>
 
       <!-- 隐藏 Canvas 节点（导出分享长图用） -->
-      <canvas type="2d" id="shareCanvas" class="album-share__canvas" />
+      <canvas id="shareCanvas" type="2d" class="album-share__canvas" />
     </template>
   </view>
 </template>
@@ -465,57 +600,64 @@ const aiLines = computed(() => {
 .album-stats {
   position: relative;
   height: 100%;
-  padding: 24rpx 36rpx 120rpx;
+  padding: 26rpx 32rpx 110rpx;
   box-sizing: border-box;
   overflow-y: auto;
 }
-.album-stats__header { display: flex; align-items: center; justify-content: center; gap: 16rpx; margin-bottom: 16rpx; }
-.album-stats__title { font-size: 60rpx; font-weight: 700; color: var(--mrc-text-deep); letter-spacing: 4rpx; }
-.album-stats__guozai-icon { width: 72rpx; height: 72rpx; }
-.album-stats__big { display: flex; flex-direction: column; align-items: center; margin-bottom: 28rpx; }
-.album-stats__number { font-size: 160rpx; font-weight: 700; color: var(--mrc-accent); line-height: 1; letter-spacing: -8rpx; }
-.album-stats__label { font-size: 30rpx; color: var(--mrc-text-sub); margin-top: 12rpx; letter-spacing: 4rpx; }
+.album-kicker { display: block; color: var(--mrc-accent); font-size: 18rpx; font-weight: 800; letter-spacing: 3rpx; }
+.album-folio { color: var(--mrc-text-sub); font-size: 19rpx; font-weight: 700; letter-spacing: 1rpx; }
+.album-stats__header, .album-daily__header, .album-message__header { display: flex; align-items: flex-end; justify-content: space-between; gap: 20rpx; margin-bottom: 22rpx; padding-right: 82rpx; }
+.album-stats__title, .album-daily__title, .album-message__title { display: block; margin-top: 8rpx; color: var(--mrc-text-deep); font-size: 39rpx; font-weight: var(--mrc-fw-heavy); line-height: 1.25; }
+.album-stats__overview { position: relative; display: grid; grid-template-columns: 1.15fr 1fr; min-height: 232rpx; margin-bottom: 18rpx; overflow: hidden; border: 2rpx solid var(--mrc-border); border-radius: 34rpx; background: linear-gradient(135deg, var(--mrc-surface-peach), var(--mrc-surface-sun)); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }
+.album-stats__overview::after { position: absolute; right: -72rpx; bottom: -86rpx; width: 230rpx; height: 230rpx; border: 2rpx dashed var(--mrc-border-strong); border-radius: 50%; content: ''; opacity: .5; }
+.album-stats__big { display: flex; flex-direction: column; justify-content: center; padding-left: 30rpx; }
+.album-stats__number { color: var(--mrc-accent); font-size: 100rpx; font-weight: 900; font-variant-numeric: tabular-nums; letter-spacing: -6rpx; line-height: .9; }
+.album-stats__label { margin-top: 12rpx; color: var(--mrc-text-deep); font-size: 24rpx; font-weight: 750; }
+.album-stats__minis { display: grid; align-content: center; gap: 13rpx; padding-right: 92rpx; }
+.album-stats__minis view { display: flex; align-items: baseline; gap: 8rpx; }
+.album-stats__minis text:first-child { color: var(--mrc-text-strong); font-size: 34rpx; font-weight: 850; font-variant-numeric: tabular-nums; }
+.album-stats__minis text:last-child { color: var(--mrc-text-sub); font-size: 19rpx; }
+.album-stats__hero-guozai { position: absolute; z-index: 1; right: -6rpx; bottom: -4rpx; width: 126rpx; height: 126rpx; }
 .album-card {
   background: var(--mrc-surface);
   border: 2rpx solid var(--mrc-border-light);
-  border-radius: 32rpx;
-  padding: 28rpx 28rpx;
-  margin-bottom: 24rpx;
+  border-radius: 28rpx;
+  padding: 22rpx 24rpx;
+  margin-bottom: 16rpx;
   box-shadow: var(--mrc-shadow-soft);
 }
-.album-card__title { font-size: 38rpx; font-weight: 700; color: var(--mrc-text-strong); margin-bottom: 24rpx; display: block; }
-.album-card__empty { text-align: center; font-size: 28rpx; color: var(--mrc-text-sub); padding: 20rpx 0; }
-
-/* 心情分布色块条 */
-.album-mood-bar { display: flex; height: 56rpx; border-radius: 28rpx; overflow: hidden; }
-.album-mood-seg { display: flex; align-items: center; justify-content: center; }
-.album-mood-seg__txt { font-size: 22rpx; color: #fff; font-weight: 700; white-space: nowrap; }
-
-.album-dishes { display: flex; flex-direction: column; gap: 8rpx; }
-.album-dish { display: flex; align-items: center; padding: 20rpx 8rpx; border-bottom: 2rpx solid rgba(232, 212, 192, 0.5); }
+.album-card__head { display: flex; align-items: center; gap: 14rpx; margin-bottom: 16rpx; }
+.album-card__index { color: var(--mrc-accent); font-size: 18rpx; font-weight: 850; letter-spacing: 1rpx; }
+.album-card__title { color: var(--mrc-text-strong); font-size: 28rpx; font-weight: 800; }
+.album-card__empty { padding: 16rpx 0; color: var(--mrc-text-sub); font-size: 24rpx; text-align: center; }
+.album-mood-list { display: grid; gap: 13rpx; }
+.album-mood-row__label { display: flex; justify-content: space-between; margin-bottom: 7rpx; color: var(--mrc-text-sub); font-size: 20rpx; }
+.album-mood-row__label text:first-child { color: var(--mrc-text-deep); font-weight: 700; }
+.album-mood-row__track { height: 12rpx; overflow: hidden; border-radius: 10rpx; background: var(--mrc-surface-2); }
+.album-mood-row__track view { height: 100%; border-radius: inherit; }
+.album-dishes { display: flex; flex-direction: column; }
+.album-dish { display: flex; min-height: 58rpx; align-items: center; border-bottom: 2rpx solid var(--mrc-border-light); }
 .album-dish:last-child { border-bottom: none; }
-.album-dish__medal { font-size: 44rpx; width: 64rpx; text-align: center; }
-.album-dish__name { flex: 1; font-size: 36rpx; color: var(--mrc-text-strong); font-weight: 600; margin-left: 16rpx; }
-.album-dish__count { font-size: 36rpx; color: var(--mrc-accent); font-weight: 700; }
-.album-streak { display: flex; align-items: center; justify-content: center; gap: 12rpx; margin-top: 8rpx; padding: 20rpx; }
-.album-streak__text { font-size: 32rpx; color: var(--mrc-text-deep); }
-.album-streak__num { font-size: 46rpx; font-weight: 700; color: var(--mrc-accent); }
-.album-streak__fire { font-size: 38rpx; }
-.album-stats__guozai { position: absolute; bottom: 100rpx; right: 20rpx; width: 180rpx; height: 180rpx; opacity: 0.9; }
+.album-dish__medal { display: flex; width: 42rpx; height: 42rpx; align-items: center; justify-content: center; border-radius: 50%; background: var(--mrc-accent-soft); color: var(--mrc-accent); font-size: 17rpx; font-weight: 850; }
+.album-dish__name { flex: 1; margin-left: 14rpx; color: var(--mrc-text-strong); font-size: 25rpx; font-weight: 700; }
+.album-dish__count { color: var(--mrc-accent); font-size: 22rpx; font-weight: 750; }
+.album-stats__note { position: relative; display: flex; min-height: 70rpx; align-items: center; gap: 14rpx; padding: 10rpx 16rpx; color: var(--mrc-text-sub); font-size: 21rpx; line-height: 1.45; }
+.album-stats__note-mark { width: 8rpx; height: 38rpx; flex: 0 0 auto; border-radius: 8rpx; background: var(--mrc-primary-grad); }
 
 /* 每日记录：智能排版 */
 .album-daily {
   position: relative;
   height: 100%;
-  padding: 24rpx 36rpx 120rpx;
+  padding: 26rpx 36rpx 110rpx;
   box-sizing: border-box;
+  overflow-y: auto;
 }
-.album-daily__title { font-size: 64rpx; font-weight: 700; color: var(--mrc-text-deep); text-align: center; display: block; margin-bottom: 24rpx; letter-spacing: 6rpx; }
-.album-daily__layout { position: relative; width: 100%; height: 960rpx; }
-.album-daily__cell { position: absolute; box-sizing: border-box; }
-.album-daily__cell-img { width: 100%; height: 100%; border-radius: 24rpx; display: block; }
+.album-daily__paper { padding: 14rpx; border: 2rpx solid var(--mrc-border); border-radius: 34rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-lift), var(--mrc-gloss); }
+.album-daily__layout { position: relative; width: 100%; height: 690rpx; }
+.album-daily__cell { position: absolute; overflow: hidden; border-radius: 24rpx; background: var(--mrc-surface-2); box-shadow: inset 0 0 0 2rpx var(--mrc-border-light); }
+.album-daily__cell-img { width: 100%; height: 100%; display: block; }
 .album-daily__cell-empty {
-  width: 100%; height: 100%; border-radius: 24rpx;
+  width: 100%; height: 100%;
   background: var(--mrc-surface-2);
   border: 2rpx dashed var(--mrc-border-light);
   display: flex; align-items: center; justify-content: center;
@@ -523,16 +665,16 @@ const aiLines = computed(() => {
 .album-daily__cell-emoji { font-size: 72rpx; }
 .album-daily__cell-tag {
   position: absolute; left: 0; right: 0; bottom: 0;
-  height: 52rpx; border-radius: 0 0 24rpx 24rpx;
-  background: rgba(90, 62, 43, 0.78);
-  display: flex; align-items: center; justify-content: center;
+  display: flex; min-height: 84rpx; flex-direction: column; justify-content: center; padding: 10rpx 18rpx;
+  background: linear-gradient(180deg, transparent, rgba(38, 20, 13, .88));
 }
-.album-daily__cell-tag-txt { color: #fff; font-weight: 600; font-size: 24rpx; max-width: 90%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.album-daily__guozai-wrap { position: relative; display: flex; justify-content: center; margin-top: 8rpx; }
-.album-daily__guozai { width: 240rpx; height: 240rpx; }
-.album-daily__deco { position: absolute; font-size: 36rpx; }
-.album-daily__deco--star1 { top: 10rpx; left: 60rpx; transform: rotate(-15deg); }
-.album-daily__deco--star2 { top: 40rpx; right: 80rpx; transform: rotate(20deg); }
+.album-daily__cell-tag-meta { color: rgba(255, 255, 255, .72); font-size: 17rpx; font-weight: 600; }
+.album-daily__cell-tag-txt { max-width: 96%; overflow: hidden; color: #fff; font-size: 24rpx; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
+.album-daily__caption { display: flex; min-height: 104rpx; align-items: center; gap: 14rpx; margin-top: 18rpx; padding: 10rpx 18rpx; border-radius: 26rpx; background: var(--mrc-surface-peach); }
+.album-daily__caption view { min-width: 0; }
+.album-daily__caption text { display: block; color: var(--mrc-text-sub); font-size: 20rpx; line-height: 1.45; }
+.album-daily__caption text:first-child { margin-bottom: 4rpx; color: var(--mrc-accent); font-size: 19rpx; font-weight: 800; letter-spacing: 1rpx; }
+.album-daily__guozai { width: 86rpx; height: 86rpx; flex: 0 0 auto; }
 
 /* 每日记录空状态 */
 .album-daily--empty { display: flex; flex-direction: column; align-items: center; }
@@ -544,25 +686,24 @@ const aiLines = computed(() => {
 .album-message {
   position: relative;
   height: 100%;
-  padding: 60rpx 48rpx 140rpx;
+  padding: 26rpx 36rpx 110rpx;
   box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
   overflow-y: auto;
 }
-.album-message__guozai-wrap { position: relative; width: 100%; display: flex; justify-content: center; margin-bottom: 48rpx; }
-.album-message__guozai { width: 360rpx; height: 360rpx; }
-.album-message__deco { position: absolute; font-size: 44rpx; }
-.album-message__deco--star1 { top: 20rpx; left: 100rpx; transform: rotate(-15deg); }
-.album-message__deco--star2 { top: 10rpx; right: 120rpx; transform: rotate(20deg); font-size: 52rpx; }
-.album-message__deco--heart1 { top: 80rpx; right: 80rpx; font-size: 36rpx; }
-.album-message__deco--heart2 { top: 160rpx; left: 60rpx; font-size: 32rpx; }
-.album-message__deco--cloud1 { bottom: 20rpx; left: 40rpx; font-size: 40rpx; }
-.album-message__deco--cloud2 { top: 180rpx; right: 40rpx; font-size: 44rpx; }
-.album-message__text { display: flex; flex-direction: column; gap: 16rpx; width: 100%; }
-.album-message__text text { font-size: 42rpx; color: var(--mrc-text-strong); line-height: 1.6; font-weight: 600; }
-.album-message__sign { align-self: flex-end; font-size: 38rpx; color: var(--mrc-brown); margin-top: 40rpx; font-weight: 600; }
+.album-message__letter { position: relative; min-height: 710rpx; padding: 50rpx 34rpx 28rpx; overflow: hidden; border: 2rpx solid var(--mrc-border); border-radius: 34rpx; background: linear-gradient(var(--mrc-surface), var(--mrc-surface)) padding-box, repeating-linear-gradient(135deg, var(--mrc-primary) 0 12rpx, var(--mrc-surface) 12rpx 24rpx, var(--mrc-blue) 24rpx 36rpx, var(--mrc-surface) 36rpx 48rpx) border-box; box-shadow: var(--mrc-shadow-lift); }
+.album-message__letter::before { position: absolute; top: 19rpx; left: 36rpx; width: 130rpx; height: 22rpx; background: var(--mrc-surface-sun); content: ''; opacity: .9; transform: rotate(-3deg); }
+.album-message__stamp { position: absolute; top: 34rpx; right: 28rpx; display: flex; width: 92rpx; height: 92rpx; align-items: center; justify-content: center; border: 2rpx solid var(--mrc-primary); border-radius: 10rpx; color: var(--mrc-accent); font-size: 15rpx; font-weight: 800; letter-spacing: 1rpx; line-height: 1.35; text-align: center; transform: rotate(4deg); }
+.album-message__facts { display: flex; flex-wrap: wrap; gap: 10rpx; padding-right: 94rpx; }
+.album-message__facts text { padding: 9rpx 15rpx; border-radius: 20rpx; background: var(--mrc-accent-soft); color: var(--mrc-accent); font-size: 18rpx; font-weight: 700; }
+.album-message__text { display: flex; flex-direction: column; gap: 12rpx; margin-top: 42rpx; padding: 32rpx 2rpx; border-top: 2rpx solid var(--mrc-border-light); border-bottom: 2rpx solid var(--mrc-border-light); }
+.album-message__text::before { color: var(--mrc-accent); content: '锅仔想对你说'; font-size: 20rpx; font-weight: 800; letter-spacing: 2rpx; }
+.album-message__text text { color: var(--mrc-text-strong); font-size: 30rpx; font-weight: 650; line-height: 1.75; }
+.album-message__sign { display: flex; align-items: flex-end; justify-content: flex-end; margin-top: 26rpx; }
+.album-message__sign view { padding-bottom: 12rpx; text-align: right; }
+.album-message__sign text { display: block; color: var(--mrc-text-sub); font-size: 18rpx; }
+.album-message__sign text:last-child { margin-top: 4rpx; color: var(--mrc-text-deep); font-size: 28rpx; font-weight: 850; }
+.album-message__guozai { width: 150rpx; height: 150rpx; }
+.album-message__privacy { display: block; margin-top: 18rpx; color: var(--mrc-text-light); font-size: 18rpx; line-height: 1.45; text-align: center; }
 
 /* 分享页 */
 .album-share {
@@ -645,15 +786,20 @@ const aiLines = computed(() => {
   align-items: center;
   justify-content: space-between;
   padding: 16rpx 32rpx calc(16rpx + env(safe-area-inset-bottom));
-  background: rgba(255, 252, 247, 0.96);
+  background: var(--mrc-surface);
   border-top: 2rpx solid var(--mrc-border-light);
   z-index: 30;
 }
-.album-nav__btn { font-size: 28rpx; color: var(--mrc-text-deep); padding: 16rpx 28rpx; background: var(--mrc-surface-2); border-radius: 32rpx; min-width: 120rpx; text-align: center; }
+.album-nav__btn { display: flex; min-width: 120rpx; min-height: 88rpx; align-items: center; justify-content: center; padding: 0 28rpx; border-radius: 44rpx; background: var(--mrc-surface-2); color: var(--mrc-text-deep); font-size: 26rpx; font-weight: 700; text-align: center; }
 .album-nav__btn--primary { background: var(--mrc-primary-grad); color: #fff; }
 .album-nav__dots { display: flex; gap: 12rpx; }
 .album-nav__dot { width: 14rpx; height: 14rpx; border-radius: 50%; background: var(--mrc-border-light); }
 .album-nav__dot--active { background: var(--mrc-primary-deep); width: 32rpx; border-radius: 8rpx; }
 /* 分享按钮：navbar 右侧被小程序胶囊遮挡，移到内容区右上角浮动 */
-.album-page__share { position: absolute; top: calc(env(safe-area-inset-top) + 92rpx); right: 24rpx; z-index: 50; width: 72rpx; height: 72rpx; border-radius: 50%; background: rgba(255, 255, 255, 0.9); box-shadow: var(--mrc-shadow-sm); display: flex; align-items: center; justify-content: center; }
+.album-page__share { position: absolute; top: calc(env(safe-area-inset-top) + 92rpx); right: 24rpx; z-index: 50; display: flex; width: 88rpx; height: 88rpx; align-items: center; justify-content: center; border: 2rpx solid var(--mrc-border-light); border-radius: 50%; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-sm); }
+.album-page__share:active, .album-nav__btn:active { opacity: .76; transform: scale(.97); }
+
+@media (prefers-reduced-motion: reduce) {
+  .album-page__share, .album-nav__btn { transition: none; }
+}
 </style>

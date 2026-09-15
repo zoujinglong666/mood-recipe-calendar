@@ -1,17 +1,19 @@
 <script setup lang="ts">
 import type { PlanDay, WeeklyPlan } from '@/api/weeklyPlans'
-import { STATIC_BASE_URL } from '@/utils/assets'
+import { useImagePreview } from '@wot-ui/ui'
 import { computed, nextTick, ref } from 'vue'
 import { resolveAssetUrl } from '@/api/request'
 import { generatePlanDishCover, getCurrentPlan, getWeeklyPlan, replacePlanDay, toggleShoppingItem } from '@/api/weeklyPlans'
 import { navBack } from '@/composables/useNavBar'
 import { exportRecipeShare, saveShareImage } from '@/utils/albumShare'
+import { STATIC_BASE_URL } from '@/utils/assets'
 import { toastError, toastSuccess } from '@/utils/toast'
 
 definePage({ name: 'weekly-plan-detail', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '这一周吃什么' } })
 
 const router = useRouter()
 const route = useRoute()
+const { previewImage } = useImagePreview()
 const plan = ref<WeeklyPlan>()
 const loading = ref(true)
 const swapping = ref(-1)
@@ -46,6 +48,20 @@ function coverKey(dayIndex: number, dishIndex: number) {
 function coverOf(day: PlanDay, dishIndex: number) {
   const dish = dishesOf(day)[dishIndex]
   return dish?.imageUrl || (dishIndex === 0 ? day.imageUrl : '') || dish?.fallbackImageUrl
+}
+
+function previewDishImages(day: PlanDay, dishIndex: number) {
+  const covers = dishesOf(day)
+    .map((_, index) => ({ index, url: resolveAssetUrl(coverOf(day, index)) }))
+    .filter(item => item.url)
+  if (!covers.length)
+    return
+  previewImage({
+    images: covers.map(item => item.url),
+    startPosition: Math.max(0, covers.findIndex(item => item.index === dishIndex)),
+    closeOnClick: false,
+    loop: covers.length > 1,
+  })
 }
 
 function hasGeneratedCover(day: PlanDay | undefined, dishIndex: number) {
@@ -171,7 +187,7 @@ async function shareDay(day: PlanDay, index: number) {
       ingredients: dish.ingredients,
       steps: dish.steps,
       image: resolveAssetUrl(coverOf(day, dishIndex)),
-      guozaiPath: STATIC_BASE_URL + '/static/guozai/action_16_chopsticks.png',
+      guozaiPath: `${STATIC_BASE_URL}/static/guozai/action_16_chopsticks.png`,
       style: 'guozai',
     }, 'weeklyRecipeShareCanvas')
     await saveShareImage(path, `${dish.name}-锅仔食谱卡.png`)
@@ -196,7 +212,7 @@ async function shareDay(day: PlanDay, index: number) {
 
     <template v-else-if="plan">
       <view class="detail-hero">
-        <image :src="STATIC_BASE_URL + '/static/guozai/action_09_celebrate.png'" mode="aspectFit" aria-label="庆祝的锅仔" />
+        <image :src="`${STATIC_BASE_URL}/static/guozai/action_09_celebrate.png`" mode="aspectFit" aria-label="庆祝的锅仔" />
         <view>
           <text class="eyebrow">
             锅仔的一周备餐本
@@ -249,7 +265,12 @@ async function shareDay(day: PlanDay, index: number) {
               <swiper class="dish-cover-carousel" :current="activeDish[index] || 0" :duration="220" @change="onDishChange(index, $event)">
                 <swiper-item v-for="(dish, dishIndex) in dishesOf(day)" :key="`${dish.name}-${dishIndex}`">
                   <view class="dish-cover" :class="{ 'dish-cover--loading': coverLoading[coverKey(index, dishIndex)] }">
-                    <image v-if="coverOf(day, dishIndex)" :src="resolveAssetUrl(coverOf(day, dishIndex))" mode="aspectFill" :aria-label="`${dish.name}菜品图片`" />
+                    <view v-if="coverOf(day, dishIndex)" class="dish-cover__preview" role="button" :aria-label="`预览${dish.name}菜品大图`" @click.stop="previewDishImages(day, dishIndex)">
+                      <image :src="resolveAssetUrl(coverOf(day, dishIndex))" mode="aspectFill" />
+                      <text class="dish-cover__preview-hint">
+                        查看大图
+                      </text>
+                    </view>
                     <view v-else class="dish-cover__empty">
                       <text>{{ coverLoading[coverKey(index, dishIndex)] ? '锅仔正在画这道菜…' : '这道菜的照片正在路上' }}</text>
                     </view>
@@ -284,7 +305,7 @@ async function shareDay(day: PlanDay, index: number) {
               </view>
 
               <view class="share-day" :class="{ 'share-day--busy': sharingDay >= 0 }" role="button" :aria-label="`生成${currentDish(day, index).name}的食谱卡`" :aria-disabled="sharingDay >= 0" @click="shareDay(day, index)">
-                <image :src="STATIC_BASE_URL + '/static/guozai/action_16_chopsticks.png'" mode="aspectFit" aria-label="拿着筷子的锅仔" />
+                <image :src="`${STATIC_BASE_URL}/static/guozai/action_16_chopsticks.png`" mode="aspectFit" aria-label="拿着筷子的锅仔" />
                 <view>
                   <text class="share-day__title">
                     {{ sharingDay === index ? '锅仔正在排版食谱卡…' : '保存这道菜的食谱卡' }}
@@ -342,6 +363,7 @@ async function shareDay(day: PlanDay, index: number) {
       </swiper>
 
       <canvas id="weeklyRecipeShareCanvas" type="2d" class="weekly-recipe-share__canvas" />
+      <wd-image-preview />
 
       <view class="shopping-panel">
         <view class="shopping-toggle" role="button" :aria-expanded="shoppingOpen" aria-label="展开或收起本周采购清单" @click="shoppingOpen = !shoppingOpen">
@@ -407,7 +429,8 @@ async function shareDay(day: PlanDay, index: number) {
 .replace-action { min-width: 112rpx; min-height: 72rpx; display: flex; align-items: center; justify-content: center; border-radius: 18rpx; background: var(--mrc-surface-peach); color: var(--mrc-accent); font-size: 22rpx; font-weight: 800; transition: transform 160ms ease-out, opacity 160ms ease-out; }
 .dish-cover-carousel { height: 300rpx; margin-top: 24rpx; overflow: hidden; border-radius: 24rpx; }
 .dish-cover { position: relative; width: 100%; height: 100%; overflow: hidden; border-radius: 24rpx; background: var(--mrc-surface-peach); }
-.dish-cover image, .dish-cover__empty { width: 100%; height: 100%; }
+.dish-cover__preview, .dish-cover__preview image, .dish-cover__empty { width: 100%; height: 100%; }
+.dish-cover__preview-hint { position: absolute; top: 16rpx; right: 16rpx; min-height: 56rpx; display: flex !important; align-items: center; padding: 0 18rpx; border-radius: 28rpx; background: rgba(0, 0, 0, .55); color: #fff; font-size: 20rpx; font-weight: 700; }
 .dish-cover__empty { display: flex; align-items: center; justify-content: center; padding: 32rpx; box-sizing: border-box; color: var(--mrc-text-sub); font-size: 24rpx; text-align: center; }
 .dish-cover__loading, .dish-cover__count { position: absolute; bottom: 16rpx; padding: 8rpx 14rpx; border-radius: 14rpx; background: rgba(0, 0, 0, .55); color: #fff; font-size: 20rpx; }
 .dish-cover__loading { right: 16rpx; }
