@@ -32,8 +32,6 @@ const history = ref<RecordItem[]>([])
 
 const MOOD_IMG_MAP: Record<string, string> = {
   开心: `${STATIC_BASE_URL}
-/** 设置齿轮图标（base64 PNG，兼容微信小程序 image，避免 SVG data URI 不渲染） */
-const GEAR_ICON = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAABh0lEQVR4nO2ayY3DMAxFvz7cgPtJJVNgKpl+pgTnFGAO8cJVjqh3C2KRL7JNMYKAyWQyKUzLTvj389iOvl+fv6lORHGI4hDFIYrDyIKWgdWB1sQ9J8HDgZbEe58tXI3l5dCkA44S7a3hlgn6FFPjsEeTXHzlh/wX8Hwy3nGlDme0byp4Eq5OAr0D3gGJK6MC90LqyOgEmWjcmJUoGq0TsxNGYHEhBiC9ExwJagferS/Q+izow947mz6p7HD3jwqWqbBqvBbk0YTXpTwNRHFaUoHTPtpbdL9AxGN5r8ObLaI4RHGI4hDFIYrDhByWpSy8GWrSAYYeQZrLdSu9xJaYxm9BHu87eia4jV4EN+V3IbRRNkRSd4VHgtqBdyuG6dvio8CRasC37AmGoHViVqIMNG6MTpCN1JFRgXsicaX3MnOH5THkiIzmgFLEGSGpwxlNI/NJ4Cix9ykxjUPof4FVkNjzlJfWwbUVXp3feUk8DwdqB1oTe2F1IIpDFIcoDnsLTCaTyQT9eAFU+bztzd1/wwAAAABJRU5ErkJggg=='
 /static/guozai/mood_01_happy.png`,
   平静: `${STATIC_BASE_URL}/static/guozai/mood_02_calm.png`,
   疲惫: `${STATIC_BASE_URL}/static/guozai/mood_03_tired.png`,
@@ -190,7 +188,7 @@ function openStat(type: 'records' | 'days' | 'streak') {
         我的
       </text>
       <view class="profile-topbar__settings" role="button" aria-label="打开设置" @click="goSettings">
-        <image :src="GEAR_ICON" class="profile-topbar__gear" />
+        <wd-icon name="settings" size="24px" color="#EF5A3C" />
       </view>
     </view>
 
@@ -210,7 +208,7 @@ function openStat(type: 'records' | 'days' | 'streak') {
             :mode="userStore.userInfo?.avatarUrl ? 'aspectFill' : 'aspectFit'"
           />
           <view v-if="userStore.isLoggedIn" class="profile-avatar__edit">
-            <image :src="GEAR_ICON" class="profile-avatar__gear" />
+            <wd-icon name="settings" size="14px" color="#EF5A3C" />
           </view>
           <view v-if="avatarUpdating" class="profile-avatar__loading">
             上传中
@@ -484,8 +482,6 @@ function openStat(type: 'records' | 'days' | 'streak') {
 .profile-topbar__title { color: var(--mrc-text-strong); font-size: 42rpx; font-weight: var(--mrc-fw-heavy); }
 .profile-topbar__settings { width: 64rpx; height: 64rpx; display: flex; align-items: center; justify-content: center; border: 2rpx solid var(--mrc-border); border-radius: 50%; background: var(--mrc-surface-peach); box-shadow: var(--mrc-shadow-sm); }
 .profile-topbar__settings:active { transform: scale(.94); }
-.profile-topbar__gear { width: 30rpx; height: 30rpx; }
-.profile-avatar__gear { width: 22rpx; height: 22rpx; }
 
 
 /* 身份卡 */
