@@ -41,6 +41,10 @@ public class Recipe {
     @Transient
     private String exposureId;
 
+    /** 菜谱来源：AI=锅仔智能体生成并落库，LOCAL=初始化种子数据。 */
+    @Column(name = "source", length = 16)
+    private String source;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

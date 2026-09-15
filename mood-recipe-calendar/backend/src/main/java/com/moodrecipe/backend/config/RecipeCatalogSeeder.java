@@ -16,8 +16,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** 把随版本发布的菜谱目录幂等补齐到数据库，不改已有主键。 */
-@Component
+/**
+ * 菜谱目录补齐逻辑已停用（2026-09-15）：
+ * 推荐/浏览/周计划已全部改为「锅仔 AI 生成并落库」的菜谱池（source=AI），
+ * 不再依赖随版本发布的种子目录。若未来需要恢复本地种子，再启用本组件。
+ */
+// @Component
 public class RecipeCatalogSeeder implements ApplicationRunner {
     static final String RESOURCE = "recipe-catalog-v2.psv";
     private static final String FALLBACK_IMAGE = "/static/dish_tomato_beef.png";

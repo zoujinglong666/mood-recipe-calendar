@@ -26,6 +26,8 @@ import java.util.stream.Collectors;
 @Service
 public class GuozaiAgent {
 
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(GuozaiAgent.class);
+
     private static final Map<String, List<String>> CUISINE_KEYWORDS = Map.of(
             "川菜", List.of("麻婆", "宫保", "回锅", "鱼香", "水煮", "辣子", "口水鸡", "酸菜鱼", "担担"),
             "湘菜", List.of("剁椒", "小炒肉", "辣椒炒肉", "农家", "腊肉"),
@@ -92,8 +94,18 @@ public class GuozaiAgent {
             Optional<Recipe> aiRecipe = aiRecipeService.recommendWithPersona(mood, smartPrompt,
                     event -> updateAiProgress(openid, progress, event));
             if (aiRecipe.isPresent() && allowedByPreference(aiRecipe.get(), preference)
-                    && !exposures.wasRecentlyShownOrRejected(openid, aiRecipe.get())) {
+                    && !exposures.isRejected(openid, aiRecipe.get())) {
                 Recipe generated = aiRecipe.get();
+                // 锅仔生成结果先落库：带真实图片才入库，后续推荐可直接复用（不再依赖外部图源）
+                if (generated.getImage() != null && !generated.getImage().isBlank()
+                        && !generated.getImage().startsWith("/static/")) {
+                    try {
+                        generated.setSource("AI");
+                        generated = recipeRepository.save(generated);
+                    } catch (Exception ex) {
+                        log.warn("锅仔菜谱落库失败，本次仍返回: {}", ex.toString());
+                    }
+                }
                 update(progress, RecommendationJobService.Stage.FINALIZE,
                         RecommendationJobService.StepStatus.RUNNING, "锅仔正在整理这道菜");
                 // 动态推荐理由：结合记忆分析 + AI 生成的 description
@@ -103,8 +115,8 @@ public class GuozaiAgent {
                         RecommendationJobService.StepStatus.COMPLETED, "菜谱已经整理完成");
                 return generated;
             }
-        } catch (Exception ignored) {
-            // AI 不可用时静默回退
+        } catch (Exception ex) {
+            log.warn("锅仔 AI 推荐失败，回退本地池: {}", ex.toString());
         }
 
         // 回退：本地菜谱库
@@ -151,7 +163,7 @@ public class GuozaiAgent {
             };
             feedback.merge(interaction.getRecipeId(), value, Integer::sum);
         });
-        List<Recipe> candidates = recipeRepository.findAll().stream()
+        List<Recipe> candidates = recipeRepository.findAiWithImages().stream()
                 .filter(recipe -> !rejected.contains(recipe.getId()))
                 .filter(recipe -> allowedByPreference(recipe, preference)).toList();
         if (candidates.isEmpty()) return List.of();
@@ -199,13 +211,14 @@ public class GuozaiAgent {
             default -> 0;
         }, Integer::sum));
 
-        List<Recipe> candidates = recipeRepository.findByMoodTag(mood).stream()
+        // 只从锅仔 AI 生成且带真实图片的菜谱池挑选（旧的无图种子数据不再进入推荐）
+        List<Recipe> aiPool = recipeRepository.findAiWithImages().stream()
                 .filter(r -> !rejected.contains(r.getId()) && !exposures.isRejected(openid, r))
                 .filter(r -> allowedByPreference(r, preference)).toList();
+        List<Recipe> candidates = aiPool.stream()
+                .filter(r -> r.getMoodTags() != null && r.getMoodTags().contains(mood)).toList();
         if (candidates.isEmpty()) {
-            candidates = recipeRepository.findAll().stream()
-                    .filter(r -> !rejected.contains(r.getId()) && !exposures.isRejected(openid, r))
-                    .filter(r -> allowedByPreference(r, preference)).toList();
+            candidates = aiPool;
         }
         if (candidates.isEmpty()) {
             update(progress, RecommendationJobService.Stage.LOCAL_FALLBACK,

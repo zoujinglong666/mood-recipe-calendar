@@ -22,7 +22,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class AgnesRecipeImageService {
 
-    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
+    // Agnes 图片生成通常需要 30-60 秒，超时放宽到 90 秒
+    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(90);
     private static final Logger log = LoggerFactory.getLogger(AgnesRecipeImageService.class);
 
     private final ObjectMapper objectMapper;
@@ -66,7 +67,9 @@ public class AgnesRecipeImageService {
                     .build();
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                log.warn("Agnes image request failed with HTTP {}", response.statusCode());
+                String body = response.body();
+                log.warn("Agnes image request failed with HTTP {}: {}", response.statusCode(),
+                        body == null ? "" : body.substring(0, Math.min(300, body.length())));
                 return Optional.empty();
             }
             Optional<String> image = imageUrl(response.body());

@@ -43,7 +43,7 @@ public class RecipeController {
     /** 全部菜谱 */
     @GetMapping
     public ApiResponse<List<Recipe>> list() {
-        return ApiResponse.ok(repository.findAll());
+        return ApiResponse.ok(repository.findAiWithImages());
     }
 
     /** 基础推荐：优先 AI 真实生成，失败回退到数据库菜谱（排除拒绝与最近看过，按反馈排序）。 */
@@ -204,7 +204,8 @@ public class RecipeController {
     /** 按心情列表 */
     @GetMapping("/by-mood")
     public ApiResponse<List<Recipe>> byMood(@RequestParam String mood) {
-        return ApiResponse.ok(repository.findByMoodTag(mood));
+        return ApiResponse.ok(repository.findAiWithImages().stream()
+                .filter(r -> r.getMoodTags() != null && r.getMoodTags().contains(mood)).toList());
     }
 
     /** 菜谱详情 */

@@ -17,5 +17,9 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
     @Query(value = "SELECT * FROM recipes WHERE mood_tags LIKE %:mood% ORDER BY RAND() LIMIT 1", nativeQuery = true)
     Recipe findRandomByMood(@Param("mood") String mood);
 
+    /** 锅仔智能体生成且带有真实图片（非本地 /static 占位）的菜谱池 */
+    @Query("SELECT r FROM Recipe r WHERE r.source = 'AI' AND r.image IS NOT NULL AND r.image != '' AND r.image NOT LIKE '/static/%'")
+    List<Recipe> findAiWithImages();
+
     Optional<Recipe> findByName(String name);
 }

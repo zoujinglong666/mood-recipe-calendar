@@ -44,6 +44,7 @@ public class AiRecipeService {
 
     private final ObjectMapper objectMapper;
     private final AgnesRecipeImageService imageService;
+    private final CosImageStorageService cosImageStorage;
     private final GuozaiPersona persona;
     private final HttpClient httpClient;
     private final String apiKey;
@@ -53,6 +54,7 @@ public class AiRecipeService {
     public AiRecipeService(
             ObjectMapper objectMapper,
             AgnesRecipeImageService imageService,
+            CosImageStorageService cosImageStorage,
             GuozaiPersona persona,
             @Value("${ai.recipe.api-key:}") String apiKey,
             @Value("${ai.recipe.base-url:https://apihub.agnes-ai.com/v1/chat/completions}") String baseUrl,
@@ -60,6 +62,7 @@ public class AiRecipeService {
     ) {
         this.objectMapper = objectMapper;
         this.imageService = imageService;
+        this.cosImageStorage = cosImageStorage;
         this.persona = persona;
         this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(8)).build();
         this.apiKey = apiKey;
@@ -107,6 +110,8 @@ public class AiRecipeService {
         progress.accept(GenerationEvent.TEXT_COMPLETED);
         progress.accept(GenerationEvent.IMAGE_STARTED);
         Optional<String> cover = imageService.generateCover(recipe.get());
+        // 临时图转存 COS 永久化，保证落库后图片长期可用
+        cover = cover.flatMap(url -> cosImageStorage.transferFromUrl(url, "recipes/"));
         cover.ifPresent(recipe.get()::setImage);
         progress.accept(cover.isPresent() ? GenerationEvent.IMAGE_COMPLETED : GenerationEvent.IMAGE_FAILED);
         return recipe;
@@ -139,6 +144,8 @@ public class AiRecipeService {
         progress.accept(GenerationEvent.TEXT_COMPLETED);
         progress.accept(GenerationEvent.IMAGE_STARTED);
         Optional<String> cover = imageService.generateCover(recipe.get());
+        // 临时图转存 COS 永久化，保证落库后图片长期可用
+        cover = cover.flatMap(url -> cosImageStorage.transferFromUrl(url, "recipes/"));
         cover.ifPresent(recipe.get()::setImage);
         progress.accept(cover.isPresent() ? GenerationEvent.IMAGE_COMPLETED : GenerationEvent.IMAGE_FAILED);
         return recipe;
