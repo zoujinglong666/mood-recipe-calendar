@@ -1,13 +1,15 @@
 <script setup lang="ts">
-import type { RecordItem } from '../../api/records'
-import { STATIC_BASE_URL } from '@/utils/assets'
-import { ref } from 'vue'
-import { useNavBar } from '@/composables/useNavBar'
-import { fetchRecords, fetchStats } from '../../api/records'
+import type {RecordItem} from '../../api/records'
+import {fetchRecords, fetchStats} from '../../api/records'
+import {ref} from 'vue'
+import {useNavBar} from '@/composables/useNavBar'
+import {STATIC_BASE_URL} from '@/utils/assets'
 import Icon from '../../components/common/Icon.vue'
-import { useUserStore } from '../../stores/user'
-import { refreshUserInfo } from '../../utils/login'
-import { toastError } from '../../utils/toast'
+import {useUserStore} from '../../stores/user'
+import {refreshUserInfo} from '../../utils/login'
+import {toastError, toastSuccess} from '../../utils/toast'
+import {uploadFile} from '@/api/request'
+import {updateUserInfo} from '@/api/auth'
 
 definePage({
   name: 'profile',
@@ -24,18 +26,22 @@ const userStore = useUserStore()
 const nav = useNavBar()
 
 const loading = ref(true)
+const avatarUpdating = ref(false)
 const stats = ref({ totalRecords: 0, totalDays: 0, currentStreak: 0, topDishes: [] as { name: string, count: number }[] })
 const history = ref<RecordItem[]>([])
 
 const MOOD_IMG_MAP: Record<string, string> = {
-  开心: STATIC_BASE_URL + '/static/guozai/mood_01_happy.png',
-  平静: STATIC_BASE_URL + '/static/guozai/mood_02_calm.png',
-  疲惫: STATIC_BASE_URL + '/static/guozai/mood_03_tired.png',
-  焦虑: STATIC_BASE_URL + '/static/guozai/mood_04_anxious.png',
-  难过: STATIC_BASE_URL + '/static/guozai/mood_05_sad.png',
-  嘴馋: STATIC_BASE_URL + '/static/guozai/mood_06_hungry.png',
-  低落: STATIC_BASE_URL + '/static/guozai/mood_07_low.png',
-  想家: STATIC_BASE_URL + '/static/guozai/mood_08_homesick.png',
+  开心: `${STATIC_BASE_URL}
+/** 设置齿轮图标（base64 PNG，兼容微信小程序 image，避免 SVG data URI 不渲染） */
+const GEAR_ICON = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAABh0lEQVR4nO2ayY3DMAxFvz7cgPtJJVNgKpl+pgTnFGAO8cJVjqh3C2KRL7JNMYKAyWQyKUzLTvj389iOvl+fv6lORHGI4hDFIYrDyIKWgdWB1sQ9J8HDgZbEe58tXI3l5dCkA44S7a3hlgn6FFPjsEeTXHzlh/wX8Hwy3nGlDme0byp4Eq5OAr0D3gGJK6MC90LqyOgEmWjcmJUoGq0TsxNGYHEhBiC9ExwJagferS/Q+izow947mz6p7HD3jwqWqbBqvBbk0YTXpTwNRHFaUoHTPtpbdL9AxGN5r8ObLaI4RHGI4hDFIYrDhByWpSy8GWrSAYYeQZrLdSu9xJaYxm9BHu87eia4jV4EN+V3IbRRNkRSd4VHgtqBdyuG6dvio8CRasC37AmGoHViVqIMNG6MTpCN1JFRgXsicaX3MnOH5THkiIzmgFLEGSGpwxlNI/NJ4Cix9ykxjUPof4FVkNjzlJfWwbUVXp3feUk8DwdqB1oTe2F1IIpDFIcoDnsLTCaTyQT9eAFU+bztzd1/wwAAAABJRU5ErkJggg=='
+/static/guozai/mood_01_happy.png`,
+  平静: `${STATIC_BASE_URL}/static/guozai/mood_02_calm.png`,
+  疲惫: `${STATIC_BASE_URL}/static/guozai/mood_03_tired.png`,
+  焦虑: `${STATIC_BASE_URL}/static/guozai/mood_04_anxious.png`,
+  难过: `${STATIC_BASE_URL}/static/guozai/mood_05_sad.png`,
+  嘴馋: `${STATIC_BASE_URL}/static/guozai/mood_06_hungry.png`,
+  低落: `${STATIC_BASE_URL}/static/guozai/mood_07_low.png`,
+  想家: `${STATIC_BASE_URL}/static/guozai/mood_08_homesick.png`,
 }
 
 async function loadData() {
@@ -55,7 +61,7 @@ async function loadData() {
       fetchRecords(openid),
     ])
     stats.value = statsData
-    history.value = records.slice(0, 10)
+    history.value = records.slice(0, 3)
   }
   catch (e: any) {
     stats.value = { totalRecords: 0, totalDays: 0, currentStreak: 0, topDishes: [] }
@@ -88,6 +94,53 @@ function goGallery() {
 function goSettings() {
   router.push({ name: 'settings' })
 }
+
+/** 更换头像：选择图片 → 上传 COS → 更新用户信息 */
+async function updateAvatar(filePath: string) {
+  if (!userStore.isLoggedIn) {
+    toastError(null, '请先登录再修改头像')
+    return
+  }
+  if (!filePath || avatarUpdating.value)
+    return
+  avatarUpdating.value = true
+  try {
+    const uploaded = await uploadFile(filePath, 'avatar')
+    await updateUserInfo({ openid: userStore.openid, avatarUrl: uploaded.url })
+    await refreshUserInfo()
+    toastSuccess('头像已更新')
+  }
+  catch (e: any) {
+    toastError(e, '头像更新失败，请重试')
+  }
+  finally {
+    avatarUpdating.value = false
+  }
+}
+
+function onChooseAvatar() {
+  if (!userStore.isLoggedIn) {
+    toastError(null, '请先登录再修改头像')
+    return
+  }
+  if (avatarUpdating.value)
+    return
+  uni.chooseImage({
+    count: 1,
+    sizeType: ['compressed'],
+    sourceType: ['album', 'camera'],
+    success: (result) => {
+      const filePath = String(result.tempFilePaths?.[0] || '')
+      if (filePath)
+        updateAvatar(filePath)
+    },
+    fail: (err: any) => {
+      // 用户取消选择不算错误，静默处理
+      if (err?.errMsg && !err.errMsg.includes('cancel'))
+        toastError(null, '选择图片失败，请重试')
+    },
+  })
+}
 function showPrivacy() {
   router.push({ name: 'privacy' })
 }
@@ -97,6 +150,11 @@ function goAbout() {
 function goTimeline() {
   router.push({ name: 'timeline' })
 }
+
+function openHistoryRecord(item: RecordItem) {
+  uni.setStorageSync('mrc_timeline_record_id', item.id)
+  goTimeline()
+}
 function goPreferences() {
   router.push({ name: 'preferences' })
 }
@@ -105,6 +163,20 @@ function goWeeklyPlan() {
 }
 function goFeedback() {
   router.push({ name: 'feedback' })
+}
+
+function openStat(type: 'records' | 'days' | 'streak') {
+  if (!userStore.isLoggedIn) {
+    router.push({name: 'login'})
+    return
+  }
+  // #ifdef MP-WEIXIN
+  try {
+    uni.vibrateShort({type: 'light'})
+  } catch {
+  }
+  // #endif
+  router.push({name: type === 'records' ? 'timeline' : 'calendar'})
 }
 </script>
 
@@ -118,24 +190,30 @@ function goFeedback() {
         我的
       </text>
       <view class="profile-topbar__settings" role="button" aria-label="打开设置" @click="goSettings">
-        <Icon name="gear" :size="38" color="#EF5A3C" />
+        <image :src="GEAR_ICON" class="profile-topbar__gear" />
       </view>
     </view>
 
     <view class="profile-identity" role="button" :aria-label="userStore.isLoggedIn ? '打开设置修改个人资料' : '微信登录'" @click="handleIdentityCard">
       <view class="profile-identity__glow profile-identity__glow--one" />
       <view class="profile-identity__glow profile-identity__glow--two" />
-      <image class="profile-identity__companion" :src="userStore.isLoggedIn ? STATIC_BASE_URL + '/static/guozai/action_08_peek.png' : STATIC_BASE_URL + '/static/guozai/action_09_celebrate.png'" mode="aspectFit" />
+      <image
+        :src="userStore.isLoggedIn ? `${STATIC_BASE_URL}/static/guozai/action_08_peek.png` : `${STATIC_BASE_URL}/static/guozai/action_09_celebrate.png`"
+        class="profile-identity__companion"
+        mode="aspectFit"/>
 
       <view class="profile-identity__main">
-        <view class="profile-avatar" :class="{ 'profile-avatar--logged': userStore.userInfo?.avatarUrl }">
+        <view class="profile-avatar" :class="{ 'profile-avatar--logged': userStore.userInfo?.avatarUrl }" role="button" :aria-label="userStore.isLoggedIn ? '更换头像' : '登录后即可更换头像'" @click="onChooseAvatar">
           <image
             class="profile-avatar__img"
-            :src="userStore.isLoggedIn ? userStore.userInfo?.avatarUrl || STATIC_BASE_URL + '/static/guozai/mood_01_happy.png' : STATIC_BASE_URL + '/static/guozai/action_09_celebrate.png'"
+            :src="userStore.isLoggedIn ? userStore.userInfo?.avatarUrl || `${STATIC_BASE_URL}/static/guozai/mood_01_happy.png` : `${STATIC_BASE_URL}/static/guozai/action_09_celebrate.png`"
             :mode="userStore.userInfo?.avatarUrl ? 'aspectFill' : 'aspectFit'"
           />
           <view v-if="userStore.isLoggedIn" class="profile-avatar__edit">
-            <Icon name="gear" :size="26" color="#EF5A3C" />
+            <image :src="GEAR_ICON" class="profile-avatar__gear" />
+          </view>
+          <view v-if="avatarUpdating" class="profile-avatar__loading">
+            上传中
           </view>
         </view>
 
@@ -170,7 +248,7 @@ function goFeedback() {
 
     <!-- 统计卡 -->
     <view class="profile-stats" aria-label="我的饮食记录统计">
-      <view class="profile-stats__item">
+      <view aria-label="查看全部饮食记录" class="profile-stats__item" role="button" @click="openStat('records')">
         <text class="profile-stats__label">
           总记录
         </text>
@@ -179,9 +257,12 @@ function goFeedback() {
             条
           </text>
         </text>
+        <text class="profile-stats__link">
+          去翻看 ›
+        </text>
       </view>
       <view class="profile-stats__divider" />
-      <view class="profile-stats__item">
+      <view aria-label="按日历查看记录天数" class="profile-stats__item" role="button" @click="openStat('days')">
         <text class="profile-stats__label">
           记录天数
         </text>
@@ -190,9 +271,12 @@ function goFeedback() {
             天
           </text>
         </text>
+        <text class="profile-stats__link">
+          看日历 ›
+        </text>
       </view>
       <view class="profile-stats__divider" />
-      <view class="profile-stats__item">
+      <view aria-label="查看连续打卡记录" class="profile-stats__item" role="button" @click="openStat('streak')">
         <text class="profile-stats__label">
           连续打卡
         </text>
@@ -200,6 +284,9 @@ function goFeedback() {
           {{ stats.currentStreak }}<text class="profile-stats__unit">
             天
           </text>
+        </text>
+        <text class="profile-stats__link">
+          看足迹 ›
         </text>
       </view>
     </view>
@@ -218,7 +305,8 @@ function goFeedback() {
     </view>
 
     <view class="profile-memory" role="button" aria-label="打开我的口味与忌口" @click="goPreferences">
-      <image class="profile-memory__guozai" :src="STATIC_BASE_URL + '/static/guozai/action_10_thinking.png'" mode="aspectFit" />
+      <image :src="`${STATIC_BASE_URL}/static/guozai/action_10_thinking.png`" class="profile-memory__guozai"
+             mode="aspectFit"/>
       <view class="profile-memory__main">
         <text class="profile-memory__eyebrow">
           锅仔会一直记得
@@ -236,7 +324,8 @@ function goFeedback() {
     </view>
 
     <view class="profile-weekly-plan" role="button" aria-label="让锅仔安排这一周晚餐" @click="goWeeklyPlan">
-      <image class="profile-weekly-plan__guozai" :src="STATIC_BASE_URL + '/static/guozai/action_06_glasses.png'" mode="aspectFit" />
+      <image :src="`${STATIC_BASE_URL}/static/guozai/action_06_glasses.png`" class="profile-weekly-plan__guozai"
+             mode="aspectFit"/>
       <view class="profile-weekly-plan__main">
         <text class="profile-weekly-plan__title">
           锅仔帮你安排这一周
@@ -252,7 +341,8 @@ function goFeedback() {
 
     <!-- 锅仔形象馆入口（核心变现模块） -->
     <view class="profile-gallery" role="button" aria-label="打开锅仔形象馆" @click="goGallery">
-      <image class="profile-gallery__guozai" :src="STATIC_BASE_URL + '/static/guozai/mood_06_hungry.png'" mode="aspectFit" />
+      <image :src="`${STATIC_BASE_URL}/static/guozai/mood_06_hungry.png`" class="profile-gallery__guozai"
+             mode="aspectFit"/>
       <view class="profile-gallery__main">
         <text class="profile-gallery__title">
           锅仔形象馆
@@ -272,7 +362,8 @@ function goFeedback() {
     <!-- 功能按钮 -->
     <view class="profile-actions">
       <view class="profile-action" role="button" aria-label="打开我的年度报告" @click="goReport">
-        <image class="profile-action__guozai" :src="STATIC_BASE_URL + '/static/guozai/action_09_celebrate.png'" mode="aspectFit" />
+        <image :src="`${STATIC_BASE_URL}/static/guozai/action_09_celebrate.png`" class="profile-action__guozai"
+               mode="aspectFit"/>
         <view class="profile-action__copy">
           <text class="profile-action__text">
             年度报告
@@ -282,7 +373,8 @@ function goFeedback() {
         </view>
       </view>
       <view class="profile-action" role="button" aria-label="打开菜谱时光机" @click="goTimeline">
-        <image class="profile-action__guozai" :src="STATIC_BASE_URL + '/static/guozai/action_06_glasses.png'" mode="aspectFit" />
+        <image :src="`${STATIC_BASE_URL}/static/guozai/action_06_glasses.png`" class="profile-action__guozai"
+               mode="aspectFit"/>
         <view class="profile-action__copy">
           <text class="profile-action__text">
             菜谱时光机
@@ -296,15 +388,21 @@ function goFeedback() {
     <!-- 历史记录列表 -->
     <view class="profile-history">
       <view class="profile-history__head" role="button" aria-label="查看全部菜谱记录" @click="goTimeline">
-        <text class="profile-history__month">
-          最近记录
-        </text>
-        <text class="profile-history__arrow">
-          ›
-        </text>
+        <view>
+          <text class="profile-history__eyebrow">
+            RECENT TABLE
+          </text>
+          <text class="profile-history__month">
+            最近的食光
+          </text>
+        </view>
+        <view class="profile-history__all">
+          <text>{{ stats.totalRecords }} 顿</text>
+          <text>查看全部 ›</text>
+        </view>
       </view>
       <view v-if="history.length === 0" class="profile-history__empty">
-        <image :src="STATIC_BASE_URL + '/static/guozai/action_08_peek.png'" mode="aspectFit" />
+        <image :src="`${STATIC_BASE_URL}/static/guozai/action_08_peek.png`" mode="aspectFit"/>
         <view>
           <text class="profile-history__empty-title">
             第一顿饭，等你来记
@@ -315,22 +413,42 @@ function goFeedback() {
       </view>
       <view
         v-for="(item, i) in history"
-        :key="i"
+        :key="item.id"
         class="profile-history__item"
-        @click="goTimeline"
+        :aria-label="`查看 ${item.recordDate} 的${item.dishName}记录`"
+        :class="{ 'profile-history__item--featured': i === 0 }"
+        role="button"
+        @click="openHistoryRecord(item)"
       >
-        <text class="profile-history__date">
-          {{ item.recordDate?.slice(5) }}
-        </text>
-        <view class="profile-history__main">
-          <text class="profile-history__dish">
-            {{ item.dishName }}
+        <view class="profile-history__photo">
+          <image :aria-label="item.dishName" :src="item.imageUrl" lazy-load mode="aspectFill"/>
+          <text class="profile-history__date">
+            {{ item.recordDate?.slice(5) }}
           </text>
-          <image class="profile-history__mood" :src="MOOD_IMG_MAP[item.moodTag] || STATIC_BASE_URL + '/static/guozai/mood_01_happy.png'" mode="aspectFit" />
+        </view>
+        <view class="profile-history__main">
+          <view class="profile-history__title-row">
+            <text class="profile-history__dish">
+              {{ item.dishName }}
+            </text>
+            <image :aria-label="`${item.moodTag}心情`"
+                   :src="MOOD_IMG_MAP[item.moodTag] || `${STATIC_BASE_URL}/static/guozai/mood_01_happy.png`"
+                   class="profile-history__mood" mode="aspectFit"/>
+          </view>
+          <text class="profile-history__meta">
+            {{ item.moodTag }} · {{ item.cookingTime || 30 }} 分钟
+          </text>
+          <text v-if="item.note" class="profile-history__note">
+            {{ item.note }}
+          </text>
         </view>
         <text class="profile-history__arrow">
           ›
         </text>
+      </view>
+      <view v-if="history.length" class="profile-history__companion">
+        <image :src="`${STATIC_BASE_URL}/static/guozai/action_08_peek.png`" aria-hidden="true" mode="aspectFit"/>
+        <text>最近三顿已经收好，更多回忆在时光机里。</text>
       </view>
     </view>
 
@@ -347,7 +465,8 @@ function goFeedback() {
       <text class="profile-footer__link" role="button" @click="goAbout">
         关于我们
       </text>
-      <image class="profile-footer__guozai" :src="STATIC_BASE_URL + '/static/guozai/mood_01_happy.png'" mode="aspectFit" />
+      <image :src="`${STATIC_BASE_URL}/static/guozai/mood_01_happy.png`" class="profile-footer__guozai"
+             mode="aspectFit"/>
     </view>
   </view>
 </template>
@@ -363,8 +482,11 @@ function goFeedback() {
 /* 顶部标题栏：右侧为微信胶囊留位 */
 .profile-topbar { display: flex; align-items: center; justify-content: space-between; box-sizing: content-box; }
 .profile-topbar__title { color: var(--mrc-text-strong); font-size: 42rpx; font-weight: var(--mrc-fw-heavy); }
-.profile-topbar__settings { width: 88rpx; height: 88rpx; display: flex; align-items: center; justify-content: center; border: 2rpx solid var(--mrc-border); border-radius: 50%; background: var(--mrc-surface-peach); box-shadow: var(--mrc-shadow-sm); }
+.profile-topbar__settings { width: 64rpx; height: 64rpx; display: flex; align-items: center; justify-content: center; border: 2rpx solid var(--mrc-border); border-radius: 50%; background: var(--mrc-surface-peach); box-shadow: var(--mrc-shadow-sm); }
 .profile-topbar__settings:active { transform: scale(.94); }
+.profile-topbar__gear { width: 30rpx; height: 30rpx; }
+.profile-avatar__gear { width: 22rpx; height: 22rpx; }
+
 
 /* 身份卡 */
 .profile-identity { position: relative; overflow: hidden; margin: 8rpx 0 24rpx; padding: 34rpx 30rpx 24rpx; border: 2rpx solid var(--mrc-border); border-radius: 40rpx; background: linear-gradient(145deg, var(--mrc-surface) 0%, var(--mrc-surface-peach) 58%, var(--mrc-surface-sun) 100%); box-shadow: var(--mrc-shadow-lift), var(--mrc-gloss); }
@@ -379,6 +501,7 @@ function goFeedback() {
 .profile-avatar--logged { background: var(--mrc-surface-peach); }
 .profile-avatar__img { width: 118rpx; height: 118rpx; border-radius: 50%; }
 .profile-avatar__edit { position: absolute; right: -4rpx; bottom: -4rpx; width: 50rpx; height: 50rpx; display: flex; align-items: center; justify-content: center; border: 3rpx solid var(--mrc-surface); border-radius: 50%; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-sm); }
+.profile-avatar__loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; border-radius: 50%; color: #fff; background: rgba(40, 24, 16, .55); font-size: 20rpx; font-weight: 700; }
 .profile-name-wrap { display: flex; min-height: 88rpx; align-items: center; gap: 4rpx; }
 .profile-name { max-width: 360rpx; overflow: hidden; color: var(--mrc-text-strong); font-size: 40rpx; font-weight: var(--mrc-fw-heavy); line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
 .profile-name__arrow { color: var(--mrc-text-light); font-size: 34rpx; line-height: 1; }
@@ -409,10 +532,20 @@ function goFeedback() {
 }
 .profile-stats__item {
   flex: 1;
+  min-height: 112rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 9rpx;
+  border-radius: 24rpx;
+  transition: background-color 180ms ease-out, transform 180ms ease-out, opacity 180ms ease-out;
+}
+
+.profile-stats__item:active {
+  background: var(--mrc-surface-peach);
+  transform: scale(.97);
+  opacity: .82;
 }
 .profile-stats__label {
   font-size: 22rpx;
@@ -429,10 +562,28 @@ function goFeedback() {
   font-weight: 600;
   margin-left: 4rpx;
 }
+
+.profile-stats__link {
+  color: var(--mrc-accent);
+  font-size: 18rpx;
+  font-weight: 700;
+}
 .profile-stats__divider {
   width: 2rpx;
   height: 64rpx;
   background: var(--mrc-border-light);
+}
+
+@media (max-width: 350px) {
+  .profile-stats__link {
+    font-size: 16rpx;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-stats__item {
+    transition: none;
+  }
 }
 
 .profile-section-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 20rpx; margin: 0 4rpx 18rpx; }
@@ -543,7 +694,9 @@ function goFeedback() {
 
 /* 历史记录 */
 .profile-history {
-  background: var(--mrc-surface);
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(150deg, var(--mrc-surface), var(--mrc-surface-peach));
   border: 2rpx solid var(--mrc-border-light);
   border-radius: 32rpx;
   padding: 26rpx;
@@ -554,59 +707,205 @@ function goFeedback() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 20rpx;
-  border-bottom: 2rpx solid var(--mrc-border-light);
-  margin-bottom: 16rpx;
+  min-height: 88rpx;
+  margin-bottom: 18rpx;
+}
+
+.profile-history__head > view:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 5rpx;
+}
+
+.profile-history__eyebrow {
+  color: var(--mrc-accent);
+  font-size: 18rpx;
+  font-weight: 800;
+  letter-spacing: 2rpx;
 }
 .profile-history__month {
-  font-size: 32rpx;
-  font-weight: 800;
+  font-size: 34rpx;
+  font-weight: var(--mrc-fw-heavy);
   color: var(--mrc-text-deep);
 }
-.profile-history__arrow {
-  font-size: 36rpx;
-  color: var(--mrc-text-light);
+
+.profile-history__all {
+  display: flex;
+  min-height: 72rpx;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 4rpx;
+  color: var(--mrc-text-sub);
+  font-size: 19rpx;
+}
+
+.profile-history__all text:last-child {
+  color: var(--mrc-accent);
+  font-size: 21rpx;
+  font-weight: 800;
 }
 .profile-history__item {
-  display: flex;
+  position: relative;
+  display: grid;
+  grid-template-columns: 116rpx minmax(0, 1fr) 36rpx;
   align-items: center;
-  min-height: 96rpx;
-  padding: 8rpx 0;
-  border-bottom: 2rpx solid var(--mrc-border-light);
+  gap: 18rpx;
+  min-height: 132rpx;
+  margin-top: 14rpx;
+  padding: 12rpx;
+  box-sizing: border-box;
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 26rpx;
+  background: var(--mrc-surface);
+  transition: transform 180ms ease-out, opacity 180ms ease-out;
+}
+
+.profile-history__item:active {
+  transform: scale(.985);
+  opacity: .82;
+}
+
+.profile-history__item--featured {
+  display: block;
+  overflow: hidden;
+  padding: 0;
+  border-radius: 30rpx;
+  box-shadow: var(--mrc-shadow-soft);
 }
 .profile-history__empty { display: flex; align-items: center; gap: 20rpx; min-height: 132rpx; padding: 8rpx 4rpx; }
 .profile-history__empty image { width: 92rpx; height: 92rpx; flex-shrink: 0; }
 .profile-history__empty-title, .profile-history__empty-sub { display: block; }
 .profile-history__empty-title { color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 800; }
 .profile-history__empty-sub { margin-top: 8rpx; color: var(--mrc-text-sub); font-size: 21rpx; line-height: 1.45; }
-.profile-history__item:last-child {
-  border-bottom: none;
+
+.profile-history__photo {
+  position: relative;
+  width: 116rpx;
+  height: 108rpx;
+  overflow: hidden;
+  border-radius: 20rpx;
+  background: var(--mrc-surface-2);
+}
+
+.profile-history__photo image {
+  width: 100%;
+  height: 100%;
+}
+
+.profile-history__item--featured .profile-history__photo {
+  width: 100%;
+  height: 260rpx;
+  border-radius: 0;
 }
 .profile-history__date {
-  font-size: 26rpx;
-  color: var(--mrc-text-sub);
-  width: 100rpx;
-  flex-shrink: 0;
-}
-.profile-history__main {
-  flex: 1;
+  position: absolute;
+  top: 10rpx;
+  left: 10rpx;
+  min-height: 42rpx;
+  padding: 0 13rpx;
   display: flex;
   align-items: center;
-  gap: 12rpx;
+  border-radius: 21rpx;
+  color: var(--mrc-text-deep);
+  background: var(--mrc-surface);
+  box-shadow: var(--mrc-shadow-sm);
+  font-size: 18rpx;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.profile-history__main {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 7rpx;
+}
+
+.profile-history__item--featured .profile-history__main {
+  padding: 22rpx 66rpx 24rpx 22rpx;
+}
+
+.profile-history__title-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10rpx;
 }
 .profile-history__dish {
-  font-size: 30rpx;
+  overflow: hidden;
+  font-size: 29rpx;
   color: var(--mrc-text-deep);
-  font-weight: 500;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profile-history__item--featured .profile-history__dish {
+  font-size: 34rpx;
 }
 .profile-history__mood {
-  width: 40rpx;
-  height: 40rpx;
+  width: 38rpx;
+  height: 38rpx;
+  flex-shrink: 0;
+}
+
+.profile-history__meta {
+  color: var(--mrc-accent);
+  font-size: 20rpx;
+  font-weight: 700;
+}
+
+.profile-history__note {
+  overflow: hidden;
+  color: var(--mrc-text-sub);
+  font-size: 21rpx;
+  line-height: 1.45;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .profile-history__arrow {
-  font-size: 32rpx;
+  font-size: 36rpx;
   color: var(--mrc-text-light);
   flex-shrink: 0;
+}
+
+.profile-history__item--featured .profile-history__arrow {
+  position: absolute;
+  right: 24rpx;
+  bottom: 30rpx;
+}
+
+.profile-history__companion {
+  display: flex;
+  min-height: 88rpx;
+  align-items: center;
+  gap: 10rpx;
+  padding: 12rpx 6rpx 0;
+  color: var(--mrc-text-sub);
+  font-size: 20rpx;
+  line-height: 1.45;
+}
+
+.profile-history__companion image {
+  width: 66rpx;
+  height: 66rpx;
+  flex-shrink: 0;
+}
+
+@media (max-width: 350px) {
+  .profile-history__item {
+    grid-template-columns: 100rpx minmax(0, 1fr) 28rpx;
+    gap: 12rpx;
+  }
+  .profile-history__photo {
+    width: 100rpx;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profile-history__item {
+    transition: none;
+  }
 }
 
 /* 底部 */
@@ -616,7 +915,7 @@ function goFeedback() {
   justify-content: center;
   gap: 18rpx;
   min-height: 112rpx;
-  padding: 8rpx 94rpx 8rpx 0;
+  padding: 8rpx 47rpx;
   position: relative;
 }
 .profile-footer__link {
