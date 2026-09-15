@@ -3,6 +3,8 @@ import type { ThemeMode } from '@/composables/useManualTheme'
 import { computed, ref } from 'vue'
 import { logout as apiLogout, updateUserInfo } from '@/api/auth'
 import { uploadFile } from '@/api/request'
+import { API_BACKENDS, getApiBaseUrl, setApiBaseUrl } from '@/api/request'
+import type { ApiBackend } from '@/api/request'
 import Icon from '@/components/common/Icon.vue'
 import { useManualTheme } from '@/composables/useManualTheme'
 import { navBack } from '@/composables/useNavBar'
@@ -32,6 +34,41 @@ const logoutLoading = ref(false)
 
 const avatar = computed(() => userStore.userInfo?.avatarUrl || 'https://static.image-zero.art/mood-recipe/static/guozai/mood_01_happy.png')
 const themeChoice = computed<ThemeChoice>(() => followSystem.value ? 'system' : isDark.value ? 'dark' : 'light')
+
+/** 后端服务切换 */
+const currentBackendUrl = ref(getApiBaseUrl())
+const currentBackend = computed(() => API_BACKENDS.find(b => b.url === currentBackendUrl.value) || {
+  name: '自定义',
+  url: currentBackendUrl.value,
+  env: 'custom',
+  desc: currentBackendUrl.value,
+})
+const switchingBackend = ref(false)
+
+function selectBackend(backend: ApiBackend) {
+  if (switchingBackend.value || backend.url === getApiBaseUrl())
+    return
+  uni.showModal({
+    title: '切换后端服务',
+    content: `将切换到「${backend.name}」（${backend.desc}）。切换后需要重新登录。`,
+    confirmText: '切换',
+    confirmColor: '#EF5A3C',
+    success: (result) => {
+      if (!result.confirm)
+        return
+      switchingBackend.value = true
+      try {
+        setApiBaseUrl(backend.url)
+        currentBackendUrl.value = backend.url
+        userStore.logout() // token 与后端绑定，切换后必须重新登录
+        toastSuccess(`已切换到「${backend.name}」`)
+      }
+      finally {
+        switchingBackend.value = false
+      }
+    },
+  })
+}
 
 onShow(async () => {
   userStore.restoreFromStorage()
@@ -267,6 +304,47 @@ async function performLogout() {
         </view>
       </view>
 
+      <view class="settings-section">
+        <view class="settings-heading">
+          <text class="settings-heading__title">
+            后端服务
+          </text><text class="settings-heading__hint">
+            切换后需要重新登录
+          </text>
+        </view>
+        <view class="backend-card">
+          <view class="backend-current">
+            <Icon name="gear" :size="30" color="#EF5A3C" />
+            <view class="backend-current__text">
+              <text class="backend-current__name">
+                当前：{{ currentBackend.name }}
+              </text>
+              <text class="backend-current__url">
+                {{ currentBackend.url }}
+              </text>
+            </view>
+          </view>
+          <view class="backend-options" aria-label="后端服务">
+            <view v-for="option in API_BACKENDS" :key="option.url" class="backend-option pressable" :class="{ 'is-selected': currentBackendUrl === option.url }" role="button" :aria-label="`切换到${option.name}`" @click="selectBackend(option)">
+              <view class="backend-option__main">
+                <text class="backend-option__name">
+                  {{ option.name }}
+                </text>
+                <text class="backend-option__desc">
+                  {{ option.desc }}
+                </text>
+              </view>
+              <text class="backend-option__check">
+                {{ currentBackendUrl === option.url ? '✓' : '' }}
+              </text>
+            </view>
+          </view>
+          <text class="backend-note">
+            开发环境请选「本地开发」，正式发布前务必切回「生产环境」。
+          </text>
+        </view>
+      </view>
+
       <view v-if="userStore.isLoggedIn" class="logout-button pressable" :class="{ 'is-disabled': logoutLoading }" role="button" aria-label="退出登录" @click="askForLogout">
         {{ logoutLoading ? '正在退出…' : '退出登录' }}
       </view>
@@ -321,6 +399,20 @@ async function performLogout() {
 .color-option.is-selected { border-color: var(--mrc-accent); color: var(--mrc-text-deep); }
 .color-option__dot { width: 26rpx; height: 26rpx; flex-shrink: 0; border: 3rpx solid var(--mrc-surface); border-radius: 50%; box-shadow: var(--mrc-shadow-sm); }
 .color-option__name { overflow: hidden; font-size: 21rpx; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.backend-card { padding: 24rpx 26rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 30rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); }
+.backend-current { display: flex; align-items: center; gap: 16rpx; padding-bottom: 20rpx; border-bottom: 2rpx solid var(--mrc-border-light); }
+.backend-current__text { display: flex; min-width: 0; flex-direction: column; gap: 4rpx; }
+.backend-current__name { color: var(--mrc-text-strong); font-size: 26rpx; font-weight: 800; }
+.backend-current__url { overflow: hidden; color: var(--mrc-text-sub); font-size: 20rpx; text-overflow: ellipsis; white-space: nowrap; }
+.backend-options { display: flex; flex-direction: column; padding-top: 8rpx; }
+.backend-option { display: flex; min-height: 92rpx; align-items: center; justify-content: space-between; gap: 16rpx; border-bottom: 2rpx solid var(--mrc-border-light); }
+.backend-option:last-child { border-bottom: 0; }
+.backend-option.is-selected .backend-option__name { color: var(--mrc-accent); }
+.backend-option__main { display: flex; min-width: 0; flex-direction: column; gap: 2rpx; }
+.backend-option__name { color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 700; }
+.backend-option__desc { color: var(--mrc-text-sub); font-size: 21rpx; }
+.backend-option__check { color: var(--mrc-accent); font-size: 30rpx; font-weight: 800; }
+.backend-note { display: block; padding-top: 16rpx; border-top: 2rpx solid var(--mrc-border-light); color: var(--mrc-text-light); font-size: 20rpx; line-height: 1.5; }
 .logout-button { display: flex; min-height: 96rpx; align-items: center; justify-content: center; margin-top: 44rpx; border: 2rpx solid rgba(217, 72, 65, .42); border-radius: 48rpx; color: #D94841; background: var(--mrc-surface); font-size: 28rpx; font-weight: 700; }
 .settings-footnote { display: block; padding: 18rpx 28rpx 0; color: var(--mrc-text-light); font-size: 21rpx; line-height: 1.55; text-align: center; }
 .pressable { transition: transform 180ms ease, opacity 180ms ease; }

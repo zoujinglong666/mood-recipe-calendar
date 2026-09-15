@@ -10,6 +10,7 @@ import com.moodrecipe.backend.service.RecommendationExposureService;
 import jakarta.validation.Valid;
 import com.moodrecipe.backend.config.SessionAuthInterceptor;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -24,6 +25,7 @@ public class RecordController {
     private final RecipeInteractionRepository recipeInteractions;
     private final RecommendationExposureService exposures;
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ISO_LOCAL_DATE;
+    private static final String DEFAULT_DISH_IMAGE = "/static/dish_tomato_beef.png";
 
     public RecordController(UserRecordRepository repository, RecipeInteractionRepository recipeInteractions,
                             RecommendationExposureService exposures) {
@@ -34,30 +36,44 @@ public class RecordController {
 
     /** 保存一条记录 */
     @PostMapping
+    @Transactional
     public ApiResponse<UserRecord> save(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @Valid @RequestBody RecordRequest req) {
+        boolean fromRecipe = (req.recipeId() != null && !req.recipeId().isBlank())
+                || (req.exposureId() != null && !req.exposureId().isBlank());
+        if ((req.imageUrl() == null || req.imageUrl().isBlank()) && !fromRecipe) {
+            return ApiResponse.error(400, "手动记录请先添加菜品照片");
+        }
         String recordDate = req.recordDate() == null ? LocalDate.now().format(DATE_FMT) : req.recordDate();
         try {
             LocalDate.parse(recordDate, DATE_FMT);
         } catch (RuntimeException ignored) {
             return ApiResponse.error(400, "日期格式应为有效的 YYYY-MM-DD");
         }
+        if (req.clientRequestId() != null && !req.clientRequestId().isBlank()) {
+            var existing = repository.findByOpenidAndClientRequestId(openid, req.clientRequestId());
+            if (existing.isPresent()) return ApiResponse.ok(existing.get());
+        }
         UserRecord record = new UserRecord();
         record.setOpenid(openid);
-        record.setImageUrl(req.imageUrl());
+        record.setImageUrl(req.imageUrl() == null || req.imageUrl().isBlank() ? DEFAULT_DISH_IMAGE : req.imageUrl());
         record.setDishName(req.dishName());
         record.setMoodTag(req.moodTag());
         record.setNote(req.note());
         record.setRecipeId(req.recipeId() != null ? String.valueOf(req.recipeId()) : null);
+        record.setClientRequestId(req.clientRequestId());
         record.setCookingTime(req.cookingTime());
         record.setRecordDate(recordDate);
         UserRecord saved = repository.save(record);
         try {
             if (req.recipeId() != null && !req.recipeId().isBlank()) {
-                RecipeInteraction interaction = new RecipeInteraction();
-                interaction.setOpenid(openid);
-                interaction.setRecipeId(Long.valueOf(req.recipeId()));
-                interaction.setAction("MADE");
-                recipeInteractions.save(interaction);
+                Long recipeId = Long.valueOf(req.recipeId());
+                if (!recipeInteractions.existsByOpenidAndRecipeIdAndAction(openid, recipeId, "MADE")) {
+                    RecipeInteraction interaction = new RecipeInteraction();
+                    interaction.setOpenid(openid);
+                    interaction.setRecipeId(recipeId);
+                    interaction.setAction("MADE");
+                    recipeInteractions.save(interaction);
+                }
             }
         } catch (NumberFormatException ignored) {
             // AI 临时菜谱没有持久化 id，仍保留用户的做菜记录。

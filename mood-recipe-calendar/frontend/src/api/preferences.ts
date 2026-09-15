@@ -18,8 +18,27 @@ export interface FoodPreference {
   updatedAt?: string
 }
 
+export interface FoodMemoryBehavior {
+  topDish: string
+  topMood: string
+  streak: number
+  recordedToday: boolean
+  likedCount: number
+  dislikedCount: number
+  madeCount: number
+}
+
+export interface FoodMemoryView {
+  explicit: FoodPreference
+  behavior: FoodMemoryBehavior
+}
+
 export function fetchFoodPreference() {
   return get<FoodPreference>('/preferences')
+}
+
+export function fetchFoodMemory() {
+  return get<FoodMemoryView>('/preferences/summary')
 }
 
 export function saveFoodPreference(data: Omit<FoodPreference, 'id' | 'onboardingCompleted' | 'updatedAt'>) {

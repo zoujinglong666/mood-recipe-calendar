@@ -1,6 +1,7 @@
 package com.moodrecipe.backend.service;
 
 import com.moodrecipe.backend.entity.Recipe;
+import com.moodrecipe.backend.entity.RecipeInteraction;
 import com.moodrecipe.backend.entity.UserFoodPreference;
 import com.moodrecipe.backend.repository.RecipeInteractionRepository;
 import com.moodrecipe.backend.repository.RecipeRepository;
@@ -17,6 +18,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
 /**
  * 测试 GuozaiAgent 的本地回退推荐逻辑（AI 不可用时的菜谱筛选、偏好过滤、评分排序）。
@@ -198,6 +200,28 @@ class GuozaiAgentTest {
         assertTrue(menu.stream().noneMatch(recipe -> recipe.getName().contains("花生")));
         assertEquals("清蒸鸡腿", menu.get(0).getName());
         assertEquals("蒜蓉西兰花", menu.get(1).getName());
+    }
+
+    @Test
+    void skipsRecentlyShownLocalRecipe() {
+        RecipeRepository recipes = mock(RecipeRepository.class);
+        RecipeInteractionRepository interactions = mock(RecipeInteractionRepository.class);
+        UserFoodPreferenceRepository preferences = mock(UserFoodPreferenceRepository.class);
+        Recipe first = recipe(1L, "番茄炒蛋", "番茄 2 个，鸡蛋 3 个");
+        Recipe second = recipe(2L, "青椒肉丝", "青椒 2 个，猪肉 200g");
+        RecipeInteraction shown = new RecipeInteraction();
+        shown.setRecipeId(1L);
+        shown.setAction("SHOWN");
+
+        when(preferences.findByOpenid("user-1")).thenReturn(Optional.empty());
+        when(interactions.findTop30ByOpenidOrderByCreatedAtDesc("user-1")).thenReturn(List.of(shown));
+        when(interactions.findByOpenidAndAction("user-1", "DISLIKE")).thenReturn(List.of());
+        when(recipes.findByMoodTag("平静")).thenReturn(List.of(first, second));
+
+        Recipe result = buildAgent(recipes, interactions, preferences).recommend("user-1", "平静", null);
+
+        assertEquals("青椒肉丝", result.getName());
+        verify(interactions).save(any(RecipeInteraction.class));
     }
 
     private Recipe recipe(Long id, String name, String ingredients) {

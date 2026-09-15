@@ -22,6 +22,7 @@ export interface RecordPayload {
   note?: string
   recipeId?: string
   exposureId?: string
+  clientRequestId?: string
   cookingTime?: number
   recordDate?: string
 }

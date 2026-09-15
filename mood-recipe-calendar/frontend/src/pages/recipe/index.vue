@@ -1,21 +1,23 @@
 <script setup lang="ts">
-import type { RecipeFeedbackAction, RecipeItem, RecommendationJob, RecommendationStep } from '../../api/recipes'
+import type { RecipeFeedbackAction, RecipeFeedbackState, RecipeItem, RecommendationJob, RecommendationStep } from '../../api/recipes'
 import type { VirtualProduct } from '../../api/virtualCommerce'
 import { computed, nextTick, ref } from 'vue'
 import { navBack } from '@/composables/useNavBar'
-import { createRecommendationJob, fetchRecommendationJob, requestDeepRecipe, sendRecipeFeedback } from '../../api/recipes'
+import { createRecommendationJob, fetchRecommendationJob, fetchRecipeDetail, fetchRecipeFeedback, requestDeepRecipe, sendRecipeFeedback } from '../../api/recipes'
 import { createVirtualOrder, fetchVirtualOrder, fetchVirtualProducts, getVirtualPaymentParams, requestWechatVirtualPayment } from '../../api/virtualCommerce'
 import Icon from '../../components/common/Icon.vue'
 import ErrorState from '../../components/guozai/ErrorState.vue'
 import { exportRecipeShare, saveShareImage } from '../../utils/albumShare'
 import { ensureLogin } from '../../utils/login'
 import { toast, toastError, toastSuccess } from '../../utils/toast'
+import { saveCookingDraft, saveRecordDraft } from '../../utils/cookingDraft'
 
 definePage({ name: 'recipe', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '今日推荐' } })
 
 const route = useRoute()
 const router = useRouter()
 const mood = computed(() => (route.query.mood as string) || '开心')
+const linkedRecipeId = computed(() => Number(route.query.recipeId) || 0)
 const HEALING_TEXTS: Record<string, string> = {
   开心: '你今天的好心情，适合配一口热乎又满足的。',
   平静: '不赶时间的这一餐，就让味道慢慢展开。',
@@ -49,7 +51,7 @@ const productsError = ref('')
 const purchasingSku = ref('')
 const aiProducts = ref<VirtualProduct[]>([])
 const feedbackLoading = ref<RecipeFeedbackAction | ''>('')
-const liked = ref(false)
+const feedbackState = ref<RecipeFeedbackState>({ liked: false, disliked: false, made: false })
 type ShareStyle = 'classic' | 'guozai'
 const showShareSheet = ref(false)
 const shareCardLoading = ref(false)
@@ -84,7 +86,7 @@ const steps = computed(() => parseStringList(recipe.value?.steps))
 const feedbackAvailable = computed(() => Number(recipe.value?.id) > 0 || Boolean(recipe.value?.exposureId))
 const recipeImageAvailable = computed(() => Boolean(recipe.value?.image) && !imageFailed.value)
 const healingText = computed(() => recipe.value?.recommendationReason?.trim() || HEALING_TEXTS[mood.value] || recipe.value?.description || '好好吃饭，锅仔会陪你慢慢找到喜欢的味道。')
-const primaryText = computed(() => showSteps.value || !steps.value.length ? '做完了，记一笔' : '查看完整做法')
+const primaryText = computed(() => steps.value.length ? '开始跟锅仔做' : '记下这顿')
 const toolTrace = computed(() => recommendationJob.value?.steps.filter(step => step.status !== 'WAITING') || [])
 
 function stepStatusText(step: RecommendationStep) {
@@ -112,7 +114,7 @@ async function loadRecipe() {
   loading.value = true
   error.value = ''
   recipe.value = null
-  liked.value = false
+  feedbackState.value = { liked: false, disliked: false, made: false }
   recommendationJob.value = null
   showToolTrace.value = false
   imageFailed.value = false
@@ -125,6 +127,12 @@ async function loadRecipe() {
   const run = ++pollRun
   try {
     await ensureLogin()
+    if (linkedRecipeId.value) {
+      recipe.value = await fetchRecipeDetail(linkedRecipeId.value)
+      await loadFeedbackState()
+      loading.value = false
+      return
+    }
     const created = await createRecommendationJob(mood.value)
     if (run !== pollRun)
       return
@@ -185,6 +193,8 @@ function applyJob(job: RecommendationJob, run: number) {
     loading.value = false
     if (!job.recipe)
       error.value = '推荐已经完成，但菜谱内容暂时不可用'
+    else
+      void loadFeedbackState()
     return
   }
   if (job.status === 'FAILED') {
@@ -236,32 +246,50 @@ function toggleSteps() {
 }
 
 function handlePrimaryAction() {
-  if (!showSteps.value && steps.value.length)
-    revealSteps()
+  if (steps.value.length)
+    startCooking()
   else goRecord()
+}
+
+function startCooking() {
+  if (!recipe.value || !steps.value.length) {
+    toast('这道菜暂时没有完整步骤，先记下它吧')
+    return
+  }
+  saveCookingDraft(recipe.value, mood.value)
+  router.push({ name: 'cooking' })
 }
 
 function goRecord() {
   if (!recipe.value)
     return
-  uni.setStorageSync('mrc_record_draft', {
-    dish: recipe.value.name,
-    mood: mood.value,
-    recipeId: recipe.value.id,
-    exposureId: recipe.value.exposureId,
-  })
+  saveRecordDraft(recipe.value, mood.value)
   router.pushTab({ name: 'record' })
 }
 
-async function sendFeedback(action: RecipeFeedbackAction) {
-  if (!recipe.value || (!recipe.value.id && !recipe.value.exposureId) || feedbackLoading.value || (action === 'LIKE' && liked.value))
+async function loadFeedbackState() {
+  if (!recipe.value || !feedbackAvailable.value)
     return
+  try {
+    feedbackState.value = await fetchRecipeFeedback(recipe.value)
+  }
+  catch {
+    feedbackState.value = { liked: false, disliked: false, made: false }
+  }
+}
+
+async function sendFeedback(action: RecipeFeedbackAction) {
+  if (!recipe.value || (!recipe.value.id && !recipe.value.exposureId) || feedbackLoading.value)
+    return
+  if (action === 'MADE') {
+    goRecord()
+    return
+  }
   feedbackLoading.value = action
   try {
     await ensureLogin()
-    await sendRecipeFeedback(recipe.value, action)
+    feedbackState.value = await sendRecipeFeedback(recipe.value, action)
     if (action === 'LIKE') {
-      liked.value = true
       toast('锅仔记住啦，以后多推荐这类菜')
     }
     else {
@@ -408,6 +436,7 @@ async function requestPersonalMenu() {
     shareCardError.value = ''
     shareCardSaved.value = false
     toastSuccess('锅仔为你做好专属菜单啦')
+    void loadFeedbackState()
   }
   catch (e: any) {
     const message = e?.message || '生成失败，请稍后重试'
@@ -576,11 +605,14 @@ async function waitForDelivery(orderNo: string) {
         </view>
 
         <view v-if="feedbackAvailable" class="feedback-row" aria-label="告诉锅仔这道菜是否合胃口">
-          <view class="feedback-action pressable" :class="{ 'is-disabled': feedbackLoading || liked }" role="button" :aria-label="liked ? '已喜欢这道菜' : '喜欢这道菜'" @click="sendFeedback('LIKE')">
-            <Icon name="heart" :size="30" color="#EF5A3C" /><text>{{ feedbackLoading === 'LIKE' ? '记住中…' : liked ? '已经记住' : '喜欢这道' }}</text>
+          <view class="feedback-action pressable" :class="{ 'is-selected': feedbackState.liked, 'is-disabled': Boolean(feedbackLoading) }" role="button" :aria-label="feedbackState.liked ? '已喜欢这道菜' : '喜欢这道菜'" @click="sendFeedback('LIKE')">
+            <Icon name="heart" :size="30" color="#EF5A3C" /><text>{{ feedbackLoading === 'LIKE' ? '记住中…' : feedbackState.liked ? '已喜欢' : '喜欢' }}</text>
           </view>
           <view class="feedback-action pressable" :class="{ 'is-disabled': Boolean(feedbackLoading) }" role="button" aria-label="不想吃这道菜，换一道推荐" @click="sendFeedback('DISLIKE')">
-            <Icon name="dice" :size="30" color="#A1826A" /><text>{{ feedbackLoading === 'DISLIKE' ? '换菜中…' : '不想吃，换一道' }}</text>
+            <Icon name="dice" :size="30" color="#A1826A" /><text>{{ feedbackLoading === 'DISLIKE' ? '换菜中…' : '不想吃' }}</text>
+          </view>
+          <view class="feedback-action pressable" :class="{ 'is-disabled': Boolean(feedbackLoading) }" role="button" aria-label="做过这道菜并记录" @click="sendFeedback('MADE')">
+            <Icon name="camera" :size="30" color="#A1826A" /><text>做过</text>
           </view>
         </view>
 
@@ -650,7 +682,7 @@ async function waitForDelivery(orderNo: string) {
       <view class="primary-bar">
         <view class="primary-bar__inner">
           <view class="primary-action pressable" role="button" :aria-label="primaryText" @click="handlePrimaryAction">
-            <Icon :name="showSteps || !steps.length ? 'camera' : 'book'" :size="36" color="#fff" /><text>{{ primaryText }}</text>
+            <Icon :name="steps.length ? 'flame' : 'camera'" :size="36" color="#fff" /><text>{{ primaryText }}</text>
           </view>
         </view>
       </view>
@@ -847,8 +879,9 @@ async function waitForDelivery(orderNo: string) {
 .tool-trace__mark { display: flex; align-items: center; justify-content: center; width: 38rpx; height: 38rpx; flex-shrink: 0; border-radius: 50%; color: var(--mrc-accent); background: var(--mrc-surface-sun); font-size: 18rpx; font-weight: 900; }
 .tool-trace__label { display: block; color: var(--mrc-text-deep); font-size: 23rpx; font-weight: 800; }
 .tool-trace__message { display: block; margin-top: 4rpx; color: var(--mrc-text-sub); font-size: 21rpx; line-height: 1.45; }
-.feedback-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx; margin-top: 20rpx; }
+.feedback-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12rpx; margin-top: 20rpx; }
 .feedback-action { display: flex; align-items: center; justify-content: center; gap: 10rpx; min-height: 88rpx; padding: 0 16rpx; box-sizing: border-box; border: 2rpx solid var(--mrc-border); border-radius: 44rpx; color: var(--mrc-text-deep); background: var(--mrc-surface); font-size: 24rpx; font-weight: 700; }
+.feedback-action.is-selected { border-color: var(--mrc-primary); background: var(--mrc-accent-soft); color: var(--mrc-accent); }
 .custom-entry { display: flex; align-items: center; gap: 16rpx; min-height: 112rpx; margin-top: 28rpx; padding: 12rpx 20rpx; box-sizing: border-box; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; background: var(--mrc-surface-2); }
 .custom-entry__image { width: 84rpx; height: 84rpx; flex-shrink: 0; }
 .custom-entry__copy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 6rpx; }

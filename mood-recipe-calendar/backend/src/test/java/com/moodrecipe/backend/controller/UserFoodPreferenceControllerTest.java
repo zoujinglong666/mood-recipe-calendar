@@ -4,6 +4,7 @@ import com.moodrecipe.backend.entity.UserFoodPreference;
 import com.moodrecipe.backend.repository.RecipeInteractionRepository;
 import com.moodrecipe.backend.repository.UserFoodPreferenceRepository;
 import com.moodrecipe.backend.repository.RecommendationExposureRepository;
+import com.moodrecipe.backend.service.GuozaiMemory;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
@@ -19,7 +20,7 @@ class UserFoodPreferenceControllerTest {
         UserFoodPreferenceRepository preferences = mock(UserFoodPreferenceRepository.class);
         UserFoodPreferenceController controller = new UserFoodPreferenceController(
                 preferences, mock(RecipeInteractionRepository.class),
-                mock(RecommendationExposureRepository.class));
+                mock(RecommendationExposureRepository.class), mock(GuozaiMemory.class));
         when(preferences.findByOpenid("user-1")).thenReturn(Optional.empty());
         when(preferences.save(any(UserFoodPreference.class))).thenAnswer(invocation -> invocation.getArgument(0));
 

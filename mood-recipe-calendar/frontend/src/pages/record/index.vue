@@ -8,6 +8,7 @@ import { ensureLogin } from '../../utils/login'
 import { toast, toastError } from '../../utils/toast'
 import { saveRecord } from '../../api/records'
 import { uploadFile } from '../../api/request'
+import { createRequestId, RECORD_DRAFT_KEY } from '../../utils/cookingDraft'
 
 definePage({
   name: 'record',
@@ -28,6 +29,9 @@ const dishImage = ref('')
 const imageUrl = ref('')
 const recipeId = ref<string | undefined>()
 const exposureId = ref<string | undefined>()
+const fromRecipe = ref(false)
+const clientRequestId = ref(createRequestId())
+const savedRecordId = ref<number>()
 const showSuccess = ref(false)
 const submitting = ref(false)
 const uploading = ref(false)
@@ -35,13 +39,19 @@ const uploading = ref(false)
 // tabbar 页通过 switchTab 进入，无法带 query；从推荐页跳转时由 storage 暂存菜名与心情
 onShow(() => {
   try {
-    const d = uni.getStorageSync('mrc_record_draft')
+    const d = uni.getStorageSync(RECORD_DRAFT_KEY)
     if (d) {
       if (d.dish) dishName.value = d.dish
       if (d.mood) selectedMood.value = d.mood
       if (d.recipeId !== undefined && d.recipeId !== null) recipeId.value = String(d.recipeId)
       if (d.exposureId) exposureId.value = String(d.exposureId)
-      uni.removeStorageSync('mrc_record_draft')
+      if (d.image) {
+        dishImage.value = String(d.image)
+        imageUrl.value = String(d.image)
+      }
+      if (d.cookingTime) cookingTime.value = `${Number(d.cookingTime)}分钟`
+      if (d.clientRequestId) clientRequestId.value = String(d.clientRequestId)
+      fromRecipe.value = d.source === 'recipe'
     }
   } catch (e) { /* ignore */ }
 })
@@ -69,7 +79,7 @@ async function chooseImage() {
 
 async function publish() {
   if (submitting.value) return
-  if (!dishImage.value) {
+  if (!dishImage.value && !fromRecipe.value) {
     toast('请先上传菜品照片')
     return
   }
@@ -89,7 +99,7 @@ async function publish() {
   submitting.value = true
   try {
     const openid = await ensureLogin()
-    await saveRecord({
+    const saved = await saveRecord({
       openid,
       imageUrl: imageUrl.value || dishImage.value,
       dishName: dishName.value.trim(),
@@ -97,8 +107,11 @@ async function publish() {
       note: note.value,
       recipeId: recipeId.value,
       exposureId: exposureId.value,
+      clientRequestId: clientRequestId.value,
       cookingTime: parseInt(cookingTime.value) || 30,
     })
+    savedRecordId.value = saved.id
+    uni.removeStorageSync(RECORD_DRAFT_KEY)
     uni.removeStorageSync('mrc_companion_message')
     showSuccess.value = true
   } catch (e: any) {
@@ -110,7 +123,20 @@ async function publish() {
 
 function onSuccessConfirm() {
   showSuccess.value = false
-  router.push({ name: 'calendar' })
+  if (savedRecordId.value)
+    uni.setStorageSync('mrc_timeline_record_id', savedRecordId.value)
+  dishName.value = ''
+  selectedMood.value = ''
+  note.value = ''
+  cookingTime.value = '30分钟'
+  dishImage.value = ''
+  imageUrl.value = ''
+  recipeId.value = undefined
+  exposureId.value = undefined
+  fromRecipe.value = false
+  clientRequestId.value = createRequestId()
+  savedRecordId.value = undefined
+  router.push({ name: 'timeline' })
 }
 
 const COOKING_TIME_OPTIONS = ['10分钟', '20分钟', '30分钟', '45分钟', '60分钟', '1小时以上']
@@ -151,8 +177,8 @@ function chooseCookingTime() {
         <view class="record-photo__camera">
           <Icon name="camera" :size="56" color="#EF5A3C" />
         </view>
-        <text class="record-photo__title">先拍下今天这道菜</text>
-        <text class="record-photo__tip">拍照或从相册选择 · 必填</text>
+        <text class="record-photo__title">{{ fromRecipe ? '想换成自己的成品照吗？' : '先拍下今天这道菜' }}</text>
+        <text class="record-photo__tip">{{ fromRecipe ? '可选 · 不拍也能先收进时光机' : '拍照或从相册选择 · 必填' }}</text>
       </template>
     </view>
 

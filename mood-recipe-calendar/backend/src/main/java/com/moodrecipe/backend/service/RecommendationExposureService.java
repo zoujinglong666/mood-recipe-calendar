@@ -22,9 +22,16 @@ public class RecommendationExposureService {
     }
 
     public boolean wasRecentlyShownOrRejected(String openid, Recipe recipe) {
+        return isRejected(openid, recipe) || wasRecentlyShown(openid, recipe);
+    }
+
+    public boolean isRejected(String openid, Recipe recipe) {
+        return repository.existsByOpenidAndDishKeyAndDislikedTrue(openid, dishKey(recipe.getName()));
+    }
+
+    public boolean wasRecentlyShown(String openid, Recipe recipe) {
         String key = dishKey(recipe.getName());
-        return repository.existsByOpenidAndDishKeyAndDislikedTrue(openid, key)
-                || repository.findTop20ByOpenidOrderByCreatedAtDesc(openid).stream()
+        return repository.findTop20ByOpenidOrderByCreatedAtDesc(openid).stream()
                 .anyMatch(item -> item.getDishKey().equals(key) && !item.isLiked() && !item.isMade());
     }
 
@@ -39,12 +46,10 @@ public class RecommendationExposureService {
     }
 
     @Transactional
-    public boolean feedback(String openid, String exposureId, String action) {
-        if (!ACTIONS.contains(action)) return false;
-        RecommendationExposure exposure = repository.findById(exposureId)
-                .filter(item -> openid.equals(item.getOpenid()))
-                .orElse(null);
-        if (exposure == null) return false;
+    public FeedbackState feedback(String openid, String exposureId, String action) {
+        if (!ACTIONS.contains(action)) return null;
+        RecommendationExposure exposure = repository.findByIdAndOpenid(exposureId, openid).orElse(null);
+        if (exposure == null) return null;
         if ("LIKE".equals(action)) {
             exposure.setLiked(true);
             exposure.setDisliked(false);
@@ -55,8 +60,18 @@ public class RecommendationExposureService {
         }
         if ("MADE".equals(action)) exposure.setMade(true);
         repository.save(exposure);
-        return true;
+        return state(exposure);
     }
+
+    public FeedbackState state(String openid, String exposureId) {
+        return repository.findByIdAndOpenid(exposureId, openid).map(this::state).orElse(null);
+    }
+
+    private FeedbackState state(RecommendationExposure exposure) {
+        return new FeedbackState(exposure.isLiked(), exposure.isDisliked(), exposure.isMade());
+    }
+
+    public record FeedbackState(boolean liked, boolean disliked, boolean made) { }
 
     static String dishKey(String name) {
         try {

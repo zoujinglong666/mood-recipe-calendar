@@ -6,10 +6,13 @@ import com.moodrecipe.backend.entity.UserFoodPreference;
 import com.moodrecipe.backend.repository.UserFoodPreferenceRepository;
 import com.moodrecipe.backend.repository.RecipeInteractionRepository;
 import com.moodrecipe.backend.repository.RecommendationExposureRepository;
+import com.moodrecipe.backend.service.GuozaiMemory;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Set;
+import java.time.LocalTime;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/preferences")
@@ -19,19 +22,35 @@ public class UserFoodPreferenceController {
     private final UserFoodPreferenceRepository repository;
     private final RecipeInteractionRepository interactions;
     private final RecommendationExposureRepository exposures;
+    private final GuozaiMemory memory;
 
     public UserFoodPreferenceController(UserFoodPreferenceRepository repository,
                                         RecipeInteractionRepository interactions,
-                                        RecommendationExposureRepository exposures) {
+                                        RecommendationExposureRepository exposures,
+                                        GuozaiMemory memory) {
         this.repository = repository;
         this.interactions = interactions;
         this.exposures = exposures;
+        this.memory = memory;
     }
 
     @GetMapping
     public ApiResponse<UserFoodPreference> get(
             @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
         return ApiResponse.ok(repository.findByOpenid(openid).orElseGet(UserFoodPreference::new));
+    }
+
+    @GetMapping("/summary")
+    public ApiResponse<FoodMemoryView> summary(
+            @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
+        UserFoodPreference explicit = repository.findByOpenid(openid).orElseGet(UserFoodPreference::new);
+        GuozaiMemory.MemorySnapshot snapshot = memory.snapshot(openid, LocalTime.now().getHour());
+        List<com.moodrecipe.backend.entity.RecipeInteraction> recent =
+                interactions.findTop30ByOpenidOrderByCreatedAtDesc(openid);
+        BehaviorMemory behavior = new BehaviorMemory(
+                snapshot.topDish(), snapshot.topMood(), snapshot.streak(), snapshot.recordedToday(),
+                count(recent, "LIKE"), count(recent, "DISLIKE"), count(recent, "MADE"));
+        return ApiResponse.ok(new FoodMemoryView(explicit, behavior));
     }
 
     @PutMapping
@@ -77,6 +96,13 @@ public class UserFoodPreferenceController {
 
     private boolean tooLong(String value) { return value != null && value.length() > 500; }
     private String clean(String value) { return value == null ? "" : value.trim(); }
+    private long count(List<com.moodrecipe.backend.entity.RecipeInteraction> items, String action) {
+        return items.stream().filter(item -> action.equals(item.getAction())).count();
+    }
+
+    public record FoodMemoryView(UserFoodPreference explicit, BehaviorMemory behavior) { }
+    public record BehaviorMemory(String topDish, String topMood, int streak, boolean recordedToday,
+                                 long likedCount, long dislikedCount, long madeCount) { }
 
     public record PreferenceRequest(
             String favoriteTags,

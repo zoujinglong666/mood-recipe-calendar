@@ -4,6 +4,7 @@ import com.moodrecipe.backend.entity.UserRecord;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface UserRecordRepository extends JpaRepository<UserRecord, Long> {
 
@@ -20,4 +21,5 @@ public interface UserRecordRepository extends JpaRepository<UserRecord, Long> {
     List<UserRecord> findByOpenidAndRecordDate(String openid, String date);
 
     long countByOpenid(String openid);
+    Optional<UserRecord> findByOpenidAndClientRequestId(String openid, String clientRequestId);
 }

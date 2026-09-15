@@ -6,6 +6,8 @@ import EmptyState from '../../components/guozai/EmptyState.vue'
 import { ensureLogin } from '../../utils/login'
 import { toast, toastError, toastSuccess } from '../../utils/toast'
 import { deleteRecord, fetchRecords, type RecordItem } from '../../api/records'
+import { fetchRecipeDetail } from '../../api/recipes'
+import { COOKING_PROGRESS_KEY, saveCookingDraft } from '../../utils/cookingDraft'
 
 definePage({ name: 'timeline', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '菜谱时光机' } })
 const router = useRouter()
@@ -13,6 +15,7 @@ const loading = ref(true)
 const records = ref<RecordItem[]>([])
 const nearToday = ref(false)
 const selected = ref<RecordItem | null>(null)
+const openingRecipe = ref(false)
 let lastTick = 0
 
 const grouped = computed(() => {
@@ -25,7 +28,38 @@ const grouped = computed(() => {
 })
 async function load() {
   loading.value = true
-  try { records.value = await fetchRecords(await ensureLogin()) } finally { loading.value = false }
+  try {
+    records.value = await fetchRecords(await ensureLogin())
+    const targetId = Number(uni.getStorageSync('mrc_timeline_record_id'))
+    if (targetId) {
+      selected.value = records.value.find(item => item.id === targetId) || null
+      uni.removeStorageSync('mrc_timeline_record_id')
+    }
+  }
+  catch (e: any) { toastError(e, '时光机加载失败，请重试') }
+  finally { loading.value = false }
+}
+
+async function openLinkedRecipe(restart: boolean) {
+  const id = Number(selected.value?.recipeId)
+  if (!id || openingRecipe.value) return
+  if (!restart) {
+    const recordMood = selected.value?.moodTag || '平静'
+    selected.value = null
+    router.push({ name: 'recipe', query: { recipeId: String(id), mood: recordMood } })
+    return
+  }
+  openingRecipe.value = true
+  try {
+    await ensureLogin()
+    const recipe = await fetchRecipeDetail(id)
+    saveCookingDraft(recipe, selected.value?.moodTag || '平静')
+    if (restart) uni.removeStorageSync(COOKING_PROGRESS_KEY)
+    selected.value = null
+    router.push({ name: 'cooking' })
+  }
+  catch (e: any) { toastError(e, '菜谱暂时打不开，请重试') }
+  finally { openingRecipe.value = false }
 }
 function onScroll(e: any) {
   const top = Number(e.detail?.scrollTop || 0)
@@ -72,10 +106,10 @@ async function removeSelected() {
       </view>
       <view class="timeline-end"><image src="https://static.image-zero.art/mood-recipe/static/guozai/action_08_peek.png" mode="aspectFit" /><text>再往下，就是更久以前的你啦。</text></view>
     </scroll-view>
-    <view v-if="selected" class="detail-mask" @click.self="selected=null"><view class="detail-sheet"><image :src="selected.imageUrl" mode="aspectFill"/><text class="detail-title">{{selected.dishName}}</text><text class="detail-meta">{{selected.recordDate}} · {{selected.moodTag}}</text><text v-if="selected.note" class="detail-note">{{selected.note}}</text><view class="detail-delete" @click="removeSelected">删除这条记录</view><view class="detail-close" @click="selected=null">收起</view></view></view>
+    <view v-if="selected" class="detail-mask" @click.self="selected=null"><view class="detail-sheet"><image :src="selected.imageUrl" mode="aspectFill"/><text class="detail-title">{{selected.dishName}}</text><text class="detail-meta">{{selected.recordDate}} · {{selected.moodTag}}</text><text v-if="selected.note" class="detail-note">{{selected.note}}</text><view v-if="Number(selected.recipeId)" class="detail-recipe-actions"><view class="detail-recipe detail-recipe--secondary" role="button" aria-label="查看关联菜谱" @click="openLinkedRecipe(false)">查看菜谱</view><view class="detail-recipe detail-recipe--primary" role="button" aria-label="重新做这道菜" @click="openLinkedRecipe(true)">{{ openingRecipe ? '正在打开…' : '再做一次' }}</view></view><view class="detail-delete" role="button" aria-label="删除这条记录" @click="removeSelected">删除这条记录</view><view class="detail-close" role="button" aria-label="收起记录详情" @click="selected=null">收起</view></view></view>
   </view>
 </template>
 
 <style lang="scss" scoped>
-.timeline-page{height:100vh;background:var(--mrc-bg)}.timeline-scroll{height:calc(100vh - 120rpx);padding:0 32rpx 80rpx;box-sizing:border-box}.timeline-hero{display:flex;min-height:300rpx;margin:12rpx 0 20rpx;padding:36rpx 32rpx;box-sizing:border-box;border-radius:36rpx;background:linear-gradient(135deg,var(--mrc-surface-peach),var(--mrc-surface-sun));border:2rpx solid var(--mrc-border);overflow:hidden}.timeline-kicker{display:block;color:var(--mrc-accent);font-size:19rpx;font-weight:800;letter-spacing:2rpx}.timeline-title{display:block;margin-top:16rpx;color:var(--mrc-text-deep);font-size:40rpx;font-weight:800;line-height:1.35}.timeline-sub{display:block;margin-top:12rpx;color:var(--mrc-text-sub);font-size:23rpx}.timeline-hero__img{width:220rpx;height:220rpx;margin:auto -44rpx -20rpx 0}.today-chip{display:flex;justify-content:center;margin:0 auto 32rpx;padding:12rpx 24rpx;border-radius:30rpx;background:var(--mrc-surface);color:var(--mrc-text-sub);font-size:23rpx}.today-chip--active{background:var(--mrc-accent-soft);color:var(--mrc-accent);font-weight:700}.timeline-group{position:relative;padding-bottom:16rpx}.timeline-month{display:flex;align-items:center;gap:16rpx;margin:0 0 20rpx 84rpx;color:var(--mrc-text-deep);font-size:30rpx;font-weight:800}.timeline-month view{flex:1;height:2rpx;background:var(--mrc-border-light)}.timeline-item{position:relative;display:grid;grid-template-columns:72rpx 70rpx 1fr;gap:12rpx;padding-bottom:20rpx}.timeline-item::before{content:'';position:absolute;left:34rpx;top:30rpx;bottom:-10rpx;width:3rpx;background:var(--mrc-border-light)}.timeline-item:last-child::before{bottom:10rpx}.timeline-dot{width:18rpx;height:18rpx;margin:12rpx auto 0;border-radius:50%;background:var(--mrc-primary);box-shadow:0 0 0 8rpx var(--mrc-accent-soft);z-index:1}.timeline-date{padding-top:4rpx;color:var(--mrc-text-sub);font-size:23rpx}.timeline-card{overflow:hidden;border:2rpx solid var(--mrc-border-light);border-radius:26rpx;background:var(--mrc-surface);box-shadow:var(--mrc-shadow-soft)}.timeline-card__img{width:100%;height:260rpx}.timeline-card__body{padding:20rpx 20rpx 24rpx}.timeline-card__dish{display:block;color:var(--mrc-text-deep);font-size:31rpx;font-weight:800}.timeline-card__mood{display:block;margin-top:8rpx;color:var(--mrc-accent);font-size:22rpx;font-weight:700}.timeline-card__note{display:block;margin-top:12rpx;color:var(--mrc-text-sub);font-size:23rpx;line-height:1.5}.timeline-end{display:flex;flex-direction:column;align-items:center;padding:32rpx;color:var(--mrc-text-sub);font-size:23rpx}.timeline-end image{width:120rpx;height:120rpx}.detail-mask{position:fixed;inset:0;z-index:100;display:flex;align-items:flex-end;background:rgba(54,39,29,.48)}.detail-sheet{width:100%;padding:32rpx 32rpx calc(40rpx + env(safe-area-inset-bottom));box-sizing:border-box;border-radius:36rpx 36rpx 0 0;background:var(--mrc-bg)}.detail-sheet image{width:100%;height:360rpx;border-radius:24rpx}.detail-title,.detail-meta,.detail-note{display:block}.detail-title{margin-top:22rpx;font-size:38rpx;font-weight:800;color:var(--mrc-text-deep)}.detail-meta,.detail-note{margin-top:10rpx;color:var(--mrc-text-sub);font-size:25rpx}.detail-note{line-height:1.6}.detail-delete,.detail-close{min-height:88rpx;margin-top:24rpx;border-radius:44rpx;display:flex;align-items:center;justify-content:center;font-size:29rpx;font-weight:700}.detail-delete{border:2rpx solid #e89a93;color:#c94b45}.detail-close{margin-top:14rpx;background:var(--mrc-primary-grad);color:#fff}
+.timeline-page{height:100vh;background:var(--mrc-bg)}.timeline-scroll{height:calc(100vh - 120rpx);padding:0 32rpx 80rpx;box-sizing:border-box}.timeline-hero{display:flex;min-height:300rpx;margin:12rpx 0 20rpx;padding:36rpx 32rpx;box-sizing:border-box;border-radius:36rpx;background:linear-gradient(135deg,var(--mrc-surface-peach),var(--mrc-surface-sun));border:2rpx solid var(--mrc-border);overflow:hidden}.timeline-kicker{display:block;color:var(--mrc-accent);font-size:19rpx;font-weight:800;letter-spacing:2rpx}.timeline-title{display:block;margin-top:16rpx;color:var(--mrc-text-deep);font-size:40rpx;font-weight:800;line-height:1.35}.timeline-sub{display:block;margin-top:12rpx;color:var(--mrc-text-sub);font-size:23rpx}.timeline-hero__img{width:220rpx;height:220rpx;margin:auto -44rpx -20rpx 0}.today-chip{display:flex;justify-content:center;margin:0 auto 32rpx;padding:12rpx 24rpx;border-radius:30rpx;background:var(--mrc-surface);color:var(--mrc-text-sub);font-size:23rpx}.today-chip--active{background:var(--mrc-accent-soft);color:var(--mrc-accent);font-weight:700}.timeline-group{position:relative;padding-bottom:16rpx}.timeline-month{display:flex;align-items:center;gap:16rpx;margin:0 0 20rpx 84rpx;color:var(--mrc-text-deep);font-size:30rpx;font-weight:800}.timeline-month view{flex:1;height:2rpx;background:var(--mrc-border-light)}.timeline-item{position:relative;display:grid;grid-template-columns:72rpx 70rpx 1fr;gap:12rpx;padding-bottom:20rpx}.timeline-item::before{content:'';position:absolute;left:34rpx;top:30rpx;bottom:-10rpx;width:3rpx;background:var(--mrc-border-light)}.timeline-item:last-child::before{bottom:10rpx}.timeline-dot{width:18rpx;height:18rpx;margin:12rpx auto 0;border-radius:50%;background:var(--mrc-primary);box-shadow:0 0 0 8rpx var(--mrc-accent-soft);z-index:1}.timeline-date{padding-top:4rpx;color:var(--mrc-text-sub);font-size:23rpx}.timeline-card{overflow:hidden;border:2rpx solid var(--mrc-border-light);border-radius:26rpx;background:var(--mrc-surface);box-shadow:var(--mrc-shadow-soft)}.timeline-card__img{width:100%;height:260rpx}.timeline-card__body{padding:20rpx 20rpx 24rpx}.timeline-card__dish{display:block;color:var(--mrc-text-deep);font-size:31rpx;font-weight:800}.timeline-card__mood{display:block;margin-top:8rpx;color:var(--mrc-accent);font-size:22rpx;font-weight:700}.timeline-card__note{display:block;margin-top:12rpx;color:var(--mrc-text-sub);font-size:23rpx;line-height:1.5}.timeline-end{display:flex;flex-direction:column;align-items:center;padding:32rpx;color:var(--mrc-text-sub);font-size:23rpx}.timeline-end image{width:120rpx;height:120rpx}.detail-mask{position:fixed;inset:0;z-index:100;display:flex;align-items:flex-end;background:rgba(54,39,29,.48)}.detail-sheet{width:100%;padding:32rpx 32rpx calc(40rpx + env(safe-area-inset-bottom));box-sizing:border-box;border-radius:36rpx 36rpx 0 0;background:var(--mrc-bg)}.detail-sheet image{width:100%;height:360rpx;border-radius:24rpx}.detail-title,.detail-meta,.detail-note{display:block}.detail-title{margin-top:22rpx;font-size:38rpx;font-weight:800;color:var(--mrc-text-deep)}.detail-meta,.detail-note{margin-top:10rpx;color:var(--mrc-text-sub);font-size:25rpx}.detail-note{line-height:1.6}.detail-recipe-actions{display:grid;grid-template-columns:1fr 1.25fr;gap:14rpx;margin-top:24rpx}.detail-recipe{display:flex;min-height:88rpx;align-items:center;justify-content:center;border-radius:44rpx;font-size:27rpx;font-weight:800}.detail-recipe--secondary{border:2rpx solid var(--mrc-border);color:var(--mrc-text-deep)}.detail-recipe--primary{color:#fff;background:var(--mrc-primary-grad);box-shadow:var(--mrc-shadow-coral)}.detail-delete,.detail-close{min-height:88rpx;margin-top:18rpx;border-radius:44rpx;display:flex;align-items:center;justify-content:center;font-size:27rpx;font-weight:700}.detail-delete{border:2rpx solid var(--mrc-border);color:var(--mrc-danger,#a54235)}.detail-close{margin-top:12rpx;color:var(--mrc-text-sub);background:var(--mrc-surface-2)}
 </style>

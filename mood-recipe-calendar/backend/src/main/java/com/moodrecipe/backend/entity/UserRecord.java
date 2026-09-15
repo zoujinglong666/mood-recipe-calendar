@@ -16,7 +16,8 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Entity
-@Table(name = "user_records")
+@Table(name = "user_records", uniqueConstraints =
+        @UniqueConstraint(name = "uk_user_record_request", columnNames = {"openid", "client_request_id"}))
 public class UserRecord {
 
     @Id
@@ -44,6 +45,10 @@ public class UserRecord {
     /** 关联推荐菜谱ID */
     @Column(name = "recipe_id")
     private String recipeId;
+
+    /** 客户端重试标识；旧记录允许为空。 */
+    @Column(name = "client_request_id", length = 64)
+    private String clientRequestId;
 
     /** 烹饪分钟数 */
     @Column(name = "cooking_time")

@@ -20,13 +20,13 @@ class RecommendationExposureServiceTest {
         RecommendationExposure exposure = new RecommendationExposure();
         exposure.setId("exposure-1");
         exposure.setOpenid("user-1");
-        when(repository.findById("exposure-1")).thenReturn(Optional.of(exposure));
+        when(repository.findByIdAndOpenid("exposure-1", "user-1")).thenReturn(Optional.of(exposure));
         when(repository.save(any())).thenAnswer(call -> call.getArgument(0));
 
-        boolean saved = new RecommendationExposureService(repository)
+        RecommendationExposureService.FeedbackState saved = new RecommendationExposureService(repository)
                 .feedback("user-1", "exposure-1", "LIKE");
 
-        assertTrue(saved);
+        assertTrue(saved.liked());
         assertTrue(exposure.isLiked());
         verify(repository).save(exposure);
     }

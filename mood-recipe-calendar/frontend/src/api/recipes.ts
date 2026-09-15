@@ -1,4 +1,4 @@
-import { get, post } from './request'
+import { get, post, resolveAssetUrl } from './request'
 
 export interface RecipeItem {
   id?: number
@@ -38,32 +38,51 @@ export interface RecommendationJob {
 
 /** 全部菜谱 */
 export function fetchAllRecipes() {
-  return get<RecipeItem[]>('/recipes')
+  return get<RecipeItem[]>('/recipes').then(items => items.map(normalizeRecipe))
 }
 
 /** 按心情优先获取 AI 生成的菜谱；服务端不可用时自动回退到菜谱库 */
 export function recommendRecipe(mood: string) {
-  return get<RecipeItem>('/recipes/recommend', { mood })
+  return get<RecipeItem>('/recipes/recommend', { mood }).then(normalizeRecipe)
 }
 
 /** 创建可查询真实执行阶段的今日推荐任务。 */
 export function createRecommendationJob(mood: string) {
-  return post<RecommendationJob>('/recipes/recommend-jobs', { mood })
+  return post<RecommendationJob>('/recipes/recommend-jobs', { mood }).then(job => ({
+    ...job,
+    recipe: job.recipe ? normalizeRecipe(job.recipe) : undefined,
+  }))
 }
 
 /** 查询当前登录用户自己的推荐任务。 */
 export function fetchRecommendationJob(jobId: string) {
-  return get<RecommendationJob>(`/recipes/recommend-jobs/${jobId}`)
+  return get<RecommendationJob>(`/recipes/recommend-jobs/${jobId}`).then(job => ({
+    ...job,
+    recipe: job.recipe ? normalizeRecipe(job.recipe) : undefined,
+  }))
 }
 
 export type RecipeFeedbackAction = 'LIKE' | 'DISLIKE' | 'MADE'
+
+export interface RecipeFeedbackState {
+  liked: boolean
+  disliked: boolean
+  made: boolean
+}
 
 /** 只上传用户对菜谱的行为，用于下一次推荐排序。 */
 export function sendRecipeFeedback(recipe: Pick<RecipeItem, 'id' | 'exposureId'>, action: RecipeFeedbackAction) {
   const path = recipe.exposureId
     ? `/recipes/exposures/${encodeURIComponent(recipe.exposureId)}/feedback`
     : `/recipes/${recipe.id}/feedback`
-  return post<void>(path, { action })
+  return post<RecipeFeedbackState>(path, { action })
+}
+
+export function fetchRecipeFeedback(recipe: Pick<RecipeItem, 'id' | 'exposureId'>) {
+  const path = recipe.exposureId
+    ? `/recipes/exposures/${encodeURIComponent(recipe.exposureId)}/feedback`
+    : `/recipes/${recipe.id}/feedback`
+  return get<RecipeFeedbackState>(path)
 }
 
 /** 已解锁 AI 私人菜单后，按食材、时长与口味生成菜谱。 */
@@ -75,15 +94,19 @@ export function requestDeepRecipe(payload: {
   preference?: string
 }) {
   const { openid: _openid, ...request } = payload
-  return post<RecipeItem>('/recipes/deep-recommend', request)
+  return post<RecipeItem>('/recipes/deep-recommend', request).then(normalizeRecipe)
 }
 
 /** 按心情列表 */
 export function fetchRecipesByMood(mood: string) {
-  return get<RecipeItem[]>('/recipes/by-mood', { mood })
+  return get<RecipeItem[]>('/recipes/by-mood', { mood }).then(items => items.map(normalizeRecipe))
 }
 
 /** 菜谱详情 */
 export function fetchRecipeDetail(id: number) {
-  return get<RecipeItem>(`/recipes/${id}`)
+  return get<RecipeItem>(`/recipes/${id}`).then(normalizeRecipe)
+}
+
+function normalizeRecipe(recipe: RecipeItem): RecipeItem {
+  return { ...recipe, image: resolveAssetUrl(recipe.image) }
 }

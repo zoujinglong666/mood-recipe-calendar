@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { HealthGoal, SpiceLevel } from '../../api/preferences'
+import type { FoodMemoryBehavior, HealthGoal, SpiceLevel } from '../../api/preferences'
 import { computed, ref } from 'vue'
 import { navBack } from '@/composables/useNavBar'
-import { clearFoodPreference, fetchFoodPreference, saveFoodPreference } from '../../api/preferences'
+import { clearFoodPreference, fetchFoodMemory, saveFoodPreference } from '../../api/preferences'
 import { ensureLogin } from '../../utils/login'
 import { toast, toastError, toastSuccess } from '../../utils/toast'
 
@@ -25,6 +25,7 @@ const spiceLevel = ref<SpiceLevel>('NORMAL')
 const healthGoal = ref<HealthGoal>('BALANCED')
 const avoidIngredients = ref('')
 const allergens = ref('')
+const behavior = ref<FoodMemoryBehavior | null>(null)
 
 const FAVORITES = ['家常菜', '汤粥', '面食', '米饭', '清淡', '香辣', '肉食', '海鲜']
 const CUISINES = ['川菜', '湘菜', '粤菜', '江浙菜', '东北菜', '西北菜', '云贵菜', '日韩料理']
@@ -44,7 +45,9 @@ const onboarding = computed(() => route.query.from === 'onboarding')
 onLoad(async () => {
   try {
     await ensureLogin()
-    const data = await fetchFoodPreference()
+    const memory = await fetchFoodMemory()
+    const data = memory.explicit
+    behavior.value = memory.behavior
     favoriteTags.value = data.favoriteTags ? data.favoriteTags.split(',').filter(Boolean) : []
     favoriteCuisines.value = data.favoriteCuisines ? data.favoriteCuisines.split(',').filter(Boolean) : []
     favoriteDishes.value = data.favoriteDishes || ''
@@ -146,6 +149,7 @@ function clearMemory() {
         healthGoal.value = 'BALANCED'
         avoidIngredients.value = ''
         allergens.value = ''
+        behavior.value = null
         toast('口味记忆已清除')
       }
       catch (e: any) {
@@ -177,6 +181,29 @@ function clearMemory() {
             这些记忆只用于推荐，你可以随时修改或清除。
           </text>
         </view>
+      </view>
+
+      <view class="memory-summary">
+        <view class="memory-summary__head">
+          <view>
+            <text class="memory-summary__eyebrow">锅仔这样认识你</text>
+            <text class="memory-summary__title">来自你的选择和真实记录</text>
+          </view>
+          <text class="memory-summary__source">行为记忆</text>
+        </view>
+        <view v-if="behavior && (behavior.likedCount || behavior.dislikedCount || behavior.madeCount)" class="memory-summary__grid">
+          <view class="memory-stat"><text>{{ behavior.madeCount }}</text><text>做过</text></view>
+          <view class="memory-stat"><text>{{ behavior.likedCount }}</text><text>喜欢</text></view>
+          <view class="memory-stat"><text>{{ behavior.streak }}</text><text>连续天数</text></view>
+        </view>
+        <view v-if="behavior?.topDish || behavior?.topMood" class="memory-summary__sentence">
+          <text v-if="behavior.topDish">最近常做「{{ behavior.topDish }}」</text>
+          <text v-if="behavior.topMood">记录里「{{ behavior.topMood }}」最多</text>
+        </view>
+        <view v-else class="memory-summary__empty">
+          <text>再喜欢、拒绝或记录几顿，锅仔就能总结出你的习惯。</text>
+        </view>
+        <text class="memory-summary__foot">这里只展示统计结论，不会把你的记录正文交给推荐模型。</text>
       </view>
 
       <view class="memory-section">
@@ -350,6 +377,19 @@ function clearMemory() {
 .memory-hero__eyebrow { color: var(--mrc-accent); font-size: 21rpx; font-weight: 800; letter-spacing: 2rpx; }
 .memory-hero__title { margin-top: 8rpx; color: var(--mrc-text-deep); font-size: 34rpx; font-weight: var(--mrc-fw-heavy); line-height: 1.35; }
 .memory-hero__body { margin-top: 10rpx; color: var(--mrc-text-sub); font-size: 23rpx; line-height: 1.55; }
+.memory-summary { margin-bottom: 24rpx; padding: 28rpx; border: 2rpx solid var(--mrc-border); border-radius: 30rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); }
+.memory-summary__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20rpx; }
+.memory-summary__eyebrow, .memory-summary__title, .memory-summary__foot, .memory-summary__sentence text, .memory-summary__empty text { display: block; }
+.memory-summary__eyebrow { color: var(--mrc-accent); font-size: 21rpx; font-weight: 800; letter-spacing: 2rpx; }
+.memory-summary__title { margin-top: 7rpx; color: var(--mrc-text-deep); font-size: 29rpx; font-weight: 800; }
+.memory-summary__source { flex-shrink: 0; padding: 9rpx 14rpx; border-radius: 18rpx; background: var(--mrc-accent-soft); color: var(--mrc-accent); font-size: 20rpx; font-weight: 700; }
+.memory-summary__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12rpx; margin-top: 24rpx; }
+.memory-stat { display: flex; min-height: 96rpx; flex-direction: column; align-items: center; justify-content: center; border-radius: 22rpx; background: var(--mrc-surface-sun); }
+.memory-stat text:first-child { color: var(--mrc-text-deep); font-size: 34rpx; font-weight: 800; font-variant-numeric: tabular-nums; }
+.memory-stat text:last-child { margin-top: 3rpx; color: var(--mrc-text-sub); font-size: 21rpx; }
+.memory-summary__sentence, .memory-summary__empty { display: flex; flex-direction: column; gap: 8rpx; margin-top: 20rpx; padding: 18rpx 20rpx; border-radius: 20rpx; background: var(--mrc-bg); color: var(--mrc-text-deep); font-size: 24rpx; line-height: 1.5; }
+.memory-summary__empty { color: var(--mrc-text-sub); }
+.memory-summary__foot { margin-top: 16rpx; color: var(--mrc-text-light); font-size: 20rpx; line-height: 1.5; }
 .memory-section { padding: 28rpx; margin-bottom: 20rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); }
 .memory-section--warning { border-color: var(--mrc-border); }
 .memory-section__title, .memory-section__hint { display: block; }

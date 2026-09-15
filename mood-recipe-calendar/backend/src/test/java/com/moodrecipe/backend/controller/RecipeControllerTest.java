@@ -107,4 +107,37 @@ class RecipeControllerTest {
         assertEquals(0, response.getCode());
         verify(interactions).save(any());
     }
+
+    @Test
+    void repeatedRecipeFeedbackIsIdempotent() {
+        RecipeRepository recipes = mock(RecipeRepository.class);
+        RecipeInteractionRepository interactions = mock(RecipeInteractionRepository.class);
+        when(recipes.existsById(1L)).thenReturn(true);
+        when(interactions.existsByOpenidAndRecipeIdAndAction("user-1", 1L, "LIKE"))
+                .thenReturn(false, true, true, true);
+        RecipeController controller = new RecipeController(recipes, interactions, mock(GuozaiAgent.class),
+                mock(VirtualCommerceService.class), mock(OperationalEventService.class),
+                mock(RecommendationJobService.class), mock(RecommendationExposureService.class));
+
+        controller.feedback(1L, "user-1", new RecipeController.RecipeFeedbackRequest("LIKE"));
+        controller.feedback(1L, "user-1", new RecipeController.RecipeFeedbackRequest("LIKE"));
+
+        verify(interactions, times(1)).save(any());
+    }
+
+    @Test
+    void madeFeedbackMustComeFromACompletedRecord() {
+        RecipeRepository recipes = mock(RecipeRepository.class);
+        RecipeInteractionRepository interactions = mock(RecipeInteractionRepository.class);
+        when(recipes.existsById(1L)).thenReturn(true);
+        RecipeController controller = new RecipeController(recipes, interactions, mock(GuozaiAgent.class),
+                mock(VirtualCommerceService.class), mock(OperationalEventService.class),
+                mock(RecommendationJobService.class), mock(RecommendationExposureService.class));
+
+        var response = controller.feedback(1L, "user-1",
+                new RecipeController.RecipeFeedbackRequest("MADE"));
+
+        assertEquals(400, response.getCode());
+        verifyNoInteractions(interactions);
+    }
 }

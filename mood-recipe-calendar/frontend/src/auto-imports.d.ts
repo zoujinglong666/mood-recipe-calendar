@@ -7,12 +7,16 @@ export {}
 declare global {
   const $$userConfigMap: typeof import('./api/index')['$$userConfigMap']
   const ALBUM_PAGE_SIZE: typeof import('./utils/albumLayout')['ALBUM_PAGE_SIZE']
+  const API_BACKENDS: typeof import('./api/request')['API_BACKENDS']
   const Apis: typeof import('./api/index')['Apis']
   const BASE_URL: typeof import('./api/request')['BASE_URL']
+  const COOKING_DRAFT_KEY: typeof import('./utils/cookingDraft')['COOKING_DRAFT_KEY']
+  const COOKING_PROGRESS_KEY: typeof import('./utils/cookingDraft')['COOKING_PROGRESS_KEY']
   const CommonUtil: typeof import('@wot-ui/ui')['CommonUtil']
   const EffectScope: typeof import('vue')['EffectScope']
   const MOOD_COLOR: typeof import('./utils/albumLayout')['MOOD_COLOR']
   const MOOD_EMOJI: typeof import('./utils/albumLayout')['MOOD_EMOJI']
+  const RECORD_DRAFT_KEY: typeof import('./utils/cookingDraft')['RECORD_DRAFT_KEY']
   const acceptHMRUpdate: typeof import('pinia')['acceptHMRUpdate']
   const alovaInstance: typeof import('./api/index')['alovaInstance']
   const api: typeof import('./api/index')['default']
@@ -41,6 +45,7 @@ declare global {
   const createPinia: typeof import('pinia')['createPinia']
   const createReactiveFn: typeof import('@vueuse/core')['createReactiveFn']
   const createRecommendationJob: typeof import('./api/recipes')['createRecommendationJob']
+  const createRequestId: typeof import('./utils/cookingDraft')['createRequestId']
   const createReusableTemplate: typeof import('@vueuse/core')['createReusableTemplate']
   const createRouter: typeof import('@wot-ui/router')['createRouter']
   const createSharedComposable: typeof import('@vueuse/core')['createSharedComposable']
@@ -66,12 +71,14 @@ declare global {
   const fetchCheckinStatus: typeof import('./api/gallery')['fetchCheckinStatus']
   const fetchCompanionMessage: typeof import('./api/records')['fetchCompanionMessage']
   const fetchEntitlements: typeof import('./api/virtualCommerce')['fetchEntitlements']
+  const fetchFoodMemory: typeof import('./api/preferences')['fetchFoodMemory']
   const fetchFoodPreference: typeof import('./api/preferences')['fetchFoodPreference']
   const fetchMonthAlbum: typeof import('./api/albums')['fetchMonthAlbum']
   const fetchMyFeedback: typeof import('./api/feedback')['fetchMyFeedback']
   const fetchOrders: typeof import('./api/gallery')['fetchOrders']
   const fetchProducts: typeof import('./api/gallery')['fetchProducts']
   const fetchRecipeDetail: typeof import('./api/recipes')['fetchRecipeDetail']
+  const fetchRecipeFeedback: typeof import('./api/recipes')['fetchRecipeFeedback']
   const fetchRecipesByMood: typeof import('./api/recipes')['fetchRecipesByMood']
   const fetchRecommendationJob: typeof import('./api/recipes')['fetchRecommendationJob']
   const fetchRecords: typeof import('./api/records')['fetchRecords']
@@ -86,6 +93,7 @@ declare global {
   const generateWeeklyPlan: typeof import('./api/weeklyPlans')['generateWeeklyPlan']
   const get: typeof import('./api/request')['get']
   const getActivePinia: typeof import('pinia')['getActivePinia']
+  const getApiBaseUrl: typeof import('./api/request')['getApiBaseUrl']
   const getCurrentInstance: typeof import('vue')['getCurrentInstance']
   const getCurrentPath: typeof import('./utils/index')['getCurrentPath']
   const getCurrentPlan: typeof import('./api/weeklyPlans')['getCurrentPlan']
@@ -106,6 +114,7 @@ declare global {
   const isReactive: typeof import('vue')['isReactive']
   const isReadonly: typeof import('vue')['isReadonly']
   const isRef: typeof import('vue')['isRef']
+  const loadCookingDraft: typeof import('./utils/cookingDraft')['loadCookingDraft']
   const login: typeof import('./api/auth')['login']
   const logout: typeof import('./api/auth')['logout']
   const makeDestructurable: typeof import('@vueuse/core')['makeDestructurable']
@@ -189,11 +198,14 @@ declare global {
   const resolveComponent: typeof import('vue')['resolveComponent']
   const resolveRef: typeof import('@vueuse/core')['resolveRef']
   const resolveUnref: typeof import('@vueuse/core')['resolveUnref']
+  const saveCookingDraft: typeof import('./utils/cookingDraft')['saveCookingDraft']
   const saveFoodPreference: typeof import('./api/preferences')['saveFoodPreference']
   const saveRecord: typeof import('./api/records')['saveRecord']
+  const saveRecordDraft: typeof import('./utils/cookingDraft')['saveRecordDraft']
   const saveShareImage: typeof import('./utils/albumShare')['saveShareImage']
   const sendRecipeFeedback: typeof import('./api/recipes')['sendRecipeFeedback']
   const setActivePinia: typeof import('pinia')['setActivePinia']
+  const setApiBaseUrl: typeof import('./api/request')['setApiBaseUrl']
   const setMapStoreSuffix: typeof import('pinia')['setMapStoreSuffix']
   const shallowReactive: typeof import('vue')['shallowReactive']
   const shallowReadonly: typeof import('vue')['shallowReadonly']
@@ -434,11 +446,14 @@ declare module 'vue' {
   interface GlobalComponents {}
   interface ComponentCustomProperties {
     readonly ALBUM_PAGE_SIZE: UnwrapRef<typeof import('./utils/albumLayout')['ALBUM_PAGE_SIZE']>
-    readonly BASE_URL: UnwrapRef<typeof import('./api/request')['BASE_URL']>
+    readonly API_BACKENDS: UnwrapRef<typeof import('./api/request')['API_BACKENDS']>
+    readonly COOKING_DRAFT_KEY: UnwrapRef<typeof import('./utils/cookingDraft')['COOKING_DRAFT_KEY']>
+    readonly COOKING_PROGRESS_KEY: UnwrapRef<typeof import('./utils/cookingDraft')['COOKING_PROGRESS_KEY']>
     readonly CommonUtil: UnwrapRef<typeof import('@wot-ui/ui')['CommonUtil']>
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
     readonly MOOD_COLOR: UnwrapRef<typeof import('./utils/albumLayout')['MOOD_COLOR']>
     readonly MOOD_EMOJI: UnwrapRef<typeof import('./utils/albumLayout')['MOOD_EMOJI']>
+    readonly RECORD_DRAFT_KEY: UnwrapRef<typeof import('./utils/cookingDraft')['RECORD_DRAFT_KEY']>
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>
     readonly asyncComputed: UnwrapRef<typeof import('@vueuse/core')['asyncComputed']>
     readonly autoLayout: UnwrapRef<typeof import('./utils/albumLayout')['autoLayout']>
@@ -463,6 +478,7 @@ declare module 'vue' {
     readonly createPinia: UnwrapRef<typeof import('pinia')['createPinia']>
     readonly createReactiveFn: UnwrapRef<typeof import('@vueuse/core')['createReactiveFn']>
     readonly createRecommendationJob: UnwrapRef<typeof import('./api/recipes')['createRecommendationJob']>
+    readonly createRequestId: UnwrapRef<typeof import('./utils/cookingDraft')['createRequestId']>
     readonly createReusableTemplate: UnwrapRef<typeof import('@vueuse/core')['createReusableTemplate']>
     readonly createRouter: UnwrapRef<typeof import('@wot-ui/router')['createRouter']>
     readonly createSharedComposable: UnwrapRef<typeof import('@vueuse/core')['createSharedComposable']>
@@ -488,12 +504,14 @@ declare module 'vue' {
     readonly fetchCheckinStatus: UnwrapRef<typeof import('./api/gallery')['fetchCheckinStatus']>
     readonly fetchCompanionMessage: UnwrapRef<typeof import('./api/records')['fetchCompanionMessage']>
     readonly fetchEntitlements: UnwrapRef<typeof import('./api/virtualCommerce')['fetchEntitlements']>
+    readonly fetchFoodMemory: UnwrapRef<typeof import('./api/preferences')['fetchFoodMemory']>
     readonly fetchFoodPreference: UnwrapRef<typeof import('./api/preferences')['fetchFoodPreference']>
     readonly fetchMonthAlbum: UnwrapRef<typeof import('./api/albums')['fetchMonthAlbum']>
     readonly fetchMyFeedback: UnwrapRef<typeof import('./api/feedback')['fetchMyFeedback']>
     readonly fetchOrders: UnwrapRef<typeof import('./api/gallery')['fetchOrders']>
     readonly fetchProducts: UnwrapRef<typeof import('./api/gallery')['fetchProducts']>
     readonly fetchRecipeDetail: UnwrapRef<typeof import('./api/recipes')['fetchRecipeDetail']>
+    readonly fetchRecipeFeedback: UnwrapRef<typeof import('./api/recipes')['fetchRecipeFeedback']>
     readonly fetchRecipesByMood: UnwrapRef<typeof import('./api/recipes')['fetchRecipesByMood']>
     readonly fetchRecommendationJob: UnwrapRef<typeof import('./api/recipes')['fetchRecommendationJob']>
     readonly fetchRecords: UnwrapRef<typeof import('./api/records')['fetchRecords']>
@@ -508,6 +526,7 @@ declare module 'vue' {
     readonly generateWeeklyPlan: UnwrapRef<typeof import('./api/weeklyPlans')['generateWeeklyPlan']>
     readonly get: UnwrapRef<typeof import('./api/request')['get']>
     readonly getActivePinia: UnwrapRef<typeof import('pinia')['getActivePinia']>
+    readonly getApiBaseUrl: UnwrapRef<typeof import('./api/request')['getApiBaseUrl']>
     readonly getCurrentInstance: UnwrapRef<typeof import('vue')['getCurrentInstance']>
     readonly getCurrentPath: UnwrapRef<typeof import('./utils/index')['getCurrentPath']>
     readonly getCurrentPlan: UnwrapRef<typeof import('./api/weeklyPlans')['getCurrentPlan']>
@@ -528,6 +547,7 @@ declare module 'vue' {
     readonly isReactive: UnwrapRef<typeof import('vue')['isReactive']>
     readonly isReadonly: UnwrapRef<typeof import('vue')['isReadonly']>
     readonly isRef: UnwrapRef<typeof import('vue')['isRef']>
+    readonly loadCookingDraft: UnwrapRef<typeof import('./utils/cookingDraft')['loadCookingDraft']>
     readonly login: UnwrapRef<typeof import('./api/auth')['login']>
     readonly logout: UnwrapRef<typeof import('./api/auth')['logout']>
     readonly makeDestructurable: UnwrapRef<typeof import('@vueuse/core')['makeDestructurable']>
@@ -610,11 +630,14 @@ declare module 'vue' {
     readonly resolveComponent: UnwrapRef<typeof import('vue')['resolveComponent']>
     readonly resolveRef: UnwrapRef<typeof import('@vueuse/core')['resolveRef']>
     readonly resolveUnref: UnwrapRef<typeof import('@vueuse/core')['resolveUnref']>
+    readonly saveCookingDraft: UnwrapRef<typeof import('./utils/cookingDraft')['saveCookingDraft']>
     readonly saveFoodPreference: UnwrapRef<typeof import('./api/preferences')['saveFoodPreference']>
     readonly saveRecord: UnwrapRef<typeof import('./api/records')['saveRecord']>
+    readonly saveRecordDraft: UnwrapRef<typeof import('./utils/cookingDraft')['saveRecordDraft']>
     readonly saveShareImage: UnwrapRef<typeof import('./utils/albumShare')['saveShareImage']>
     readonly sendRecipeFeedback: UnwrapRef<typeof import('./api/recipes')['sendRecipeFeedback']>
     readonly setActivePinia: UnwrapRef<typeof import('pinia')['setActivePinia']>
+    readonly setApiBaseUrl: UnwrapRef<typeof import('./api/request')['setApiBaseUrl']>
     readonly setMapStoreSuffix: UnwrapRef<typeof import('pinia')['setMapStoreSuffix']>
     readonly shallowReactive: UnwrapRef<typeof import('vue')['shallowReactive']>
     readonly shallowReadonly: UnwrapRef<typeof import('vue')['shallowReadonly']>

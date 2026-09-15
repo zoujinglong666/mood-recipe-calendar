@@ -8,5 +8,6 @@ import java.util.List;
 public interface RecommendationExposureRepository extends JpaRepository<RecommendationExposure, String> {
     List<RecommendationExposure> findTop20ByOpenidOrderByCreatedAtDesc(String openid);
     boolean existsByOpenidAndDishKeyAndDislikedTrue(String openid, String dishKey);
+    java.util.Optional<RecommendationExposure> findByIdAndOpenid(String id, String openid);
     void deleteByOpenid(String openid);
 }

@@ -199,10 +199,12 @@ public class GuozaiAgent {
         }, Integer::sum));
 
         List<Recipe> candidates = recipeRepository.findByMoodTag(mood).stream()
-                .filter(r -> !rejected.contains(r.getId()) && allowedByPreference(r, preference)).toList();
+                .filter(r -> !rejected.contains(r.getId()) && !exposures.isRejected(openid, r))
+                .filter(r -> allowedByPreference(r, preference)).toList();
         if (candidates.isEmpty()) {
             candidates = recipeRepository.findAll().stream()
-                    .filter(r -> !rejected.contains(r.getId()) && allowedByPreference(r, preference)).toList();
+                    .filter(r -> !rejected.contains(r.getId()) && !exposures.isRejected(openid, r))
+                    .filter(r -> allowedByPreference(r, preference)).toList();
         }
         if (candidates.isEmpty()) {
             update(progress, RecommendationJobService.Stage.LOCAL_FALLBACK,
@@ -211,7 +213,8 @@ public class GuozaiAgent {
                     "AI unavailable and no local candidate");
             return null;
         }
-        List<Recipe> unseen = candidates.stream().filter(r -> !recentlyShown.contains(r.getId())).toList();
+        List<Recipe> unseen = candidates.stream()
+                .filter(r -> !recentlyShown.contains(r.getId()) && !exposures.wasRecentlyShown(openid, r)).toList();
         if (!unseen.isEmpty()) candidates = unseen;
 
         Recipe recipe = candidates.stream()

@@ -4,181 +4,118 @@ import com.moodrecipe.backend.entity.Recipe;
 import com.moodrecipe.backend.repository.RecipeRepository;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
-/** 空库启动时提供可用的基础菜单；已有运营菜谱时绝不覆盖。 */
+/** 把随版本发布的菜谱目录幂等补齐到数据库，不改已有主键。 */
 @Component
 public class RecipeCatalogSeeder implements ApplicationRunner {
+    static final String RESOURCE = "recipe-catalog-v1.psv";
+    private static final String FALLBACK_IMAGE = "/static/dish_tomato_beef.png";
     private final RecipeRepository recipes;
 
-    public RecipeCatalogSeeder(RecipeRepository recipes) { this.recipes = recipes; }
+    public RecipeCatalogSeeder(RecipeRepository recipes) {
+        this.recipes = recipes;
+    }
 
-    @Override public void run(ApplicationArguments args) {
-        if (recipes.count() != 0) return;
-        List<Recipe> catalog = new ArrayList<>();
-        for (String row : DATA.strip().split("\\n")) {
-            String[] parts = row.split("\\|", -1);
-            Recipe recipe = new Recipe();
-            recipe.setName(parts[0]);
-            recipe.setMoodTags(parts[1]);
-            recipe.setCookingTime(Integer.valueOf(parts[2]));
-            recipe.setDifficulty(parts[3]);
-            recipe.setDescription(parts[4]);
-            recipe.setSeason("四季");
-            recipe.setImage("/static/dish_tomato_beef.png");
-            recipe.setIngredients(ingredients(parts[5]));
-            recipe.setSteps(steps(parts[5]));
-            catalog.add(recipe);
+    @Override
+    public void run(ApplicationArguments args) throws IOException {
+        List<Recipe> changed = new ArrayList<>();
+        for (CatalogItem item : loadCatalog()) {
+            Recipe recipe = recipes.findByName(item.name()).orElseGet(Recipe::new);
+            if (recipe.getId() == null || isPlaceholder(recipe)) {
+                apply(recipe, item);
+                changed.add(recipe);
+            }
         }
-        recipes.saveAll(catalog);
+        recipes.saveAll(changed);
+
+        // 旧版 117 道菜使用了“主料/配菜”占位文本；保留主键，只替换占位内容。
+        List<Recipe> repaired = recipes.findAll().stream().filter(this::isPlaceholder).toList();
+        repaired.forEach(this::repairLegacy);
+        recipes.saveAll(repaired);
     }
 
-    private String ingredients(String style) {
-        return switch (style) {
-            case "汤" -> json("主料 300g", "蔬菜或菌菇 150g", "姜片 2 片", "盐适量");
-            case "炖" -> json("主料 350g", "配菜 200g", "葱姜适量", "生抽 1 汤匙");
-            case "蒸" -> json("主料 300g", "葱姜适量", "生抽 1 汤匙", "食用油少许");
-            case "凉拌" -> json("主料 300g", "蒜末 1 瓣", "生抽 1 汤匙", "香醋 1 汤匙");
-            case "饭面" -> json("主食 1 份", "主料 200g", "配菜 150g", "调味料适量");
-            default -> json("主料 300g", "配菜 150g", "蒜末 1 瓣", "生抽 1 汤匙");
-        };
+    static List<CatalogItem> loadCatalog() throws IOException {
+        Map<String, CatalogItem> unique = new LinkedHashMap<>();
+        ClassPathResource resource = new ClassPathResource(RESOURCE);
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                resource.getInputStream(), StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.isBlank() || line.startsWith("#")) continue;
+                String[] part = line.split("\\|", -1);
+                if (part.length != 8) throw new IllegalStateException("菜谱目录字段数错误: " + line);
+                CatalogItem item = new CatalogItem(part[0], part[1], Integer.parseInt(part[2]), part[3],
+                        part[4], part[5], part[6], part[7]);
+                if (unique.putIfAbsent(item.name(), item) != null) {
+                    throw new IllegalStateException("菜谱名称重复: " + item.name());
+                }
+            }
+        }
+        return List.copyOf(unique.values());
     }
 
-    private String steps(String style) {
-        return switch (style) {
-            case "汤" -> json("食材洗净切好，主料冷水下锅。", "煮沸后撇去浮沫，转小火。", "加入配菜煮熟。", "最后加盐调味即可。");
-            case "炖" -> json("主料切块焯水，沥干备用。", "锅中少油炒香葱姜。", "加入主料和调味料，小火焖炖。", "收至汤汁浓郁后出锅。");
-            case "蒸" -> json("主料洗净摆盘。", "放上葱姜和调味料。", "水开后上锅蒸至熟透。", "淋少许热油即可。");
-            case "凉拌" -> json("食材洗净，必要时焯熟过凉。", "沥干水分放入碗中。", "加入蒜末和调味料。", "拌匀后静置两分钟即可。");
-            case "饭面" -> json("备好主食和配菜。", "先将主料炒熟或煮熟。", "加入主食与调味料拌匀。", "盛出后趁热享用。");
-            default -> json("食材洗净切好备用。", "热锅少油，先炒香蒜末。", "下主料和配菜，大火快速翻炒。", "调味后炒熟即可出锅。");
-        };
+    private void apply(Recipe recipe, CatalogItem item) {
+        recipe.setName(item.name());
+        recipe.setMoodTags(item.moods());
+        recipe.setCookingTime(item.minutes());
+        recipe.setDifficulty(item.difficulty());
+        recipe.setDescription(item.description());
+        recipe.setSeason("四季");
+        recipe.setImage(item.image().isBlank() ? FALLBACK_IMAGE : item.image());
+        recipe.setIngredients(item.ingredients());
+        recipe.setSteps(item.steps());
     }
 
-    private String json(String... values) {
+    private boolean isPlaceholder(Recipe recipe) {
+        String ingredients = recipe.getIngredients() == null ? "" : recipe.getIngredients();
+        return ingredients.contains("主料") || ingredients.contains("配菜") || ingredients.contains("主食 1 份");
+    }
+
+    private void repairLegacy(Recipe recipe) {
+        String name = recipe.getName() == null ? "家常小炒" : recipe.getName();
+        List<String> foods = LEGACY_FOODS.entrySet().stream()
+                .filter(entry -> name.contains(entry.getKey()))
+                .map(Map.Entry::getValue).distinct().limit(3).toList();
+        if (foods.isEmpty()) foods = List.of("鸡蛋 2个", "小白菜 200g");
+        List<String> ingredients = new ArrayList<>(foods);
+        ingredients.add("蒜 5g");
+        ingredients.add("生抽 10ml");
+        ingredients.add("食用油 10ml");
+        recipe.setIngredients(json(ingredients));
+        recipe.setSteps(json(List.of(
+                "将" + String.join("、", foods) + "洗净并切成适合入口的大小。",
+                "锅中放食用油烧至五成热，放入蒜末炒出香味。",
+                "加入主要食材翻炒或加少量清水焖至完全熟透。",
+                "加入生抽翻匀，尝味后即可装盘。")));
+    }
+
+    private String json(List<String> values) {
         return "[\"" + String.join("\",\"", values) + "\"]";
     }
 
-    // 名称|适配心情|分钟|难度|给用户看的简介|做法类型
-    private static final String DATA = """
-            番茄炒蛋|开心,疲惫,平静|12|简单|酸甜热乎，十分钟就能安慰自己。|炒
-            青椒肉丝|期待,得意,嘴馋|20|简单|下饭又有锅气的一道家常菜。|炒
-            鱼香肉丝|嘴馋,期待,开心|25|普通|酸甜微辣，配一碗饭刚刚好。|炒
-            宫保鸡丁|得意,嘴馋,开心|25|普通|香辣带点甜，给今天加点劲。|炒
-            蒜蓉西兰花|平静,满足,低落|12|简单|清爽翠绿，轻松补一份蔬菜。|炒
-            蚝油生菜|疲惫,平静,满足|8|简单|快手清爽，不想费劲时就做它。|炒
-            地三鲜|嘴馋,期待,想家|30|普通|软糯鲜香，是熟悉的家常味。|炒
-            干煸豆角|得意,嘴馋,开心|20|普通|干香有嚼劲，特别适合配饭。|炒
-            韭菜炒蛋|平静,满足,想家|10|简单|香气直接，早餐晚餐都合适。|炒
-            木须肉|期待,满足,想家|20|普通|荤素都有，像一顿认真吃的饭。|炒
-            芹菜香干|平静,疲惫,低落|15|简单|脆嫩清香，吃完很轻松。|炒
-            小炒黄牛肉|得意,期待,嘴馋|20|普通|香辣鲜嫩，犒劳努力的自己。|炒
-            西芹百合|平静,满足,害羞|15|简单|清甜脆爽，适合慢下来的一餐。|炒
-            豆角炒肉|想家,满足,期待|25|简单|朴实下饭，家的味道很具体。|炒
-            洋葱炒牛肉|得意,期待,疲惫|20|普通|有肉有香气，补足今天的能量。|炒
-            香菇油菜|平静,低落,满足|15|简单|鲜味温和，晚餐没有负担。|炒
-            虎皮青椒|嘴馋,得意,期待|15|简单|焦香微辣，简单但不无聊。|炒
-            蒜苗回锅肉|想家,嘴馋,得意|30|普通|浓郁下饭，适合想吃点好的时候。|炒
-            黑椒鸡丁|期待,开心,得意|18|简单|黑椒香气足，做起来也利落。|炒
-            芦笋炒虾仁|满足,平静,期待|18|简单|鲜嫩清爽，一盘就很有仪式感。|炒
-            蚂蚁上树|嘴馋,想家,开心|20|普通|粉丝吸满肉香，特别能下饭。|炒
-            家常豆腐|低落,想家,满足|20|简单|外香里嫩，给胃一点踏实感。|炒
-            糖醋里脊|开心,嘴馋,期待|30|普通|酸甜酥香，像给自己发一颗糖。|炒
-            麻婆豆腐|嘴馋,疲惫,得意|18|简单|麻辣鲜香，拌饭一绝。|炒
-            白灼菜心|平静,满足,疲惫|10|简单|简单焯一焯，也能吃得很鲜。|炒
-            红烧茄子|想家,低落,嘴馋|25|普通|软糯浓香，最适合配热饭。|炒
-            蒜蓉空心菜|平静,满足,害羞|10|简单|清脆快手，厨房新手也不怕。|炒
-            菠萝咕咾肉|开心,期待,嘴馋|30|普通|酸甜热闹，让饭桌亮起来。|炒
-            白萝卜排骨汤|疲惫,低落,想家|70|普通|慢慢炖出的清甜，给身体放个假。|汤
-            玉米胡萝卜鸡汤|疲惫,平静,想家|60|简单|甜润不腻，喝一碗就暖起来。|汤
-            紫菜蛋花汤|疲惫,平静,满足,难过|8|简单|三分钟就有一碗热汤。|汤
-            番茄牛腩汤|低落,想家,期待|80|普通|浓厚酸香，适合需要被安慰的夜晚。|汤
-            菌菇豆腐汤|平静,满足,害羞,焦虑|20|简单|鲜得自然，清清爽爽。|汤
-            冬瓜虾皮汤|疲惫,平静,低落|15|简单|清淡快手，晚餐加一碗正好。|汤
-            莲藕花生猪骨汤|想家,低落,平静|90|普通|粉糯甘甜，是妈妈会炖的味道。|汤
-            酸辣汤|嘴馋,期待,疲惫|20|简单|酸辣开胃，没胃口时试试看。|汤
-            菠菜猪肝汤|疲惫,满足,平静|20|简单|一碗热汤，把能量慢慢补回来。|汤
-            丝瓜蛋汤|平静,害羞,满足|12|简单|清甜柔和，适合晚一点的晚餐。|汤
-            海带排骨汤|想家,低落,期待|80|普通|炖久一点，鲜香会慢慢出来。|汤
-            皮蛋瘦肉粥|疲惫,低落,平静,难过|35|简单|胃口不好时，也能舒服地吃完。|汤
-            南瓜小米粥|疲惫,平静,满足,焦虑|35|简单|绵密暖胃，给早晨一点温柔。|汤
-            罗宋汤|期待,开心,疲惫|45|普通|酸甜浓郁，一锅就很满足。|汤
-            鲫鱼豆腐汤|想家,平静,低落|45|普通|汤白味鲜，适合认真照顾自己。|汤
-            红烧肉|想家,嘴馋,得意|70|普通|肥而不腻，慢火才有的满足。|炖
-            土豆炖牛腩|疲惫,低落,期待|80|普通|一锅炖透，连汤汁都舍不得剩。|炖
-            可乐鸡翅|开心,嘴馋,期待|35|简单|甜咸浓香，零失败的快乐菜。|炖
-            黄焖鸡|想家,嘴馋,疲惫|45|普通|酱香浓郁，米饭要多煮一点。|炖
-            啤酒鸭|得意,嘴馋,期待|50|普通|香而不腻，适合周末慢慢吃。|炖
-            萝卜炖羊肉|疲惫,低落,想家|90|普通|热乎软烂，寒冷时特别对味。|炖
-            栗子烧鸡|期待,开心,想家|55|普通|板栗甜糯，鸡肉鲜香。|炖
-            豆角焖面|想家,满足,嘴馋|35|简单|一锅有菜有主食，省心又好吃。|饭面
-            腊肠煲仔饭|期待,嘴馋,得意|45|普通|锅巴焦香，打开盖子就很幸福。|饭面
-            扬州炒饭|开心,疲惫,满足|15|简单|冰箱边角料也能炒得热闹。|饭面
-            番茄鸡蛋面|疲惫,低落,想家|15|简单|热汤面最懂晚归的人。|饭面
-            葱油拌面|疲惫,平静,害羞|12|简单|葱香简单，饿了就能立刻吃上。|饭面
-            肉酱意面|期待,开心,得意|35|普通|浓浓肉酱，像给晚餐一点小庆祝。|饭面
-            酸汤肥牛面|嘴馋,期待,疲惫|25|普通|酸辣开胃，特别适合没精神时。|饭面
-            日式咖喱饭|低落,期待,满足|40|简单|浓稠香甜，一盘饭也有治愈力。|饭面
-            石锅拌饭|嘴馋,开心,得意|30|普通|脆脆锅巴和拌开的香气都很满足。|饭面
-            鸡丝凉面|平静,疲惫,满足|20|简单|清爽不腻，天气热时很适合。|饭面
-            牛肉河粉|疲惫,想家,期待|35|普通|汤鲜粉滑，一碗就能吃饱。|饭面
-            什锦炒乌冬|开心,嘴馋,期待|20|简单|Q 弹有料，十分钟就有满足感。|饭面
-            豆腐脑|平静,疲惫,害羞|15|简单|软软嫩嫩，早餐和宵夜都合适。|饭面
-            菌菇焖饭|平静,满足,低落|45|简单|电饭煲一按，香气会自己长出来。|饭面
-            芝士焗饭|开心,期待,嘴馋|30|简单|拉丝的瞬间，心情也会变好。|饭面
-            清蒸鲈鱼|平静,满足,期待|25|普通|鲜味干净，适合好好吃一餐。|蒸
-            粉蒸肉|想家,嘴馋,低落|65|普通|米粉和肉香一起蒸透，很有家味。|蒸
-            蒸水蛋|疲惫,平静,低落,焦虑|12|简单|滑嫩温和，胃口不好也吃得下。|蒸
-            蒜蓉蒸虾|开心,期待,得意|18|简单|鲜甜弹牙，做起来比想象中快。|蒸
-            梅菜扣肉|想家,嘴馋,得意|90|普通|咸香软烂，是值得等待的硬菜。|蒸
-            清蒸鸡腿|疲惫,平静,满足|30|简单|少油也很香，给身体轻一点。|蒸
-            剁椒蒸豆腐|嘴馋,期待,疲惫|15|简单|香辣开胃，做法非常省事。|蒸
-            豉汁蒸排骨|想家,嘴馋,满足|40|普通|豉香浓郁，蒸出来也很嫩。|蒸
-            凉拌黄瓜|平静,疲惫,满足|8|简单|清脆爽口，给餐桌降降温。|凉拌
-            凉拌木耳|平静,满足,期待|12|简单|脆脆的口感，越嚼越香。|凉拌
-            口水鸡|嘴馋,开心,得意|30|普通|麻辣鲜香，想吃点刺激的时候选它。|凉拌
-            凉拌鸡丝|疲惫,平静,害羞|20|简单|清爽有蛋白质，轻轻松松吃一餐。|凉拌
-            拍蒜茄子|低落,想家,嘴馋|18|简单|软糯入味，配粥配饭都好。|凉拌
-            老醋花生|嘴馋,开心,期待|10|简单|酸香脆口，饭前来一小碟。|凉拌
-            三丝拌豆皮|平静,满足,害羞,焦虑|15|简单|清清爽爽，颜色也很好看。|凉拌
-            麻酱凉皮|嘴馋,疲惫,开心|15|简单|麻酱香浓，夏天的快乐很简单。|凉拌
-            西红柿牛腩盖饭|疲惫,低落,期待|40|普通|浓浓汤汁浇在饭上，特别踏实。|饭面
-            照烧鸡腿饭|开心,期待,得意|30|简单|甜咸照烧汁，拌饭很满足。|饭面
-            卤肉饭|想家,低落,嘴馋|50|普通|肉燥香气扑鼻，一碗饭就够幸福。|饭面
-            咖喱牛肉饭|期待,疲惫,满足|50|普通|香浓微甜，忙完值得好好吃。|饭面
-            蛋包饭|开心,害羞,期待|25|简单|软软的蛋皮，把心意包在里面。|饭面
-            豆腐蔬菜煲|平静,低落,疲惫|30|简单|热热一锅，蔬菜和豆腐都很安心。|炖
-            板栗炖鸡|想家,期待,满足|70|普通|板栗粉糯，汤汁也带着甜。|炖
-            山药排骨汤|疲惫,平静,想家|80|普通|软糯清润，适合慢慢恢复元气。|汤
-            玉米烙|开心,期待,害羞|20|简单|金黄香甜，给平常日子加点甜。|炒
-            蛋炒饭|疲惫,满足,平静|10|简单|最普通，也最不会让人失望。|饭面
-            肉末蒸蛋|疲惫,低落,想家|20|简单|嫩滑又有肉香，照顾胃的一餐。|蒸
-            白菜炖豆腐|低落,平静,想家,焦虑,难过|35|简单|清清淡淡，却很有家的温度。|炖
-            红糖姜茶|疲惫,低落,害羞|15|简单|不想吃很多时，先喝点热的。|汤
-            雪菜肉丝面|想家,疲惫,嘴馋|20|简单|咸鲜开胃，一碗面也能很满足。|饭面
-            蒜香烤南瓜|满足,平静,期待|25|简单|软糯带焦香，是自然的甜味。|炒
-            豆豉鲮鱼油麦菜|嘴馋,疲惫,想家|15|简单|鲜咸下饭，快速解决一餐。|炒
-            荷包蛋焖面|疲惫,低落,满足|18|简单|一只蛋一把面，也能好好吃饭。|饭面
-            清炒虾仁|期待,得意,平静|15|简单|鲜甜弹牙，简单也有品质感。|炒
-            番茄豆腐煲|低落,平静,疲惫|25|简单|酸甜软嫩，暖胃不费力。|炖
-            鲜虾粥|疲惫,平静,期待|35|简单|米粒绵软，虾味很鲜。|汤
-            蒸南瓜|平静,满足,害羞|20|简单|甜软朴素，适合安静地吃。|蒸
-            酸辣土豆丝|嘴馋,开心,期待|12|简单|脆爽酸辣，特别醒胃。|炒
-            红烧带鱼|想家,嘴馋,得意|35|普通|咸香浓郁，是记忆里的下饭菜。|炖
-            青菜豆腐面|疲惫,平静,低落|15|简单|清淡热乎，给晚归的自己。|饭面
-            糖醋藕片|开心,期待,满足|15|简单|脆甜开胃，桌上多一份颜色。|炒
-            豆苗炒鸡蛋|平静,满足,害羞|12|简单|嫩绿清香，日子也会轻一点。|炒
-            砂锅土豆粉|嘴馋,疲惫,低落|25|简单|热辣软滑，冷天特别合适。|饭面
-            清炖萝卜牛腩|想家,疲惫,平静|90|普通|炖得软烂，连汤都很安心。|炖
-            三杯鸡|得意,期待,嘴馋|40|普通|酱香浓，适合认真做顿好饭。|炖
-            盐焗鸡|期待,得意,满足|50|普通|咸香鲜嫩，周末餐桌的主角。|蒸
-            凉拌莴笋丝|平静,满足,害羞|12|简单|清脆微甜，餐桌立刻清爽起来。|凉拌
-            香煎豆腐|嘴馋,疲惫,满足|15|简单|外焦里嫩，几分钟就很香。|炒
-            紫薯燕麦粥|平静,疲惫,满足|30|简单|绵密饱腹，给早晨留一点从容。|汤
-            葱爆羊肉|得意,嘴馋,期待|20|普通|葱香扑鼻，能量感满满。|炒
-            菌菇鸡肉焖饭|疲惫,平静,想家|45|简单|一锅完成，忙的时候也能好好吃饭。|饭面
-            """;
+    static record CatalogItem(String name, String moods, int minutes, String difficulty,
+                              String description, String image, String ingredients, String steps) { }
+
+    private static final Map<String, String> LEGACY_FOODS = Map.ofEntries(
+            Map.entry("番茄", "番茄 2个"), Map.entry("鸡蛋", "鸡蛋 3个"), Map.entry("蛋", "鸡蛋 3个"),
+            Map.entry("鸡", "鸡肉 300g"), Map.entry("鸭", "鸭肉 300g"), Map.entry("牛", "牛肉 250g"),
+            Map.entry("羊", "羊肉 250g"), Map.entry("排骨", "排骨 350g"), Map.entry("肉", "猪瘦肉 250g"),
+            Map.entry("虾", "虾仁 200g"), Map.entry("鱼", "鱼肉 300g"), Map.entry("豆腐", "豆腐 300g"),
+            Map.entry("土豆", "土豆 2个"), Map.entry("茄子", "茄子 2根"), Map.entry("白菜", "白菜 300g"),
+            Map.entry("西兰花", "西兰花 250g"), Map.entry("黄瓜", "黄瓜 2根"), Map.entry("木耳", "泡发木耳 150g"),
+            Map.entry("香菇", "鲜香菇 180g"), Map.entry("萝卜", "白萝卜 300g"), Map.entry("南瓜", "南瓜 300g"),
+            Map.entry("面", "鲜面条 250g"), Map.entry("饭", "熟米饭 300g"), Map.entry("粥", "大米 100g"),
+            Map.entry("豆角", "豆角 250g"), Map.entry("芹菜", "芹菜 200g"), Map.entry("菠菜", "菠菜 200g"),
+            Map.entry("藕", "莲藕 250g"), Map.entry("山药", "山药 250g"), Map.entry("玉米", "甜玉米 1根"));
 }

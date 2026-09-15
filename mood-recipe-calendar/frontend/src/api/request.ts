@@ -4,14 +4,46 @@ import { beginAuthRecovery } from '@/utils/authRecovery'
  * 统一请求封装
  * 后端统一返回 { code, message, data }
  */
-/** 生产环境在 .env.production 设置 VITE_API_BASE_URL=https://api.example.com/api。 */
-export const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
-const ASSET_ORIGIN = BASE_URL.replace(/\/api\/?$/, '')
+
+/** 预置后端服务（可在设置页切换） */
+export interface ApiBackend {
+  name: string
+  url: string
+  env: string
+  desc: string
+}
+
+export const API_BACKENDS: ApiBackend[] = [
+  { name: '本地开发', url: 'http://localhost:8080/api', env: 'development', desc: 'localhost:8080' },
+  { name: '生产环境', url: 'https://moodrecipe.icu/api', env: 'production', desc: 'moodrecipe.icu' },
+]
+
+const STORAGE_KEY = 'apiBaseUrl'
+
+/** 读取当前后端地址：优先用户手动选择，其次编译环境变量 */
+export function getApiBaseUrl(): string {
+  try {
+    const saved = uni.getStorageSync(STORAGE_KEY)
+    if (saved)
+      return String(saved)
+  }
+  catch {}
+  return import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
+}
+
+/** 设置后端地址（持久化到本地，切换后立即生效） */
+export function setApiBaseUrl(url: string) {
+  try {
+    uni.setStorageSync(STORAGE_KEY, url)
+  }
+  catch {}
+}
 
 export function resolveAssetUrl(url?: string) {
   if (!url || /^(?:https?:)?\/\//.test(url) || url.startsWith('data:'))
     return url || ''
-  return `${ASSET_ORIGIN}${url.startsWith('/') ? '' : '/'}${url}`
+  const origin = getApiBaseUrl().replace(/\/api\/?$/, '')
+  return `${origin}${url.startsWith('/') ? '' : '/'}${url}`
 }
 
 export interface ApiResult<T = any> {
@@ -71,7 +103,7 @@ export function get<T = any>(url: string, params?: Record<string, any>): Promise
         .join('&')}`
       : ''
     uni.request({
-      url: BASE_URL + url + query,
+      url: getApiBaseUrl() + url + query,
       method: 'GET',
       header: authHeader(),
       success: (res: any) => handleResponse(res, resolve, reject),
@@ -86,7 +118,7 @@ export function get<T = any>(url: string, params?: Record<string, any>): Promise
 export function post<T = any>(url: string, data?: any): Promise<T> {
   return new Promise((resolve, reject) => {
     uni.request({
-      url: BASE_URL + url,
+      url: getApiBaseUrl() + url,
       method: 'POST',
       data,
       header: { 'Content-Type': 'application/json', ...authHeader() },
@@ -102,7 +134,7 @@ export function post<T = any>(url: string, data?: any): Promise<T> {
 export function put<T = any>(url: string, data?: any): Promise<T> {
   return new Promise((resolve, reject) => {
     uni.request({
-      url: BASE_URL + url,
+      url: getApiBaseUrl() + url,
       method: 'PUT',
       data,
       header: { 'Content-Type': 'application/json', ...authHeader() },
@@ -118,7 +150,7 @@ export function put<T = any>(url: string, data?: any): Promise<T> {
 export function del<T = any>(url: string): Promise<T> {
   return new Promise((resolve, reject) => {
     uni.request({
-      url: BASE_URL + url,
+      url: getApiBaseUrl() + url,
       method: 'DELETE',
       header: authHeader(),
       success: (res: any) => handleResponse(res, resolve, reject),
@@ -134,7 +166,7 @@ export function del<T = any>(url: string): Promise<T> {
 export function uploadFile(filePath: string, type: 'image' | 'avatar' = 'image'): Promise<{ url: string, filename: string }> {
   return new Promise((resolve, reject) => {
     uni.uploadFile({
-      url: `${BASE_URL}/upload/image?type=${type}`,
+      url: `${getApiBaseUrl()}/upload/image?type=${type}`,
       filePath,
       name: 'file',
       header: authHeader(),

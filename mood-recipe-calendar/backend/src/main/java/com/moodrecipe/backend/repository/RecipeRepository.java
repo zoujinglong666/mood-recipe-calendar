@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.util.List;
+import java.util.Optional;
 
 public interface RecipeRepository extends JpaRepository<Recipe, Long> {
 
@@ -15,4 +16,6 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
     /** 随机推荐一道匹配心情的菜 */
     @Query(value = "SELECT * FROM recipes WHERE mood_tags LIKE %:mood% ORDER BY RAND() LIMIT 1", nativeQuery = true)
     Recipe findRandomByMood(@Param("mood") String mood);
+
+    Optional<Recipe> findByName(String name);
 }

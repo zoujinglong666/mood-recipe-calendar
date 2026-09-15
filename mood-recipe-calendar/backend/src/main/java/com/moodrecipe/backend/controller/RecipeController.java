@@ -12,6 +12,7 @@ import com.moodrecipe.backend.service.RecommendationJobService;
 import com.moodrecipe.backend.service.RecommendationExposureService;
 import com.moodrecipe.backend.config.SessionAuthInterceptor;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 
@@ -83,27 +84,46 @@ public class RecipeController {
     }
 
     @PostMapping("/{id}/feedback")
-    public ApiResponse<Void> feedback(@PathVariable Long id,
+    @Transactional
+    public ApiResponse<FeedbackState> feedback(@PathVariable Long id,
             @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
             @RequestBody RecipeFeedbackRequest request) {
         if (!repository.existsById(id)) return ApiResponse.error(404, "菜谱不存在");
-        if (request == null || !Set.of("LIKE", "DISLIKE", "MADE").contains(request.action())) {
+        if (request == null || !Set.of("LIKE", "DISLIKE").contains(request.action())) {
             return ApiResponse.error(400, "反馈类型无效");
         }
-        recordInteraction(openid, id, request.action());
-        return ApiResponse.ok(null);
+        interactions.deleteByOpenidAndRecipeIdAndActionIn(openid, id,
+                List.of("LIKE".equals(request.action()) ? "DISLIKE" : "LIKE"));
+        if (!interactions.existsByOpenidAndRecipeIdAndAction(openid, id, request.action())) {
+            recordInteraction(openid, id, request.action());
+        }
+        return ApiResponse.ok(feedbackState(openid, id));
+    }
+
+    @GetMapping("/{id}/feedback")
+    public ApiResponse<FeedbackState> feedbackState(@PathVariable Long id,
+            @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
+        if (!repository.existsById(id)) return ApiResponse.error(404, "菜谱不存在");
+        return ApiResponse.ok(feedbackState(openid, id));
     }
 
     @PostMapping("/exposures/{exposureId}/feedback")
-    public ApiResponse<Void> exposureFeedback(@PathVariable String exposureId,
+    public ApiResponse<RecommendationExposureService.FeedbackState> exposureFeedback(@PathVariable String exposureId,
             @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
             @RequestBody RecipeFeedbackRequest request) {
-        if (request == null || !Set.of("LIKE", "DISLIKE", "MADE").contains(request.action())) {
+        if (request == null || !Set.of("LIKE", "DISLIKE").contains(request.action())) {
             return ApiResponse.error(400, "反馈类型无效");
         }
-        return exposures.feedback(openid, exposureId, request.action())
-                ? ApiResponse.ok(null)
-                : ApiResponse.error(404, "推荐记录不存在或已失效");
+        var state = exposures.feedback(openid, exposureId, request.action());
+        return state != null ? ApiResponse.ok(state) : ApiResponse.error(404, "推荐记录不存在或已失效");
+    }
+
+    @GetMapping("/exposures/{exposureId}/feedback")
+    public ApiResponse<RecommendationExposureService.FeedbackState> exposureFeedbackState(
+            @PathVariable String exposureId,
+            @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
+        var state = exposures.state(openid, exposureId);
+        return state != null ? ApiResponse.ok(state) : ApiResponse.error(404, "推荐记录不存在或已失效");
     }
 
     private void recordInteraction(String openid, Long recipeId, String action) {
@@ -112,6 +132,13 @@ public class RecipeController {
         interaction.setRecipeId(recipeId);
         interaction.setAction(action);
         interactions.save(interaction);
+    }
+
+    private FeedbackState feedbackState(String openid, Long recipeId) {
+        return new FeedbackState(
+                interactions.existsByOpenidAndRecipeIdAndAction(openid, recipeId, "LIKE"),
+                interactions.existsByOpenidAndRecipeIdAndAction(openid, recipeId, "DISLIKE"),
+                interactions.existsByOpenidAndRecipeIdAndAction(openid, recipeId, "MADE"));
     }
 
     /** 已购 AI 私人菜单权益的深度推荐入口。 */
@@ -190,5 +217,6 @@ public class RecipeController {
 
     public record DeepRecommendRequest(String mood, String ingredients, String maxMinutes, String preference) { }
     public record RecipeFeedbackRequest(String action) { }
+    public record FeedbackState(boolean liked, boolean disliked, boolean made) { }
     public record RecommendJobRequest(String mood) { }
 }
