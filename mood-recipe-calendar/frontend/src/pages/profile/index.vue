@@ -10,6 +10,7 @@ import {refreshUserInfo} from '../../utils/login'
 import {toast, toastError, toastSuccess} from '../../utils/toast'
 import {uploadFile} from '@/api/request'
 import {updateUserInfo} from '@/api/auth'
+import {chooseImageFile} from '@/utils/chooseImage'
 
 definePage({
   name: 'profile',
@@ -125,20 +126,9 @@ function onChooseAvatar() {
     toast('头像更新中，请稍候')
     return
   }
-  uni.chooseImage({
-    count: 1,
-    sizeType: ['compressed'],
-    sourceType: ['album', 'camera'],
-    success: (result) => {
-      const filePath = String(result.tempFilePaths?.[0] || '')
-      if (filePath)
-        updateAvatar(filePath)
-    },
-    fail: (err: any) => {
-      // 用户取消选择不算错误，静默处理
-      if (err?.errMsg && !err.errMsg.includes('cancel'))
-        toastError(null, '选择图片失败，请重试')
-    },
+  chooseImageFile({
+    onSelected: (filePath) => updateAvatar(filePath),
+    onFail: () => toast('选择图片失败，请重试'),
   })
 }
 function showPrivacy() {

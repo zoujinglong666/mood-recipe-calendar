@@ -11,6 +11,7 @@ import { useManualTheme } from '@/composables/useManualTheme'
 import { navBack } from '@/composables/useNavBar'
 import { useUserStore } from '@/stores/user'
 import { refreshUserInfo } from '@/utils/login'
+import { chooseImageFile } from '@/utils/chooseImage'
 import { toast, toastError, toastSuccess } from '@/utils/toast'
 
 definePage({
@@ -109,13 +110,9 @@ function chooseH5Avatar() {
     toast('请先登录再修改头像')
     return
   }
-  uni.chooseImage({
-    count: 1,
-    success: result => updateAvatar(String(result.tempFilePaths?.[0] || '')),
-    fail: (error) => {
-      if (!/cancel/i.test(error.errMsg || ''))
-        toast('未能读取图片，请重试')
-    },
+  chooseImageFile({
+    onSelected: (filePath) => updateAvatar(filePath),
+    onFail: () => toast('未能读取图片，请重试'),
   })
 }
 

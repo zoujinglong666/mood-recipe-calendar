@@ -9,6 +9,7 @@ import { ensureLogin } from '../../utils/login'
 import { toast, toastSuccess, toastError } from '../../utils/toast'
 import { saveRecord } from '../../api/records'
 import { uploadFile } from '../../api/request'
+import { chooseImageFile } from '../../utils/chooseImage'
 import { createRequestId, RECORD_DRAFT_KEY } from '../../utils/cookingDraft'
 
 definePage({
@@ -62,36 +63,30 @@ async function chooseImage() {
     toast('图片上传中，请稍候')
     return
   }
-  uni.chooseImage({
-    count: 1,
-    sizeType: ['compressed'],
-    sourceType: ['album', 'camera'],
-    success: async (res) => {
-      const tempPath = res.tempFilePaths?.[0]
-      if (!tempPath)
-        return
+  chooseImageFile({
+    onSelected: (tempPath) => {
       uploading.value = true
       dishImage.value = tempPath
-      try {
-        const result = await uploadFile(tempPath)
-        imageUrl.value = result.url
-        toastSuccess('照片已收好')
-      }
-      catch (e: any) {
-        toastError(e, '图片上传失败')
-        dishImage.value = ''
-        imageUrl.value = ''
-      }
-      finally {
-        uploading.value = false
-      }
+      uploadImage(tempPath)
     },
-    fail: (err: any) => {
-      // 用户取消选择不提示；其他失败给出可理解的提示
-      if (err?.errMsg && !err.errMsg.includes('cancel'))
-        toast('选择图片失败，请重试')
-    },
+    onFail: () => toast('选择图片失败，请重试'),
   })
+}
+
+async function uploadImage(tempPath: string) {
+  try {
+    const result = await uploadFile(tempPath)
+    imageUrl.value = result.url
+    toastSuccess('照片已收好')
+  }
+  catch (e: any) {
+    toastError(e, '图片上传失败')
+    dishImage.value = ''
+    imageUrl.value = ''
+  }
+  finally {
+    uploading.value = false
+  }
 }
 
 async function publish() {
