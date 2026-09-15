@@ -19,11 +19,14 @@ export function toastSuccess(msg: string, duration = 1500) {
  * - 传入字符串时直接显示
  */
 export function toastError(err: unknown, fallback = '操作失败，请稍后重试') {
-  const msg = err instanceof Error
+  let msg = err instanceof Error
     ? err.message || fallback
     : typeof err === 'string' && err
       ? err
       : fallback
+  // 底层网络/超时错误统一抽象成用户能看懂的文案，不暴露 request:fail 等原始串
+  if (!msg || /request:fail|network|timeout|socket|ERR_CONNECTION/i.test(msg))
+    msg = fallback
   uni.showToast({ title: msg, icon: 'none', duration: 2500 })
 }
 

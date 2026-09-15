@@ -416,7 +416,7 @@ async function loadProducts() {
     productsLoaded.value = true
   }
   catch (e: any) {
-    productsError.value = e?.message || '权益加载失败'
+    productsError.value = readableError(e, '权益加载失败，请稍后重试')
   }
   finally {
     productsLoading.value = false
@@ -440,7 +440,7 @@ async function requestPersonalMenu() {
     void loadFeedbackState()
   }
   catch (e: any) {
-    const message = e?.message || '生成失败，请稍后重试'
+    const message = readableError(e, '生成失败，请稍后重试')
     toast(message.includes('解锁') ? '先解锁私人菜单，就能按食材定制' : message)
   }
   finally {
