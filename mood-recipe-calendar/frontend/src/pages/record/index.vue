@@ -6,7 +6,7 @@ import Icon from '../../components/common/Icon.vue'
 import SuccessModal from '../../components/guozai/SuccessModal.vue'
 import MoodPicker from '../../components/guozai/MoodPicker.vue'
 import { ensureLogin } from '../../utils/login'
-import { toast, toastError } from '../../utils/toast'
+import { toast, toastSuccess, toastError } from '../../utils/toast'
 import { saveRecord } from '../../api/records'
 import { uploadFile } from '../../api/request'
 import { createRequestId, RECORD_DRAFT_KEY } from '../../utils/cookingDraft'
@@ -58,22 +58,38 @@ onShow(() => {
 })
 
 async function chooseImage() {
-  if (uploading.value) return
+  if (uploading.value) {
+    toast('图片上传中，请稍候')
+    return
+  }
   uni.chooseImage({
     count: 1,
+    sizeType: ['compressed'],
+    sourceType: ['album', 'camera'],
     success: async (res) => {
-      const tempPath = res.tempFilePaths[0]
-      dishImage.value = tempPath
+      const tempPath = res.tempFilePaths?.[0]
+      if (!tempPath)
+        return
       uploading.value = true
+      dishImage.value = tempPath
       try {
         const result = await uploadFile(tempPath)
         imageUrl.value = result.url
-      } catch (e: any) {
-        toast('图片上传失败')
+        toastSuccess('照片已收好')
+      }
+      catch (e: any) {
+        toastError(e, '图片上传失败')
         dishImage.value = ''
-      } finally {
+        imageUrl.value = ''
+      }
+      finally {
         uploading.value = false
       }
+    },
+    fail: (err: any) => {
+      // 用户取消选择不提示；其他失败给出可理解的提示
+      if (err?.errMsg && !err.errMsg.includes('cancel'))
+        toast('选择图片失败，请重试')
     },
   })
 }

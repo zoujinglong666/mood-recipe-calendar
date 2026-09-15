@@ -7,7 +7,7 @@ import {STATIC_BASE_URL} from '@/utils/assets'
 import Icon from '../../components/common/Icon.vue'
 import {useUserStore} from '../../stores/user'
 import {refreshUserInfo} from '../../utils/login'
-import {toastError, toastSuccess} from '../../utils/toast'
+import {toast, toastError, toastSuccess} from '../../utils/toast'
 import {uploadFile} from '@/api/request'
 import {updateUserInfo} from '@/api/auth'
 
@@ -121,8 +121,10 @@ function onChooseAvatar() {
     toastError(null, '请先登录再修改头像')
     return
   }
-  if (avatarUpdating.value)
+  if (avatarUpdating.value) {
+    toast('头像更新中，请稍候')
     return
+  }
   uni.chooseImage({
     count: 1,
     sizeType: ['compressed'],
