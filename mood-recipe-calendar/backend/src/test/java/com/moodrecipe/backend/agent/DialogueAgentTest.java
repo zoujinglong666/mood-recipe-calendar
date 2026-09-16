@@ -145,9 +145,12 @@ class DialogueAgentTest {
         DialogueState.Card card = AgentCards.defaultCard("ASK_DISHES",
                 DialogueState.AgentState.empty().withPeople(8));
         List<AgentFact> facts = HeuristicExtractor.facts("家里有老人和小孩");
+        DialogueState.AgentState selected = HeuristicExtractor.applySelection(
+                DialogueState.AgentState.empty(), "household=elder,child");
 
         assertTrue(card.options().stream().anyMatch(option -> "dishes=9".equals(option.value())));
         assertTrue(facts.stream().anyMatch(fact -> "有老人和小孩".equals(fact.value())));
+        assertTrue(Boolean.TRUE.equals(selected.hasElder()) && Boolean.TRUE.equals(selected.hasChild()));
     }
 
     private DialogueAgent agent(LlmClient llm, List<AgentMemoryFact> memory) {

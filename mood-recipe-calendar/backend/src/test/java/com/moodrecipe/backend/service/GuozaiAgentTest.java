@@ -192,11 +192,18 @@ class GuozaiAgentTest {
 
         when(ai.recommendWithPersona(anyString(), anyString(), any())).thenReturn(Optional.of(generated));
         when(preferences.findByOpenid("user-1")).thenReturn(Optional.empty());
+        when(recipes.save(generated)).thenAnswer(invocation -> {
+            generated.setId(99L);
+            return generated;
+        });
         when(exposures.recordShown(anyString(), any(Recipe.class), anyString())).thenReturn("exposure-1");
 
         Recipe result = buildAgent(recipes, interactions, preferences, ai, exposures)
                 .recommend("user-1", "平静", null);
+        assertEquals(99L, result.getId());
+        assertEquals("AI", result.getSource());
         assertEquals("exposure-1", result.getExposureId());
+        verify(recipes).save(generated);
     }
 
     @Test

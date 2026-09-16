@@ -54,7 +54,10 @@ public final class HeuristicExtractor {
         if (value.startsWith("budget=")) return state.withBudget(value.substring(7));
         if (value.equals("elder=yes")) return state.withHasElder(true);
         if (value.equals("child=yes")) return state.withHasChild(true);
-        if (value.equals("household=none")) return state.withHousehold(false, false);
+        if (value.startsWith("household=")) {
+            String household = value.substring(10);
+            return state.withHousehold(household.contains("elder"), household.contains("child"));
+        }
         if (value.equals("记住")) return state.withCuisineConfirmed(true);
         if (value.startsWith("days=")) {
             List<Integer> days = Arrays.stream(value.substring(5).split(","))

@@ -35,6 +35,7 @@ const messages = ref<ChatMessage[]>([])
 const agentState = ref<MealAgentState>({})
 const agentTurn = ref<MealAgentTurn>()
 const agentBusy = ref(false)
+const householdSelection = ref<string[]>([])
 let messageId = 0
 let progressTimer: ReturnType<typeof setInterval> | undefined
 
@@ -119,6 +120,9 @@ async function runAgent(message: string, echo = false, echoLabel = message) {
     const turn = await runMealAgentTurn(message, agentState.value)
     agentTurn.value = turn
     agentState.value = turn.state
+    householdSelection.value = turn.action === 'ASK_HOUSEHOLD'
+      ? [turn.state.hasElder ? 'elder' : '', turn.state.hasChild ? 'child' : ''].filter(Boolean)
+      : []
     people.value = turn.state.people || people.value
     cookingDays.value = turn.state.cookingDays || []
     dishesPerDay.value = turn.state.dishesPerDay || dishesPerDay.value
@@ -137,6 +141,35 @@ async function runAgent(message: string, echo = false, echoLabel = message) {
     agentBusy.value = false
     await scrollToLatest()
   }
+}
+
+function householdValue(value: string) {
+  if (value === 'elder=yes' || value.includes('elder'))
+    return 'elder'
+  if (value === 'child=yes' || value.includes('child'))
+    return 'child'
+  return 'none'
+}
+
+function toggleHousehold(value: string) {
+  const selected = householdValue(value)
+  if (selected === 'none') {
+    householdSelection.value = ['none']
+    return
+  }
+  const current = householdSelection.value.filter(item => item !== 'none')
+  householdSelection.value = current.includes(selected)
+    ? current.filter(item => item !== selected)
+    : [...current, selected]
+}
+
+async function confirmHousehold() {
+  if (!householdSelection.value.length)
+    return
+  const none = householdSelection.value.includes('none')
+  const value = none ? 'household=none' : `household=${householdSelection.value.join(',')}`
+  const label = none ? '都是成人' : householdSelection.value.map(item => item === 'elder' ? '有老人' : '有小孩').join('、')
+  await runAgent(value, true, label)
 }
 
 async function submitComposer() {
@@ -339,7 +372,20 @@ function openCurrentPlan() {
             <view><text>{{ agentTurn.card.title }}</text><text>{{ agentTurn.card.description }}</text></view>
             <image v-if="agentTurn.card.type === 'CUISINE'" :src="`${STATIC_BASE_URL}/static/guozai/action_06_glasses.png`" mode="aspectFit" aria-hidden="true" />
           </view>
-          <view class="choice-grid" :class="{ 'choice-grid--cuisine': agentTurn.card.type === 'CUISINE' }">
+          <view v-if="agentTurn.action === 'ASK_HOUSEHOLD'" class="household-picker">
+            <view class="choice-grid choice-grid--household">
+              <button v-for="option in agentTurn.card.options" :key="option.value" :class="{ selected: householdSelection.includes(householdValue(option.value)) }" :aria-pressed="householdSelection.includes(householdValue(option.value))" :disabled="agentBusy" @click="toggleHousehold(option.value)">
+                <text class="selection-mark" aria-hidden="true">
+                  {{ householdSelection.includes(householdValue(option.value)) ? '✓' : '' }}
+                </text>
+                <text>{{ option.label }}</text>
+              </button>
+            </view>
+            <button class="household-confirm" :disabled="!householdSelection.length || agentBusy" @click="confirmHousehold">
+              确认选择
+            </button>
+          </view>
+          <view v-else class="choice-grid" :class="{ 'choice-grid--cuisine': agentTurn.card.type === 'CUISINE' }">
             <button v-for="option in agentTurn.card.options" :key="option.value" :disabled="agentBusy" @click="option.value === 'generate' ? generate() : runAgent(option.value, true, option.label)">
               {{ option.label }}
             </button>
@@ -378,7 +424,7 @@ function openCurrentPlan() {
 .choice-card { position: relative; padding: 22rpx; border: 2rpx solid var(--mrc-border); border-radius: 30rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-lift); }
 .cuisine-card { overflow: hidden; padding: 22rpx; border-radius: 22rpx; background: linear-gradient(135deg, var(--mrc-surface-sun), var(--mrc-surface-peach)); }.cuisine-card__head { display: flex; align-items: center; justify-content: space-between; }.cuisine-card__head > view { display: flex; flex-direction: column; gap: 8rpx; }.cuisine-card__head text:first-child { color: var(--mrc-text-deep); font-size: 29rpx; font-weight: 800; }.cuisine-card__head text:last-child { color: var(--mrc-accent); font-size: 19rpx; font-weight: 700; }.cuisine-card__head image { width: 92rpx; height: 92rpx; }.cuisine-card__dishes { display: flex; flex-wrap: wrap; gap: 10rpx; margin: 18rpx 0; }.cuisine-card__dishes text { padding: 10rpx 14rpx; border: 2rpx solid rgba(255, 107, 91, .22); border-radius: 999rpx; background: rgba(255,255,255,.54); color: var(--mrc-text-deep); font-size: 20rpx; }.cuisine-card button { min-height: 80rpx; margin: 0; border-radius: 20rpx; font-size: 23rpx; font-weight: 750; }.cuisine-card button::after { display: none; }.cuisine-card__primary { border: 0; background: var(--mrc-primary-grad); color: #fff; }.cuisine-card__secondary { border: 0; background: transparent; color: var(--mrc-text-sub); }
 .choice-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12rpx; }.choice-grid--people { grid-template-columns: repeat(5, 1fr); }.choice-grid button { display: flex; min-height: 88rpx; flex-direction: column; align-items: center; justify-content: center; margin: 0; padding: 12rpx 6rpx; border: 2rpx solid var(--mrc-border); border-radius: 20rpx; background: var(--mrc-surface); color: var(--mrc-text-deep); font-size: 25rpx; font-weight: 750; line-height: 1.25; }.choice-grid button::after, .choice-confirm::after, .generate-button::after, .restart-button::after, .composer button::after { display: none; }.choice-grid button:active { border-color: var(--mrc-accent); background: var(--mrc-accent-soft); }.choice-grid button text { margin-top: 7rpx; color: var(--mrc-text-sub); font-size: 18rpx; font-weight: 500; }
-.choice-grid--household { grid-template-columns: repeat(2, 1fr); }.choice-grid--household button { min-height: 116rpx; align-items: flex-start; padding-left: 22rpx; }.choice-grid--spice { grid-template-columns: repeat(3, 1fr); }
+.choice-grid--household { grid-template-columns: repeat(3, 1fr); }.choice-grid--household button { position: relative; min-height: 92rpx; padding: 12rpx 8rpx; transition: border-color .18s ease, background-color .18s ease, color .18s ease; }.choice-grid--household button.selected { border-color: var(--mrc-accent); background: var(--mrc-accent-soft); color: var(--mrc-accent); }.choice-grid--household button .selection-mark { position: absolute; top: 8rpx; right: 10rpx; display: flex; width: 28rpx; height: 28rpx; align-items: center; justify-content: center; border: 2rpx solid var(--mrc-border); border-radius: 50%; color: transparent; font-size: 18rpx; line-height: 1; }.choice-grid--household button.selected .selection-mark { border-color: var(--mrc-accent); background: var(--mrc-accent); color: #fff; }.household-confirm { min-height: 82rpx; margin: 16rpx 0 0; border: 0; border-radius: 20rpx; background: var(--mrc-text-deep); color: #fff; font-size: 24rpx; font-weight: 750; }.household-confirm::after { display: none; }.household-confirm[disabled] { opacity: .38; }.choice-grid--spice { grid-template-columns: repeat(3, 1fr); }
 .weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8rpx; }.weekdays view { display: flex; min-height: 76rpx; align-items: center; justify-content: center; border: 2rpx solid var(--mrc-border); border-radius: 18rpx; color: var(--mrc-text-sub); font-size: 22rpx; }.weekdays view.selected { border-color: var(--mrc-accent); background: var(--mrc-accent-soft); color: var(--mrc-accent); font-weight: 800; }.choice-confirm { min-height: 88rpx; margin: 18rpx 0 0; border: 0; border-radius: 22rpx; background: var(--mrc-text-deep); color: #fff; font-size: 25rpx; font-weight: 750; }
 .plan-confirm__summary { display: flex; justify-content: space-between; padding: 4rpx 4rpx 18rpx; color: var(--mrc-text-deep); font-size: 24rpx; font-weight: 750; }.plan-confirm__summary text:last-child { color: var(--mrc-accent); font-size: 21rpx; }.generate-button { display: flex; min-height: 98rpx; align-items: center; justify-content: space-between; margin: 0; padding: 0 26rpx; border: 0; border-radius: 24rpx; background: var(--mrc-primary-grad); color: #fff; box-shadow: var(--mrc-shadow-coral); line-height: 1.2; }.generate-button:active { transform: scale(.98); }.generate-button { font-size: 28rpx; font-weight: 800; }.generate-button text { font-size: 19rpx; font-weight: 500; opacity: .86; }.restart-button { min-height: 72rpx; margin: 8rpx 0 0; border: 0; background: transparent; color: var(--mrc-text-sub); font-size: 21rpx; }
 .composer { display: flex; align-items: center; gap: 10rpx; min-height: 96rpx; margin-top: 18rpx; padding: 10rpx 12rpx 10rpx 22rpx; border: 2rpx solid var(--mrc-border); border-radius: 28rpx; background: var(--mrc-surface); box-sizing: border-box; }.composer--fixed { position: fixed; z-index: 20; right: 28rpx; bottom: calc(18rpx + env(safe-area-inset-bottom)); left: 28rpx; margin: 0; box-shadow: 0 12rpx 40rpx rgba(69, 37, 24, .16); }.composer input { min-width: 0; flex: 1; color: var(--mrc-text-deep); font-size: 23rpx; }.composer input[disabled] { opacity: .58; }.composer button { display: flex; width: 88rpx; min-height: 70rpx; align-items: center; justify-content: center; margin: 0; padding: 0; border: 0; border-radius: 20rpx; background: var(--mrc-text-deep); color: #fff; font-size: 21rpx; }.composer button[disabled] { opacity: .55; }.archive-link { display: flex; min-height: 82rpx; align-items: center; justify-content: center; color: var(--mrc-text-sub); font-size: 21rpx; }

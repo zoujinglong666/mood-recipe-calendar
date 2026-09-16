@@ -31,7 +31,8 @@ public final class AgentCards {
     public static List<String> allowedValues(String action) {
         return switch (action == null ? "" : action) {
             case "ASK_PEOPLE" -> IntStream.rangeClosed(1, 50).mapToObj(value -> "people=" + value).toList();
-            case "ASK_HOUSEHOLD" -> List.of("elder=yes", "child=yes", "household=none");
+            case "ASK_HOUSEHOLD" -> List.of("elder=yes", "child=yes", "household=elder",
+                    "household=child", "household=elder,child", "household=none");
             case "ASK_SPICE" -> List.of("spice=不吃辣", "spice=微辣", "spice=能吃辣");
             case "ASK_DAYS" -> List.of("days=0,1,2,3,4,5,6", "days=0,1,2,3,4", "days=5,6");
             case "ASK_DISHES" -> IntStream.rangeClosed(1, 20).mapToObj(value -> "dishes=" + value).toList();
@@ -56,7 +57,7 @@ public final class AgentCards {
 
     private static String prefix(String text) {
         if (text.startsWith("people=")) return "ASK_PEOPLE";
-        if (text.equals("elder=yes") || text.equals("child=yes") || text.equals("household=none")) {
+        if (text.equals("elder=yes") || text.equals("child=yes") || text.startsWith("household=")) {
             return "ASK_HOUSEHOLD";
         }
         if (text.startsWith("spice=")) return "ASK_SPICE";
@@ -72,8 +73,8 @@ public final class AgentCards {
             case "ASK_PEOPLE" -> options("一起吃饭的人数", "也可以直接输入具体人数",
                     "people=1", "1 人", "people=2", "2 人", "people=3", "3 人", "people=4", "4 人",
                     "people=6", "6 人", "people=8", "8 人");
-            case "ASK_HOUSEHOLD" -> options("这周要照顾谁？", "会影响口感、盐度和食材处理",
-                    "elder=yes", "有老人", "child=yes", "有小孩", "household=none", "都是成人");
+            case "ASK_HOUSEHOLD" -> options("要照顾谁？", "可多选，会影响口感、盐度和食材处理",
+                    "household=elder", "有老人", "household=child", "有小孩", "household=none", "都是成人");
             case "ASK_SPICE" -> options("家里平时能吃多辣？", "我会贯穿整周菜单",
                     "spice=不吃辣", "不吃辣", "spice=微辣", "微辣", "spice=能吃辣", "能吃辣");
             case "ASK_DAYS" -> options("哪几天开火？", "可一次选择多个日期",

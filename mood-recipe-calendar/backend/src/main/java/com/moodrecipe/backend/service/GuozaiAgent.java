@@ -97,15 +97,12 @@ public class GuozaiAgent {
             if (aiRecipe.isPresent() && allowedByPreference(aiRecipe.get(), preference)
                     && !exposures.isRejected(openid, aiRecipe.get())) {
                 Recipe generated = aiRecipe.get();
-                // 锅仔生成结果先落库：带真实图片才入库，后续推荐可直接复用（不再依赖外部图源）
-                if (generated.getImage() != null && !generated.getImage().isBlank()
-                        && !generated.getImage().startsWith("/static/")) {
-                    try {
-                        generated.setSource("AI");
-                        generated = recipeRepository.save(generated);
-                    } catch (Exception ex) {
-                        log.warn("锅仔菜谱落库失败，本次仍返回: {}", ex.toString());
-                    }
+                // AI 菜谱无论图片是否生成成功都先落库；图片服务失败不应丢掉完整菜谱。
+                try {
+                    generated.setSource("AI");
+                    generated = recipeRepository.save(generated);
+                } catch (Exception ex) {
+                    log.warn("锅仔菜谱落库失败，本次仍返回: {}", ex.toString());
                 }
                 update(progress, RecommendationJobService.Stage.FINALIZE,
                         RecommendationJobService.StepStatus.RUNNING, "锅仔正在整理这道菜");
