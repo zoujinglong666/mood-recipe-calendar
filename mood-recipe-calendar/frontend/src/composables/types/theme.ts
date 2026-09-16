@@ -64,6 +64,23 @@ export interface SystemThemeState {
  */
 export const themeColorOptions: ThemeColorOption[] = [
   {
+    name: '锅仔暖食',
+    value: 'guozai',
+    primary: '#EF5A3C',
+    primaryShades: {
+      primary1: '#FFF8F4',
+      primary2: '#FFEDE5',
+      primary3: '#FFD5C8',
+      primary4: '#FFB49F',
+      primary5: '#FF8A70',
+      primary6: '#EF5A3C',
+      primary7: '#D9472D',
+      primary8: '#B73724',
+      primary9: '#8E291D',
+      primary10: '#5C1B14',
+    },
+  },
+  {
     name: '默认蓝',
     value: 'blue',
     primary: '#1C64FD',

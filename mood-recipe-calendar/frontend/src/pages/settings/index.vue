@@ -34,7 +34,7 @@ const avatarUpdating = ref(false)
 const nicknameSaving = ref(false)
 const logoutLoading = ref(false)
 
-const avatar = computed(() => userStore.userInfo?.avatarUrl || STATIC_BASE_URL + '/static/guozai/mood_01_happy.png')
+const avatar = computed(() => userStore.userInfo?.avatarUrl || `${STATIC_BASE_URL}/static/guozai/mood_01_happy.png`)
 const themeChoice = computed<ThemeChoice>(() => followSystem.value ? 'system' : isDark.value ? 'dark' : 'light')
 
 /** 后端服务切换 */

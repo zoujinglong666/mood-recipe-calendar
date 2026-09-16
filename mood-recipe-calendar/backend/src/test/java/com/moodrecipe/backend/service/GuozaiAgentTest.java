@@ -18,6 +18,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 
@@ -33,6 +34,7 @@ class GuozaiAgentTest {
         when(ai.recommendWithPersona(anyString(), anyString(), any())).thenReturn(Optional.empty());
         when(ai.recommend(anyString(), anyString(), any())).thenReturn(Optional.empty());
         when(ai.recommend(anyString(), anyString())).thenReturn(Optional.empty());
+        when(ai.recommendWeekly(anyString(), anyInt())).thenReturn(Optional.empty());
         when(ai.monthlyCompanionMessage(anyString())).thenReturn(Optional.empty());
 
         return buildAgent(recipes, interactions, preferences, ai, mock(RecommendationExposureService.class));
@@ -68,7 +70,7 @@ class GuozaiAgentTest {
         when(interactions.findTop30ByOpenidOrderByCreatedAtDesc("user-1")).thenReturn(List.of());
         when(interactions.findByOpenidAndAction("user-1", "DISLIKE")).thenReturn(List.of());
         when(preferences.findByOpenid("user-1")).thenReturn(Optional.of(preference));
-        when(recipes.findByMoodTag("平静")).thenReturn(List.of(peanutDish, tomatoDish));
+        when(recipes.findAiWithImages()).thenReturn(List.of(peanutDish, tomatoDish));
 
         Recipe result = agent.recommend("user-1", "平静", null);
         assertEquals("番茄炒蛋", result.getName());
@@ -89,11 +91,29 @@ class GuozaiAgentTest {
         when(interactions.findTop30ByOpenidOrderByCreatedAtDesc("user-1")).thenReturn(List.of());
         when(interactions.findByOpenidAndAction("user-1", "DISLIKE")).thenReturn(List.of());
         when(preferences.findByOpenid("user-1")).thenReturn(Optional.of(preference));
-        when(recipes.findByMoodTag("平静")).thenReturn(List.of(tomatoDish, sichuanDish));
+        when(recipes.findAiWithImages()).thenReturn(List.of(tomatoDish, sichuanDish));
 
         Recipe result = agent.recommend("user-1", "平静", null);
         assertEquals("麻婆豆腐", result.getName());
         assertTrue(result.getRecommendationReason().contains("川菜"));
+    }
+
+    @Test
+    void boostsJiangxiCuisineAfterItIsLearned() {
+        RecipeRepository recipes = mock(RecipeRepository.class);
+        RecipeInteractionRepository interactions = mock(RecipeInteractionRepository.class);
+        UserFoodPreferenceRepository preferences = mock(UserFoodPreferenceRepository.class);
+        UserFoodPreference preference = new UserFoodPreference();
+        preference.setFavoriteCuisines("赣菜");
+        Recipe jiangxiDish = recipe(1L, "宁都三杯鸡", "鸡腿 2 个，米酒 20ml");
+        Recipe tomatoDish = recipe(2L, "番茄炒蛋", "番茄 2 个，鸡蛋 3 个");
+        when(preferences.findByOpenid("user-1")).thenReturn(Optional.of(preference));
+        when(interactions.findTop30ByOpenidOrderByCreatedAtDesc("user-1")).thenReturn(List.of());
+        when(interactions.findByOpenidAndAction("user-1", "DISLIKE")).thenReturn(List.of());
+        when(recipes.findAiWithImages()).thenReturn(List.of(tomatoDish, jiangxiDish));
+
+        assertEquals("宁都三杯鸡", buildAgent(recipes, interactions, preferences)
+                .recommend("user-1", "平静", null).getName());
     }
 
     @Test
@@ -110,7 +130,7 @@ class GuozaiAgentTest {
         when(interactions.findTop30ByOpenidOrderByCreatedAtDesc("user-1")).thenReturn(List.of());
         when(interactions.findByOpenidAndAction("user-1", "DISLIKE")).thenReturn(List.of());
         when(preferences.findByOpenid("user-1")).thenReturn(Optional.of(preference));
-        when(recipes.findByMoodTag("平静")).thenReturn(List.of(tomatoDish));
+        when(recipes.findAiWithImages()).thenReturn(List.of(tomatoDish));
 
         Recipe result = agent.recommend("user-1", "平静", null);
         assertEquals("番茄炒蛋", result.getName());
@@ -131,7 +151,7 @@ class GuozaiAgentTest {
         when(interactions.findTop30ByOpenidOrderByCreatedAtDesc("user-1")).thenReturn(List.of());
         when(interactions.findByOpenidAndAction("user-1", "DISLIKE")).thenReturn(List.of());
         when(preferences.findByOpenid("user-1")).thenReturn(Optional.of(preference));
-        when(recipes.findByMoodTag("平静")).thenReturn(List.of(congee, chicken));
+        when(recipes.findAiWithImages()).thenReturn(List.of(congee, chicken));
 
         Recipe result = agent.recommend("user-1", "平静", null);
         assertEquals("鸡胸肉西兰花", result.getName());
@@ -154,7 +174,7 @@ class GuozaiAgentTest {
         when(preferences.findByOpenid("user-1")).thenReturn(Optional.of(preference));
         when(interactions.findTop30ByOpenidOrderByCreatedAtDesc("user-1")).thenReturn(List.of());
         when(interactions.findByOpenidAndAction("user-1", "DISLIKE")).thenReturn(List.of());
-        when(recipes.findByMoodTag("平静")).thenReturn(List.of(tomatoDish));
+        when(recipes.findAiWithImages()).thenReturn(List.of(tomatoDish));
 
         Recipe result = buildAgent(recipes, interactions, preferences, ai, exposures)
                 .recommend("user-1", "平静", null);
@@ -194,7 +214,7 @@ class GuozaiAgentTest {
         when(preferences.findByOpenid("user-1")).thenReturn(Optional.of(preference));
         when(interactions.findTop30ByOpenidOrderByCreatedAtDesc("user-1")).thenReturn(List.of());
         when(interactions.findByOpenidAndAction("user-1", "DISLIKE")).thenReturn(List.of());
-        when(recipes.findAll()).thenReturn(List.of(peanutDish, chicken, broccoli));
+        when(recipes.findAiWithImages()).thenReturn(List.of(peanutDish, chicken, broccoli));
 
         List<Recipe> menu = agent.planWeeklyMenu("user-1", 1, 2, "BALANCED");
 
@@ -202,6 +222,64 @@ class GuozaiAgentTest {
         assertTrue(menu.stream().noneMatch(recipe -> recipe.getName().contains("花生")));
         assertEquals("清蒸鸡腿", menu.get(0).getName());
         assertEquals("蒜蓉西兰花", menu.get(1).getName());
+    }
+
+    @Test
+    void weeklyPlanUsesAiWithoutReadingLocalCatalogWhenAiReturnsEnough() {
+        RecipeRepository recipes = mock(RecipeRepository.class);
+        RecipeInteractionRepository interactions = mock(RecipeInteractionRepository.class);
+        UserFoodPreferenceRepository preferences = mock(UserFoodPreferenceRepository.class);
+        AiRecipeService ai = mock(AiRecipeService.class);
+        when(preferences.findByOpenid("user-1")).thenReturn(Optional.empty());
+        when(ai.recommendWeekly(anyString(), anyInt())).thenReturn(Optional.of(List.of(
+                recipe(null, "AI 清蒸鸡腿", "鸡腿 2 个"),
+                recipe(null, "AI 蒜蓉青菜", "青菜 300g"))));
+
+        List<Recipe> menu = buildAgent(recipes, interactions, preferences, ai,
+                mock(RecommendationExposureService.class)).planWeeklyMenu("user-1", 1, 2, "BALANCED");
+
+        assertEquals(List.of("AI 清蒸鸡腿", "AI 蒜蓉青菜"), menu.stream().map(Recipe::getName).toList());
+        verify(recipes, never()).findAll();
+    }
+
+    @Test
+    void prefersEverydayIngredientsForSaveBudget() {
+        RecipeRepository recipes = mock(RecipeRepository.class);
+        RecipeInteractionRepository interactions = mock(RecipeInteractionRepository.class);
+        UserFoodPreferenceRepository preferences = mock(UserFoodPreferenceRepository.class);
+        Recipe steak = recipe(1L, "香煎牛排", "牛排 2 块");
+        Recipe tofu = recipe(2L, "家常豆腐", "豆腐 1 块，白菜 200g");
+
+        when(preferences.findByOpenid("user-1")).thenReturn(Optional.empty());
+        when(interactions.findTop30ByOpenidOrderByCreatedAtDesc("user-1")).thenReturn(List.of());
+        when(interactions.findByOpenidAndAction("user-1", "DISLIKE")).thenReturn(List.of());
+        when(recipes.findAiWithImages()).thenReturn(List.of(steak, tofu));
+
+        List<Recipe> menu = buildAgent(recipes, interactions, preferences)
+                .planWeeklyMenu("user-1", 1, 1, "BALANCED", "SAVE");
+
+        assertEquals("家常豆腐", menu.get(0).getName());
+    }
+
+    @Test
+    void expandsWeeklyPoolBeyondSingleAiRecipeWithoutRepeatingNames() {
+        RecipeRepository recipes = mock(RecipeRepository.class);
+        RecipeInteractionRepository interactions = mock(RecipeInteractionRepository.class);
+        UserFoodPreferenceRepository preferences = mock(UserFoodPreferenceRepository.class);
+        Recipe tomato = recipe(1L, "番茄炒蛋", "番茄，鸡蛋");
+        Recipe chicken = recipe(2L, "香菇鸡腿", "香菇，鸡腿");
+        Recipe greens = recipe(3L, "蒜蓉青菜", "青菜，大蒜");
+
+        when(preferences.findByOpenid("user-1")).thenReturn(Optional.empty());
+        when(interactions.findTop30ByOpenidOrderByCreatedAtDesc("user-1")).thenReturn(List.of());
+        when(interactions.findByOpenidAndAction("user-1", "DISLIKE")).thenReturn(List.of());
+        when(recipes.findAiWithImages()).thenReturn(List.of(tomato));
+        when(recipes.findAll()).thenReturn(List.of(tomato, chicken, greens));
+
+        List<Recipe> menu = buildAgent(recipes, interactions, preferences)
+                .planWeeklyMenu("user-1", 1, 2, "BALANCED");
+
+        assertEquals(2, menu.stream().map(Recipe::getName).distinct().count());
     }
 
     @Test
@@ -218,7 +296,7 @@ class GuozaiAgentTest {
         when(preferences.findByOpenid("user-1")).thenReturn(Optional.empty());
         when(interactions.findTop30ByOpenidOrderByCreatedAtDesc("user-1")).thenReturn(List.of(shown));
         when(interactions.findByOpenidAndAction("user-1", "DISLIKE")).thenReturn(List.of());
-        when(recipes.findByMoodTag("平静")).thenReturn(List.of(first, second));
+        when(recipes.findAiWithImages()).thenReturn(List.of(first, second));
 
         Recipe result = buildAgent(recipes, interactions, preferences).recommend("user-1", "平静", null);
 

@@ -149,7 +149,7 @@ function goPreferences() {
   router.push({ name: 'preferences' })
 }
 function goWeeklyPlan() {
-  router.push({ name: 'weekly-plan' })
+  router.push({ name: 'meal-agent' })
 }
 function goFeedback() {
   router.push({ name: 'feedback' })
@@ -318,10 +318,10 @@ function openStat(type: 'records' | 'days' | 'streak') {
              mode="aspectFit"/>
       <view class="profile-weekly-plan__main">
         <text class="profile-weekly-plan__title">
-          锅仔帮你安排这一周
+          锅仔管饭
         </text>
         <text class="profile-weekly-plan__sub">
-          晚餐计划 · 买菜清单 · 少一点吃什么的纠结
+          记得口味 · 安排一周 · 随时帮你调整
         </text>
       </view>
       <text class="profile-weekly-plan__arrow">

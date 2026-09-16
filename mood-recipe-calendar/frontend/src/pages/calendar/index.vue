@@ -18,6 +18,7 @@ definePage({
 })
 
 const router = useRouter()
+const route = useRoute()
 
 const weekCN = ['日', '一', '二', '三', '四', '五', '六']
 const now = new Date()
@@ -69,6 +70,7 @@ const emptyDay = ref(0)
 // 记录详情弹窗
 const showDetail = ref(false)
 const detailRecord = ref<RecordItem | null>(null)
+let initialDayHandled = false
 
 async function loadData() {
   loading.value = true
@@ -81,6 +83,15 @@ async function loadData() {
     ])
     records.value = monthRecords
     stats.value = { totalDays: statsData.totalDays, currentStreak: statsData.currentStreak }
+    if (!initialDayHandled) {
+      initialDayHandled = true
+      const selectedDay = Number(route.query.day)
+      const selectedRecord = recordMap.value.get(selectedDay)
+      if (selectedRecord) {
+        detailRecord.value = selectedRecord
+        showDetail.value = true
+      }
+    }
   }
   catch (e: any) {
     error.value = e.message || '加载失败'

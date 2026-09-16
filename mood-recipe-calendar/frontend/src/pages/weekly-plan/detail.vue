@@ -3,7 +3,7 @@ import type { PlanDay, WeeklyPlan } from '@/api/weeklyPlans'
 import { useImagePreview } from '@wot-ui/ui'
 import { computed, nextTick, ref } from 'vue'
 import { resolveAssetUrl } from '@/api/request'
-import { generatePlanDishCover, getCurrentPlan, getWeeklyPlan, replacePlanDay, toggleShoppingItem } from '@/api/weeklyPlans'
+import { generatePlanDishCover, getCurrentPlan, getWeeklyPlan, replacePlanDay, reportPlanDishOutcome, toggleShoppingItem } from '@/api/weeklyPlans'
 import { navBack } from '@/composables/useNavBar'
 import { exportRecipeShare, saveShareImage } from '@/utils/albumShare'
 import { STATIC_BASE_URL } from '@/utils/assets'
@@ -25,9 +25,31 @@ const activeDish = ref<Record<number, number>>({})
 const sharingDay = ref(-1)
 let coverQueue = Promise.resolve()
 const weekdayNames = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+const outcomeOptions = [
+  { key: 'DONE', label: '做完了' },
+  { key: 'LEFTOVER', label: '有剩菜' },
+  { key: 'HARD', label: '有点难' },
+  { key: 'SKIP', label: '没做成' },
+] as const
+type OutcomeKey = typeof outcomeOptions[number]['key']
+const outcomeMap: Record<OutcomeKey, { cooked: boolean, leftover: boolean, tooHard: boolean }> = {
+  DONE: { cooked: true, leftover: false, tooHard: false },
+  LEFTOVER: { cooked: true, leftover: true, tooHard: false },
+  HARD: { cooked: false, leftover: false, tooHard: true },
+  SKIP: { cooked: false, leftover: false, tooHard: false },
+}
+const outcomes = ref<Record<string, OutcomeKey>>({})
 const groups = computed(() => ['肉蛋豆', '蔬菜', '主食', '调料']
   .map(category => ({ category, items: plan.value?.shopping.filter(item => item.category === category) || [] }))
   .filter(group => group.items.length))
+const agentCheckCopy = computed(() => {
+  const agent = plan.value?.agent
+  if (!agent)
+    return ''
+  const score = typeof agent.score === 'number' ? `搭配检查 ${agent.score} 分` : '搭配检查已完成'
+  const memory = agent.memoryUsed?.length ? `参考了 ${agent.memoryUsed.length} 条锅仔记忆` : '已检查忌口、重复和荤素搭配'
+  return `${score} · ${memory}`
+})
 
 function weekday(day: PlanDay | undefined, index: number) {
   return day?.day || weekdayNames[index] || `第${index + 1}天`
@@ -90,6 +112,40 @@ function onDishChange(dayIndex: number, event: { detail: { current: number } }) 
 
 function toggleDetails(index: number) {
   detailsOpen.value = { ...detailsOpen.value, [index]: !detailsOpen.value[index] }
+}
+
+function feedbackKey(dayIndex: number, dishIndex: number) {
+  return `${dayIndex}-${dishIndex}`
+}
+
+/** 反馈会回流成记忆：少问没人答的问题、少排做砸过的菜。 */
+async function reportOutcome(dayIndex: number, dishIndex: number, dishName: string, kind: OutcomeKey) {
+  if (!plan.value || outcomes.value[feedbackKey(dayIndex, dishIndex)] === kind)
+    return
+  const key = feedbackKey(dayIndex, dishIndex)
+  outcomes.value = { ...outcomes.value, [key]: kind }
+  try {
+    await reportPlanDishOutcome({
+      planId: plan.value.id,
+      dayIndex,
+      dishIndex,
+      dishName,
+      ...outcomeMap[kind],
+    })
+    toastSuccess('锅仔记下了，下次会少问少排')
+  }
+  catch (error) {
+    const rollback = { ...outcomes.value }
+    delete rollback[key]
+    outcomes.value = rollback
+    toastError(error, '反馈没记上，稍后再试')
+  }
+}
+
+function onOutcomeChange(dayIndex: number, dishIndex: number, dishName: string, event: { value: string | number | boolean }) {
+  const kind = String(event.value) as OutcomeKey
+  if (kind in outcomeMap)
+    void reportOutcome(dayIndex, dishIndex, dishName, kind)
 }
 
 async function load() {
@@ -249,6 +305,21 @@ async function shareDay(day: PlanDay, index: number) {
         <text>{{ activeDay + 1 }} / {{ plan.days.length }}</text>
       </view>
 
+      <view v-if="plan.agent" class="agent-check" aria-label="锅仔菜单检查结果">
+        <image :src="`${STATIC_BASE_URL}/static/guozai/action_06_glasses.png`" mode="aspectFit" aria-hidden="true" />
+        <view>
+          <text class="agent-check__title">
+            锅仔检查完成
+          </text>
+          <text class="agent-check__copy">
+            {{ agentCheckCopy }}
+          </text>
+        </view>
+        <text v-if="plan.agent.degradeReasons?.length" class="agent-check__tag">
+          已自动补全
+        </text>
+      </view>
+
       <swiper class="recipe-swiper" :current="activeDay" :duration="220" @change="onDayChange">
         <swiper-item v-for="(day, index) in plan.days" :key="`${day.day}-${index}`">
           <scroll-view class="recipe-scroll" scroll-y>
@@ -341,6 +412,36 @@ async function shareDay(day: PlanDay, index: number) {
                       <text>{{ step }}</text>
                     </view>
                   </view>
+                </view>
+              </view>
+
+              <view class="dish-feedback">
+                <text class="dish-feedback__eyebrow">
+                  吃完告诉锅仔
+                </text>
+                <text class="dish-feedback__title">
+                  下周会更懂你的份量和难度
+                </text>
+                <view v-for="(dish, dishIndex) in dishesOf(day)" :key="`fb-${dish.name}-${dishIndex}`" class="dish-feedback__row">
+                  <view class="dish-feedback__dish">
+                    <text class="dish-feedback__number">
+                      {{ dishIndex + 1 }}
+                    </text>
+                    <text class="dish-feedback__name">
+                      {{ dish.name }}
+                    </text>
+                  </view>
+                  <wd-radio-group
+                    custom-class="outcome-selector"
+                    type="button"
+                    direction="horizontal"
+                    :model-value="outcomes[feedbackKey(index, dishIndex)]"
+                    @change="onOutcomeChange(index, dishIndex, dish.name, $event)"
+                  >
+                    <wd-radio v-for="option in outcomeOptions" :key="option.key" :value="option.key">
+                      {{ option.label }}
+                    </wd-radio>
+                  </wd-radio-group>
                 </view>
               </view>
 
@@ -482,6 +583,13 @@ async function shareDay(day: PlanDay, index: number) {
 .record__title { color: var(--mrc-surface); font-size: 27rpx; font-weight: 800; }
 .record__copy { margin-top: 4rpx; color: var(--mrc-surface); font-size: 21rpx; opacity: .78; }
 .record__arrow { color: var(--mrc-surface); font-size: 48rpx; font-weight: 300; }
+.agent-check { display: flex; align-items: center; gap: 14rpx; margin: 0 2rpx 16rpx; padding: 16rpx 18rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 22rpx; background: var(--mrc-surface-sun); box-shadow: var(--mrc-shadow-soft); }.agent-check image { width: 62rpx; height: 62rpx; flex: 0 0 auto; }.agent-check > view { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 4rpx; }.agent-check__title { color: var(--mrc-text-strong); font-size: 23rpx; font-weight: 800; }.agent-check__copy { color: var(--mrc-text-sub); font-size: 20rpx; line-height: 1.45; }.agent-check__tag { flex: 0 0 auto; padding: 8rpx 12rpx; border-radius: 999rpx; background: var(--mrc-surface-peach); color: var(--mrc-accent); font-size: 18rpx; font-weight: 700; }
+.dish-feedback { margin-top: 30rpx; padding: 24rpx 20rpx 20rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 24rpx; background: var(--mrc-surface-sun); }
+.dish-feedback__eyebrow { display: block; color: var(--mrc-accent); font-size: 19rpx; font-weight: 800; letter-spacing: 1rpx; }
+.dish-feedback__title { display: block; margin-top: 5rpx; color: var(--mrc-text-strong); font-size: 25rpx; font-weight: 800; }
+.dish-feedback__row { margin-top: 20rpx; padding: 18rpx; border-radius: 20rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); }
+.dish-feedback__dish { display: flex; align-items: center; gap: 12rpx; margin-bottom: 16rpx; }.dish-feedback__number { display: flex; width: 34rpx; height: 34rpx; align-items: center; justify-content: center; border-radius: 50%; background: var(--mrc-accent-soft); color: var(--mrc-accent); font-size: 19rpx; font-weight: 800; }.dish-feedback__name { color: var(--mrc-text-strong); font-size: 24rpx; font-weight: 750; }
+:deep(.outcome-selector) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10rpx; width: 100%; }:deep(.outcome-selector .wd-radio.is-button) { display: flex; width: 100%; min-width: 0; max-width: none; min-height: 68rpx; align-items: center; justify-content: center; margin: 0; border-color: var(--mrc-border); border-radius: 16rpx; background: var(--mrc-surface); box-sizing: border-box; }:deep(.outcome-selector .wd-radio__label) { display: flex; min-height: 64rpx; align-items: center; justify-content: center; padding: 0 10rpx; color: var(--mrc-text-sub); font-size: 21rpx; }:deep(.outcome-selector .wd-radio.is-checked) { border-color: var(--mrc-accent); background: var(--mrc-accent-soft); }:deep(.outcome-selector .wd-radio.is-checked .wd-radio__label) { color: var(--mrc-accent); font-weight: 800; }
 .shopping-panel { margin: 12rpx 2rpx 20rpx; overflow: hidden; }
 .shopping-toggle { min-height: 112rpx; padding: 16rpx 26rpx; box-sizing: border-box; transition: transform 160ms ease-out, opacity 160ms ease-out; }
 .shopping-title { color: var(--mrc-text-strong); font-size: 27rpx; font-weight: 800; }

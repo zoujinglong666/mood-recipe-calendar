@@ -26,6 +26,8 @@ declare module 'vue' {
     WdImagePreview: typeof import('@wot-ui/ui/components/wd-image-preview/wd-image-preview.vue')['default']
     WdNavbar: typeof import('@wot-ui/ui/components/wd-navbar/wd-navbar.vue')['default']
     WdPopup: typeof import('@wot-ui/ui/components/wd-popup/wd-popup.vue')['default']
+    WdRadio: typeof import('@wot-ui/ui/components/wd-radio/wd-radio.vue')['default']
+    WdRadioGroup: typeof import('@wot-ui/ui/components/wd-radio-group/wd-radio-group.vue')['default']
     WdTab: typeof import('@wot-ui/ui/components/wd-tab/wd-tab.vue')['default']
     WdTabbar: typeof import('@wot-ui/ui/components/wd-tabbar/wd-tabbar.vue')['default']
     WdTabbarItem: typeof import('@wot-ui/ui/components/wd-tabbar-item/wd-tabbar-item.vue')['default']

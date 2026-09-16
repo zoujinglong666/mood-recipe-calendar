@@ -2,9 +2,23 @@ import { get, post } from './request'
 
 export interface PlanDish { name: string, ingredients: string[], steps: string[], fallbackImageUrl?: string, imageUrl?: string }
 export interface PlanDay { day: string, dishName: string, ingredients: string[], steps: string[], reuseHint: string, healthTip: string, imageUrl?: string, fallbackImageUrl?: string, dishes?: PlanDish[] }
+export interface PlanAudit { score?: number | null, degradeReasons: string[], memoryUsed: string[], issues: string[], traceId?: string | null }
 export interface ShoppingItem { name: string, category: string, quantity: string, purchased: boolean }
-export interface WeeklyPlan { id: number, days: PlanDay[], shopping: ShoppingItem[], favorite: boolean, createdAt: string }
+export interface WeeklyPlan { id: number, days: PlanDay[], shopping: ShoppingItem[], favorite: boolean, createdAt: string, agent?: PlanAudit | null }
+export interface PlanOutcomeAck { cuisineAffinity: Record<string, number>, skipQuestions: string[], maxCookingMinutes: number | null, preferSimple: boolean, avoidDishes: string[] }
 export interface WeeklyPlanSummary { id: number, createdAt: string, favorite: boolean, days: PlanDay[] }
+export interface MealAgentState { people?: number, cookingDays?: number[], dishesPerDay?: number, healthGoal?: string, budget?: string, hasElder?: boolean, hasChild?: boolean, spiceLevel?: string, favoriteCuisine?: string, cuisineConfirmed?: boolean, mealContext?: string }
+export interface MealAgentOption { label: string, value: string }
+export interface MealAgentTurn {
+  reply: string
+  action: string
+  state: MealAgentState
+  card: { type: string, title: string, description: string, options: MealAgentOption[] }
+  askReason?: string
+  memoryUsed?: string[]
+  conflicts?: string[]
+  degraded?: string[]
+}
 
 export function getCurrentPlan() {
   return get<WeeklyPlan>('/weekly-plans/current')
@@ -15,8 +29,14 @@ export function getWeeklyPlan(id: number) {
 export function getWeeklyPlanHistory() {
   return get<WeeklyPlanSummary[]>('/weekly-plans/history')
 }
-export function generateWeeklyPlan(data: { people: number, days: number, cookingDays: number[], healthGoal: string, sendNotification: boolean, dishesPerDay: number }) {
+export function generateWeeklyPlan(data: { people: number, days: number, cookingDays: number[], healthGoal: string, sendNotification: boolean, dishesPerDay: number, budget?: string, conversationNotes?: string }) {
   return post<WeeklyPlan>('/weekly-plans/generate', data)
+}
+export function askMealAgent(message: string, nextQuestion: string) {
+  return post<{ reply: string }>('/weekly-plans/agent-replies', { message, nextQuestion })
+}
+export function runMealAgentTurn(message: string, state: MealAgentState) {
+  return post<MealAgentTurn>('/weekly-plans/agent-turns', { message, state })
 }
 
 const WEEKLY_PLAN_TEMPLATE_ID = 'h00FlM2Xf_X64sXln5WoYGnbvtJBjasdEraRPjs4NOg'
@@ -52,6 +72,10 @@ export function generatePlanDayCover(id: number, index: number) {
 }
 export function generatePlanDishCover(id: number, dayIndex: number, dishIndex: number) {
   return post<WeeklyPlan>(`/weekly-plans/${id}/days/${dayIndex}/cover/${dishIndex}`)
+}
+/** 把"做没做成、剩没剩、难不难"反馈给智能体，它才会越用越准。 */
+export function reportPlanDishOutcome(data: { planId: number, dayIndex: number, dishIndex: number, dishName: string, cooked?: boolean, leftover?: boolean, tooHard?: boolean }) {
+  return post<PlanOutcomeAck>('/agent/outcomes', data)
 }
 export function toggleShoppingItem(id: number, name: string) {
   return post<WeeklyPlan>(`/weekly-plans/${id}/shopping/${encodeURIComponent(name)}`)

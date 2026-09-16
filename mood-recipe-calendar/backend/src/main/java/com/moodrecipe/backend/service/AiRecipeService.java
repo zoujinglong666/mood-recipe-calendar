@@ -151,6 +151,21 @@ public class AiRecipeService {
         return recipe;
     }
 
+    /** 一次文本请求生成整周菜单；图片在用户打开具体菜卡时按需生成。 */
+    public Optional<List<Recipe>> recommendWeekly(String context, int count) {
+        if (apiKey.isBlank() || model.isBlank()) return Optional.empty();
+        int safeCount = Math.max(1, Math.min(count, 21));
+        String prompt = """
+                %s
+                请生成 %d 道互不重复、普通家庭能完成的中国家常菜，主菜和配菜比例合理。
+                只返回合法 JSON 数组，不要 Markdown、不要解释。每项格式严格为：
+                {"name":"菜名","description":"20字以内搭配理由","ingredients":["食材及用量"],"steps":["步骤"],"cookingTime":30,"difficulty":"简单","moodTags":"平静","season":"四季"}
+                规则：菜名不得重复；每道3-7种常见食材、3-5步、10-60分钟；用量明确；严格遵守忌口。
+                """.formatted(sanitizePreference(context), safeCount);
+        return chatRaw(persona.systemPrompt(), prompt, 0.85, 6000, ignored -> { })
+                .flatMap(result -> parseRecipeList(result.content(), safeCount));
+    }
+
     /** 只接收聚合后的习惯摘要，不上传日记、菜谱正文或身份标识。 */
     public Optional<String> companionMessage(String context) {
         return companionMessageWithPersona("根据这份不含身份信息的习惯摘要写一句20到36字的个性化寄语："
@@ -163,6 +178,17 @@ public class AiRecipeService {
      */
     public Optional<String> companionMessageWithPersona(String userPrompt) {
         return chat(persona.systemPrompt(), userPrompt, 0.75, 40);
+    }
+
+    /** 备餐对话中的普通追问；不生成菜谱，只给简短、可执行的回答。 */
+    public Optional<String> mealPlanningReply(String userPrompt) {
+        return chat(persona.systemPrompt(), userPrompt, 0.65, 120);
+    }
+
+    /** 让模型决定下一步交互动作；调用方仍会做白名单和必填信息校验。 */
+    public Optional<String> mealPlanningDecision(String userPrompt) {
+        return chatRaw(persona.systemPrompt(), userPrompt, 0.35, 500, ignored -> { })
+                .map(ChatResult::content);
     }
 
     /** 月度回信允许完整表达两项以上的真实记录事实。 */
@@ -246,6 +272,27 @@ public class AiRecipeService {
             recipe.setSeason(node.path("season").asText("四季"));
             return Optional.of(recipe);
         } catch (Exception ignored) {
+            return Optional.empty();
+        }
+    }
+
+    private Optional<List<Recipe>> parseRecipeList(String content, int limit) {
+        try {
+            String value = content.trim().replaceFirst("^```(?:json)?\\s*", "").replaceFirst("\\s*```$", "");
+            JsonNode root = objectMapper.readTree(value);
+            JsonNode items = root.isArray() ? root : root.path("recipes");
+            if (!items.isArray()) return Optional.empty();
+            Map<String, Recipe> unique = new LinkedHashMap<>();
+            for (JsonNode item : items) {
+                toRecipe(objectMapper.writeValueAsString(item), "平静").ifPresent(recipe -> {
+                    recipe.setSource("AI");
+                    unique.putIfAbsent(recipe.getName(), recipe);
+                });
+                if (unique.size() >= limit) break;
+            }
+            return unique.isEmpty() ? Optional.empty() : Optional.of(List.copyOf(unique.values()));
+        } catch (Exception ex) {
+            log.warn("AI 周菜单解析失败: {}", ex.toString());
             return Optional.empty();
         }
     }

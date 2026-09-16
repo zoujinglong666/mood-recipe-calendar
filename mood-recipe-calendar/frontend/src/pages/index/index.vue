@@ -4,7 +4,7 @@ import { STATIC_BASE_URL } from '@/utils/assets'
 import Icon from '../../components/common/Icon.vue'
 import { ensureLogin } from '../../utils/login'
 import { toastError } from '../../utils/toast'
-import { fetchCompanionMessage, fetchStats, fetchRecordsByMonth, type CompanionMessage, type RecordItem, type StatsResult } from '../../api/records'
+import { fetchCompanionMessage, fetchRecordsByMonth, type CompanionMessage, type RecordItem } from '../../api/records'
 
 definePage({ name: 'home', layout: 'tabbar', style: { navigationStyle: 'custom', navigationBarTitleText: '首页' } })
 const router = useRouter()
@@ -88,35 +88,44 @@ function cycleHeroGuozai() {
   heroGuozaiIndex.value = (heroGuozaiIndex.value + 1) % ALL_HERO_GUOZAI.length
   setTimeout(() => { isHeroCycling.value = false }, 400)
 }
-const loading = ref(true)
-const stats = ref<StatsResult>({ totalRecords: 0, totalDays: 0, currentStreak: 0, longestStreak: 0, moodDistribution: {}, topDishes: [] })
-const recordDays = ref<Set<number>>(new Set())
+const monthRecords = ref<RecordItem[]>([])
 const companion = ref<CompanionMessage>(localCompanion(now.getHours()))
+const monthRecordMap = computed(() => {
+  const map = new Map<number, RecordItem>()
+  monthRecords.value.forEach((record) => {
+    const day = Number.parseInt(record.recordDate?.split('-')[2] || '0', 10)
+    if (day > 0) map.set(day, record)
+  })
+  return map
+})
+const currentMonthLabel = `${now.getMonth() + 1}月食光`
+const latestMonthRecord = computed(() => [...monthRecords.value].sort((a, b) => b.recordDate.localeCompare(a.recordDate))[0])
+const calendarMemory = computed(() => {
+  const record = latestMonthRecord.value
+  if (!record) return '这个月的第一顿，锅仔等你留下来。'
+  const day = Number.parseInt(record.recordDate.split('-')[2] || '0', 10)
+  return `${day}号的${record.dishName}，锅仔还记得。`
+})
 const calCells = computed(() => {
   const year = now.getFullYear()
   const month = now.getMonth()
   const firstDay = new Date(year, month, 1).getDay()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
-  const cells: ({ d: number; isToday: boolean; hasRecord: boolean } | null)[] = []
+  const cells: ({ d: number; isToday: boolean; record?: RecordItem } | null)[] = []
   for (let i = 0; i < firstDay; i++) cells.push(null)
-  for (let d = 1; d <= daysInMonth; d++) cells.push({ d, isToday: d === now.getDate(), hasRecord: recordDays.value.has(d) })
+  for (let d = 1; d <= daysInMonth; d++) cells.push({ d, isToday: d === now.getDate(), record: monthRecordMap.value.get(d) })
   while (cells.length % 7 !== 0) cells.push(null)
   return cells
 })
 async function loadData() {
-  loading.value = true
   try {
     const openid = await ensureLogin()
-    const [statsData, monthRecords] = await Promise.all([fetchStats(openid), fetchRecordsByMonth(openid, currentMonth), loadCompanion()])
-    stats.value = statsData
-    recordDays.value = new Set(monthRecords.map((r: RecordItem) => {
-      const day = r.recordDate?.split('-')[2]
-      return day ? parseInt(day, 10) : 0
-    }).filter(d => d > 0))
+    const [records] = await Promise.all([fetchRecordsByMonth(openid, currentMonth), loadCompanion()])
+    monthRecords.value = records
   } catch (e: any) {
     if (e?.message !== 'NOT_LOGGED_IN')
       toastError(e, '加载失败，请稍后重试')
-  } finally { loading.value = false }
+  }
 }
 
 function localCompanion(hour: number): CompanionMessage {
@@ -149,6 +158,10 @@ onShow(loadData)
 const MOODS = ['开心', '平静', '疲惫', '焦虑', '难过', '嘴馋', '低落', '想家', '期待', '满足', '得意', '害羞']
 function gotoLucky() { router.push({ name: 'recipe', query: { mood: MOODS[Math.floor(Math.random() * MOODS.length)], random: '1' } }) }
 function goto(name: string, q?: Record<string, string>) { router.push({ name, query: q || {} }) }
+function openCalendarCell(cell: { d: number; record?: RecordItem }) {
+  if (cell.record) router.push({ name: 'calendar', query: { day: String(cell.d) } })
+  else router.pushTab({ name: 'record' })
+}
 </script>
 
 <template>
@@ -195,22 +208,35 @@ function goto(name: string, q?: Record<string, string>) { router.push({ name, qu
         </view>
       </view>
 
-      <view class="home-cal" role="button" aria-label="打开本月心情日历" @click="goto('calendar')">
+      <view class="home-cal">
         <view class="home-cal__header">
-          <view><text class="home-cal__kicker">本月食光</text><text class="home-cal__date">已经好好吃饭 {{ stats.totalDays }} 天</text></view>
-          <view class="home-cal__more"><text>月历</text><text>›</text></view>
+          <view><text class="home-cal__kicker">{{ currentMonthLabel }}</text><text class="home-cal__date">留下了 {{ monthRecordMap.size }} 个食光坐标</text></view>
+          <image class="home-cal__sticker" :src="STATIC_BASE_URL + '/static/guozai/action_08_peek.png'" mode="aspectFit" aria-label="探头的锅仔" />
         </view>
         <view class="home-cal__main"><view class="home-cal__main-grid">
           <text v-for="w in weekCN" :key="w" class="home-cal__main-w">{{ w }}</text>
           <block v-for="(c, i) in calCells" :key="i">
-            <view v-if="c" class="home-cal__main-cell" :class="{ 'home-cal__main-cell--today': c.isToday, 'home-cal__main-cell--warm': c.hasRecord }"><text>{{ c.d }}</text></view>
+            <view
+              v-if="c"
+              class="home-cal__main-cell"
+              :class="{ 'home-cal__main-cell--today': c.isToday, 'home-cal__main-cell--warm': c.record }"
+              role="button"
+              :aria-label="c.record ? `${c.d}日，${c.record.dishName}，打开记录` : `${c.d}日，记录一餐`"
+              @click="openCalendarCell(c)"
+            >
+              <image v-if="c.record?.imageUrl" class="home-cal__dish" :src="c.record.imageUrl" mode="aspectFill" />
+              <text class="home-cal__day">{{ c.d }}</text>
+              <view v-if="c.record && !c.record.imageUrl" class="home-cal__record-mark" />
+            </view>
             <view v-else class="home-cal__main-cell" />
           </block>
         </view></view>
-        <view class="home-cal__footer">
-          <view class="home-cal__legend"><view class="home-cal__dot home-cal__dot--recorded" /><text>已记录</text></view>
-          <view class="home-cal__legend"><view class="home-cal__dot home-cal__dot--today" /><text>今天</text></view>
-          <text class="home-cal__footer-note">去看看你的食光</text>
+        <view class="home-cal__memory">
+          <image :src="STATIC_BASE_URL + '/static/guozai/action_12_heart.png'" mode="aspectFit" />
+          <text>{{ calendarMemory }}</text>
+        </view>
+        <view class="home-cal__cta" role="button" aria-label="打开完整食光月历" @click="goto('calendar')">
+          <text>打开食光月历</text><text aria-hidden="true">›</text>
         </view>
       </view>
       <view class="home-slogan"><view class="home-slogan__line" /><text class="home-slogan__text">好好吃饭，也好好生活</text><view class="home-slogan__line" /></view>
@@ -249,6 +275,24 @@ function goto(name: string, q?: Record<string, string>) { router.push({ name, qu
 
 .home-actions { display: flex; gap: 16rpx; margin: 24rpx 0 32rpx; }.home-actions__item { display: flex; flex: 1; align-items: center; justify-content: space-between; min-width: 0; min-height: 128rpx; padding: 0 20rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); box-sizing: border-box; }.home-actions__item--recipe { background: var(--mrc-surface-peach); }.home-actions__item--record { overflow: hidden; background: var(--mrc-surface-mint); }.home-actions__text { z-index: 1; display: flex; flex-direction: column; gap: 8rpx; }.home-actions__label { color: var(--mrc-text-sub); font-size: 21rpx; }.home-actions__name { color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 700; white-space: nowrap; }.home-actions__guozai { width: 126rpx; height: 126rpx; margin-right: -16rpx; }
 
-.home-cal { padding: 28rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 32rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }.home-cal__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24rpx; }.home-cal__date { display: block; margin-top: 4rpx; color: var(--mrc-text-deep); font-size: 32rpx; font-weight: 700; }.home-cal__more { display: flex; align-items: center; min-height: 88rpx; gap: 8rpx; color: var(--mrc-accent); font-size: 24rpx; font-weight: 700; }.home-cal__main { background: var(--mrc-surface-2); border: 2rpx solid var(--mrc-border-light); border-radius: 20rpx; padding: 16rpx; }.home-cal__main-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8rpx; text-align: center; }.home-cal__main-w { padding: 8rpx 0; color: var(--mrc-text-sub); font-size: 20rpx; font-weight: 600; }.home-cal__main-cell { padding: 8rpx 0; border-radius: 12rpx; color: var(--mrc-text); font-size: 22rpx; }.home-cal__main-cell--today { background: var(--mrc-accent-soft); outline: 2rpx solid var(--mrc-accent); color: var(--mrc-accent); font-weight: 700; }.home-cal__main-cell--warm { background: var(--mrc-surface-peach); color: var(--mrc-text-deep); font-weight: 600; }.home-cal__footer { display: flex; align-items: center; gap: 20rpx; margin-top: 20rpx; color: var(--mrc-text-sub); font-size: 24rpx; }.home-cal__legend { display: flex; align-items: center; gap: 8rpx; font-size: 21rpx; }.home-cal__dot { width: 14rpx; height: 14rpx; border-radius: 50%; }.home-cal__dot--recorded { border: 2rpx solid var(--mrc-primary); background: var(--mrc-surface-peach); }.home-cal__dot--today { background: var(--mrc-accent); }.home-cal__footer-note { margin-left: auto; font-size: 21rpx; }
-.home-slogan { display: flex; align-items: center; gap: 16rpx; padding: 36rpx 12rpx 44rpx; }.home-slogan__text { flex: 0 0 auto; color: var(--mrc-text-light); font-size: 24rpx; letter-spacing: 2rpx; }.home-slogan__line { flex: 1; height: 2rpx; background: var(--mrc-border); }.home-lucky:active, .home-actions__item:active, .home-cal:active, .home-hero:active { transform: scale(0.985); }
+.home-cal { padding: 28rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 32rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }
+.home-cal__header { display: flex; align-items: center; justify-content: space-between; min-height: 96rpx; margin-bottom: 20rpx; }
+.home-cal__date { display: block; margin-top: 6rpx; color: var(--mrc-text-deep); font-size: 32rpx; font-weight: 700; }
+.home-cal__sticker { width: 112rpx; height: 112rpx; margin: -16rpx 4rpx -12rpx 0; filter: drop-shadow(0 6rpx 10rpx rgba(96, 52, 28, 0.12)); }
+.home-cal__main { border: 2rpx solid var(--mrc-border-light); border-radius: 24rpx; padding: 14rpx 12rpx 16rpx; background: linear-gradient(180deg, var(--mrc-surface-2), var(--mrc-surface-peach)); }
+.home-cal__main-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6rpx; text-align: center; }
+.home-cal__main-w { padding: 8rpx 0 10rpx; color: var(--mrc-text-sub); font-size: 20rpx; font-weight: 600; }
+.home-cal__main-cell { position: relative; display: flex; align-items: center; justify-content: center; min-width: 0; min-height: 66rpx; overflow: hidden; border: 2rpx solid transparent; border-radius: 16rpx; color: var(--mrc-text); font-size: 22rpx; box-sizing: border-box; transition: transform 0.18s ease, opacity 0.18s ease; }
+.home-cal__main-cell:active { opacity: 0.78; transform: scale(0.94); }
+.home-cal__main-cell--today { border-color: var(--mrc-accent); background: var(--mrc-accent-soft); color: var(--mrc-accent); font-weight: 800; }
+.home-cal__main-cell--warm { background: var(--mrc-surface-peach); color: var(--mrc-text-deep); font-weight: 700; }
+.home-cal__dish { position: absolute; inset: 0; width: 100%; height: 100%; }
+.home-cal__main-cell--warm .home-cal__day { position: absolute; right: 5rpx; bottom: 5rpx; z-index: 1; display: flex; align-items: center; justify-content: center; min-width: 30rpx; height: 30rpx; padding: 0 5rpx; border-radius: 15rpx; background: rgba(45, 24, 14, 0.72); color: #fff; font-size: 18rpx; box-sizing: border-box; }
+.home-cal__record-mark { width: 12rpx; height: 12rpx; margin-left: 6rpx; border-radius: 50%; background: var(--mrc-accent); }
+.home-cal__memory { display: flex; align-items: center; gap: 14rpx; min-height: 82rpx; margin-top: 18rpx; padding: 10rpx 18rpx; border-radius: 20rpx; background: var(--mrc-surface-sun); color: var(--mrc-text-deep); font-size: 23rpx; line-height: 1.45; box-sizing: border-box; }
+.home-cal__memory image { width: 64rpx; height: 64rpx; flex: 0 0 auto; }
+.home-cal__cta { display: flex; align-items: center; justify-content: space-between; min-height: 88rpx; margin-top: 8rpx; padding: 0 8rpx 0 12rpx; color: var(--mrc-accent); font-size: 24rpx; font-weight: 700; }
+.home-cal__cta text:last-child { font-size: 40rpx; font-weight: 400; }
+.home-cal__cta:active { opacity: 0.68; }
+.home-slogan { display: flex; align-items: center; gap: 16rpx; padding: 36rpx 12rpx 44rpx; }.home-slogan__text { flex: 0 0 auto; color: var(--mrc-text-light); font-size: 24rpx; letter-spacing: 2rpx; }.home-slogan__line { flex: 1; height: 2rpx; background: var(--mrc-border); }.home-lucky:active, .home-actions__item:active, .home-hero:active { transform: scale(0.985); }
 </style>
