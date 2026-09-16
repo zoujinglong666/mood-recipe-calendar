@@ -120,6 +120,7 @@ export function post<T = any>(url: string, data?: any): Promise<T> {
     uni.request({
       url: getApiBaseUrl() + url,
       method: 'POST',
+      timeout: 60000,
       data,
       header: { 'Content-Type': 'application/json', ...authHeader() },
       success: (res: any) => handleResponse(res, resolve, reject),
