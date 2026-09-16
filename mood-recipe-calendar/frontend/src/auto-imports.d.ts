@@ -6,7 +6,9 @@
 export {}
 declare global {
   const $$userConfigMap: typeof import('./api/index')['$$userConfigMap']
+  const ALBUM_ENTITLEMENT_CODE: typeof import('./api/virtualCommerce')['ALBUM_ENTITLEMENT_CODE']
   const ALBUM_PAGE_SIZE: typeof import('./utils/albumLayout')['ALBUM_PAGE_SIZE']
+  const ALBUM_PRODUCT_SKU: typeof import('./api/virtualCommerce')['ALBUM_PRODUCT_SKU']
   const API_BACKENDS: typeof import('./api/request')['API_BACKENDS']
   const Apis: typeof import('./api/index')['Apis']
   const BASE_URL: typeof import('./api/request')['BASE_URL']
@@ -38,6 +40,7 @@ declare global {
   const computedInject: typeof import('@vueuse/core')['computedInject']
   const computedWithControl: typeof import('@vueuse/core')['computedWithControl']
   const consumeAuthReturn: typeof import('./utils/authRecovery')['consumeAuthReturn']
+  const consumeEntitlement: typeof import('./api/virtualCommerce')['consumeEntitlement']
   const controlledComputed: typeof import('@vueuse/core')['controlledComputed']
   const controlledRef: typeof import('@vueuse/core')['controlledRef']
   const createApis: typeof import('./api/createApis')['createApis']
@@ -451,7 +454,9 @@ import { UnwrapRef } from 'vue'
 declare module 'vue' {
   interface GlobalComponents {}
   interface ComponentCustomProperties {
+    readonly ALBUM_ENTITLEMENT_CODE: UnwrapRef<typeof import('./api/virtualCommerce')['ALBUM_ENTITLEMENT_CODE']>
     readonly ALBUM_PAGE_SIZE: UnwrapRef<typeof import('./utils/albumLayout')['ALBUM_PAGE_SIZE']>
+    readonly ALBUM_PRODUCT_SKU: UnwrapRef<typeof import('./api/virtualCommerce')['ALBUM_PRODUCT_SKU']>
     readonly API_BACKENDS: UnwrapRef<typeof import('./api/request')['API_BACKENDS']>
     readonly COOKING_DRAFT_KEY: UnwrapRef<typeof import('./utils/cookingDraft')['COOKING_DRAFT_KEY']>
     readonly COOKING_PROGRESS_KEY: UnwrapRef<typeof import('./utils/cookingDraft')['COOKING_PROGRESS_KEY']>
@@ -478,6 +483,7 @@ declare module 'vue' {
     readonly computedInject: UnwrapRef<typeof import('@vueuse/core')['computedInject']>
     readonly computedWithControl: UnwrapRef<typeof import('@vueuse/core')['computedWithControl']>
     readonly consumeAuthReturn: UnwrapRef<typeof import('./utils/authRecovery')['consumeAuthReturn']>
+    readonly consumeEntitlement: UnwrapRef<typeof import('./api/virtualCommerce')['consumeEntitlement']>
     readonly controlledComputed: UnwrapRef<typeof import('@vueuse/core')['controlledComputed']>
     readonly controlledRef: UnwrapRef<typeof import('@vueuse/core')['controlledRef']>
     readonly createApp: UnwrapRef<typeof import('vue')['createApp']>

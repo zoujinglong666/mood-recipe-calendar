@@ -45,8 +45,7 @@ public class VirtualCommerceController {
     @PostMapping("/orders/{orderNo}/payment-params")
     public ApiResponse<WechatVirtualPaymentService.VirtualPaymentParams> paymentParams(
             @PathVariable String orderNo,
-            @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
-            @RequestBody PaymentParamsRequest request
+            @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid
     ) {
         try {
             return ApiResponse.ok(paymentService.createPaymentParams(orderNo, openid));
@@ -78,6 +77,21 @@ public class VirtualCommerceController {
         return ApiResponse.ok(commerceService.listOrders(openid));
     }
 
+    /**
+     * 客户端在高清图成功保存后调用，扣减 1 次权益。
+     * 仅在确认产出已落盘时调用，避免支付成功却导出失败白白消耗权益。
+     */
+    @PostMapping("/entitlements/consume")
+    public ApiResponse<EntitlementConsumeResponse> consume(
+            @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
+            @RequestBody ConsumeRequest request
+    ) {
+        return commerceService.consumeEntitlement(openid, request.code())
+                .map(item -> ApiResponse.ok(new EntitlementConsumeResponse(item.getCode(), item.getRemainingUses())))
+                .orElseGet(() -> ApiResponse.error(403, "权益不足或已失效"));
+    }
+
     public record CreateOrderRequest(String sku) { }
-    public record PaymentParamsRequest() { }
+    public record ConsumeRequest(String code) { }
+    public record EntitlementConsumeResponse(String code, Integer remainingUses) { }
 }

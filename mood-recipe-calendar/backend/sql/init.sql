@@ -530,8 +530,11 @@ INSERT IGNORE INTO virtual_products
   (sku, platform_item_id, title, description, price_fen, entitlement_code, entitlement_amount, valid_days, active, sort_order, created_at)
 VALUES
   ('AI_MENU_7D', NULL, '锅仔私人菜单 7 天包', '7 天内可使用 21 次按食材、时长和口味生成的菜谱。', 690, 'AI_DEEP_RECOMMEND', 21, 7, 1, 1, NOW()),
-  ('ALBUM_HD_EXPORT', NULL, '月度画册收藏版', '解锁 1 次高清无水印导出与收藏版排版。', 490, 'ALBUM_HD_EXPORT', 1, 0, 1, 2, NOW()),
+  ('ALBUM_HD_EXPORT', 'YDHC_1124', '月度画册收藏版', '解锁 1 次高清无水印导出与收藏版排版。', 490, 'ALBUM_HD_EXPORT', 1, 0, 1, 2, NOW()),
   ('GUOZAI_MEMBER_30D', NULL, '锅仔会员 30 天权益包', '30 天会员身份；上线后可在此叠加会员专属菜谱与画册权益。', 1290, 'MEMBER', 0, 30, 1, 3, NOW());
+
+-- 修补已初始化库：月度画册道具 ID 曾为空，补全为微信虚拟支付后台同名道具。
+UPDATE virtual_products SET platform_item_id = 'YDHC_1124' WHERE sku = 'ALBUM_HD_EXPORT' AND (platform_item_id IS NULL OR platform_item_id = '');
 
 -- ---------- 验证 ----------
 SELECT '初始化完成' AS status;

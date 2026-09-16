@@ -3,7 +3,7 @@ import type { AlbumItem } from '../../api/albums'
 import type { RecordItem } from '../../api/records'
 import type { LayoutBox } from '../../utils/albumLayout'
 import { computed, ref } from 'vue'
-import { navBack } from '@/composables/useNavBar'
+import { navBack, useNavBar } from '@/composables/useNavBar'
 import { STATIC_BASE_URL } from '@/utils/assets'
 import { fetchMonthAlbum } from '../../api/albums'
 import { fetchRecordsByMonth } from '../../api/records'
@@ -14,7 +14,17 @@ import { useUserStore } from '../../stores/user'
 import { autoLayout, chunkPages, MOOD_COLOR, MOOD_EMOJI } from '../../utils/albumLayout'
 import { exportAlbumShare } from '../../utils/albumShare'
 import { ensureLogin } from '../../utils/login'
-import { toastError, toastSuccess } from '../../utils/toast'
+import { toast, toastError, toastSuccess } from '../../utils/toast'
+import {
+  ALBUM_ENTITLEMENT_CODE,
+  ALBUM_PRODUCT_SKU,
+  consumeEntitlement,
+  createVirtualOrder,
+  fetchEntitlements,
+  fetchVirtualOrder,
+  getVirtualPaymentParams,
+  requestWechatVirtualPayment,
+} from '../../api/virtualCommerce'
 
 definePage({
   name: 'album',
@@ -101,8 +111,13 @@ async function loadAlbum() {
   error.value = ''
   try {
     const openid = await ensureLogin()
-    album.value = await fetchMonthAlbum(openid, monthStr)
-    records.value = await fetchRecordsByMonth(openid, monthStr)
+    const [albumData, recordData] = await Promise.all([
+      fetchMonthAlbum(openid, monthStr),
+      fetchRecordsByMonth(openid, monthStr),
+    ])
+    album.value = albumData
+    records.value = recordData
+    await refreshEntitlements(openid)
   }
   catch (e: any) {
     error.value = e.message || '加载失败'
@@ -130,11 +145,49 @@ function prev() {
     currentPage.value--
 }
 
-// ---------- 分享导出 ----------
+// ---------- 分享导出（需虚拟支付权益） ----------
 const sharing = ref(false)
+const purchasing = ref(false)
+// 状态栏 + 自定义导航栏高度，用于把浮动分享按钮定位到导航栏下方，避免被微信胶囊遮挡。
+const nav = useNavBar()
+const shareTop = computed(() => `${nav.statusBarHeight + nav.navBarHeight + 8}px`)
+/** 已到账且可用的画册权益次数；null 表示尚未查询或无权益。 */
+const entitlementRemaining = ref<number | null>(null)
+
+const hasAlbumEntitlement = computed(() => entitlementRemaining.value !== null && entitlementRemaining.value > 0)
+
+/** 分享按钮文案：有权益则直接保存，无权益则提示先解锁。 */
+const shareButtonText = computed(() =>
+  hasAlbumEntitlement.value
+    ? `保存我的${monthNum}月干饭分享图`
+    : '解锁并保存高清分享图')
+
+async function refreshEntitlements(openid: string) {
+  const list = await fetchEntitlements(openid)
+  const item = list.find(e => e.code === ALBUM_ENTITLEMENT_CODE)
+  entitlementRemaining.value = item?.remainingUses ?? null
+}
+
 async function onShare() {
-  if (sharing.value)
+  if (sharing.value || purchasing.value)
     return
+
+  let openid = ''
+  try {
+    openid = await ensureLogin()
+  }
+  catch (e: any) {
+    toastError(e, '请先登录')
+    return
+  }
+
+  // 没有可用权益时先走购买流程；未成功获得权益则不消耗本次导出。
+  if (!hasAlbumEntitlement.value) {
+    const purchased = await purchaseAlbum(openid)
+    if (!purchased)
+      return
+  }
+
   sharing.value = true
   uni.showLoading({ title: '正在生成分享图...' })
   try {
@@ -149,6 +202,16 @@ async function onShare() {
       guozaiPath: `${STATIC_BASE_URL}/static/guozai/mood_01_happy.png`,
       footer: '「锅仔」· 你的情绪味蕾搭子',
     })
+    // 高清图已成功保存，才扣减一次权益，避免支付成功却导出失败白白消耗。
+    if (hasAlbumEntitlement.value) {
+      try {
+        const result = await consumeEntitlement(openid, ALBUM_ENTITLEMENT_CODE)
+        entitlementRemaining.value = result.remainingUses
+      }
+      catch {
+        toast('高清图已保存，但权益扣减异常，请稍后刷新')
+      }
+    }
     toastSuccess('已保存到相册')
   }
   catch (e: any) {
@@ -158,6 +221,49 @@ async function onShare() {
     uni.hideLoading()
     sharing.value = false
   }
+}
+
+/** 画册收藏版购买流程：下单 → 服务端签名 → 微信虚拟支付 → 等待异步发货到账。 */
+async function purchaseAlbum(openid: string): Promise<boolean> {
+  if (purchasing.value)
+    return false
+  purchasing.value = true
+  let checkingDelivery = false
+  try {
+    const order = await createVirtualOrder(openid, ALBUM_PRODUCT_SKU)
+    const params = await getVirtualPaymentParams(openid, order.orderNo)
+    await requestWechatVirtualPayment(params)
+    checkingDelivery = true
+    uni.showLoading({ title: '锅仔正在确认权益…', mask: true })
+    const delivered = await waitForDelivery(order.orderNo)
+    if (!delivered) {
+      toast('支付已完成，权益确认中，稍后刷新即可保存')
+      return false
+    }
+    await refreshEntitlements(openid)
+    return hasAlbumEntitlement.value
+  }
+  catch (e: any) {
+    toastError(e, '暂时无法发起支付')
+    return false
+  }
+  finally {
+    if (checkingDelivery)
+      uni.hideLoading()
+    purchasing.value = false
+  }
+}
+
+/** 轮询订单发货状态，确认权益到账；最长约 5 秒。 */
+function waitForDelivery(orderNo: string) {
+  return (async () => {
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      await new Promise(resolve => setTimeout(resolve, attempt === 0 ? 900 : 1600))
+      if ((await fetchVirtualOrder(orderNo)).status === 'DELIVERED')
+        return true
+    }
+    return false
+  })()
 }
 
 // 心情分布色块（宽度占比）
@@ -190,8 +296,11 @@ const aiLines = computed(() => {
   <view class="album-page">
     <wd-navbar title="月度画册" left-arrow safe-area-inset-top custom-style="background-color: transparent !important;" @click-left="navBack" />
 
-    <view class="album-page__share" role="button" aria-label="保存月度画册分享图" @click="onShare">
+    <view class="album-page__share" :style="{ top: shareTop }" role="button" aria-label="保存月度画册分享图" @click="onShare">
       <Icon name="share" :size="36" color="#6A4A37" />
+      <view v-if="!hasAlbumEntitlement" class="album-page__share-badge">
+        解锁
+      </view>
     </view>
 
     <LoadingState v-if="loading" text="锅仔正在装订画册..." />
@@ -470,11 +579,17 @@ const aiLines = computed(() => {
             </view>
             <view class="album-share__btn" @click="onShare">
               <text class="album-share__btn-text">
-                保存我的{{ monthNum }}月干饭分享图
+                {{ shareButtonText }}
               </text>
               <view class="album-share__qrcode">
                 <view class="album-share__qr-grid" />
               </view>
+            </view>
+            <view v-if="hasAlbumEntitlement" class="album-share__hint">
+              本次保存将消耗 1 次收藏版权益（剩余 {{ entitlementRemaining }} 次）
+            </view>
+            <view v-else class="album-share__hint">
+              收藏版为虚拟付费内容，解锁后可导出高清无水印分享图
             </view>
           </view>
         </swiper-item>
@@ -795,9 +910,31 @@ const aiLines = computed(() => {
 .album-nav__dots { display: flex; gap: 12rpx; }
 .album-nav__dot { width: 14rpx; height: 14rpx; border-radius: 50%; background: var(--mrc-border-light); }
 .album-nav__dot--active { background: var(--mrc-primary-deep); width: 32rpx; border-radius: 8rpx; }
-/* 分享按钮：navbar 右侧被小程序胶囊遮挡，移到内容区右上角浮动 */
-.album-page__share { position: absolute; top: calc(env(safe-area-inset-top) + 92rpx); right: 24rpx; z-index: 50; display: flex; width: 88rpx; height: 88rpx; align-items: center; justify-content: center; border: 2rpx solid var(--mrc-border-light); border-radius: 50%; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-sm); }
+/* 分享按钮：右上角被微信胶囊遮挡，故浮到导航栏下方（top 由 shareTop 按真实状态栏+导航栏高度注入） */
+.album-page__share { position: absolute; right: 24rpx; z-index: 50; display: flex; width: 88rpx; height: 88rpx; align-items: center; justify-content: center; border: 2rpx solid var(--mrc-border-light); border-radius: 50%; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-sm); }
 .album-page__share:active, .album-nav__btn:active { opacity: .76; transform: scale(.97); }
+.album-page__share-badge {
+  position: absolute;
+  top: -6rpx;
+  right: -6rpx;
+  padding: 2rpx 12rpx;
+  border-radius: 20rpx;
+  background: var(--mrc-primary-deep);
+  color: #fff;
+  font-size: 18rpx;
+  font-weight: 700;
+  line-height: 1.4;
+  box-shadow: 0 4rpx 12rpx rgba(253, 145, 132, 0.35);
+}
+
+.album-share__hint {
+  margin-top: -8rpx;
+  padding: 0 8rpx;
+  color: var(--mrc-text-sub);
+  font-size: 22rpx;
+  line-height: 1.5;
+  text-align: center;
+}
 
 @media (prefers-reduced-motion: reduce) {
   .album-page__share, .album-nav__btn { transition: none; }

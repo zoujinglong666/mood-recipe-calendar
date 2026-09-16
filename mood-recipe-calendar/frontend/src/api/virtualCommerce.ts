@@ -1,5 +1,9 @@
 import { get, post } from './request'
 
+/** 月度画册收藏版（高清导出）对应的虚拟商品 SKU 与权益代码。 */
+export const ALBUM_PRODUCT_SKU = 'ALBUM_HD_EXPORT'
+export const ALBUM_ENTITLEMENT_CODE = 'ALBUM_HD_EXPORT'
+
 export interface VirtualProduct {
   sku: string
   title: string
@@ -80,4 +84,9 @@ export function requestWechatVirtualPayment(params: VirtualPaymentParams) {
 
 export function fetchEntitlements(openid: string) {
   return get<UserEntitlement[]>('/virtual-commerce/entitlements')
+}
+
+/** 高清图保存成功后扣减 1 次权益；仅确认落盘后由客户端主动调用。 */
+export function consumeEntitlement(openid: string, code: string) {
+  return post<{ code: string, remainingUses: number | null }>('/virtual-commerce/entitlements/consume', { code })
 }
