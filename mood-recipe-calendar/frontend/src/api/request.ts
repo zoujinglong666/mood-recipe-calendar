@@ -14,7 +14,7 @@ export interface ApiBackend {
 }
 
 export const API_BACKENDS: ApiBackend[] = [
-  { name: '本地开发', url: 'http://localhost:8080/api', env: 'development', desc: 'localhost:8080' },
+  { name: '本地开发', url: 'http://10.18.0.19:8080/api', env: 'development', desc: '10.18.0.19:8080' },
   { name: '生产环境', url: 'https://moodrecipe.icu/api', env: 'production', desc: 'moodrecipe.icu' },
 ]
 
@@ -28,7 +28,7 @@ export function getApiBaseUrl(): string {
       return String(saved)
   }
   catch {}
-  return import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api'
+  return import.meta.env.VITE_API_BASE_URL || 'http://10.18.0.19:8080/api'
 }
 
 /** 设置后端地址（持久化到本地，切换后立即生效） */
