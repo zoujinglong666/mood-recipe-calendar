@@ -151,5 +151,10 @@ public class CompanionMessageService {
 
     private String safe(String value) { return value == null || value.isBlank() ? "暂无" : value; }
 
-    public record Message(String greeting, String message, String insight, String actionText) { }
+    public record Message(String greeting, String message, String insight, String actionText,
+                          String scene, String actionTarget, String actionPrompt) {
+        public Message(String greeting, String message, String insight, String actionText) {
+            this(greeting, message, insight, actionText, "DAILY", "mood", "");
+        }
+    }
 }

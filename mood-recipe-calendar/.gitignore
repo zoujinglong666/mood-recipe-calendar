@@ -38,3 +38,4 @@ nav_issue.png
 
 # 部署打包产物（不提交仓库）
 deploy-package.tar.gz
+.deploy/

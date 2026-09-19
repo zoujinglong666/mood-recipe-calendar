@@ -12,6 +12,7 @@ import { toastError } from '@/utils/toast'
 definePage({ name: 'meal-agent', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '锅仔管饭' } })
 
 const router = useRouter()
+const route = useRoute()
 const memory = ref<FoodMemoryView>()
 const currentPlan = ref<WeeklyPlan>()
 const loading = ref(true)
@@ -95,7 +96,8 @@ async function load() {
     healthGoal.value = memory.value.explicit.healthGoal
   if (!messages.value.length) {
     addAgent(agentGreeting.value, memoryTags.value)
-    await runAgent('')
+    const initialPrompt = typeof route.query.prompt === 'string' ? route.query.prompt.trim() : ''
+    await runAgent(initialPrompt, Boolean(initialPrompt))
   }
   loading.value = false
 }

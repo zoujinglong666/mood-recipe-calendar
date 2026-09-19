@@ -301,7 +301,14 @@ function openStat(type: 'records' | 'days' | 'streak') {
     </view>
 
     <view class="profile-member" role="button" aria-label="查看锅仔会员权益" @click="goMembership">
-      <view class="profile-member__mark"><text>G</text></view>
+      <view class="profile-member__mark">
+        <image
+          :src="`${STATIC_BASE_URL}/static/guozai/action_06_glasses.png`"
+          aria-hidden="true"
+          class="profile-member__mark-image"
+          mode="aspectFit"
+        />
+      </view>
       <view class="profile-member__main">
         <text class="profile-member__eyebrow">GUOZAI CLUB</text>
         <text class="profile-member__title">{{ activeMembership ? '锅仔会员陪伴中' : '开通锅仔会员' }}</text>
@@ -598,7 +605,8 @@ function openStat(type: 'records' | 'days' | 'streak') {
 .profile-section-head__sub { padding-bottom: 2rpx; color: var(--mrc-text-sub); font-size: 20rpx; }
 .profile-member { display: flex; min-height: 146rpx; align-items: center; gap: 18rpx; box-sizing: border-box; margin-bottom: 16rpx; padding: 22rpx 24rpx; overflow: hidden; border-radius: 32rpx; background: linear-gradient(135deg, #2f1b14, #643322); box-shadow: 0 16rpx 32rpx rgba(70, 35, 23, .18); }
 .profile-member:active { transform: scale(.98); }
-.profile-member__mark { display: flex; width: 82rpx; height: 82rpx; flex: 0 0 auto; align-items: center; justify-content: center; border: 2rpx solid rgba(255, 221, 167, .38); border-radius: 26rpx; color: #f1c17b; background: rgba(255, 224, 178, .08); font-size: 36rpx; font-weight: 900; }
+.profile-member__mark { display: flex; width: 82rpx; height: 82rpx; flex: 0 0 auto; align-items: center; justify-content: center; border: 2rpx solid rgba(255, 221, 167, .38); border-radius: 50%; background: rgba(255, 224, 178, .12); }
+.profile-member__mark-image { width: 70rpx; height: 70rpx; }
 .profile-member__main { min-width: 0; flex: 1; }
 .profile-member__eyebrow, .profile-member__title, .profile-member__sub { display: block; }
 .profile-member__eyebrow { color: #eab66f; font-size: 16rpx; font-weight: 850; letter-spacing: 2rpx; }
@@ -677,20 +685,19 @@ function openStat(type: 'records' | 'days' | 'streak') {
 .profile-action {
   flex: 1;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  justify-content: center;
-  gap: 14rpx;
-  min-height: 168rpx;
+  gap: 12rpx;
+  min-height: 112rpx;
   background: linear-gradient(145deg, var(--mrc-surface) 0%, var(--mrc-surface-peach) 100%);
   border: 2rpx solid var(--mrc-border-light);
   border-radius: 28rpx;
-  padding: 24rpx 16rpx;
+  padding: 18rpx 20rpx;
   box-sizing: border-box;
   box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss);
   transition: transform 0.15s ease;
 }
-.profile-action__copy { min-width: 0; text-align: center; }
+.profile-action__copy { min-width: 0; text-align: left; }
 .profile-action__text {
   display: block;
   font-size: 28rpx;
@@ -699,8 +706,8 @@ function openStat(type: 'records' | 'days' | 'streak') {
 }
 .profile-action__sub { display: block; margin-top: 6rpx; color: var(--mrc-text-sub); font-size: 20rpx; line-height: 1.35; }
 .profile-action__guozai {
-  width: 72rpx;
-  height: 72rpx;
+  width: 52rpx;
+  height: 52rpx;
   flex-shrink: 0;
 }
 .profile-action:active {

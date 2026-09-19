@@ -188,6 +188,34 @@ server {
 
 ## 九、常见问题
 
+### 一键部署与回滚
+
+服务器进入项目目录后统一使用：
+
+```bash
+# 首次部署前检查 Docker 与必填环境变量
+bash scripts/deploy.sh check
+
+# 后端测试、前后端构建、更新容器、健康检查
+# 健康检查失败会自动恢复部署前的构建产物
+bash scripts/deploy.sh deploy
+
+# 查看状态或最近日志
+bash scripts/deploy.sh health
+bash scripts/deploy.sh logs
+
+# 回滚最近一次备份，或指定 .deploy/releases 下的时间戳
+bash scripts/deploy.sh rollback
+bash scripts/deploy.sh rollback 20260919153000
+```
+
+备份保存在 `.deploy/releases/`，该目录不提交 Git。默认健康地址为
+`http://127.0.0.1:8123/api/health`；修改端口时可临时传入：
+
+```bash
+HEALTH_URL=http://127.0.0.1:新端口/api/health bash scripts/deploy.sh deploy
+```
+
 **Q: 后端启动报 `Communications link failure` / 连不上 MySQL？**
 A: 检查 `.env` 的 `DB_HOST`。宿主机 MySQL 用 `host.docker.internal`；第一套容器 MySQL 用容器名并加入第一套网络。用 `docker exec -it mood-recipe-backend wget http://host.docker.internal:3306` 测试连通性。
 
@@ -201,4 +229,4 @@ A: 检查 `.env` 里 `TENCENT_COS_SECRET_ID/KEY` 是否填了，`docker compose 
 A: 检查 `.env` 的 `WECHAT_APPID/SECRET` 与 `manifest.config.ts` 的 appid 一致；小程序后台 request 域名已加白名单。
 
 **Q: 怎么更新代码？**
-A: 本地重新 `mvn package` + `pnpm build:h5`，上传覆盖，然后 `docker compose up -d --build`（后端变了）或 `docker compose restart nginx`（只前端变了）。
+A: 上传或拉取最新代码后执行 `bash scripts/deploy.sh deploy`；失败时脚本会自动回滚。

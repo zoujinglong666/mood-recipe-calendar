@@ -6,6 +6,9 @@ import com.moodrecipe.backend.service.CompanionMessageService;
 import com.moodrecipe.backend.service.GuozaiAgent;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
+
 @RestController
 @RequestMapping("/api/companion")
 public class CompanionController {
@@ -18,7 +21,15 @@ public class CompanionController {
     @GetMapping("/message")
     public ApiResponse<CompanionMessageService.Message> message(
             @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
-            @RequestParam(defaultValue = "12") int hour) {
-        return ApiResponse.ok(guozaiAgent.companion(openid, hour));
+            @RequestParam(defaultValue = "12") int hour,
+            @RequestParam(required = false) String date) {
+        LocalDate localDate;
+        try {
+            localDate = date == null || date.isBlank()
+                    ? LocalDate.now(ZoneId.of("Asia/Shanghai")) : LocalDate.parse(date);
+        } catch (RuntimeException ignored) {
+            localDate = LocalDate.now(ZoneId.of("Asia/Shanghai"));
+        }
+        return ApiResponse.ok(guozaiAgent.companion(openid, hour, localDate));
     }
 }

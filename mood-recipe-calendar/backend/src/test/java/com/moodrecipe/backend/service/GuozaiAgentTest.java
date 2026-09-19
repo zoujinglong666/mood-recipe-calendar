@@ -9,6 +9,7 @@ import com.moodrecipe.backend.repository.RecipeRepository;
 import com.moodrecipe.backend.repository.UserFoodPreferenceRepository;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -27,6 +28,14 @@ import static org.mockito.Mockito.verify;
  */
 class GuozaiAgentTest {
 
+    @Test
+    void activatesFestivalScenesOnlyInsideTheirWindows() {
+        assertEquals("MID_AUTUMN", GuozaiAgent.festivalAt(LocalDate.of(2026, 9, 19)).orElseThrow().scene());
+        assertEquals("NATIONAL_DAY", GuozaiAgent.festivalAt(LocalDate.of(2026, 10, 1)).orElseThrow().scene());
+        assertTrue(GuozaiAgent.festivalAt(LocalDate.of(2026, 9, 17)).isEmpty());
+        assertTrue(GuozaiAgent.festivalAt(LocalDate.of(2026, 10, 8)).isEmpty());
+    }
+
     private GuozaiAgent buildAgent(RecipeRepository recipes, RecipeInteractionRepository interactions,
                                    UserFoodPreferenceRepository preferences) {
         AiRecipeService ai = mock(AiRecipeService.class);
@@ -36,8 +45,24 @@ class GuozaiAgentTest {
         when(ai.recommend(anyString(), anyString())).thenReturn(Optional.empty());
         when(ai.recommendWeekly(anyString(), anyInt())).thenReturn(Optional.empty());
         when(ai.monthlyCompanionMessage(anyString())).thenReturn(Optional.empty());
+        when(ai.companionMessageWithPersona(anyString())).thenReturn(Optional.empty());
 
         return buildAgent(recipes, interactions, preferences, ai, mock(RecommendationExposureService.class));
+    }
+
+    @Test
+    void festivalCompanionOpensAgentWithFestivalContext() {
+        RecipeRepository recipes = mock(RecipeRepository.class);
+        RecipeInteractionRepository interactions = mock(RecipeInteractionRepository.class);
+        UserFoodPreferenceRepository preferences = mock(UserFoodPreferenceRepository.class);
+
+        CompanionMessageService.Message message = buildAgent(recipes, interactions, preferences)
+                .companion("user-1", 18, LocalDate.of(2026, 9, 25));
+
+        assertEquals("MID_AUTUMN", message.scene());
+        assertEquals("meal-agent", message.actionTarget());
+        assertTrue(message.greeting().contains("中秋快乐"));
+        assertTrue(message.actionPrompt().contains("中秋"));
     }
 
     private GuozaiAgent buildAgent(RecipeRepository recipes, RecipeInteractionRepository interactions,

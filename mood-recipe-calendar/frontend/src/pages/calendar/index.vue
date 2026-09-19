@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { RecordItem } from '../../api/records'
+import { useImagePreview } from '@wot-ui/ui'
 import { computed, ref } from 'vue'
 import { navBack } from '@/composables/useNavBar'
 import { STATIC_BASE_URL } from '@/utils/assets'
@@ -19,6 +20,8 @@ definePage({
 
 const router = useRouter()
 const route = useRoute()
+
+const { previewImage } = useImagePreview()
 
 const weekCN = ['日', '一', '二', '三', '四', '五', '六']
 const now = new Date()
@@ -124,6 +127,22 @@ function handleCellClick(c: { day: number, hasRecord: boolean }) {
 function goRecordFromEmpty() {
   showEmpty.value = false
   router.pushTab({ name: 'record' })
+}
+
+// ---------- 图片预览 ----------
+/** 当月带照片的记录，用于左右滑动翻看整月食光 */
+const photoRecords = computed(() => records.value.filter(item => Boolean(item.imageUrl)))
+
+function previewRecordPhoto(record: RecordItem) {
+  const photos = photoRecords.value
+  if (!photos.length)
+    return
+  previewImage({
+    images: photos.map(item => item.imageUrl),
+    startPosition: Math.max(0, photos.findIndex(item => item.id === record.id)),
+    closeOnClick: false,
+    loop: photos.length > 1,
+  })
 }
 </script>
 
@@ -268,7 +287,15 @@ function goRecordFromEmpty() {
     <!-- 记录详情弹窗 -->
     <view v-if="showDetail && detailRecord" class="cal-empty-mask" @click="showDetail = false">
       <view class="cal-empty-sheet pop-in" @click.stop>
-        <image v-if="detailRecord.imageUrl" class="cal-detail__img" :src="detailRecord.imageUrl" mode="aspectFill" />
+        <image
+          v-if="detailRecord.imageUrl"
+          class="cal-detail__img"
+          :src="detailRecord.imageUrl"
+          mode="aspectFill"
+          role="button"
+          aria-label="查看这张照片的大图"
+          @click="previewRecordPhoto(detailRecord)"
+        />
         <text class="cal-empty-sheet__title">
           {{ detailRecord.dishName }}
         </text>
@@ -283,6 +310,8 @@ function goRecordFromEmpty() {
         </view>
       </view>
     </view>
+
+    <wd-image-preview />
   </view>
 </template>
 

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {useImagePreview} from '@wot-ui/ui'
 import {navBack} from '@/composables/useNavBar'
 import {STATIC_BASE_URL} from '@/utils/assets'
 import {computed, ref} from 'vue'
@@ -12,6 +13,7 @@ import {COOKING_PROGRESS_KEY, saveCookingDraft} from '../../utils/cookingDraft'
 
 definePage({ name: 'timeline', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '菜谱时光机' } })
 const router = useRouter()
+const {previewImage} = useImagePreview()
 const loading = ref(true)
 const records = ref<RecordItem[]>([])
 const nearToday = ref(false)
@@ -73,7 +75,9 @@ async function openLinkedRecipe(restart: boolean) {
   if (!restart) {
     const recordMood = selected.value?.moodTag || '平静'
     selected.value = null
-    router.push({ name: 'recipe', query: { recipeId: String(id), mood: recordMood } })
+    uni.navigateTo({
+      url: `/pages/recipe/index?recipeId=${id}&mood=${encodeURIComponent(recordMood)}`,
+    })
     return
   }
   openingRecipe.value = true
@@ -106,6 +110,21 @@ async function removeSelected() {
   records.value = records.value.filter(item => item.id !== selected.value?.id)
   selected.value = null
   toastSuccess('记录已删除')
+}
+
+/** 有照片的记录，按时光机顺序用于左右翻看 */
+const photoRecords = computed(() => records.value.filter(item => Boolean(item.imageUrl)))
+
+function previewRecordPhoto(record: RecordItem | null) {
+  const photos = photoRecords.value
+  if (!record?.imageUrl || !photos.length)
+    return
+  previewImage({
+    images: photos.map(item => item.imageUrl),
+    startPosition: Math.max(0, photos.findIndex(item => item.id === record.id)),
+    closeOnClick: false,
+    loop: photos.length > 1,
+  })
 }
 </script>
 
@@ -156,7 +175,8 @@ async function removeSelected() {
         <text>再往下，就是更久以前的你啦。</text>
       </view>
     </scroll-view>
-    <view v-if="selected" class="detail-mask" @click.self="selected = null"><view class="detail-sheet"><view class="detail-grabber" /><view class="detail-photo"><image :src="selected.imageUrl" mode="aspectFill" :aria-label="selected.dishName"/><view class="detail-photo__date"><text>{{ dayNumber(selected.recordDate) }}</text><text>{{ weekday(selected.recordDate) }}</text></view></view><text class="detail-kicker">锅仔的食光存档</text><text class="detail-title">{{selected.dishName}}</text><text class="detail-meta">{{selected.recordDate}} · {{selected.moodTag}} · {{ selected.cookingTime || 30 }} 分钟</text><text v-if="selected.note" class="detail-note">“{{selected.note}}”</text><view v-if="Number(selected.recipeId)" class="detail-recipe-actions"><view class="detail-recipe detail-recipe--secondary pressable" role="button" aria-label="查看关联菜谱" @click="openLinkedRecipe(false)">查看菜谱</view><view class="detail-recipe detail-recipe--primary pressable" role="button" aria-label="重新做这道菜" @click="openLinkedRecipe(true)">{{ openingRecipe ? '正在打开…' : '再做一次' }}</view></view><view class="detail-delete pressable" role="button" aria-label="删除这条记录" @click="removeSelected">删除这条记录</view><view class="detail-close pressable" role="button" aria-label="收起记录详情" @click="selected=null">收起</view></view></view>
+    <view v-if="selected" class="detail-mask" @click.self="selected = null"><view class="detail-sheet"><view class="detail-grabber" /><view class="detail-photo"><image :src="selected.imageUrl" mode="aspectFill" :aria-label="`查看${selected.dishName}的大图`" role="button" @click="previewRecordPhoto(selected)"/><view class="detail-photo__date"><text>{{ dayNumber(selected.recordDate) }}</text><text>{{ weekday(selected.recordDate) }}</text></view></view><text class="detail-kicker">锅仔的食光存档</text><text class="detail-title">{{selected.dishName}}</text><text class="detail-meta">{{selected.recordDate}} · {{selected.moodTag}} · {{ selected.cookingTime || 30 }} 分钟</text><text v-if="selected.note" class="detail-note">“{{selected.note}}”</text><view v-if="Number(selected.recipeId)" class="detail-recipe-actions"><view class="detail-recipe detail-recipe--secondary pressable" role="button" aria-label="查看关联菜谱" @click="openLinkedRecipe(false)">查看菜谱</view><view class="detail-recipe detail-recipe--primary pressable" role="button" aria-label="重新做这道菜" @click="openLinkedRecipe(true)">{{ openingRecipe ? '正在打开…' : '再做一次' }}</view></view><view class="detail-delete pressable" role="button" aria-label="删除这条记录" @click="removeSelected">删除这条记录</view><view class="detail-close pressable" role="button" aria-label="收起记录详情" @click="selected=null">收起</view></view></view>
+    <wd-image-preview />
   </view>
 </template>
 

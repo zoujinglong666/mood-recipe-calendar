@@ -45,6 +45,9 @@ export interface CompanionMessage {
   message: string
   insight: string
   actionText: string
+  scene?: 'DAILY' | 'MID_AUTUMN' | 'NATIONAL_DAY'
+  actionTarget?: 'mood' | 'meal-agent'
+  actionPrompt?: string
 }
 
 /** 保存记录 */
@@ -83,6 +86,6 @@ export function fetchYearStats(openid: string, year: number) {
 }
 
 /** 锅仔寄语：后端只使用聚合习惯，hour 为用户设备的本地小时。 */
-export function fetchCompanionMessage(hour: number) {
-  return get<CompanionMessage>('/companion/message', { hour })
+export function fetchCompanionMessage(hour: number, date?: string) {
+  return get<CompanionMessage>('/companion/message', { hour, date })
 }

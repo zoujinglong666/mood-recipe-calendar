@@ -16,11 +16,10 @@ import { toast, toastError, toastSuccess } from '../../utils/toast'
 
 definePage({ name: 'recipe', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '今日推荐' } })
 
-const route = useRoute()
 const router = useRouter()
 const { previewImage } = useImagePreview()
-const mood = computed(() => (route.query.mood as string) || '开心')
-const linkedRecipeId = computed(() => Number(route.query.recipeId) || 0)
+const mood = ref('开心')
+const linkedRecipeId = ref(0)
 const HEALING_TEXTS: Record<string, string> = {
   开心: '你今天的好心情，适合配一口热乎又满足的。',
   平静: '不赶时间的这一餐，就让味道慢慢展开。',
@@ -152,7 +151,11 @@ async function loadRecipe() {
   }
 }
 
-onLoad(loadRecipe)
+onLoad((query) => {
+  mood.value = typeof query?.mood === 'string' ? query.mood : '开心'
+  linkedRecipeId.value = Number(query?.recipeId) || 0
+  void loadRecipe()
+})
 onHide(() => {
   if (loading.value)
     resumeRecommendation = true

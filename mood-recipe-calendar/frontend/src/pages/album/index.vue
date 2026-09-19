@@ -2,6 +2,7 @@
 import type { AlbumItem } from '../../api/albums'
 import type { RecordItem } from '../../api/records'
 import type { LayoutBox } from '../../utils/albumLayout'
+import { useImagePreview } from '@wot-ui/ui'
 import { computed, ref } from 'vue'
 import { navBack, useNavBar } from '@/composables/useNavBar'
 import { STATIC_BASE_URL } from '@/utils/assets'
@@ -34,6 +35,8 @@ definePage({
     navigationBarTitleText: '月度画册',
   },
 })
+
+const { previewImage } = useImagePreview()
 
 const currentPage = ref(0)
 const loading = ref(true)
@@ -295,6 +298,22 @@ const aiLines = computed(() => {
     return ['这个月，你好好吃饭了。', '下个月，请继续对自己好一点。']
   return t.split('\n').filter(Boolean)
 })
+
+// ---------- 图片预览 ----------
+/** 画册里有照片的记录，用于点开单张后左右翻看整月 */
+const photoRecords = computed(() => records.value.filter(item => Boolean(item.imageUrl)))
+
+function previewRecordPhoto(record: RecordItem) {
+  const photos = photoRecords.value
+  if (!photos.length)
+    return
+  previewImage({
+    images: photos.map(item => item.imageUrl),
+    startPosition: Math.max(0, photos.findIndex(item => item.id === record.id)),
+    closeOnClick: false,
+    loop: photos.length > 1,
+  })
+}
 </script>
 
 <template>
@@ -471,6 +490,9 @@ const aiLines = computed(() => {
                     class="album-daily__cell-img"
                     :src="rec.imageUrl"
                     mode="aspectFill"
+                    role="button"
+                    :aria-label="`查看${rec.dishName}的大图`"
+                    @click="previewRecordPhoto(rec)"
                   />
                   <view v-else class="album-daily__cell-empty">
                     <text class="album-daily__cell-emoji">
@@ -623,6 +645,8 @@ const aiLines = computed(() => {
 
       <!-- 隐藏 Canvas 节点（导出分享长图用） -->
       <canvas id="shareCanvas" type="2d" class="album-share__canvas" />
+
+      <wd-image-preview />
     </template>
   </view>
 </template>

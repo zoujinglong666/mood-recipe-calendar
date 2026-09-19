@@ -15,7 +15,14 @@ interface HeroGuozai {
 const isBouncing = ref(false)
 function bounceGuozai() {
   isBouncing.value = true
-  setTimeout(() => { isBouncing.value = false; router.push({ name: 'mood' }) }, 400)
+  setTimeout(() => {
+    isBouncing.value = false
+    if (companion.value.actionTarget === 'meal-agent') {
+      router.push({ name: 'meal-agent', query: { prompt: companion.value.actionPrompt || companion.value.actionText } })
+      return
+    }
+    router.push({ name: 'mood' })
+  }, 400)
 }
 
 const now = new Date()
@@ -140,14 +147,15 @@ async function loadCompanion() {
   const current = new Date()
   const hour = current.getHours()
   const period = hour < 5 ? 'late' : hour < 11 ? 'morning' : hour < 15 ? 'noon' : hour < 18 ? 'afternoon' : hour < 22 ? 'evening' : 'late'
-  const cacheKey = `${current.getFullYear()}-${current.getMonth() + 1}-${current.getDate()}-${period}`
+  const cacheKey = `festival-v1-${current.getFullYear()}-${current.getMonth() + 1}-${current.getDate()}-${period}`
   try {
     const cached = uni.getStorageSync('mrc_companion_message')
     if (cached?.key === cacheKey) {
       companion.value = cached.value
       return
     }
-    const value = await fetchCompanionMessage(hour)
+    const localDate = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`
+    const value = await fetchCompanionMessage(hour, localDate)
     companion.value = value
     uni.setStorageSync('mrc_companion_message', { key: cacheKey, value })
   } catch {
@@ -168,7 +176,7 @@ function openCalendarCell(cell: { d: number; record?: RecordItem }) {
   <view class="home mrc-hero">
     <wd-navbar title="心情菜谱日历" safe-area-inset-top  custom-style="background-color: transparent !important;" />
     <!-- 首页不展示整屏缺省图：直接渲染真实内容，数据就绪后响应式更新 -->
-    <view class="home-hero" role="button" aria-label="告诉锅仔我现在的心情" @click="bounceGuozai">
+      <view class="home-hero" :class="{ 'home-hero--festival': companion.scene && companion.scene !== 'DAILY' }" role="button" :aria-label="companion.actionText" @click="bounceGuozai">
         <view class="home-hero__intro">
           <text class="home-hero__eyebrow">{{ dateTitle }}</text>
           <text class="home-hero__title">{{ companion.greeting }}</text>
@@ -247,6 +255,7 @@ function openCalendarCell(cell: { d: number; record?: RecordItem }) {
 .home { min-height: 100vh; padding: 0 32rpx; padding-bottom: calc(120rpx + env(safe-area-inset-bottom)); box-sizing: border-box; }
 /* 锅仔是首页主舞台、心情入口与角色化引导，而不是独立装饰图。 */
 .home-hero { position: relative; min-height: 500rpx; margin: 8rpx -8rpx 28rpx; overflow: hidden; border: 2rpx solid var(--mrc-border); border-radius: 40rpx; background: radial-gradient(circle at 78% 18%, rgba(255, 197, 61, 0.22) 0, rgba(255, 197, 61, 0) 28%), linear-gradient(145deg, var(--mrc-surface) 0%, var(--mrc-surface-peach) 100%); box-shadow: var(--mrc-shadow-lift), var(--mrc-gloss); }
+.home-hero--festival { background: radial-gradient(circle at 78% 18%, rgba(255, 197, 61, .34) 0, rgba(255, 197, 61, 0) 30%), linear-gradient(145deg, var(--mrc-surface-sun) 0%, var(--mrc-surface-peach) 100%); }
 .home-hero__intro { position: relative; z-index: 2; display: flex; flex-direction: column; width: 72%; padding: 40rpx 0 0 36rpx; }
 .home-hero__eyebrow, .home-cal__kicker { color: var(--mrc-accent); font-size: 22rpx; font-weight: 700; letter-spacing: 2rpx; }
 .home-hero__title { margin-top: 12rpx; color: var(--mrc-text-strong); font-size: 40rpx; font-weight: 700; line-height: 1.3; }

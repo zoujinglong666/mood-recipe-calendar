@@ -9,6 +9,8 @@ import com.moodrecipe.backend.repository.RecipeRepository;
 import com.moodrecipe.backend.repository.UserFoodPreferenceRepository;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -320,17 +322,71 @@ public class GuozaiAgent {
      * 真实数据主动分析后，由 AI 生成的个性化寄语。
      */
     public CompanionMessageService.Message companion(String openid, int hour) {
+        return companion(openid, hour, LocalDate.now(ZoneId.of("Asia/Shanghai")));
+    }
+
+    public CompanionMessageService.Message companion(String openid, int hour, LocalDate date) {
         memory.rememberHomeOpen(openid, hour);
         GuozaiMemory.MemorySnapshot snap = memory.snapshot(openid, hour);
-        String greeting = greeting(snap.period());
         String analysis = memory.buildAnalysis(snap);
         String fallback = buildFallbackMessage(snap);
+        Optional<FestivalMoment> festival = festivalAt(date);
+        String greeting = festival.map(FestivalMoment::greeting).orElseGet(() -> greeting(snap.period()));
+        if (festival.isPresent()) {
+            FestivalMoment moment = festival.get();
+            analysis += "；当前节日场景：" + moment.prompt()
+                    + "。寄语必须同时包含节日氛围和一条真实用户记忆，不要只说通用祝福";
+            fallback = festivalFallback(moment, snap);
+        }
         String message = aiRecipeService.companionMessageWithPersona(
                 persona.companionPrompt(analysis)).orElse(fallback);
         String insight = buildInsight(snap);
+        if (festival.isPresent()) {
+            FestivalMoment moment = festival.get();
+            return new CompanionMessageService.Message(greeting, message, insight, moment.actionText(),
+                    moment.scene(), "meal-agent", moment.actionPrompt());
+        }
         String actionText = snap.recordedToday() ? "看看今天的食光" : "告诉我现在的心情";
         return new CompanionMessageService.Message(greeting, message, insight, actionText);
     }
+
+    static Optional<FestivalMoment> festivalAt(LocalDate date) {
+        LocalDate midAutumn = date.getYear() == 2026 ? LocalDate.of(2026, 9, 25) : null;
+        if (midAutumn != null && !date.isBefore(midAutumn.minusDays(7)) && !date.isAfter(midAutumn.plusDays(2))) {
+            if (date.isBefore(midAutumn)) {
+                return Optional.of(new FestivalMoment("MID_AUTUMN", "中秋快到了",
+                        "中秋将至，适合提前规划团圆饭", "安排中秋家宴", "帮我安排一桌中秋家宴"));
+            }
+            return Optional.of(new FestivalMoment("MID_AUTUMN", "中秋快乐，今晚好好团圆",
+                    "正值中秋团圆时刻", "安排团圆饭", "帮我安排一桌中秋团圆饭"));
+        }
+
+        LocalDate nationalDay = LocalDate.of(date.getYear(), 10, 1);
+        if (!date.isBefore(nationalDay.minusDays(3)) && !date.isAfter(nationalDay.plusDays(6))) {
+            if (date.isBefore(nationalDay)) {
+                return Optional.of(new FestivalMoment("NATIONAL_DAY", "国庆快到了，先想好假期吃什么",
+                        "国庆将至，适合提前安排假期菜单", "安排国庆菜单", "帮我安排国庆假期菜单"));
+            }
+            return Optional.of(new FestivalMoment("NATIONAL_DAY", "国庆快乐，今天好好吃饭",
+                    "正值国庆假期，适合轻松做喜欢的菜", "安排假期菜单", "帮我安排国庆假期菜单"));
+        }
+        return Optional.empty();
+    }
+
+    private String festivalFallback(FestivalMoment moment, GuozaiMemory.MemorySnapshot snap) {
+        if (!snap.favoriteCuisine().isBlank()) {
+            return moment.greeting() + "，你喜欢的" + snap.favoriteCuisine() + "我记得，节日这顿也按这个口味来。";
+        }
+        if (!snap.favorite().isBlank()) {
+            return moment.greeting() + "，最近常吃的" + snap.favorite() + "我记得，这次给你搭点不一样的。";
+        }
+        if (snap.streak() >= 2) {
+            return moment.greeting() + "，你已经认真记录" + snap.streak() + "天了，节日这一顿也值得好好安排。";
+        }
+        return moment.greeting() + "，不必做得复杂，挑几道合口味的菜慢慢吃就很好。";
+    }
+
+    record FestivalMoment(String scene, String greeting, String prompt, String actionText, String actionPrompt) { }
 
     /** 月度回信只使用当月聚合事实，不上传昵称、图片或日记正文。 */
     public String monthlyLetter(String month, List<UserRecord> records) {
