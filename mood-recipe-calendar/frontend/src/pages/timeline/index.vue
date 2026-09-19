@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { navBack } from '@/composables/useNavBar'
-import { STATIC_BASE_URL } from '@/utils/assets'
-import { ref, computed } from 'vue'
+import {navBack} from '@/composables/useNavBar'
+import {STATIC_BASE_URL} from '@/utils/assets'
+import {computed, ref} from 'vue'
 import LoadingState from '../../components/guozai/LoadingState.vue'
 import EmptyState from '../../components/guozai/EmptyState.vue'
-import { ensureLogin } from '../../utils/login'
-import { toastError, toastSuccess } from '../../utils/toast'
-import { deleteRecord, fetchRecords, type RecordItem } from '../../api/records'
-import { fetchRecipeDetail } from '../../api/recipes'
-import { COOKING_PROGRESS_KEY, saveCookingDraft } from '../../utils/cookingDraft'
+import {ensureLogin} from '../../utils/login'
+import {toastError, toastSuccess} from '../../utils/toast'
+import {deleteRecord, fetchRecords, type RecordItem} from '../../api/records'
+import {fetchRecipeDetail} from '../../api/recipes'
+import {COOKING_PROGRESS_KEY, saveCookingDraft} from '../../utils/cookingDraft'
 
 definePage({ name: 'timeline', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '菜谱时光机' } })
 const router = useRouter()
@@ -113,7 +113,7 @@ async function removeSelected() {
   <view class="timeline-page">
     <wd-navbar title="菜谱时光机" left-arrow safe-area-inset-top @click-left="navBack"  custom-style="background-color: transparent !important;" />
     <LoadingState v-if="loading" text="锅仔正在翻找你的餐桌回忆…" />
-    <EmptyState v-else-if="!records.length" :image="STATIC_BASE_URL + '/static/guozai/action_07_empty.png'" title="时光机还是空的" text="记录第一餐，让锅仔替你把今天收好。" action-text="去记录" @action="router.pushTab({ name: 'record' })" />
+    <EmptyState v-else-if="!records.length" :image="`${STATIC_BASE_URL}/static/guozai/action_07_empty.png`" title="时光机还是空的" text="记录第一餐，让锅仔替你把今天收好。" action-text="去记录" @action="router.pushTab({ name: 'record' })" />
     <scroll-view v-else scroll-y enhanced :show-scrollbar="false" class="timeline-scroll" @scroll="onScroll">
       <view class="timeline-hero">
         <view class="timeline-hero__copy">
@@ -123,7 +123,7 @@ async function removeSelected() {
           <view class="timeline-summary"><text>{{ memorySummary }}</text></view>
         </view>
         <view class="timeline-hero__orbit" aria-hidden="true" />
-        <image class="timeline-hero__img" :src="STATIC_BASE_URL + '/static/guozai/action_04_calendar.png'" mode="aspectFit" aria-label="抱着日历的锅仔" />
+        <image class="timeline-hero__img" :src="`${STATIC_BASE_URL}/static/guozai/action_04_calendar.png`" mode="aspectFit" aria-label="抱着日历的锅仔" />
       </view>
       <view class="today-chip" :class="{ 'today-chip--active': nearToday }"><view class="today-chip__dot" /><text>{{ nearToday ? '此刻 · 今天' : '时间正在向过去流动' }}</text></view>
       <view v-for="group in grouped" :key="group.month" class="timeline-group">
@@ -151,9 +151,12 @@ async function removeSelected() {
           </view>
         </view>
       </view>
-      <view class="timeline-end"><image :src="STATIC_BASE_URL + '/static/guozai/action_08_peek.png'" mode="aspectFit" /><text>再往下，就是更久以前的你啦。</text></view>
+      <view class="timeline-end">
+        <image :src="`${STATIC_BASE_URL}/static/guozai/action_08_peek.png`" mode="aspectFit"/>
+        <text>再往下，就是更久以前的你啦。</text>
+      </view>
     </scroll-view>
-    <view v-if="selected" class="detail-mask" @click.self="selected=null"><view class="detail-sheet"><view class="detail-grabber" /><view class="detail-photo"><image :src="selected.imageUrl" mode="aspectFill" :aria-label="selected.dishName"/><view class="detail-photo__date"><text>{{ dayNumber(selected.recordDate) }}</text><text>{{ weekday(selected.recordDate) }}</text></view></view><text class="detail-kicker">锅仔的食光存档</text><text class="detail-title">{{selected.dishName}}</text><text class="detail-meta">{{selected.recordDate}} · {{selected.moodTag}} · {{ selected.cookingTime || 30 }} 分钟</text><text v-if="selected.note" class="detail-note">“{{selected.note}}”</text><view v-if="Number(selected.recipeId)" class="detail-recipe-actions"><view class="detail-recipe detail-recipe--secondary pressable" role="button" aria-label="查看关联菜谱" @click="openLinkedRecipe(false)">查看菜谱</view><view class="detail-recipe detail-recipe--primary pressable" role="button" aria-label="重新做这道菜" @click="openLinkedRecipe(true)">{{ openingRecipe ? '正在打开…' : '再做一次' }}</view></view><view class="detail-delete pressable" role="button" aria-label="删除这条记录" @click="removeSelected">删除这条记录</view><view class="detail-close pressable" role="button" aria-label="收起记录详情" @click="selected=null">收起</view></view></view>
+    <view v-if="selected" class="detail-mask" @click.self="selected = null"><view class="detail-sheet"><view class="detail-grabber" /><view class="detail-photo"><image :src="selected.imageUrl" mode="aspectFill" :aria-label="selected.dishName"/><view class="detail-photo__date"><text>{{ dayNumber(selected.recordDate) }}</text><text>{{ weekday(selected.recordDate) }}</text></view></view><text class="detail-kicker">锅仔的食光存档</text><text class="detail-title">{{selected.dishName}}</text><text class="detail-meta">{{selected.recordDate}} · {{selected.moodTag}} · {{ selected.cookingTime || 30 }} 分钟</text><text v-if="selected.note" class="detail-note">“{{selected.note}}”</text><view v-if="Number(selected.recipeId)" class="detail-recipe-actions"><view class="detail-recipe detail-recipe--secondary pressable" role="button" aria-label="查看关联菜谱" @click="openLinkedRecipe(false)">查看菜谱</view><view class="detail-recipe detail-recipe--primary pressable" role="button" aria-label="重新做这道菜" @click="openLinkedRecipe(true)">{{ openingRecipe ? '正在打开…' : '再做一次' }}</view></view><view class="detail-delete pressable" role="button" aria-label="删除这条记录" @click="removeSelected">删除这条记录</view><view class="detail-close pressable" role="button" aria-label="收起记录详情" @click="selected=null">收起</view></view></view>
   </view>
 </template>
 

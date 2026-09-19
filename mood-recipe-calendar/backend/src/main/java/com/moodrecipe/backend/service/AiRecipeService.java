@@ -203,11 +203,30 @@ public class AiRecipeService {
         return chat(persona.systemPrompt(), userPrompt, 0.7, 25);
     }
 
+    /**
+     * 短文本生成的输出预算。需同时覆盖模型可能消耗的思考 token，
+     * 预算过小会让正文在句中被硬截断（月度画册回信曾只输出半句话）。
+     */
+    private static final int SHORT_TEXT_MAX_TOKENS = 1024;
+
     private Optional<String> chat(String systemPrompt, String userPrompt, double temperature, int maxLength) {
-        return chatRaw(systemPrompt, userPrompt, temperature, 256, e -> {})
-                .map(r -> r.content())
+        return chatRaw(systemPrompt, userPrompt, temperature, SHORT_TEXT_MAX_TOKENS, e -> {})
+                .map(ChatResult::content)
                 .filter(text -> !text.isBlank())
-                .map(text -> text.substring(0, Math.min(text.length(), maxLength)));
+                .map(text -> truncateAtSentence(text, maxLength));
+    }
+
+    /** 在 maxLength 内按句末标点收尾，避免把回信截成半句话；无合适标点时退化为按长度截断。 */
+    private String truncateAtSentence(String text, int maxLength) {
+        String value = text == null ? "" : text.trim();
+        if (value.length() <= maxLength) return value;
+
+        String head = value.substring(0, maxLength);
+        int cut = -1;
+        for (char mark : new char[]{'。', '！', '？', '；', '…', '!', '?', ';'}) {
+            cut = Math.max(cut, head.lastIndexOf(mark));
+        }
+        return cut >= maxLength / 2 ? head.substring(0, cut + 1) : head;
     }
 
     /**
@@ -237,9 +256,12 @@ public class AiRecipeService {
                 log.warn("Chat API 返回非 2xx: status={}", response.statusCode());
                 return Optional.empty();
             }
-            JsonNode msg = objectMapper.readTree(response.body())
-                    .path("choices").path(0).path("message");
-            String content = msg.path("content").asText().replaceAll("[\\r\\n]+", " ").trim();
+            JsonNode choice = objectMapper.readTree(response.body()).path("choices").path(0);
+            // 不记录提示词与正文；仅记录是否因输出预算不足被截断，便于排查“回信不完整”。
+            if ("length".equals(choice.path("finish_reason").asText(""))) {
+                log.warn("Chat API 输出达到 max_tokens 上限，正文可能被截断: model={}, maxTokens={}", model, maxTokens);
+            }
+            String content = choice.path("message").path("content").asText().replaceAll("[\\r\\n]+", " ").trim();
             if (content.isBlank()) return Optional.empty();
             return Optional.of(new ChatResult(content));
         } catch (Exception ex) {
@@ -270,7 +292,8 @@ public class AiRecipeService {
             recipe.setDifficulty(node.path("difficulty").asText("简单"));
             recipe.setMoodTags(node.path("moodTags").asText(mood));
             recipe.setSeason(node.path("season").asText("四季"));
-            return Optional.of(recipe);
+            recipe.setSource("AI");
+            return RecipeSafetyPolicy.isSafe(recipe) ? Optional.of(recipe) : Optional.empty();
         } catch (Exception ignored) {
             return Optional.empty();
         }

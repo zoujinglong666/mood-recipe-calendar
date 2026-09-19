@@ -1,5 +1,5 @@
-import { post, get, put } from './request'
 import type { UserInfo } from '../stores/user'
+import { del, get, post, put } from './request'
 
 export interface LoginResult {
   openid: string
@@ -14,14 +14,45 @@ export function login(code: string) {
 }
 
 /** 获取用户信息 */
-export function getUserInfo(openid: string) {
+export function getUserInfo(_openid: string) {
   return get<UserInfo>('/auth/user')
 }
 
 /** 更新用户信息 */
-export function updateUserInfo(data: { openid: string; nickname?: string; avatarUrl?: string; remindTime?: string }) {
+export function updateUserInfo(data: { openid: string, nickname?: string, avatarUrl?: string, remindTime?: string }) {
   const { openid: _openid, ...request } = data
   return put<UserInfo>('/auth/user', request)
 }
 
-export function logout() { return post<void>('/auth/logout') }
+export function logout() {
+  return post<void>('/auth/logout')
+}
+
+export function deleteAccount() {
+  return del<void>('/auth/account', { confirmed: true })
+}
+
+export interface AgentMemoryFact {
+  key: string
+  value: string
+  source: string
+  evidence?: string
+}
+
+export interface AgentMemoryView {
+  facts: AgentMemoryFact[]
+  personalizationEnabled: boolean
+}
+
+export function getAgentMemory() {
+  return get<AgentMemoryView>('/agent/memory')
+}
+export function forgetAgentMemory(key: string) {
+  return del<void>(`/agent/memory/${encodeURIComponent(key)}`)
+}
+export function clearAgentMemory() {
+  return del<void>('/agent/memory')
+}
+export function setAgentPersonalization(enabled: boolean) {
+  return put<{ enabled: boolean }>('/agent/memory/personalization', { enabled })
+}

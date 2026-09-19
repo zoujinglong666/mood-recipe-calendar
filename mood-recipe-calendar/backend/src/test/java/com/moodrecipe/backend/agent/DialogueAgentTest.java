@@ -153,6 +153,15 @@ class DialogueAgentTest {
         assertTrue(Boolean.TRUE.equals(selected.hasElder()) && Boolean.TRUE.equals(selected.hasChild()));
     }
 
+    @Test
+    void medicalRequestsUseFixedBoundaryWithoutCallingModel() {
+        FakeLlm llm = new FakeLlm();
+        DialogueState.Turn turn = agent(llm, List.of()).turn(OPENID, "糖尿病怎么停药，吃什么能治疗？", null);
+
+        assertTrue(turn.reply().contains("不能根据疾病给出诊断、治疗或停药建议"));
+        assertNotNull(turn.card());
+    }
+
     private DialogueAgent agent(LlmClient llm, List<AgentMemoryFact> memory) {
         AgentMemoryFactRepository facts = mock(AgentMemoryFactRepository.class);
         when(facts.findByOpenidAndStatusOrderByUpdatedAtDesc(anyString(), anyString()))

@@ -15,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -73,6 +74,23 @@ class RecipeControllerTest {
 
         assertEquals(503, response.getCode());
         verify(commerce, times(1)).restoreEntitlement(7L);
+    }
+
+    @Test
+    void activeMemberUsesDeepRecommendationWithoutConsumingPack() {
+        GuozaiAgent agent = mock(GuozaiAgent.class);
+        VirtualCommerceService commerce = mock(VirtualCommerceService.class);
+        Recipe recipe = new Recipe();
+        recipe.setName("会员专属菜");
+        when(commerce.isActiveMember("user-1")).thenReturn(true);
+        when(agent.deepRecommend(anyString(), anyString(), any(), any(), any()))
+                .thenReturn(Optional.of(recipe));
+
+        var response = buildController(agent, commerce).deepRecommend("user-1",
+                new RecipeController.DeepRecommendRequest("平静", "番茄", "30", "清淡"));
+
+        assertEquals(0, response.getCode());
+        verify(commerce, never()).consumeEntitlement(anyString(), anyString());
     }
 
     @Test

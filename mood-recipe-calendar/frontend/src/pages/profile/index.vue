@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type {RecordItem} from '../../api/records'
 import {fetchRecords, fetchStats} from '../../api/records'
-import {ref} from 'vue'
+import {computed, ref} from 'vue'
 import {useNavBar} from '@/composables/useNavBar'
 import {STATIC_BASE_URL} from '@/utils/assets'
 import Icon from '../../components/common/Icon.vue'
@@ -30,6 +30,9 @@ const loading = ref(true)
 const avatarUpdating = ref(false)
 const stats = ref({ totalRecords: 0, totalDays: 0, currentStreak: 0, topDishes: [] as { name: string, count: number }[] })
 const history = ref<RecordItem[]>([])
+const activeMembership = computed(() => userStore.userInfo?.isMember === 1
+  && Boolean(userStore.userInfo?.memberExpire)
+  && new Date(userStore.userInfo!.memberExpire!).getTime() > Date.now())
 
 const MOOD_IMG_MAP: Record<string, string> = {
   开心: `${STATIC_BASE_URL}
@@ -150,6 +153,9 @@ function goPreferences() {
 }
 function goWeeklyPlan() {
   router.push({ name: 'meal-agent' })
+}
+function goMembership() {
+  router.push({ name: 'membership' })
 }
 function goFeedback() {
   router.push({ name: 'feedback' })
@@ -292,6 +298,17 @@ function openStat(type: 'records' | 'days' | 'streak') {
       <text class="profile-section-head__sub">
         慢慢记录，慢慢熟悉
       </text>
+    </view>
+
+    <view class="profile-member" role="button" aria-label="查看锅仔会员权益" @click="goMembership">
+      <view class="profile-member__mark"><text>G</text></view>
+      <view class="profile-member__main">
+        <text class="profile-member__eyebrow">GUOZAI CLUB</text>
+        <text class="profile-member__title">{{ activeMembership ? '锅仔会员陪伴中' : '开通锅仔会员' }}</text>
+        <text class="profile-member__sub">管饭智能体 · 私人菜单 · 高清画册，全都包含</text>
+      </view>
+      <view class="profile-member__badge">{{ activeMembership ? '已开通' : '看权益' }}</view>
+      <text class="profile-member__arrow">›</text>
     </view>
 
     <view class="profile-memory" role="button" aria-label="打开我的口味与忌口" @click="goPreferences">
@@ -579,6 +596,16 @@ function openStat(type: 'records' | 'days' | 'streak') {
 .profile-section-head__eyebrow { margin-bottom: 6rpx; color: var(--mrc-accent); font-size: 20rpx; font-weight: 800; letter-spacing: 2rpx; }
 .profile-section-head__title { color: var(--mrc-text-strong); font-size: 32rpx; font-weight: var(--mrc-fw-heavy); }
 .profile-section-head__sub { padding-bottom: 2rpx; color: var(--mrc-text-sub); font-size: 20rpx; }
+.profile-member { display: flex; min-height: 146rpx; align-items: center; gap: 18rpx; box-sizing: border-box; margin-bottom: 16rpx; padding: 22rpx 24rpx; overflow: hidden; border-radius: 32rpx; background: linear-gradient(135deg, #2f1b14, #643322); box-shadow: 0 16rpx 32rpx rgba(70, 35, 23, .18); }
+.profile-member:active { transform: scale(.98); }
+.profile-member__mark { display: flex; width: 82rpx; height: 82rpx; flex: 0 0 auto; align-items: center; justify-content: center; border: 2rpx solid rgba(255, 221, 167, .38); border-radius: 26rpx; color: #f1c17b; background: rgba(255, 224, 178, .08); font-size: 36rpx; font-weight: 900; }
+.profile-member__main { min-width: 0; flex: 1; }
+.profile-member__eyebrow, .profile-member__title, .profile-member__sub { display: block; }
+.profile-member__eyebrow { color: #eab66f; font-size: 16rpx; font-weight: 850; letter-spacing: 2rpx; }
+.profile-member__title { margin-top: 4rpx; color: #fff8ee; font-size: 29rpx; font-weight: 900; }
+.profile-member__sub { margin-top: 5rpx; color: rgba(255, 245, 230, .67); font-size: 18rpx; line-height: 1.4; }
+.profile-member__badge { flex: 0 0 auto; padding: 8rpx 12rpx; border-radius: 18rpx; color: #45251a; background: #f2c37d; font-size: 17rpx; font-weight: 850; }
+.profile-member__arrow { color: rgba(255, 245, 230, .55); font-size: 36rpx; }
 
 /* 锅仔形象馆入口 */
 .profile-memory { display: flex; min-height: 138rpx; align-items: center; gap: 18rpx; padding: 22rpx 26rpx; box-sizing: border-box; margin-bottom: 16rpx; border: 2rpx solid var(--mrc-border); border-radius: 30rpx; background: linear-gradient(135deg, var(--mrc-surface-sun), var(--mrc-surface-peach)); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }

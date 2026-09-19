@@ -14,6 +14,7 @@ import java.util.Optional;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
 
 /** 内存版事实表：让"记住—想起—遗忘—学习"的闭环能在没有数据库的情况下被验证。 */
@@ -39,6 +40,13 @@ final class FakeMemoryFacts {
             rows.put(key(fact.getOpenid(), fact.getMemoryKey()), fact);
             return fact;
         });
+        doAnswer(invocation -> rows.remove(key(invocation.getArgument(0), invocation.getArgument(1))))
+                .when(repository).deleteByOpenidAndMemoryKey(anyString(), anyString());
+        doAnswer(invocation -> {
+            String openid = invocation.getArgument(0);
+            rows.entrySet().removeIf(entry -> entry.getKey().startsWith(openid + "|"));
+            return null;
+        }).when(repository).deleteByOpenid(anyString());
     }
 
     AgentMemoryFactRepository repository() {

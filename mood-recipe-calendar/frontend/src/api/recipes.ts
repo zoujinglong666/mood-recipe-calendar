@@ -12,6 +12,7 @@ export interface RecipeItem {
   difficulty: string
   moodTags: string
   season: string
+  source: 'AI' | 'LOCAL'
   recommendationReason?: string
 }
 
@@ -108,5 +109,5 @@ export function fetchRecipeDetail(id: number) {
 }
 
 function normalizeRecipe(recipe: RecipeItem): RecipeItem {
-  return { ...recipe, image: resolveAssetUrl(recipe.image) }
+  return { ...recipe, source: recipe.source === 'AI' ? 'AI' : 'LOCAL', image: resolveAssetUrl(recipe.image) }
 }

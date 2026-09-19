@@ -148,12 +148,13 @@ export function put<T = any>(url: string, data?: any): Promise<T> {
 /**
  * 通用 DELETE 请求
  */
-export function del<T = any>(url: string): Promise<T> {
+export function del<T = any>(url: string, data?: any): Promise<T> {
   return new Promise((resolve, reject) => {
     uni.request({
       url: getApiBaseUrl() + url,
       method: 'DELETE',
-      header: authHeader(),
+      data,
+      header: { 'Content-Type': 'application/json', ...authHeader() },
       success: (res: any) => handleResponse(res, resolve, reject),
       fail: err => reject(new Error(err.errMsg || '网络错误')),
     })

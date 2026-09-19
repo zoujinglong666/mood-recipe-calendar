@@ -13,6 +13,7 @@ type _LocationUrl =
   "/pages/gallery/index" |
   "/pages/login/index" |
   "/pages/meal-agent/index" |
+  "/pages/membership/index" |
   "/pages/mood/index" |
   "/pages/preferences/index" |
   "/pages/privacy/index" |

@@ -47,11 +47,12 @@ public class GuozaiAgent {
     private final UserFoodPreferenceRepository preferences;
     private final OperationalEventService operationalEvents;
     private final RecommendationExposureService exposures;
+    private final WechatContentSafetyService contentSafety;
 
     public GuozaiAgent(AiRecipeService aiRecipeService, GuozaiMemory memory, GuozaiPersona persona,
                        RecipeRepository recipeRepository, RecipeInteractionRepository interactions,
                        UserFoodPreferenceRepository preferences, OperationalEventService operationalEvents,
-                       RecommendationExposureService exposures) {
+                       RecommendationExposureService exposures, WechatContentSafetyService contentSafety) {
         this.aiRecipeService = aiRecipeService;
         this.memory = memory;
         this.persona = persona;
@@ -60,6 +61,7 @@ public class GuozaiAgent {
         this.preferences = preferences;
         this.operationalEvents = operationalEvents;
         this.exposures = exposures;
+        this.contentSafety = contentSafety;
     }
 
     // ==================== 能力一：菜谱推荐 ====================
@@ -94,7 +96,7 @@ public class GuozaiAgent {
             String smartPrompt = persona.recipePrompt(mood, userAnalysis, preferenceText);
             Optional<Recipe> aiRecipe = aiRecipeService.recommendWithPersona(mood, smartPrompt,
                     event -> updateAiProgress(openid, progress, event));
-            if (aiRecipe.isPresent() && allowedByPreference(aiRecipe.get(), preference)
+            if (aiRecipe.isPresent() && contentSafe(openid, aiRecipe.get()) && allowedByPreference(aiRecipe.get(), preference)
                     && !exposures.isRejected(openid, aiRecipe.get())) {
                 Recipe generated = aiRecipe.get();
                 // AI 菜谱无论图片是否生成成功都先落库；图片服务失败不应丢掉完整菜谱。
@@ -135,7 +137,7 @@ public class GuozaiAgent {
                 + "；长期口味记忆：" + preferencePrompt(foodPref);
         String smartPrompt = persona.recipePrompt(mood, userAnalysis, preference);
         Optional<Recipe> generated = aiRecipeService.recommendWithPersona(mood, smartPrompt, ignored -> { });
-        if (generated.isEmpty() || !allowedByPreference(generated.get(), foodPref)
+        if (generated.isEmpty() || !contentSafe(openid, generated.get()) || !allowedByPreference(generated.get(), foodPref)
                 || exposures.wasRecentlyShownOrRejected(openid, generated.get())) {
             return Optional.empty();
         }
@@ -182,6 +184,7 @@ public class GuozaiAgent {
         List<Recipe> menu = new ArrayList<>();
         try {
             aiRecipeService.recommendWeekly(context, required).orElseGet(List::of).stream()
+                    .filter(recipe -> contentSafe(openid, recipe))
                     .filter(recipe -> allowedByPreference(recipe, preference))
                     .forEach(recipe -> addUnique(menu, recipe));
         } catch (Exception ex) {
@@ -546,6 +549,11 @@ public class GuozaiAgent {
         if (Boolean.FALSE.equals(preference.getEatCilantro())) blocked.add("香菜");
         if ("NONE".equals(preference.getSpiceLevel())) blocked.addAll(List.of("辣", "麻婆", "剁椒"));
         return blocked.stream().noneMatch(text::contains);
+    }
+
+    private boolean contentSafe(String openid, Recipe recipe) {
+        return contentSafety.allowsText(openid, recipe.getName(), recipe.getDescription(),
+                recipe.getIngredients(), recipe.getSteps());
     }
 
     private int preferenceScore(Recipe recipe, UserFoodPreference preference) {

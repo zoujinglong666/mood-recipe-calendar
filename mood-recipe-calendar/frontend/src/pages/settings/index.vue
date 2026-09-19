@@ -1,17 +1,17 @@
 <script setup lang="ts">
-import type { ThemeMode } from '@/composables/useManualTheme'
-import { STATIC_BASE_URL } from '@/utils/assets'
-import { computed, ref } from 'vue'
-import { logout as apiLogout, updateUserInfo } from '@/api/auth'
-import { uploadFile } from '@/api/request'
-import { API_BACKENDS, getApiBaseUrl, setApiBaseUrl } from '@/api/request'
+import type { AgentMemoryFact } from '@/api/auth'
 import type { ApiBackend } from '@/api/request'
+import type { ThemeMode } from '@/composables/useManualTheme'
+import { computed, ref } from 'vue'
+import { logout as apiLogout, clearAgentMemory, deleteAccount, forgetAgentMemory, getAgentMemory, setAgentPersonalization, updateUserInfo } from '@/api/auth'
+import { API_BACKENDS, getApiBaseUrl, setApiBaseUrl, uploadFile } from '@/api/request'
 import Icon from '@/components/common/Icon.vue'
 import { useManualTheme } from '@/composables/useManualTheme'
 import { navBack } from '@/composables/useNavBar'
 import { useUserStore } from '@/stores/user'
-import { refreshUserInfo } from '@/utils/login'
+import { STATIC_BASE_URL } from '@/utils/assets'
 import { chooseImageFile } from '@/utils/chooseImage'
+import { refreshUserInfo } from '@/utils/login'
 import { toast, toastError, toastSuccess } from '@/utils/toast'
 
 definePage({
@@ -33,6 +33,10 @@ const nickname = ref('')
 const avatarUpdating = ref(false)
 const nicknameSaving = ref(false)
 const logoutLoading = ref(false)
+const deleteLoading = ref(false)
+const memoryLoading = ref(false)
+const personalizationEnabled = ref(true)
+const memoryFacts = ref<AgentMemoryFact[]>([])
 
 const avatar = computed(() => userStore.userInfo?.avatarUrl || `${STATIC_BASE_URL}/static/guozai/mood_01_happy.png`)
 const themeChoice = computed<ThemeChoice>(() => followSystem.value ? 'system' : isDark.value ? 'dark' : 'light')
@@ -74,10 +78,72 @@ function selectBackend(backend: ApiBackend) {
 
 onShow(async () => {
   userStore.restoreFromStorage()
-  if (userStore.isLoggedIn)
+  if (userStore.isLoggedIn) {
     await refreshUserInfo()
+    await loadMemory()
+  }
   nickname.value = userStore.userInfo?.nickname || ''
 })
+
+async function loadMemory() {
+  memoryLoading.value = true
+  try {
+    const memory = await getAgentMemory()
+    memoryFacts.value = memory.facts || []
+    personalizationEnabled.value = memory.personalizationEnabled !== false
+  }
+  catch (error) {
+    toastError(error, '锅仔记忆读取失败')
+  }
+  finally {
+    memoryLoading.value = false
+  }
+}
+
+async function togglePersonalization(event: any) {
+  const enabled = !!event.detail?.value
+  try {
+    const result = await setAgentPersonalization(enabled)
+    personalizationEnabled.value = result.enabled
+    toastSuccess(enabled ? '已开启个性化推荐' : '已关闭个性化推荐')
+  }
+  catch (error) {
+    personalizationEnabled.value = !enabled
+    toastError(error, '设置失败，请重试')
+  }
+}
+
+async function forgetMemory(key: string) {
+  try {
+    await forgetAgentMemory(key)
+    memoryFacts.value = memoryFacts.value.filter(item => item.key !== key)
+    toastSuccess('这条记忆已删除')
+  }
+  catch (error) {
+    toastError(error, '删除记忆失败')
+  }
+}
+
+function askClearMemory() {
+  uni.showModal({
+    title: '清空锅仔记忆？',
+    content: '口味、家庭情况和饮食偏好将全部清除，菜谱记录本身不会删除。',
+    confirmText: '确认清空',
+    confirmColor: '#D94841',
+    success: async (result) => {
+      if (!result.confirm)
+        return
+      try {
+        await clearAgentMemory()
+        memoryFacts.value = []
+        toastSuccess('锅仔记忆已清空')
+      }
+      catch (error) {
+        toastError(error, '清空失败，请重试')
+      }
+    },
+  })
+}
 
 async function updateAvatar(filePath: string) {
   if (!userStore.isLoggedIn) {
@@ -111,7 +177,7 @@ function chooseH5Avatar() {
     return
   }
   chooseImageFile({
-    onSelected: (filePath) => updateAvatar(filePath),
+    onSelected: filePath => updateAvatar(filePath),
     onFail: () => toast('未能读取图片，请重试'),
   })
 }
@@ -180,6 +246,36 @@ async function performLogout() {
     toastSuccess('已退出登录')
   }
 }
+
+function askDeleteAccount() {
+  if (deleteLoading.value)
+    return
+  uni.showModal({
+    title: '永久注销账号？',
+    content: '这会删除菜谱记录、图片、偏好和锅仔记忆，且无法恢复。依法需保留的订单会去标识化保存。',
+    confirmText: '永久注销',
+    confirmColor: '#D94841',
+    success: async (result) => {
+      if (!result.confirm)
+        return
+      deleteLoading.value = true
+      try {
+        await deleteAccount()
+        userStore.logout()
+        memoryFacts.value = []
+        nickname.value = ''
+        toastSuccess('账号已注销')
+        setTimeout(() => uni.reLaunch({ url: '/pages/profile/index' }), 500)
+      }
+      catch (error) {
+        toastError(error, '注销失败，数据尚未删除，请重试')
+      }
+      finally {
+        deleteLoading.value = false
+      }
+    },
+  })
+}
 </script>
 
 <template>
@@ -196,7 +292,55 @@ async function performLogout() {
             把这里调成<br>最舒服的样子
           </text>
         </view>
-        <image class="settings-intro__image guozai-breathe" :src="STATIC_BASE_URL + '/static/guozai/action_06_glasses.png'" mode="aspectFit" />
+        <image class="settings-intro__image guozai-breathe" :src="`${STATIC_BASE_URL}/static/guozai/action_06_glasses.png`" mode="aspectFit" />
+      </view>
+
+      <view v-if="userStore.isLoggedIn" class="settings-section">
+        <view class="settings-heading">
+          <text class="settings-heading__title">
+            锅仔记忆
+          </text>
+          <text class="settings-heading__hint">
+            你可以随时查看、删除或关闭个性化
+          </text>
+        </view>
+        <view class="memory-card">
+          <view class="memory-switch">
+            <view>
+              <text class="memory-switch__title">
+                个性化推荐
+              </text>
+              <text class="memory-switch__hint">
+                关闭后不读取，也不写入长期记忆
+              </text>
+            </view>
+            <switch :checked="personalizationEnabled" color="#EF5A3C" @change="togglePersonalization" />
+          </view>
+          <text v-if="memoryLoading" class="memory-empty">
+            正在读取锅仔记忆…
+          </text>
+          <text v-else-if="!memoryFacts.length" class="memory-empty">
+            锅仔目前没有保存长期记忆
+          </text>
+          <view v-else class="memory-list">
+            <view v-for="fact in memoryFacts" :key="fact.key" class="memory-item">
+              <view class="memory-item__copy">
+                <text class="memory-item__value">
+                  {{ fact.value }}
+                </text>
+                <text class="memory-item__source">
+                  {{ fact.source === 'CHAT' ? '来自对话' : fact.source === 'EXPLICIT' ? '你主动设置' : '根据反馈学习' }}
+                </text>
+              </view>
+              <text class="memory-item__delete" role="button" :aria-label="`删除记忆：${fact.value}`" @click="forgetMemory(fact.key)">
+                删除
+              </text>
+            </view>
+          </view>
+          <view v-if="memoryFacts.length" class="memory-clear pressable" role="button" aria-label="清空全部锅仔记忆" @click="askClearMemory">
+            清空全部记忆
+          </view>
+        </view>
       </view>
 
       <view class="settings-section">
@@ -256,7 +400,7 @@ async function performLogout() {
           </view>
         </view>
         <view v-else class="account-card account-card--signed-out">
-          <image class="account-card__guozai" :src="STATIC_BASE_URL + '/static/guozai/action_08_peek.png'" mode="aspectFit" />
+          <image class="account-card__guozai" :src="`${STATIC_BASE_URL}/static/guozai/action_08_peek.png`" mode="aspectFit" />
           <view>
             <text class="account-card__title">
               还没有连接微信身份
@@ -346,6 +490,9 @@ async function performLogout() {
       <view v-if="userStore.isLoggedIn" class="logout-button pressable" :class="{ 'is-disabled': logoutLoading }" role="button" aria-label="退出登录" @click="askForLogout">
         {{ logoutLoading ? '正在退出…' : '退出登录' }}
       </view>
+      <view v-if="userStore.isLoggedIn" class="delete-account pressable" :class="{ 'is-disabled': deleteLoading }" role="button" aria-label="永久注销账号" @click="askDeleteAccount">
+        {{ deleteLoading ? '正在注销…' : '永久注销账号' }}
+      </view>
       <text class="settings-footnote">
         你的口味记忆与菜谱记录保存在账号中，退出登录不会删除数据。
       </text>
@@ -366,6 +513,16 @@ async function performLogout() {
 .settings-heading__title { color: var(--mrc-text-strong); font-size: 32rpx; font-weight: 800; }
 .settings-heading__hint { margin-top: 6rpx; color: var(--mrc-text-sub); font-size: 22rpx; }
 .account-card, .theme-card { padding: 26rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 30rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); }
+.memory-card { padding: 8rpx 26rpx 22rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 30rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); }
+.memory-switch { display: flex; min-height: 112rpx; align-items: center; justify-content: space-between; gap: 20rpx; border-bottom: 2rpx solid var(--mrc-border-light); }
+.memory-switch__title, .memory-switch__hint, .memory-item__value, .memory-item__source, .memory-empty { display: block; }
+.memory-switch__title, .memory-item__value { color: var(--mrc-text-strong); font-size: 26rpx; font-weight: 800; }
+.memory-switch__hint, .memory-item__source, .memory-empty { margin-top: 6rpx; color: var(--mrc-text-sub); font-size: 21rpx; line-height: 1.5; }
+.memory-empty { padding: 30rpx 0 10rpx; text-align: center; }
+.memory-item { display: flex; min-height: 92rpx; align-items: center; gap: 20rpx; border-bottom: 2rpx solid var(--mrc-border-light); }
+.memory-item__copy { flex: 1; min-width: 0; }
+.memory-item__delete { color: #D94841; font-size: 22rpx; font-weight: 700; }
+.memory-clear { display: flex; min-height: 76rpx; align-items: center; justify-content: center; margin-top: 18rpx; border-radius: 38rpx; color: #D94841; background: rgba(217, 72, 65, .08); font-size: 23rpx; font-weight: 700; }
 .account-card { display: flex; align-items: flex-start; gap: 26rpx; }
 .avatar-button { width: 136rpx; height: 136rpx; flex-shrink: 0; margin: 0; padding: 0; border: 0; border-radius: 50%; background: transparent; line-height: 1; }
 .avatar-button::after { border: 0; }
@@ -412,6 +569,7 @@ async function performLogout() {
 .backend-option__check { color: var(--mrc-accent); font-size: 30rpx; font-weight: 800; }
 .backend-note { display: block; padding-top: 16rpx; border-top: 2rpx solid var(--mrc-border-light); color: var(--mrc-text-light); font-size: 20rpx; line-height: 1.5; }
 .logout-button { display: flex; min-height: 96rpx; align-items: center; justify-content: center; margin-top: 44rpx; border: 2rpx solid rgba(217, 72, 65, .42); border-radius: 48rpx; color: #D94841; background: var(--mrc-surface); font-size: 28rpx; font-weight: 700; }
+.delete-account { display: flex; min-height: 78rpx; align-items: center; justify-content: center; margin-top: 16rpx; color: var(--mrc-text-light); font-size: 23rpx; text-decoration: underline; }
 .settings-footnote { display: block; padding: 18rpx 28rpx 0; color: var(--mrc-text-light); font-size: 21rpx; line-height: 1.55; text-align: center; }
 .pressable { transition: transform 180ms ease, opacity 180ms ease; }
 .pressable:active { transform: scale(.97); }

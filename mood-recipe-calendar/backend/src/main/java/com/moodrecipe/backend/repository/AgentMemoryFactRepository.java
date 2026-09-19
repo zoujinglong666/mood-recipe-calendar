@@ -15,4 +15,8 @@ public interface AgentMemoryFactRepository extends JpaRepository<AgentMemoryFact
     List<AgentMemoryFact> findByOpenidAndStatusOrderByUpdatedAtDesc(String openid, String status);
 
     Optional<AgentMemoryFact> findByOpenidAndMemoryKeyAndStatus(String openid, String memoryKey, String status);
+
+    void deleteByOpenidAndMemoryKey(String openid, String memoryKey);
+
+    void deleteByOpenid(String openid);
 }

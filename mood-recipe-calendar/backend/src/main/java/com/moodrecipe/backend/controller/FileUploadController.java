@@ -10,6 +10,7 @@ import com.qcloud.cos.region.Region;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import com.moodrecipe.backend.service.WechatContentSafetyService;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -26,6 +27,12 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/upload")
 public class FileUploadController {
+
+    private final WechatContentSafetyService contentSafety;
+
+    public FileUploadController(WechatContentSafetyService contentSafety) {
+        this.contentSafety = contentSafety;
+    }
 
     /** 支持的上传场景：image=菜品/记录图片，avatar=用户头像 */
     private static final Set<String> SCENES = Set.of("image", "avatar");
@@ -79,6 +86,12 @@ public class FileUploadController {
         try (InputStream input = file.getInputStream()) {
             byte[] header = input.readNBytes(12);
             if (!matchesMagic(contentType, header)) return ApiResponse.error(400, "文件内容与图片类型不一致");
+        } catch (IOException exception) {
+            return ApiResponse.error("读取上传文件失败");
+        }
+        try {
+            if (!contentSafety.allowsImage(file.getBytes(), contentType))
+                return ApiResponse.error(400, "图片未通过安全检查");
         } catch (IOException exception) {
             return ApiResponse.error("读取上传文件失败");
         }

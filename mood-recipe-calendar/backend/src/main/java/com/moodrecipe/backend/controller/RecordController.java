@@ -7,6 +7,7 @@ import com.moodrecipe.backend.model.RecordRequest;
 import com.moodrecipe.backend.repository.UserRecordRepository;
 import com.moodrecipe.backend.repository.RecipeInteractionRepository;
 import com.moodrecipe.backend.service.RecommendationExposureService;
+import com.moodrecipe.backend.service.WechatContentSafetyService;
 import jakarta.validation.Valid;
 import com.moodrecipe.backend.config.SessionAuthInterceptor;
 import org.springframework.web.bind.annotation.*;
@@ -24,20 +25,24 @@ public class RecordController {
     private final UserRecordRepository repository;
     private final RecipeInteractionRepository recipeInteractions;
     private final RecommendationExposureService exposures;
+    private final WechatContentSafetyService contentSafety;
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ISO_LOCAL_DATE;
     private static final String DEFAULT_DISH_IMAGE = "/static/dish_tomato_beef.png";
 
     public RecordController(UserRecordRepository repository, RecipeInteractionRepository recipeInteractions,
-                            RecommendationExposureService exposures) {
+                            RecommendationExposureService exposures, WechatContentSafetyService contentSafety) {
         this.repository = repository;
         this.recipeInteractions = recipeInteractions;
         this.exposures = exposures;
+        this.contentSafety = contentSafety;
     }
 
     /** 保存一条记录 */
     @PostMapping
     @Transactional
     public ApiResponse<UserRecord> save(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @Valid @RequestBody RecordRequest req) {
+        if (!contentSafety.allowsText(openid, req.dishName(), req.moodTag(), req.note()))
+            return ApiResponse.error(400, "文字未通过安全检查");
         boolean fromRecipe = (req.recipeId() != null && !req.recipeId().isBlank())
                 || (req.exposureId() != null && !req.exposureId().isBlank());
         if ((req.imageUrl() == null || req.imageUrl().isBlank()) && !fromRecipe) {

@@ -32,6 +32,12 @@ public record UserProfile(String openid,
                           int recordDays,
                           List<MemoryItem> memory) {
 
+    public static UserProfile empty(String openid) {
+        return new UserProfile(openid, null, null, List.of(), null, null, null,
+                null, null, List.of(), List.of(), List.of(), List.of(), List.of(),
+                List.of(), List.of(), List.of(), Map.of(), null, false, 0, List.of());
+    }
+
     /** 给提示词用的紧凑摘要，字段为空则省略，避免无意义的噪声。 */
     public String summary() {
         StringBuilder text = new StringBuilder();

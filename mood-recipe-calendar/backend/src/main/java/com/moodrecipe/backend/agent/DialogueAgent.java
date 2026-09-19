@@ -66,6 +66,18 @@ public class DialogueAgent {
         DialogueState.AgentState state = startsIndependentMeal ? DialogueState.AgentState.empty()
                 : independentMeal ? incoming : mergeProfile(profile, incoming);
 
+        if (isMedicalRequest(input)) {
+            List<String> skipped = independentMeal ? List.of() : profile.skipQuestions();
+            state = applySkippedDefaults(state, skipped);
+            String action = nextAction(state, gaps(state, skipped));
+            DialogueState.Card card = AgentCards.defaultCard(action, state);
+            String reply = "我不能根据疾病给出诊断、治疗或停药建议。"
+                    + "如有确诊疾病、严重过敏、孕期或婴幼儿饮食，请先咨询医生或注册营养师。"
+                    + "我们回到日常菜单：" + card.title() + "？";
+            return new DialogueState.Turn(reply, action, state, card, "医疗请求使用固定安全边界",
+                    List.of(), List.of(), List.of());
+        }
+
         Understanding understanding = understand(input, state, profile, independentMeal, degraded);
         state = HeuristicExtractor.applySelection(state, input);
         List<AgentFact> facts = mergeFacts(heuristicFacts, understanding.facts());
@@ -488,6 +500,11 @@ public class DialogueAgent {
         } catch (RuntimeException ignored) {
             return null;
         }
+    }
+
+    private boolean isMedicalRequest(String text) {
+        return text != null && List.of("治疗", "诊断", "停药", "药物", "癌症", "糖尿病", "高血压", "肾病")
+                .stream().anyMatch(text::contains);
     }
 
     private boolean hasMealContext(List<AgentFact> facts) {

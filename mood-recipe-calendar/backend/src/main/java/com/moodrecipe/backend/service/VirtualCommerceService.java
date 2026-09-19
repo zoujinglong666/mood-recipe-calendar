@@ -67,6 +67,14 @@ public class VirtualCommerceService {
                 .toList();
     }
 
+    public boolean isActiveMember(String openid) {
+        LocalDateTime now = LocalDateTime.now();
+        return userRepository.findByOpenid(openid)
+                .filter(user -> Integer.valueOf(1).equals(user.getIsMember()))
+                .filter(user -> user.getMemberExpire() != null && user.getMemberExpire().isAfter(now))
+                .isPresent();
+    }
+
     public Optional<VirtualOrder> findOrderForUser(String openid, String orderNo) {
         return orderRepository.findByOrderNo(orderNo).filter(order -> openid.equals(order.getOpenid()));
     }
@@ -102,7 +110,7 @@ public class VirtualCommerceService {
     /** 仅供已验签的微信虚拟支付回调适配器调用。可安全重试。 */
     @Transactional
     public VirtualOrder fulfillPaidOrder(String orderNo, String platformTransactionId) {
-        VirtualOrder order = orderRepository.findByOrderNo(orderNo)
+        VirtualOrder order = orderRepository.findByOrderNoForUpdate(orderNo)
                 .orElseThrow(() -> new IllegalArgumentException("订单不存在"));
         if ("DELIVERED".equals(order.getStatus())) return order;
         if (!"PENDING".equals(order.getStatus()) && !"PAID".equals(order.getStatus())) {

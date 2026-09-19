@@ -68,14 +68,16 @@ public class WechatVirtualPaymentCallbackController {
      */
     @PostMapping
     public ResponseEntity<Map<String, Object>> deliver(
-            @RequestParam("signature") String signature,
+            @RequestParam(value = "signature", required = false) String signature,
+            @RequestParam(value = "msg_signature", required = false) String messageSignature,
             @RequestParam("timestamp") String timestamp,
             @RequestParam("nonce") String nonce,
             @RequestBody Map<String, Object> body
     ) {
         String encrypted = stringValue(body.get("Encrypt"));
         if (encrypted == null) encrypted = stringValue(body.get("encrypt"));
-        if (!messageCrypto.verify(signature, timestamp, nonce, encrypted)) {
+        String callbackSignature = encrypted == null ? signature : messageSignature;
+        if (!messageCrypto.verify(callbackSignature, timestamp, nonce, encrypted)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(fail("invalid signature"));
         }
         try {
@@ -98,8 +100,12 @@ public class WechatVirtualPaymentCallbackController {
             if (order.getAmountFen() != Integer.parseInt(required(goodsInfo, "ActualPrice"))) {
                 throw new IllegalArgumentException("支付金额不匹配");
             }
-            Map<String, Object> payInfo = object(body.get("WeChatPayInfo"), "WeChatPayInfo");
-            commerceService.fulfillPaidOrder(orderNo, required(payInfo, "TransactionId"));
+            Map<String, Object> payInfo = optionalObject(body.get("WeChatPayInfo"), "WeChatPayInfo");
+            String platformOrderNo = firstNonBlank(
+                    stringValue(payInfo.get("MchOrderNo")),
+                    stringValue(payInfo.get("TransactionId")),
+                    orderNo);
+            commerceService.fulfillPaidOrder(orderNo, platformOrderNo);
             return ResponseEntity.ok(ok());
         } catch (Exception exception) {
             operationalEvents.record("VIRTUAL_PAYMENT_DELIVERY_FAILED", "ALERT", null, null, "callback delivery validation failed");
@@ -116,6 +122,16 @@ public class WechatVirtualPaymentCallbackController {
     private Map<String, Object> object(Object value, String field) {
         if (value instanceof Map<?, ?> map) return (Map<String, Object>) map;
         throw new IllegalArgumentException(field + " 格式错误");
+    }
+
+    private Map<String, Object> optionalObject(Object value, String field) {
+        if (value == null) return Map.of();
+        return object(value, field);
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) if (value != null && !value.isBlank()) return value;
+        throw new IllegalArgumentException("支付平台订单号不能为空");
     }
 
     private String required(Map<String, Object> body, String field) {

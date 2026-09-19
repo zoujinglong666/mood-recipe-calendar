@@ -7,14 +7,6 @@ import { navBack, useNavBar } from '@/composables/useNavBar'
 import { STATIC_BASE_URL } from '@/utils/assets'
 import { fetchMonthAlbum } from '../../api/albums'
 import { fetchRecordsByMonth } from '../../api/records'
-import Icon from '../../components/common/Icon.vue'
-import ErrorState from '../../components/guozai/ErrorState.vue'
-import LoadingState from '../../components/guozai/LoadingState.vue'
-import { useUserStore } from '../../stores/user'
-import { autoLayout, chunkPages, MOOD_COLOR, MOOD_EMOJI } from '../../utils/albumLayout'
-import { exportAlbumShare } from '../../utils/albumShare'
-import { ensureLogin } from '../../utils/login'
-import { toast, toastError, toastSuccess } from '../../utils/toast'
 import {
   ALBUM_ENTITLEMENT_CODE,
   ALBUM_PRODUCT_SKU,
@@ -25,6 +17,14 @@ import {
   getVirtualPaymentParams,
   requestWechatVirtualPayment,
 } from '../../api/virtualCommerce'
+import Icon from '../../components/common/Icon.vue'
+import ErrorState from '../../components/guozai/ErrorState.vue'
+import LoadingState from '../../components/guozai/LoadingState.vue'
+import { useUserStore } from '../../stores/user'
+import { autoLayout, chunkPages, MOOD_COLOR, MOOD_EMOJI } from '../../utils/albumLayout'
+import { exportAlbumShare } from '../../utils/albumShare'
+import { ensureLogin, refreshUserInfo } from '../../utils/login'
+import { toast, toastError, toastSuccess } from '../../utils/toast'
 
 definePage({
   name: 'album',
@@ -114,6 +114,7 @@ async function loadAlbum() {
     const [albumData, recordData] = await Promise.all([
       fetchMonthAlbum(openid, monthStr),
       fetchRecordsByMonth(openid, monthStr),
+      refreshUserInfo(true),
     ])
     album.value = albumData
     records.value = recordData
@@ -153,8 +154,11 @@ const nav = useNavBar()
 const shareTop = computed(() => `${nav.statusBarHeight + nav.navBarHeight + 8}px`)
 /** 已到账且可用的画册权益次数；null 表示尚未查询或无权益。 */
 const entitlementRemaining = ref<number | null>(null)
+const isMember = computed(() => userStore.userInfo?.isMember === 1
+  && Boolean(userStore.userInfo?.memberExpire)
+  && new Date(userStore.userInfo!.memberExpire!).getTime() > Date.now())
 
-const hasAlbumEntitlement = computed(() => entitlementRemaining.value !== null && entitlementRemaining.value > 0)
+const hasAlbumEntitlement = computed(() => isMember.value || (entitlementRemaining.value !== null && entitlementRemaining.value > 0))
 
 /** 分享按钮文案：有权益则直接保存，无权益则提示先解锁。 */
 const shareButtonText = computed(() =>
@@ -201,9 +205,10 @@ async function onShare() {
       slogan: '用一道菜，治愈今天的你',
       guozaiPath: `${STATIC_BASE_URL}/static/guozai/mood_01_happy.png`,
       footer: '「锅仔」· 你的情绪味蕾搭子',
+      aiAssisted: true,
     })
     // 高清图已成功保存，才扣减一次权益，避免支付成功却导出失败白白消耗。
-    if (hasAlbumEntitlement.value) {
+    if (!isMember.value && hasAlbumEntitlement.value) {
       try {
         const result = await consumeEntitlement(openid, ALBUM_ENTITLEMENT_CODE)
         entitlementRemaining.value = result.remainingUses
@@ -515,7 +520,7 @@ const aiLines = computed(() => {
                 </text>
               </view>
               <text class="album-folio">
-                PRIVATE
+                AI 生成寄语
               </text>
             </view>
             <view class="album-message__letter">

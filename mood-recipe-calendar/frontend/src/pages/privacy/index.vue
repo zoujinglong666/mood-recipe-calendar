@@ -1,25 +1,66 @@
 <script setup lang="ts">
 import Icon from '@/components/common/Icon.vue'
-import { STATIC_BASE_URL } from '@/utils/assets'
 import { navBack } from '@/composables/useNavBar'
+import { STATIC_BASE_URL } from '@/utils/assets'
 
 definePage({ name: 'privacy', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '隐私政策' } })
 const router = useRouter()
-const updatedAt = '2026 年 9 月 7 日'
+const updatedAt = '2026 年 9 月 17 日'
 </script>
 
 <template>
   <view class="privacy-page">
-    <wd-navbar title="隐私政策" left-arrow safe-area-inset-top @click-left="navBack" custom-style="background-color: transparent !important;" />
+    <wd-navbar title="隐私政策" left-arrow safe-area-inset-top custom-style="background-color: transparent !important;" @click-left="navBack" />
     <view class="privacy-hero">
-      <view><text class="privacy-kicker">GUOZAI CARES</text><text class="privacy-title">你的每一餐，<br />只属于你。</text><text class="privacy-date">最近更新：{{ updatedAt }}</text></view>
-      <image :src="STATIC_BASE_URL + '/static/guozai/action_06_glasses.png'" mode="aspectFit" />
+      <view>
+        <text class="privacy-kicker">
+          GUOZAI CARES
+        </text><text class="privacy-title">
+          你的每一餐，<br>只属于你。
+        </text><text class="privacy-date">
+          最近更新：{{ updatedAt }}
+        </text>
+      </view>
+      <image :src="`${STATIC_BASE_URL}/static/guozai/action_06_glasses.png`" mode="aspectFit" />
     </view>
-    <view class="privacy-card"><Icon name="heart" :size="40" color="#EF5A3C" /><view><text class="privacy-card__title">我们收集什么</text><text>仅保存你主动提交的昵称、头像、菜品记录、图片、心情、反馈、数字权益订单，以及首页打开的粗粒度时段事件。AI 推荐仅保存菜名的匿名指纹和“喜欢、不想吃、做过”状态，不保存模型推理或完整菜谱正文。</text></view></view>
-    <view class="privacy-card"><Icon name="book" :size="40" color="#EF5A3C" /><view><text class="privacy-card__title">如何使用</text><text>用于展示日历、时光机、画册、生成 AI 菜谱与锅仔个性寄语。发送给 AI 服务的仅是聚合习惯摘要，不含 openid、昵称、图片和日记正文；运营事件只记录类型与时间。</text></view></view>
-    <view class="privacy-card"><Icon name="user" :size="40" color="#EF5A3C" /><view><text class="privacy-card__title">你的选择</text><text>你可在“反馈建议”提交数据导出、删除或隐私相关请求。请求处理完成前，我们会先核验账号归属。</text></view></view>
-    <view class="privacy-card"><Icon name="heart" :size="40" color="#EF5A3C" /><view><text class="privacy-card__title">不会做的事</text><text>不会出售你的个人信息；不会把菜谱正文用于广告定向；不会把支付密钥、session_key 下发到客户端。</text></view></view>
-    <view class="privacy-action" @click="router.push({ name: 'feedback' })"><text>提交隐私或数据请求</text><text>›</text></view>
+    <view class="privacy-card">
+      <Icon name="heart" :size="40" color="#EF5A3C" /><view>
+        <text class="privacy-card__title">
+          我们收集什么
+        </text><text>仅保存你主动提交的昵称、头像、菜品记录与图片、心情、忌口和过敏原、家庭用餐条件、反馈、AI 对话中选择记住的偏好、数字权益订单，以及用于排障的最小事件类型与时间。我们不保存模型的隐藏推理过程。</text>
+      </view>
+    </view>
+    <view class="privacy-card">
+      <Icon name="book" :size="40" color="#EF5A3C" /><view>
+        <text class="privacy-card__title">
+          如何使用与第三方
+        </text><text>数据用于日历、时光机、画册、AI 菜谱、个性寄语和权益交付。微信提供登录、隐私授权、内容安全与虚拟支付；腾讯云 COS 保存你主动上传或生成的图片；Agnes AI 处理生成菜谱、对话和图片所需的最小上下文。发送给 AI 的请求不包含 openid、支付凭据或 session_key。</text>
+      </view>
+    </view>
+    <view class="privacy-card">
+      <Icon name="user" :size="40" color="#EF5A3C" /><view>
+        <text class="privacy-card__title">
+          保存期限与儿童信息
+        </text><text>账号资料和记录保存至你主动删除或注销账号；图片删除失败会进入限次重试队列；依法需要留存的订单会去标识化后按法定期限保存。我们只记录“有老人/有小孩”等用餐条件，不主动收集儿童姓名、头像、生日或疾病信息；请勿在自由文本中提交此类信息。</text>
+      </view>
+    </view>
+    <view class="privacy-card">
+      <Icon name="user" :size="40" color="#EF5A3C" /><view>
+        <text class="privacy-card__title">
+          你的选择
+        </text><text>你可以在“设置”中查看、单条删除或清空锅仔记忆，关闭个性化推荐，或永久注销账号。你也可以通过“反馈建议”申请数据导出、更正或咨询；处理前我们会核验账号归属。</text>
+      </view>
+    </view>
+    <view class="privacy-card">
+      <Icon name="heart" :size="40" color="#EF5A3C" /><view>
+        <text class="privacy-card__title">
+          AI 与安全边界
+        </text><text>AI 生成或辅助生成的文字和图片会进行标识。菜谱仅供日常烹饪参考，不能替代医疗诊断和治疗建议；严重过敏、疾病、孕期或婴幼儿饮食请咨询专业人员。我们不会出售个人信息，也不会把支付密钥或 session_key 下发到客户端。</text>
+      </view>
+    </view>
+    <view class="privacy-action" @click="router.push({ name: 'feedback' })">
+      <text>提交隐私或数据请求</text><text>›</text>
+    </view>
   </view>
 </template>
 

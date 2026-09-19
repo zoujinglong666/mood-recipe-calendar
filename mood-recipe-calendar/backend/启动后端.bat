@@ -36,9 +36,6 @@ if %errorlevel%==0 (
 )
 
 REM 设置环境变量
-set DB_PASSWORD=12345678
-set WECHAT_APPID=wx4da25d0ce1a4938c
-set WECHAT_SECRET=cb738ee73061756874a44461066cbc10
 
 REM 启动后端
 echo [启动] 正在启动后端服务...

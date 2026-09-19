@@ -2,6 +2,7 @@ package com.moodrecipe.backend.controller;
 
 import com.moodrecipe.backend.common.ApiResponse;
 import com.moodrecipe.backend.entity.Recipe;
+import com.moodrecipe.backend.entity.UserEntitlement;
 import com.moodrecipe.backend.entity.RecipeInteraction;
 import com.moodrecipe.backend.repository.RecipeInteractionRepository;
 import com.moodrecipe.backend.repository.RecipeRepository;
@@ -147,8 +148,10 @@ public class RecipeController {
         if (!validDeepRequest(request)) {
             return ApiResponse.error(400, "请填写有效的心情与定制条件");
         }
-        var entitlement = virtualCommerceService.consumeEntitlement(openid, "AI_DEEP_RECOMMEND");
-        if (entitlement.isEmpty()) {
+        boolean member = virtualCommerceService.isActiveMember(openid);
+        var entitlement = member ? Optional.<UserEntitlement>empty()
+                : virtualCommerceService.consumeEntitlement(openid, "AI_DEEP_RECOMMEND");
+        if (!member && entitlement.isEmpty()) {
             return ApiResponse.error(403, "请先解锁锅仔私人菜单权益");
         }
         boolean success = false;
@@ -165,7 +168,7 @@ public class RecipeController {
             recordDeepFailure(openid);
             return ApiResponse.error(503, "锅仔暂时没想好菜单，请稍后重试，本次权益未扣除");
         } finally {
-            if (!success) {
+            if (!success && entitlement.isPresent()) {
                 try {
                     virtualCommerceService.restoreEntitlement(entitlement.get().getId());
                 } catch (RuntimeException ignored) {

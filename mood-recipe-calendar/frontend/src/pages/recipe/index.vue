@@ -1,22 +1,24 @@
 <script setup lang="ts">
 import type { RecipeFeedbackAction, RecipeFeedbackState, RecipeItem, RecommendationJob, RecommendationStep } from '../../api/recipes'
-import { STATIC_BASE_URL } from '@/utils/assets'
 import type { VirtualProduct } from '../../api/virtualCommerce'
+import { useImagePreview } from '@wot-ui/ui'
 import { computed, nextTick, ref } from 'vue'
 import { navBack } from '@/composables/useNavBar'
-import { createRecommendationJob, fetchRecommendationJob, fetchRecipeDetail, fetchRecipeFeedback, requestDeepRecipe, sendRecipeFeedback } from '../../api/recipes'
+import { STATIC_BASE_URL } from '@/utils/assets'
+import { createRecommendationJob, fetchRecipeDetail, fetchRecipeFeedback, fetchRecommendationJob, requestDeepRecipe, sendRecipeFeedback } from '../../api/recipes'
 import { createVirtualOrder, fetchVirtualOrder, fetchVirtualProducts, getVirtualPaymentParams, requestWechatVirtualPayment } from '../../api/virtualCommerce'
 import Icon from '../../components/common/Icon.vue'
 import ErrorState from '../../components/guozai/ErrorState.vue'
 import { exportRecipeShare, saveShareImage } from '../../utils/albumShare'
+import { saveCookingDraft, saveRecordDraft } from '../../utils/cookingDraft'
 import { ensureLogin } from '../../utils/login'
 import { toast, toastError, toastSuccess } from '../../utils/toast'
-import { saveCookingDraft, saveRecordDraft } from '../../utils/cookingDraft'
 
 definePage({ name: 'recipe', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '今日推荐' } })
 
 const route = useRoute()
 const router = useRouter()
+const { previewImage } = useImagePreview()
 const mood = computed(() => (route.query.mood as string) || '开心')
 const linkedRecipeId = computed(() => Number(route.query.recipeId) || 0)
 const HEALING_TEXTS: Record<string, string> = {
@@ -341,8 +343,9 @@ async function generateShareCards() {
           ingredients: ingredients.value,
           steps: steps.value,
           image: recipe.value.image,
-          guozaiPath: STATIC_BASE_URL + '/static/guozai/action_16_chopsticks.png',
+          guozaiPath: `${STATIC_BASE_URL}/static/guozai/action_16_chopsticks.png`,
           style,
+          source: recipe.value.source,
         })
       }
       catch {
@@ -368,6 +371,21 @@ function selectShareStyle(style: ShareStyle) {
     return
   shareStyle.value = style
   shareCardSaved.value = false
+}
+
+function previewShareCard(style: ShareStyle) {
+  const cards = (['classic', 'guozai'] as const)
+    .map(key => ({ key, path: shareCardPaths.value[key] }))
+    .filter((item): item is { key: ShareStyle, path: string } => Boolean(item.path))
+  if (!cards.length)
+    return
+  selectShareStyle(style)
+  previewImage({
+    images: cards.map(item => item.path),
+    startPosition: Math.max(0, cards.findIndex(item => item.key === style)),
+    closeOnClick: false,
+    loop: cards.length > 1,
+  })
 }
 
 async function saveRecipeCard() {
@@ -489,7 +507,7 @@ async function waitForDelivery(orderNo: string) {
     <view v-if="loading" class="thinking-card" aria-label="锅仔正在推荐菜谱" aria-live="polite">
       <view class="thinking-card__hero">
         <view class="thinking-card__halo" />
-        <image class="thinking-card__guozai" :src="STATIC_BASE_URL + '/static/guozai/action_10_thinking.png'" mode="aspectFit" />
+        <image class="thinking-card__guozai" :src="`${STATIC_BASE_URL}/static/guozai/action_10_thinking.png`" mode="aspectFit" />
         <view class="thinking-card__copy">
           <text class="thinking-card__eyebrow">
             锅仔正在工作
@@ -539,6 +557,9 @@ async function waitForDelivery(orderNo: string) {
             </view>
           </view>
           <view class="dish-copy">
+            <text v-if="recipe.source === 'AI'" class="dish-copy__source">
+              AI 生成菜谱 · 仅供日常烹饪参考
+            </text>
             <text class="dish-copy__name">
               {{ recipe.name }}
             </text>
@@ -555,11 +576,11 @@ async function waitForDelivery(orderNo: string) {
           <view class="dish-media">
             <image v-if="recipeImageAvailable" class="dish-media__image" :src="recipe.image" mode="aspectFill" aria-label="推荐菜品图片" @error="imageFailed = true" />
             <view v-else class="dish-media__fallback">
-              <image :src="STATIC_BASE_URL + '/static/guozai/action_01_bowl.png'" mode="aspectFit" />
+              <image :src="`${STATIC_BASE_URL}/static/guozai/action_01_bowl.png`" mode="aspectFit" />
             </view>
           </view>
           <view class="guozai-note">
-            <image class="guozai-note__avatar guozai-breathe" :src="STATIC_BASE_URL + '/static/guozai/action_16_chopsticks.png'" mode="aspectFit" aria-label="锅仔" />
+            <image class="guozai-note__avatar guozai-breathe" :src="`${STATIC_BASE_URL}/static/guozai/action_16_chopsticks.png`" mode="aspectFit" aria-label="锅仔" />
             <view class="guozai-note__bubble">
               <text class="guozai-note__label">
                 锅仔为什么推荐它
@@ -618,7 +639,7 @@ async function waitForDelivery(orderNo: string) {
         </view>
 
         <view class="custom-entry pressable" role="button" aria-label="打开按食材定制菜单" @click="openAiPanel">
-          <image class="custom-entry__image" :src="STATIC_BASE_URL + '/static/guozai/action_10_thinking.png'" mode="aspectFit" />
+          <image class="custom-entry__image" :src="`${STATIC_BASE_URL}/static/guozai/action_10_thinking.png`" mode="aspectFit" />
           <view class="custom-entry__copy">
             <text class="custom-entry__title">
               家里有现成食材？
@@ -690,8 +711,8 @@ async function waitForDelivery(orderNo: string) {
 
       <canvas id="recipeShareCanvas" type="2d" class="recipe-share__canvas" />
 
-      <view v-if="showShareSheet" class="share-mask" @tap.self="showShareSheet = false">
-        <view class="share-sheet" role="dialog" aria-label="分享这份锅仔食谱">
+      <view v-if="showShareSheet" class="share-mask" @tap="showShareSheet = false">
+        <view class="share-sheet" role="dialog" aria-label="分享这份锅仔食谱" @tap.stop>
           <view class="share-sheet__head">
             <view>
               <text class="share-sheet__eyebrow">
@@ -711,7 +732,12 @@ async function waitForDelivery(orderNo: string) {
 
           <view class="share-card-grid" aria-label="选择要保存的食谱卡">
             <view class="share-card-option pressable" :class="{ 'is-selected': shareStyle === 'classic', 'is-loading': shareCardLoading }" role="button" @click="selectShareStyle('classic')">
-              <image v-if="shareCardPaths.classic" class="share-card-option__image" :src="shareCardPaths.classic" mode="widthFix" aria-label="今日食谱卡" />
+              <view v-if="shareCardPaths.classic" class="share-card-option__preview-wrap" role="button" aria-label="预览今日食谱卡" @click.stop="previewShareCard('classic')">
+                <image class="share-card-option__image" :src="shareCardPaths.classic" mode="widthFix" />
+                <text class="share-card-option__preview-tip">
+                  点击预览
+                </text>
+              </view>
               <view v-else class="share-card-option__placeholder">
                 <text>{{ shareCardLoading ? '生成中' : '生成失败' }}</text>
               </view>
@@ -723,9 +749,14 @@ async function waitForDelivery(orderNo: string) {
               </text>
             </view>
             <view class="share-card-option pressable" :class="{ 'is-selected': shareStyle === 'guozai', 'is-loading': shareCardLoading }" role="button" @click="selectShareStyle('guozai')">
-              <image v-if="shareCardPaths.guozai" class="share-card-option__image" :src="shareCardPaths.guozai" mode="widthFix" aria-label="锅仔手账食谱卡" />
+              <view v-if="shareCardPaths.guozai" class="share-card-option__preview-wrap" role="button" aria-label="预览锅仔手账食谱卡" @click.stop="previewShareCard('guozai')">
+                <image class="share-card-option__image" :src="shareCardPaths.guozai" mode="widthFix" />
+                <text class="share-card-option__preview-tip">
+                  点击预览
+                </text>
+              </view>
               <view v-else class="share-card-option__placeholder">
-                <image :src="STATIC_BASE_URL + '/static/guozai/action_16_chopsticks.png'" mode="aspectFit" /><text>{{ shareCardLoading ? '生成中' : '生成失败' }}</text>
+                <image :src="`${STATIC_BASE_URL}/static/guozai/action_16_chopsticks.png`" mode="aspectFit" /><text>{{ shareCardLoading ? '生成中' : '生成失败' }}</text>
               </view>
               <text class="share-card-option__title">
                 锅仔手账
@@ -752,6 +783,8 @@ async function waitForDelivery(orderNo: string) {
           </view>
         </view>
       </view>
+
+      <wd-image-preview />
 
       <view v-if="showAiPanel" class="ai-mask" @tap.stop>
         <view class="ai-sheet" role="dialog" aria-label="锅仔私人菜单">
@@ -859,6 +892,7 @@ async function waitForDelivery(orderNo: string) {
 .dish-media__fallback image { width: 260rpx; height: 220rpx; transform: translateY(-36rpx); }
 .dish-copy { padding: 16rpx 28rpx 26rpx; }
 .dish-copy__name { display: block; color: var(--mrc-text-strong); font-size: 48rpx; font-weight: 800; line-height: 1.25; }
+.dish-copy__source { display: block; margin-bottom: 10rpx; color: var(--mrc-accent); font-size: 20rpx; font-weight: 750; }
 .dish-meta { display: flex; align-items: center; gap: 20rpx; margin-top: 16rpx; }
 .dish-meta__item { display: flex; align-items: center; gap: 8rpx; color: var(--mrc-text-deep); font-size: 25rpx; font-weight: 700; }
 .dish-meta__divider { width: 2rpx; height: 28rpx; background: var(--mrc-border); }
@@ -918,8 +952,10 @@ async function waitForDelivery(orderNo: string) {
 .share-card-option { min-width: 0; padding: 10rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 24rpx; background: var(--mrc-surface-2); }
 .share-card-option.is-selected { border-color: var(--mrc-accent); background: var(--mrc-surface-peach); box-shadow: inset 0 0 0 2rpx rgba(239, 90, 60, .1); }
 .share-card-option.is-loading { opacity: .72; }
+.share-card-option__preview-wrap { position: relative; overflow: hidden; border-radius: 16rpx; }
 .share-card-option__image, .share-card-option__placeholder { display: flex; width: 100%; min-height: 300rpx; border-radius: 16rpx; background: #F9EBDD; }
 .share-card-option__image { box-shadow: var(--mrc-shadow-sm); }
+.share-card-option__preview-tip { position: absolute; right: 12rpx; bottom: 12rpx; padding: 7rpx 12rpx; border-radius: 18rpx; color: #fff; background: rgba(44, 25, 17, .72); font-size: 17rpx; font-weight: 750; }
 .share-card-option__placeholder { align-items: center; justify-content: center; flex-direction: column; gap: 10rpx; color: var(--mrc-text-sub); font-size: 22rpx; }
 .share-card-option__placeholder image { width: 112rpx; height: 112rpx; }
 .share-card-option__title { display: block; margin-top: 14rpx; color: var(--mrc-text-deep); font-size: 25rpx; font-weight: 800; }

@@ -52,6 +52,7 @@ public class AgentMemoryStore {
     public static final String KEY_SKIP_QUESTIONS = "strategy.skipQuestions";
     public static final String KEY_MAX_MINUTES = "preference.maxCookingMinutes";
     public static final String KEY_SIMPLE = "preference.simpleDishes";
+    public static final String KEY_PERSONALIZATION = "settings.personalization";
     public static final String AFFINITY_PREFIX = "affinity.";
 
     /** 不同来源的半衰期（天）：用户明确设置的记得久，模型推断的忘得快。 */
@@ -89,6 +90,7 @@ public class AgentMemoryStore {
         if (command == null || command.openid() == null || command.openid().isBlank()) return null;
         if (command.key() == null || command.key().isBlank()) return null;
         if (command.value() == null || command.value().isBlank()) return null;
+        if (!KEY_PERSONALIZATION.equals(command.key()) && !personalizationEnabled(command.openid())) return null;
 
         String value = command.value().trim();
         AgentMemoryFact fact = facts.findByOpenidAndMemoryKeyAndStatus(command.openid(), command.key(),
@@ -145,10 +147,11 @@ public class AgentMemoryStore {
 
     /** 按场景检索记忆，衰减与过期的事实会自动归档。 */
     public List<MemoryItem> recall(String openid, Scene scene, int limit) {
-        if (openid == null || openid.isBlank()) return List.of();
+        if (openid == null || openid.isBlank() || !personalizationEnabled(openid)) return List.of();
         forgetExpired(openid);
         return facts.findByOpenidAndStatusOrderByUpdatedAtDesc(openid, AgentMemoryFact.STATUS_ACTIVE).stream()
                 .filter(fact -> scopeOf(fact.getMemoryKey()).contains(scene))
+                .filter(fact -> !KEY_PERSONALIZATION.equals(fact.getMemoryKey()))
                 .map(fact -> toItem(fact, reasonOf(fact)))
                 .filter(item -> item.confidence() >= AgentMemoryFact.MIN_CONFIDENCE)
                 .sorted(Comparator.comparingDouble(MemoryItem::confidence).reversed()
@@ -162,15 +165,31 @@ public class AgentMemoryStore {
         if (openid == null || openid.isBlank()) return List.of();
         forgetExpired(openid);
         return facts.findByOpenidAndStatusOrderByUpdatedAtDesc(openid, AgentMemoryFact.STATUS_ACTIVE).stream()
+                .filter(fact -> !KEY_PERSONALIZATION.equals(fact.getMemoryKey()))
                 .map(fact -> toItem(fact, reasonOf(fact)))
                 .toList();
     }
 
     public void forget(String openid, String key) {
-        facts.findByOpenidAndMemoryKey(openid, key).ifPresent(fact -> {
-            fact.setStatus(AgentMemoryFact.STATUS_ARCHIVED);
-            facts.save(fact);
-        });
+        if (KEY_PERSONALIZATION.equals(key)) return;
+        facts.deleteByOpenidAndMemoryKey(openid, key);
+    }
+
+    public void clear(String openid) {
+        boolean enabled = personalizationEnabled(openid);
+        facts.deleteByOpenid(openid);
+        setPersonalizationEnabled(openid, enabled);
+    }
+
+    public boolean personalizationEnabled(String openid) {
+        return facts.findByOpenidAndMemoryKey(openid, KEY_PERSONALIZATION)
+                .map(fact -> !"false".equalsIgnoreCase(fact.getMemoryValue()))
+                .orElse(true);
+    }
+
+    public void setPersonalizationEnabled(String openid, boolean enabled) {
+        remember(new RememberCommand(openid, KEY_PERSONALIZATION, Boolean.toString(enabled), 0.95,
+                SRC_EXPLICIT, "用户在设置页主动选择", null));
     }
 
     /** 过期或衰减到阈值以下的事实归档，实现"遗忘"。 */
@@ -188,6 +207,7 @@ public class AgentMemoryStore {
 
     /** 组装可解释的用户档案。 */
     public UserProfile profile(String openid, Scene scene) {
+        if (!personalizationEnabled(openid)) return UserProfile.empty(openid);
         UserFoodPreference preference = preferences.findByOpenid(openid).orElse(null);
         List<UserRecord> recent = records.findTop30ByOpenidOrderByCreatedAtDesc(openid);
         List<RecipeInteraction> history = interactions.findTop30ByOpenidOrderByCreatedAtDesc(openid);

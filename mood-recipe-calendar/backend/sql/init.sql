@@ -531,12 +531,65 @@ INSERT IGNORE INTO virtual_products
 VALUES
   ('AI_MENU_7D', NULL, '锅仔私人菜单 7 天包', '7 天内可使用 21 次按食材、时长和口味生成的菜谱。', 690, 'AI_DEEP_RECOMMEND', 21, 7, 1, 1, NOW()),
   ('ALBUM_HD_EXPORT', 'YDHC_1124', '月度画册收藏版', '解锁 1 次高清无水印导出与收藏版排版。', 490, 'ALBUM_HD_EXPORT', 1, 0, 1, 2, NOW()),
-  ('GUOZAI_MEMBER_30D', NULL, '锅仔会员 30 天权益包', '30 天会员身份；上线后可在此叠加会员专属菜谱与画册权益。', 1290, 'MEMBER', 0, 30, 1, 3, NOW());
+  ('GUOZAI_MEMBER_30D', 'GZHY_30D', '锅仔会员 30 天', '30 天内畅享锅仔管饭、AI 私人菜单与月度画册高清导出。', 990, 'MEMBER', 0, 30, 1, 3, NOW());
 
 -- 修补已初始化库：月度画册道具 ID 曾为空，补全为微信虚拟支付后台同名道具。
 UPDATE virtual_products SET platform_item_id = 'YDHC_1124' WHERE sku = 'ALBUM_HD_EXPORT' AND (platform_item_id IS NULL OR platform_item_id = '');
+UPDATE virtual_products SET platform_item_id = 'GZHY_30D', title = '锅仔会员 30 天', description = '30 天内畅享锅仔管饭、AI 私人菜单与月度画册高清导出。', price_fen = 990 WHERE sku = 'GUOZAI_MEMBER_30D';
 
 -- ---------- 验证 ----------
+CREATE TABLE IF NOT EXISTS pending_asset_deletions (
+  id BIGINT PRIMARY KEY AUTO_INCREMENT,
+  object_url TEXT NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+  attempts INT NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NOT NULL,
+  INDEX idx_asset_deletion_status (status, attempts)
+);
+
+-- ---------- 做菜智能体 RAG ----------
+CREATE TABLE IF NOT EXISTS cooking_knowledge_chunks (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(160) NOT NULL,
+  content TEXT NOT NULL,
+  category VARCHAR(32) NOT NULL,
+  keywords VARCHAR(500) NOT NULL,
+  source_name VARCHAR(160) NOT NULL,
+  source_url VARCHAR(500) NOT NULL,
+  source_version VARCHAR(64) NOT NULL DEFAULT '1',
+  reviewed_at DATETIME NOT NULL,
+  enabled TINYINT(1) NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL,
+  updated_at DATETIME NOT NULL,
+  INDEX idx_cooking_knowledge_enabled (enabled, category)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='有来源且经审核的烹饪知识块';
+
+CREATE TABLE IF NOT EXISTS cooking_learning_events (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  openid VARCHAR(64) NOT NULL,
+  recipe_id BIGINT,
+  step_index INT,
+  step_type VARCHAR(48),
+  event_type VARCHAR(24) NOT NULL,
+  created_at DATETIME NOT NULL,
+  INDEX idx_cooking_learning_openid (openid, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户明确提交的做菜学习事件';
+
+INSERT INTO cooking_knowledge_chunks
+  (title, content, category, keywords, source_name, source_url, source_version, reviewed_at, enabled, created_at, updated_at)
+SELECT '食物要彻底做熟', '需要烧熟煮透的食品，中心温度应达到70℃以上。汤、煲等食物应煮开；无法确认时使用食品温度计，不要只凭颜色判断。',
+  'FOOD_SAFETY', '熟透,中心温度,温度计,肉,禽,蛋,海鲜,汤,煲', '世界卫生组织：食品安全五大要点',
+  'https://www.who.int/activities/promoting-safe-food-handling/five-key-to-safer-food', '2026-09', NOW(), 1, NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM cooking_knowledge_chunks WHERE title='食物要彻底做熟');
+
+INSERT INTO cooking_knowledge_chunks
+  (title, content, category, keywords, source_name, source_url, source_version, reviewed_at, enabled, created_at, updated_at)
+SELECT '生熟分开避免交叉污染', '生食与熟食分开处理和存放；刀、砧板和容器应分开，接触生肉后清洁双手和器具再处理熟食。',
+  'FOOD_SAFETY', '生熟分开,交叉污染,砧板,刀具,生肉,清洁', '世界卫生组织：食品安全五大要点',
+  'https://www.who.int/activities/promoting-safe-food-handling/five-key-to-safer-food', '2026-09', NOW(), 1, NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM cooking_knowledge_chunks WHERE title='生熟分开避免交叉污染');
+
 SELECT '初始化完成' AS status;
 SELECT COUNT(*) AS total_recipes FROM recipes;
 SELECT COUNT(*) AS total_products FROM products;

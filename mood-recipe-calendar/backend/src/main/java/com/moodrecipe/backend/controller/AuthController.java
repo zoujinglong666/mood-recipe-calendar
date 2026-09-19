@@ -5,6 +5,7 @@ import com.moodrecipe.backend.entity.User;
 import com.moodrecipe.backend.repository.UserRepository;
 import com.moodrecipe.backend.service.WechatService;
 import com.moodrecipe.backend.service.UserSessionService;
+import com.moodrecipe.backend.service.AccountDeletionService;
 import com.moodrecipe.backend.config.SessionAuthInterceptor;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,11 +18,14 @@ public class AuthController {
     private final WechatService wechatService;
     private final UserRepository userRepository;
     private final UserSessionService userSessionService;
+    private final AccountDeletionService accountDeletionService;
 
-    public AuthController(WechatService wechatService, UserRepository userRepository, UserSessionService userSessionService) {
+    public AuthController(WechatService wechatService, UserRepository userRepository,
+                          UserSessionService userSessionService, AccountDeletionService accountDeletionService) {
         this.wechatService = wechatService;
         this.userRepository = userRepository;
         this.userSessionService = userSessionService;
+        this.accountDeletionService = accountDeletionService;
     }
 
     /**
@@ -73,6 +77,17 @@ public class AuthController {
     @PostMapping("/logout")
     public ApiResponse<Void> logout(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
         userRepository.findByOpenid(openid).ifPresent(userSessionService::revoke);
+        return ApiResponse.ok();
+    }
+
+    @DeleteMapping("/account")
+    public ApiResponse<Void> deleteAccount(
+            @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
+            @RequestBody Map<String, Boolean> body) {
+        if (!Boolean.TRUE.equals(body == null ? null : body.get("confirmed"))) {
+            return ApiResponse.error(400, "请确认注销账号");
+        }
+        accountDeletionService.delete(openid);
         return ApiResponse.ok();
     }
 }

@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -41,7 +42,8 @@ public class AgentController {
         return ApiResponse.ok(new MemoryView(profile.summary(),
                 profile.memory().stream().map(AgentController::toView).toList(),
                 profile.cuisineAffinity(), profile.skipQuestions(),
-                profile.maxCookingMinutes(), profile.preferSimple(), profile.avoidDishes()));
+                profile.maxCookingMinutes(), profile.preferSimple(), profile.avoidDishes(),
+                store.personalizationEnabled(openid)));
     }
 
     @DeleteMapping("/memory/{key}")
@@ -49,6 +51,20 @@ public class AgentController {
                                  @PathVariable String key) {
         store.forget(openid, key);
         return ApiResponse.ok(new ForgetResult(key));
+    }
+
+    @DeleteMapping("/memory")
+    public ApiResponse<?> clearMemory(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
+        store.clear(openid);
+        return ApiResponse.ok();
+    }
+
+    @PutMapping("/memory/personalization")
+    public ApiResponse<?> personalization(
+            @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
+            @RequestBody PersonalizationRequest request) {
+        store.setPersonalizationEnabled(openid, request != null && request.enabled());
+        return ApiResponse.ok(Map.of("enabled", store.personalizationEnabled(openid)));
     }
 
     @PostMapping("/outcomes")
@@ -77,12 +93,14 @@ public class AgentController {
 
     public record MemoryView(String summary, List<MemoryFact> facts, Map<String, Double> cuisineAffinity,
                              List<String> skipQuestions, Integer maxCookingMinutes,
-                             boolean preferSimple, List<String> avoidDishes) {}
+                             boolean preferSimple, List<String> avoidDishes, boolean personalizationEnabled) {}
 
     public record MemoryFact(String key, String value, double confidence, String source,
                              String evidence, String reason, String updatedAt) {}
 
     public record ForgetResult(String forgotten) {}
+
+    public record PersonalizationRequest(boolean enabled) {}
 
     public record OutcomeRequest(Long planId, int dayIndex, int dishIndex, String dishName,
                                  Boolean cooked, Boolean leftover, Boolean tooHard) {}

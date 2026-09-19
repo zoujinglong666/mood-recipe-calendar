@@ -142,6 +142,20 @@ class AgentMemoryStoreTest {
         assertTrue(profile.recentDishes().contains("红烧肉"));
     }
 
+    @Test
+    void disablingPersonalizationStopsMemoryReadsAndWrites() {
+        store.remember(AgentMemoryStore.RememberCommand.explicit(
+                OPENID, AgentMemoryStore.KEY_CUISINE, "赣菜", "用户主动设置"));
+
+        store.setPersonalizationEnabled(OPENID, false);
+        assertFalse(store.personalizationEnabled(OPENID));
+        assertTrue(store.recall(OPENID, AgentMemoryStore.Scene.WEEKLY_PLAN, 10).isEmpty());
+        assertEquals(null, store.remember(AgentMemoryStore.RememberCommand.explicit(
+                OPENID, AgentMemoryStore.KEY_SPICE, "微辣", "关闭后不应写入")));
+        assertEquals(null, facts.get(OPENID, AgentMemoryStore.KEY_SPICE));
+        assertTrue(store.profile(OPENID, AgentMemoryStore.Scene.WEEKLY_PLAN).memory().isEmpty());
+    }
+
     private List<String> keys(AgentMemoryStore store, AgentMemoryStore.Scene scene) {
         return store.recall(OPENID, scene, 20).stream().map(MemoryItem::key).toList();
     }

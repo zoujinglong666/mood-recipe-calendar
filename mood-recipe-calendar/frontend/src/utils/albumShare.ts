@@ -22,6 +22,8 @@ export interface AlbumShareData {
   guozaiPath: string
   /** 底部提示 */
   footer?: string
+  /** 分享图包含 AI 生成内容时显示标识 */
+  aiAssisted?: boolean
 }
 
 export interface RecipeShareData {
@@ -35,6 +37,7 @@ export interface RecipeShareData {
   image?: string
   guozaiPath: string
   style?: 'classic' | 'guozai'
+  source?: 'AI' | 'LOCAL'
 }
 
 const COLORS = {
@@ -129,6 +132,8 @@ export async function exportAlbumShare(data: AlbumShareData, canvasId = 'shareCa
 
   // 顶部品牌
   centerText(ctx, W / 2, 90, data.brand, 30, COLORS.sub)
+  if (data.aiAssisted)
+    centerText(ctx, W / 2, 126, '含 AI 生成寄语', 20, COLORS.accent, 'bold')
 
   // 主标题
   centerText(ctx, W / 2, 170, data.title, 56, COLORS.text, 'bold')
@@ -281,6 +286,12 @@ export async function exportRecipeShare(data: RecipeShareData, canvasId = 'recip
   ctx.arc(W - 66, 120, 42, 0, Math.PI * 2)
   ctx.fill()
   centerText(ctx, W / 2, 48, isGuozaiStyle ? 'GUOZAI · HOME COOKING' : 'GUOZAI · TODAY’S RECIPE', 22, COLORS.sub, 'bold')
+  if (data.source === 'AI') {
+    ctx.fillStyle = 'rgba(255,255,255,.92)'
+    roundRect(ctx, W - 178, 48, 126, 42, 21)
+    ctx.fill()
+    centerText(ctx, W - 115, 58, 'AI 生成菜谱', 18, COLORS.accent, 'bold')
+  }
 
   const heroX = 44
   const heroY = 106

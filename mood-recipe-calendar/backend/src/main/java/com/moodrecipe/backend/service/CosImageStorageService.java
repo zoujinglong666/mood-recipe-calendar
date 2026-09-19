@@ -18,6 +18,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -78,12 +79,12 @@ public class CosImageStorageService {
             HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 log.warn("AI 图片下载失败: status={} url={}", response.statusCode(), sourceUrl);
-                return Optional.empty();
+                return Optional.of(sourceUrl);
             }
             byte[] data = response.body();
             if (data.length == 0 || data.length > 8 * 1024 * 1024) {
                 log.warn("AI 图片尺寸异常: {} bytes", data.length);
-                return Optional.empty();
+                return Optional.of(sourceUrl);
             }
             String contentType = response.headers().firstValue("Content-Type").orElse("image/jpeg");
             String ext = switch (contentType) {
@@ -92,15 +93,22 @@ public class CosImageStorageService {
                 case "image/gif" -> ".gif";
                 default -> ".jpg";
             };
-            return uploadBytes(data, contentType, ext, sceneDir);
+            return uploadBytes(data, contentType, ext, sceneDir, Map.of(
+                    "ai-generated", "true", "generator", "guozai-agnes"
+            )).or(() -> Optional.of(sourceUrl));
         } catch (Exception ex) {
             log.warn("AI 图片转存失败: {}", ex.toString());
-            return Optional.empty();
+            return Optional.of(sourceUrl);
         }
     }
 
     /** 上传字节到 COS，返回永久访问 URL */
     public Optional<String> uploadBytes(byte[] data, String contentType, String ext, String sceneDir) {
+        return uploadBytes(data, contentType, ext, sceneDir, Map.of());
+    }
+
+    private Optional<String> uploadBytes(byte[] data, String contentType, String ext, String sceneDir,
+                                         Map<String, String> userMetadata) {
         if (!available()) return Optional.empty();
         COSClient client = new COSClient(new BasicCOSCredentials(cosSecretId, cosSecretKey),
                 new ClientConfig(new Region(cosRegion)));
@@ -113,11 +121,33 @@ public class CosImageStorageService {
             ObjectMetadata metadata = new ObjectMetadata();
             metadata.setContentLength(data.length);
             metadata.setContentType(contentType);
+            metadata.setUserMetadata(new java.util.HashMap<>(userMetadata));
+            metadata.getUserMetadata().put("content-id", filename.substring(0, filename.length() - ext.length()));
             client.putObject(new PutObjectRequest(cosBucket, key, new ByteArrayInputStream(data), metadata));
             return Optional.of(resolveOrigin() + "/" + key);
         } catch (Exception ex) {
             log.warn("COS 上传失败: {}", ex.toString());
             return Optional.empty();
+        } finally {
+            client.shutdown();
+        }
+    }
+
+    /** 只删除本项目 COS 域名下的对象，外部 AI 临时链接不会被误删。 */
+    public boolean deleteByUrl(String url) {
+        if (!available() || url == null || url.isBlank()) return true;
+        String origin = resolveOrigin() + "/";
+        if (!url.startsWith(origin)) return true;
+        String key = url.substring(origin.length());
+        if (key.isBlank() || !key.startsWith(cosPrefix.endsWith("/") ? cosPrefix : cosPrefix + "/")) return false;
+        COSClient client = new COSClient(new BasicCOSCredentials(cosSecretId, cosSecretKey),
+                new ClientConfig(new Region(cosRegion)));
+        try {
+            client.deleteObject(cosBucket, key);
+            return true;
+        } catch (Exception ex) {
+            log.warn("COS 删除失败: key={} error={}", key, ex.toString());
+            return false;
         } finally {
             client.shutdown();
         }

@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
 
 export interface UserInfo {
   id?: number
@@ -7,6 +7,7 @@ export interface UserInfo {
   nickname?: string
   avatarUrl?: string
   isMember?: number
+  memberExpire?: string
 }
 
 export const useUserStore = defineStore('user', () => {
