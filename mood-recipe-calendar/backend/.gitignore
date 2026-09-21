@@ -1,5 +1,9 @@
 HELP.md
+# 构建产物一般忽略；但后端 jar 需要提交到仓库（env 配置为运行时注入，不会打入 jar）
 target/
+!target/
+target/*
+!target/*.jar
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
