@@ -14,21 +14,37 @@ export interface ApiBackend {
 }
 
 export const API_BACKENDS: ApiBackend[] = [
-  { name: '本地开发', url: 'http://10.18.0.19:8080/api', env: 'development', desc: '10.18.0.19:8080' },
+  { name: '本地开发', url: 'http://localhost:8080/api', env: 'development', desc: 'localhost:8080' },
   { name: '生产环境', url: 'https://moodrecipe.icu/api', env: 'production', desc: 'moodrecipe.icu' },
 ]
 
 const STORAGE_KEY = 'apiBaseUrl'
 
-/** 读取当前后端地址：优先用户手动选择，其次编译环境变量 */
+/** 生产环境忽略本机/局域网地址，避免历史残留导致线上请求失败 */
+function isTrustedApiUrl(url: string): boolean {
+  if (!url || !/^https?:\/\//.test(url))
+    return false
+  try {
+    const host = new URL(url).hostname.toLowerCase()
+    if (!import.meta.env.PROD)
+      return true
+    return !/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|127\.|localhost|0\.0\.0\.0)$/.test(host)
+      && !/^\d+\.\d+\.\d+\.\d+$/.test(host)
+  }
+  catch {
+    return false
+  }
+}
+
+/** 读取当前后端地址：优先用户手动选择（生产环境校验域名），其次编译环境变量，最后默认生产 */
 export function getApiBaseUrl(): string {
   try {
     const saved = uni.getStorageSync(STORAGE_KEY)
-    if (saved)
+    if (saved && isTrustedApiUrl(String(saved)))
       return String(saved)
   }
   catch {}
-  return import.meta.env.VITE_API_BASE_URL || 'http://10.18.0.19:8080/api'
+  return import.meta.env.VITE_API_BASE_URL || 'https://moodrecipe.icu/api'
 }
 
 /** 设置后端地址（持久化到本地，切换后立即生效） */
