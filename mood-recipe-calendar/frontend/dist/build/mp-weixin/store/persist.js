@@ -1,0 +1,1 @@
+"use strict";const e=require("../common/vendor.js");exports.persistPlugin=function(t){!function({store:t},n){if(n.includes(t.$id))return;let s=e.deepClone(t.$state);const i=e.index.getStorageSync(t.$id);i&&(s=i),t.$state=s,t.$subscribe((()=>{e.index.setStorageSync(t.$id,e.deepClone(t.$state))}))}(t,["temp","theme"])};

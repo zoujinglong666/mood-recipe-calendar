@@ -1,0 +1,10 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "锅仔备餐小本",
+  "usingComponents": {
+    "wd-tour": "../../node-modules/@wot-ui/ui/components/wd-tour/wd-tour",
+    "wd-tabs": "../../node-modules/@wot-ui/ui/components/wd-tabs/wd-tabs",
+    "wd-tab": "../../node-modules/@wot-ui/ui/components/wd-tab/wd-tab",
+    "wd-navbar": "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar"
+  }
+}

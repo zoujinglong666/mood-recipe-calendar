@@ -1,0 +1,226 @@
+/**
+ * 这里是uni-app内置的常用样式变量
+ *
+ * uni-app 官方扩展插件及插件市场（https://ext.dcloud.net.cn）上很多三方插件均使用了这些样式变量
+ * 如果你是插件开发者，建议你使用scss预处理，并在插件代码中直接使用这些变量（无需 import 这个文件），方便用户通过搭积木的方式开发整体风格一致的App
+ *
+ */
+/**
+ * 如果你是App开发者（插件使用者），你可以通过修改这些变量来定制自己的插件主题，实现自定义主题功能
+ *
+ * 如果你的项目同样使用了scss预处理，你也可以直接在你的 scss 代码中使用如下变量，同时无需 import 这个文件
+ */
+/* 颜色变量 */
+/* 行为相关颜色 */
+/* 文字基本颜色 */
+/* 背景颜色 */
+/* 边框颜色 */
+/* 尺寸变量 */
+/* 文字尺寸 */
+/* 图片尺寸 */
+/* Border Radius */
+/* 水平间距 */
+/* 垂直间距 */
+/* 透明度 */
+/* 文章场景相关 */
+/* 基础颜色 */
+/* 蓝色系列 */
+/* 亮蓝系列 */
+/* 粉色系列 */
+/* 红色系列 */
+/* 橘红色系列 */
+/* 橙色系列 */
+/* 黄色系列 */
+/* 绿色系列 */
+/* 青色系列 */
+/* 紫色系列 */
+/* 靛色系列 */
+/* 冷灰系列 */
+/* 中性灰系列 */
+/* 暖灰系列 */
+/* 遮罩系列 */
+/* 白遮罩系列 */
+/* 透明度系列 */
+/* 基础数字 */
+/* 字重系列 */
+/* 排版系列 */
+/* label */
+/* body */
+/* title */
+/* 圆角系列 */
+/* 内边距系列 */
+/* 间距系列 */
+/* 边框线系列 */
+/* 语义变量(light) */
+/* 主色系列 */
+/* 危险色系列 */
+/* 成功色系列 */
+/* 警告色系列 */
+/* 文字色系列 */
+/* 图标色系列 */
+/* 图标 */
+/* 边框色系列 */
+/* 填充色系列 */
+/* 分割线系列 */
+/* 反馈色系列 */
+/* 透明度填充 */
+/* 分类色系列 */
+/* 黄色 */
+/* 蓝色 */
+/* 紫色 */
+/* 靛色 */
+/* 粉色 */
+/**
+ * 混合宏
+ */
+/**
+ * SCSS 配置项：命名空间以及BEM
+ */
+/**
+ * 混合宏
+ */
+/**
+ * 辅助函数
+ */
+/* 转换成字符串 */
+/* 判断是否存在 Modifier */
+/* 判断是否存在伪类 */
+/**
+  * BEM，定义块（b)
+  */
+/* 定义元素（e），对于伪类，会自动将 e 嵌套在 伪类 底下 */
+/* 此方法用于生成穿透样式 */
+/* 定义元素（e），对于伪类，会自动将 e 嵌套在 伪类 底下 */
+/* 定义状态（m） */
+/* 过渡帧（enter 与 leave-to） */
+/* 过渡激活态（enter-active 与 leave-active） */
+/* 定义状态（m） */
+/* 对于需要需要嵌套在 m 底下的 e，调用这个混合宏，一般在切换整个组件的状态，如切换颜色的时候 */
+/* 状态，生成 is-$state 类名 */
+/**
+  * 常用混合宏
+  */
+/* 单行超出隐藏 */
+/* 多行超出隐藏 */
+/* 清除浮动 */
+/* 0.5px 边框 指定方向*/
+/* 0.5px 边框 环绕 */
+/* 1px 边框 指定方向 */
+/* 1px 边框 环绕 */
+/**
+  * 三角形实现尖角样式，适用于背景透明情况
+  * @param $size 三角形高，底边为 $size * 2
+  * @param $bg 三角形背景颜色
+  */
+/**
+  * 正方形实现尖角样式，适用于背景不透明情况
+  * @param $size 正方形边长
+  * @param $bg 正方形背景颜色
+  * @param $z-index z-index属性值，不得大于外部包裹器
+  * @param $box-shadow 阴影
+*/
+.wd-radio {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  overflow: hidden;
+}
+.wd-radio--horizontal {
+  display: inline-flex;
+  justify-content: flex-start;
+  vertical-align: middle;
+}
+.wd-radio--horizontal:not(:last-child) {
+  margin: var(--wot-radio-horizontal-margin, var(--wot-spacing-zero, var(--wot-n-0, 0px)) var(--wot-spacing-extra-loose, var(--wot-n-16, 16px)) var(--wot-spacing-zero, var(--wot-n-0, 0px)) var(--wot-spacing-zero, var(--wot-n-0, 0px)));
+}
+.wd-radio--right .wd-radio__label {
+  margin-right: var(--wot-radio-label-margin, var(--wot-spacing-tight, var(--wot-n-8, 8px)));
+}
+.wd-radio--left {
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+}
+.wd-radio--left .wd-radio__label {
+  margin-left: var(--wot-radio-label-margin, var(--wot-spacing-tight, var(--wot-n-8, 8px)));
+}
+.wd-radio  .wd-radio__icon {
+  font-size: var(--wot-radio-icon-size, var(--wot-n-22, 22px));
+  height: var(--wot-radio-icon-size, var(--wot-n-22, 22px));
+  line-height: var(--wot-radio-icon-size, var(--wot-n-22, 22px));
+  color: var(--wot-radio-unchecked-color, var(--wot-coolgrey-3, #e5e6eb));
+  transition: all 0.2s;
+}
+.wd-radio__label {
+  font-size: var(--wot-radio-label-font-size, var(--wot-typography-body-size-main, var(--wot-n-14, 14px)));
+  color: var(--wot-radio-label-color, var(--wot-text-main, var(--wot-coolgrey-10, #1d1f29)));
+  line-height: var(--wot-radio-label-line-height, var(--wot-typography-body-line-height-size-main, var(--wot-n-20, 20px)));
+  text-align: center;
+  word-break: break-all;
+}
+.wd-radio__shape {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.wd-radio.is-checked .wd-radio__icon {
+  color: var(--wot-radio-checked-color, var(--wot-primary-6, var(--wot-blue-6, #1c64fd)));
+}
+.wd-radio.is-button {
+  display: inline-block;
+  min-width: var(--wot-radio-button-min-width, 74px);
+  max-width: var(--wot-radio-button-max-width, 148px);
+  margin: var(--wot-radio-button-margin, var(--wot-spacing-zero, var(--wot-n-0, 0px)) var(--wot-spacing-extra-loose, var(--wot-n-16, 16px)) var(--wot-spacing-extra-loose, var(--wot-n-16, 16px)) var(--wot-spacing-zero, var(--wot-n-0, 0px)));
+  border-radius: var(--wot-radio-button-border-radius, var(--wot-radius-main, var(--wot-n-4, 4px)));
+  background: var(--wot-radio-button-bg, var(--wot-filled-bottom, var(--wot-coolgrey-1, #f7f8fa)));
+  font-size: var(--wot-radio-button-font-size, var(--wot-typography-body-size-main, var(--wot-n-14, 14px)));
+  box-sizing: border-box;
+  border: var(--wot-radio-button-border-width, var(--wot-n-1, 1px)) solid var(--wot-radio-button-bg, var(--wot-filled-bottom, var(--wot-coolgrey-1, #f7f8fa)));
+}
+.wd-radio.is-button .wd-radio__label {
+  position: relative;
+  padding: var(--wot-radio-button-padding, var(--wot-padding-extra-tight, var(--wot-n-6, 6px)) var(--wot-padding-extra-loose, var(--wot-n-16, 16px)));
+  margin: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wd-radio.is-button .wd-radio__shape {
+  position: absolute;
+  top: var(--wot-radio-button-shape-top, calc(-1 * var(--wot-n-11, 11px)));
+  left: var(--wot-radio-button-shape-left, calc(-1 * var(--wot-n-9, 9px)));
+  width: var(--wot-radio-button-shape-size, var(--wot-n-26, 26px));
+  height: var(--wot-radio-button-shape-size, var(--wot-n-26, 26px));
+  border-radius: var(--wot-radio-button-shape-border-radius, var(--wot-radius-full, var(--wot-n-full, 9999px)));
+  background: transparent;
+}
+.wd-radio.is-button .wd-radio__icon {
+  position: absolute;
+  top: var(--wot-radio-button-icon-top, calc(13 * var(--wot-n-1, 1px)));
+  right: var(--wot-radio-button-icon-right, var(--wot-n-4, 4px));
+  font-size: var(--wot-radio-button-icon-size, var(--wot-n-10, 10px));
+  line-height: var(--wot-radio-button-icon-size, var(--wot-n-10, 10px));
+  height: var(--wot-radio-button-icon-size, var(--wot-n-10, 10px));
+  color: var(--wot-radio-button-icon-color, var(--wot-icon-white, var(--wot-base-white, white)));
+}
+.wd-radio.is-button.wd-radio--right .wd-radio__shape {
+  left: auto;
+  right: var(--wot-radio-button-shape-right, calc(-1 * var(--wot-n-9, 9px)));
+}
+.wd-radio.is-button.wd-radio--right .wd-radio__icon {
+  right: auto;
+  left: var(--wot-radio-button-icon-left, var(--wot-n-4, 4px));
+}
+.wd-radio.is-button.is-checked {
+  color: var(--wot-radio-checked-color, var(--wot-primary-6, var(--wot-blue-6, #1c64fd)));
+  border-color: currentColor;
+  background: var(--wot-radio-button-checked-bg, var(--wot-filled-oppo, var(--wot-base-white, white)));
+}
+.wd-radio.is-button.is-checked .wd-radio__shape {
+  color: var(--wot-radio-checked-color, var(--wot-primary-6, var(--wot-blue-6, #1c64fd)));
+  background: currentColor;
+}
+.wd-radio.is-disabled {
+  opacity: var(--wot-radio-disabled, var(--wot-opacity-disabled, 0.4));
+}

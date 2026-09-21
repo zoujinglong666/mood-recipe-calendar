@@ -1,0 +1,1 @@
+"use strict";const n=require("./request.js");exports.clearCookingLearning=function(){return n.del("/cooking-agent/learning")},exports.cookingAgentTurn=function(e){return n.post("/cooking-agent/turn",e)},exports.sendCookingFeedback=function(e){return n.post("/cooking-agent/feedback",e)};

@@ -1,0 +1,1 @@
+"use strict";const t=require("../../common/vendor.js"),e=require("../../utils/assets.js"),s=t.defineComponent({__name:"LoadingState",props:{text:{default:"锅仔正在准备..."}},setup:s=>(s,o)=>({a:t.unref(e.STATIC_BASE_URL)+"/static/guozai/state_02_loading.png",b:t.t(s.text)})}),o=t._export_sfc(s,[["__scopeId","data-v-5405bb11"]]);exports.Component=o;

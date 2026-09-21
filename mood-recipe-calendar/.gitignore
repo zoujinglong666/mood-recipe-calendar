@@ -1,8 +1,9 @@
 # 依赖与构建产物
 node_modules/
 **/node_modules/
-dist/
-**/dist/
+# dist/（前端构建产物 frontend/dist 需要提交仓库，见文件末尾例外）
+# dist/
+# **/dist/
 target/
 **/target/
 unpackage/
@@ -39,3 +40,6 @@ nav_issue.png
 # 部署打包产物（不提交仓库）
 deploy-package.tar.gz
 .deploy/
+
+# 前端构建产物需提交仓库（frontend/dist 不受上方 dist/ 规则影响）
+!frontend/dist/

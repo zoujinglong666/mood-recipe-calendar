@@ -1,0 +1,1 @@
+<view class="gz-error data-v-1f2e7889"><image class="gz-error__img guozai-breathe data-v-1f2e7889" src="{{a}}" mode="aspectFit"/><text class="gz-error__text data-v-1f2e7889">{{b}}</text><text wx:if="{{c}}" class="gz-error__subtext data-v-1f2e7889">{{d}}</text><view wx:if="{{e}}" class="gz-error__btn data-v-1f2e7889" bindtap="{{g}}">{{f}}</view></view>

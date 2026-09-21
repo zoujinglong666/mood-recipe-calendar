@@ -1,0 +1,1 @@
+<view class="{{d}}" style="{{e}}"><view wx:if="{{a}}" class="{{['wd-tab__body', b]}}" style="{{c}}"><slot/></view></view>

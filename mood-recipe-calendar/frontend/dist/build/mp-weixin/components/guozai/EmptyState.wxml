@@ -1,0 +1,1 @@
+<view class="gz-empty data-v-331e24be"><image class="gz-empty__img guozai-breathe data-v-331e24be" src="{{a}}" mode="aspectFit"/><text class="gz-empty__text data-v-331e24be">{{b}}</text><text wx:if="{{c}}" class="gz-empty__subtext data-v-331e24be">{{d}}</text><view wx:if="{{e}}" class="gz-empty__btn data-v-331e24be" bindtap="{{g}}">{{f}}</view></view>

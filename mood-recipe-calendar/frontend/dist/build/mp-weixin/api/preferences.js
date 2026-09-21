@@ -1,0 +1,1 @@
+"use strict";const e=require("./request.js");exports.clearFoodPreference=function(){return e.del("/preferences")},exports.fetchFoodMemory=function(){return e.get("/preferences/summary")},exports.fetchFoodPreference=function(){return e.get("/preferences")},exports.saveFoodPreference=function(r){return e.put("/preferences",r)};

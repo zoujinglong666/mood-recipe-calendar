@@ -1,0 +1,10 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "锅仔形象馆",
+  "usingComponents": {
+    "wd-navbar": "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar",
+    "icon": "../../components/common/Icon",
+    "loading-state": "../../components/guozai/LoadingState",
+    "error-state": "../../components/guozai/ErrorState"
+  }
+}

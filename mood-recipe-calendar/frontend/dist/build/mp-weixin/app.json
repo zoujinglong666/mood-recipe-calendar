@@ -1,0 +1,63 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/about/index",
+    "pages/album/index",
+    "pages/calendar/index",
+    "pages/cooking/index",
+    "pages/feedback/index",
+    "pages/gallery/index",
+    "pages/login/index",
+    "pages/meal-agent/index",
+    "pages/membership/index",
+    "pages/mood/index",
+    "pages/preferences/index",
+    "pages/privacy/index",
+    "pages/profile/index",
+    "pages/recipe/index",
+    "pages/record/index",
+    "pages/report/index",
+    "pages/settings/index",
+    "pages/timeline/index",
+    "pages/weekly-plan/detail",
+    "pages/weekly-plan/index"
+  ],
+  "subPackages": [],
+  "window": {
+    "navigationStyle": "custom",
+    "navigationBarBackgroundColor": "@navBgColor",
+    "navigationBarTextStyle": "@navTxtStyle",
+    "navigationBarTitleText": "心情菜谱日历",
+    "backgroundColor": "@bgColor",
+    "backgroundTextStyle": "@bgTxtStyle",
+    "backgroundColorTop": "@bgColorTop",
+    "backgroundColorBottom": "@bgColorBottom",
+    "enablePullDownRefresh": false,
+    "onReachBottomDistance": 50
+  },
+  "tabBar": {
+    "custom": true,
+    "color": "@tabColor",
+    "selectedColor": "@tabSelectedColor",
+    "backgroundColor": "@tabBgColor",
+    "borderStyle": "@tabBorderStyle",
+    "list": [
+      {
+        "pagePath": "pages/index/index"
+      },
+      {
+        "pagePath": "pages/record/index"
+      },
+      {
+        "pagePath": "pages/profile/index"
+      }
+    ]
+  },
+  "themeLocation": "theme.json",
+  "darkmode": true,
+  "__usePrivacyCheck__": true,
+  "usingComponents": {
+    "layout-default-uni": "/layouts/default",
+    "layout-tabbar-uni": "/layouts/tabbar"
+  }
+}

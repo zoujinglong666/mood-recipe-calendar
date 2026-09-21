@@ -1,0 +1,10 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "月度画册",
+  "usingComponents": {
+    "wd-navbar": "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar",
+    "icon": "../../components/common/Icon",
+    "error-state": "../../components/guozai/ErrorState",
+    "loading-state": "../../components/guozai/LoadingState"
+  }
+}

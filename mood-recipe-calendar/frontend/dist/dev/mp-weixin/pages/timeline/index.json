@@ -1,0 +1,9 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "菜谱时光机",
+  "usingComponents": {
+    "wd-navbar": "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar",
+    "loading-state": "../../components/guozai/LoadingState",
+    "empty-state": "../../components/guozai/EmptyState"
+  }
+}

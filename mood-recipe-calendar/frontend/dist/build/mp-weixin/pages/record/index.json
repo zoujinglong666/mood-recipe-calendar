@@ -1,0 +1,10 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "记录今日伙食",
+  "usingComponents": {
+    "wd-navbar": "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar",
+    "icon": "../../components/common/Icon",
+    "success-modal": "../../components/guozai/SuccessModal",
+    "mood-picker": "../../components/guozai/MoodPicker"
+  }
+}
