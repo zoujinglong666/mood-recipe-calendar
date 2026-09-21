@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moodrecipe.backend.entity.User;
 import com.moodrecipe.backend.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -17,6 +19,9 @@ public class WechatService {
     private final UserRepository userRepository;
     private final SessionKeyCipher sessionKeyCipher;
     private final UserSessionService userSessionService;
+    private final WxPusherNotifier wxPusherNotifier;
+    private static final Logger log = LoggerFactory.getLogger(WechatService.class);
+
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -26,10 +31,12 @@ public class WechatService {
     @Value("${wechat.secret:}")
     private String secret;
 
-    public WechatService(UserRepository userRepository, SessionKeyCipher sessionKeyCipher, UserSessionService userSessionService) {
+    public WechatService(UserRepository userRepository, SessionKeyCipher sessionKeyCipher,
+                         UserSessionService userSessionService, WxPusherNotifier wxPusherNotifier) {
         this.userRepository = userRepository;
         this.sessionKeyCipher = sessionKeyCipher;
         this.userSessionService = userSessionService;
+        this.wxPusherNotifier = wxPusherNotifier;
     }
 
     /**
@@ -37,7 +44,20 @@ public class WechatService {
      * 仅传 code；昵称/头像通过 PUT /api/auth/user 单独编辑
      */
     public Map<String, Object> login(String code) {
-        if (appid == null || appid.isEmpty() || secret == null || secret.isEmpty()) {
+        // —— 配置自检日志（绝不打印 secret 明文）——
+        boolean secretConfigured = secret != null && !secret.isEmpty();
+        boolean appidConfigured = appid != null && !appid.isEmpty();
+        String maskedSecret = secretConfigured
+            ? (secret.length() <= 4 ? "****" : secret.substring(0, 4) + "****(len=" + secret.length() + ")")
+            : "(空)";
+        log.info("[微信登录] 入参 code长度={}; 配置 appid={}, appid已配置={}, secret已配置={}, secret前缀={}",
+                (code == null ? "null" : code.length()), appid, appidConfigured, secretConfigured, maskedSecret);
+
+        if (!appidConfigured || !secretConfigured) {
+            String msg = String.format("[微信登录] 配置缺失 appid=%s appid已配置=%s secret已配置=%s",
+                    appid, appidConfigured, secretConfigured);
+            log.error(msg);
+            wxPusherNotifier.send(msg);
             throw new RuntimeException("微信登录配置缺失：appid / secret 未配置");
         }
         if (code == null || code.isBlank()) {
@@ -52,19 +72,40 @@ public class WechatService {
         String openid;
         String sessionKey = null;
         try {
+            // 打印请求地址但隐去 secret，避免密钥泄露到日志
+            log.info("[微信登录] 调用微信 code2session, appid={}, url(已隐去secret)={}",
+                    appid, url.replace(secret, "***SECRET***"));
             String response = restTemplate.getForObject(url, String.class);
+            // 隐去 session_key 后打印微信原始响应，便于排查 errcode/errmsg
+            String safeResponse = response == null ? "null"
+                : response.replaceAll("\"session_key\"\\s*:\\s*\"[^\"]*\"", "\"session_key\":\"***MASKED***\"");
+            log.info("[微信登录] 微信原始响应: {}", safeResponse);
+
             JsonNode root = objectMapper.readTree(response);
             if (root.has("errcode") && root.get("errcode").asInt() != 0) {
-                throw new RuntimeException("微信登录失败: " + root.path("errmsg").asText());
+                String errcode = root.path("errcode").asText();
+                String errmsg = root.path("errmsg").asText();
+                String msg = String.format("[微信登录] 微信返回错误 errcode=%s errmsg=%s appid=%s secret已配置=%s",
+                        errcode, errmsg, appid, secretConfigured);
+                log.error(msg);
+                wxPusherNotifier.send(msg);
+                throw new RuntimeException("微信登录失败: " + errmsg);
             }
             openid = root.path("openid").asText();
             if (openid == null || openid.isEmpty()) {
                 throw new RuntimeException("微信登录失败: 未获取到 openid");
             }
             sessionKey = root.path("session_key").asText(null);
+            String okMsg = String.format("[微信登录] 成功 appid=%s openid=%s", appid, openid);
+            log.info("[微信登录] code2session 成功, openid={}, 是否含session_key={}", openid, sessionKey != null);
+            wxPusherNotifier.send(okMsg);
         } catch (RuntimeException e) {
+            wxPusherNotifier.send("[微信登录] 失败 appid=" + appid + " 错误=" + e.getMessage());
             throw e;
         } catch (Exception e) {
+            String msg = "[微信登录] 请求微信异常: " + e.getMessage();
+            log.error(msg, e);
+            wxPusherNotifier.send(msg);
             throw new RuntimeException("微信登录请求失败: " + e.getMessage());
         }
 

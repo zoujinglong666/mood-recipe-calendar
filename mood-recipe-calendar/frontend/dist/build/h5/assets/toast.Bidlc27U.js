@@ -1,0 +1,1 @@
+import{a8 as n}from"./index-Btq-jyRy.js";function t(t,o=2e3){n({title:t,icon:"none",duration:o})}function o(t,o=1500){n({title:t,icon:"success",duration:o})}function i(t,o="操作失败，请稍后重试"){const i=t instanceof Error?t.message||o:"string"==typeof t&&t?t:o;n({title:i,icon:"none",duration:2500})}export{o as a,t as b,i as t};
