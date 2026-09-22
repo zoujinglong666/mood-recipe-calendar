@@ -28,6 +28,9 @@ const nav = useNavBar()
 
 const loading = ref(true)
 const avatarUpdating = ref(false)
+const showEdit = ref(false)
+const editNickname = ref('')
+const nicknameSaving = ref(false)
 const stats = ref({ totalRecords: 0, totalDays: 0, currentStreak: 0, topDishes: [] as { name: string, count: number }[] })
 const history = ref<RecordItem[]>([])
 const activeMembership = computed(() => userStore.userInfo?.isMember === 1
@@ -134,6 +137,49 @@ function onChooseAvatar() {
     onFail: () => toast('选择图片失败，请重试'),
   })
 }
+
+/** 打开编辑资料弹窗：可一键选用微信头像与微信昵称 */
+function openEdit() {
+  if (!userStore.isLoggedIn) {
+    toastError(null, '请先登录再修改资料')
+    return
+  }
+  editNickname.value = userStore.userInfo?.nickname || ''
+  showEdit.value = true
+}
+
+/** 微信头像选择回调：直接拿到微信头像临时文件并上传 */
+function onChooseWechatAvatar(event: any) {
+  updateAvatar(event.detail?.avatarUrl || '')
+}
+
+/** 弹窗内保存昵称 */
+async function saveEditNickname() {
+  const value = editNickname.value.trim()
+  if (!userStore.isLoggedIn) {
+    toast('请先登录再修改昵称')
+    return
+  }
+  if (!value) {
+    toast('昵称不能为空')
+    return
+  }
+  if (nicknameSaving.value || value === userStore.userInfo?.nickname)
+    return
+  nicknameSaving.value = true
+  try {
+    await updateUserInfo({ openid: userStore.openid, nickname: value })
+    await refreshUserInfo(true)
+    editNickname.value = userStore.userInfo?.nickname || value
+    toastSuccess('昵称已保存')
+  }
+  catch (e: any) {
+    toastError(e, '昵称保存失败，请重试')
+  }
+  finally {
+    nicknameSaving.value = false
+  }
+}
 function showPrivacy() {
   router.push({ name: 'privacy' })
 }
@@ -199,7 +245,7 @@ function openStat(type: 'records' | 'days' | 'streak') {
         mode="aspectFit"/>
 
       <view class="profile-identity__main">
-        <view class="profile-avatar" :class="{ 'profile-avatar--logged': userStore.userInfo?.avatarUrl }" role="button" :aria-label="userStore.isLoggedIn ? '更换头像' : '登录后即可更换头像'" @click="onChooseAvatar">
+        <view class="profile-avatar" :class="{ 'profile-avatar--logged': userStore.userInfo?.avatarUrl }" role="button" :aria-label="userStore.isLoggedIn ? '修改头像与昵称' : '登录后即可修改资料'" @click.stop="openEdit">
           <image
             class="profile-avatar__img"
             :src="userStore.isLoggedIn ? userStore.userInfo?.avatarUrl || `${STATIC_BASE_URL}/static/guozai/mood_01_happy.png` : `${STATIC_BASE_URL}/static/guozai/action_09_celebrate.png`"
@@ -217,7 +263,7 @@ function openStat(type: 'records' | 'days' | 'streak') {
           <text class="profile-userinfo__eyebrow">
             {{ userStore.isLoggedIn ? '锅仔的小饭友' : '锅仔在这里等你' }}
           </text>
-          <view class="profile-name-wrap">
+          <view class="profile-name-wrap" role="button" :aria-label="userStore.isLoggedIn ? '修改昵称' : '登录后即可修改昵称'" @click.stop="openEdit">
             <text class="profile-name">
               {{ userStore.isLoggedIn ? userStore.userInfo?.nickname || '给自己取个昵称' : '微信登录' }}
             </text>
@@ -482,6 +528,56 @@ function openStat(type: 'records' | 'days' | 'streak') {
       <image :src="`${STATIC_BASE_URL}/static/guozai/mood_01_happy.png`" class="profile-footer__guozai"
              mode="aspectFit"/>
     </view>
+
+    <!-- 编辑资料弹窗：一键选用微信头像与微信昵称 -->
+    <wd-popup v-model="showEdit" position="bottom" :close-on-click-modal="true"
+      custom-style="border-radius: 40rpx 40rpx 0 0; overflow: hidden; background: var(--mrc-surface);">
+      <view class="edit-sheet">
+        <view class="edit-sheet__head">
+          <text class="edit-sheet__title">编辑资料</text>
+          <view class="edit-sheet__close" role="button" aria-label="关闭" @click="showEdit = false">
+            <wd-icon name="close" size="22px" color="#A1826A" />
+          </view>
+        </view>
+
+        <view class="edit-sheet__row">
+          <text class="edit-sheet__label">头像</text>
+          <view class="edit-sheet__avatar">
+            <image :src="userStore.userInfo?.avatarUrl || `${STATIC_BASE_URL}/static/guozai/mood_01_happy.png`"
+                   class="edit-sheet__avatar-img" mode="aspectFill" />
+            <view v-if="avatarUpdating" class="edit-sheet__avatar-loading">上传中</view>
+          </view>
+        </view>
+        <view class="edit-sheet__actions">
+          <!-- #ifdef MP-WEIXIN -->
+          <button class="edit-sheet__btn edit-sheet__btn--primary" open-type="chooseAvatar"
+                  :disabled="avatarUpdating" @chooseavatar="onChooseWechatAvatar">
+            使用微信头像
+          </button>
+          <!-- #endif -->
+          <view class="edit-sheet__btn" role="button" aria-label="从相册选择头像" @click="onChooseAvatar">
+            从相册选择
+          </view>
+        </view>
+
+        <view class="edit-sheet__row edit-sheet__row--column">
+          <text class="edit-sheet__label">昵称</text>
+          <!-- #ifdef MP-WEIXIN -->
+          <input v-model="editNickname" class="edit-sheet__input" type="nickname" :maxlength="24"
+                 placeholder="点击选用微信昵称或输入" confirm-type="done" @confirm="saveEditNickname" />
+          <!-- #endif -->
+          <!-- #ifndef MP-WEIXIN -->
+          <input v-model="editNickname" class="edit-sheet__input" type="text" :maxlength="24"
+                 placeholder="给自己取个昵称" confirm-type="done" @confirm="saveEditNickname" />
+          <!-- #endif -->
+        </view>
+        <view class="edit-sheet__save pressable"
+              :class="{ 'is-disabled': nicknameSaving || !editNickname.trim() || editNickname.trim() === userStore.userInfo?.nickname }"
+              role="button" aria-label="保存昵称" @click="saveEditNickname">
+          {{ nicknameSaving ? '保存中…' : '保存昵称' }}
+        </view>
+      </view>
+    </wd-popup>
   </view>
 </template>
 
@@ -957,4 +1053,27 @@ function openStat(type: 'records' | 'days' | 'streak') {
   width: 100rpx;
   height: 100rpx;
 }
+
+/* 编辑资料弹窗：一键选用微信头像与微信昵称 */
+.edit-sheet { padding: 28rpx 30rpx calc(36rpx + env(safe-area-inset-bottom)); box-sizing: border-box; }
+.edit-sheet__head { position: relative; display: flex; min-height: 56rpx; align-items: center; justify-content: center; margin-bottom: 22rpx; }
+.edit-sheet__title { color: var(--mrc-text-strong); font-size: 32rpx; font-weight: 800; }
+.edit-sheet__close { position: absolute; right: 0; top: 50%; transform: translateY(-50%); display: flex; width: 56rpx; height: 56rpx; align-items: center; justify-content: center; }
+.edit-sheet__row { display: flex; align-items: center; justify-content: space-between; min-height: 120rpx; padding: 12rpx 4rpx; border-bottom: 2rpx solid var(--mrc-border-light); }
+.edit-sheet__row--column { flex-direction: column; align-items: stretch; gap: 14rpx; }
+.edit-sheet__label { color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 800; }
+.edit-sheet__avatar { position: relative; display: flex; width: 112rpx; height: 112rpx; align-items: center; justify-content: center; overflow: hidden; border: 4rpx solid var(--mrc-surface-peach); border-radius: 50%; background: var(--mrc-surface-peach); box-shadow: var(--mrc-shadow-sm); }
+.edit-sheet__avatar-img { width: 104rpx; height: 104rpx; border-radius: 50%; }
+.edit-sheet__avatar-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; border-radius: 50%; color: #fff; background: rgba(40, 24, 16, .62); font-size: 20rpx; font-weight: 700; }
+.edit-sheet__actions { display: flex; gap: 18rpx; margin: 22rpx 0 8rpx; }
+.edit-sheet__btn { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 92rpx; box-sizing: border-box; border-radius: 46rpx; color: var(--mrc-text-deep); background: var(--mrc-surface-2); font-size: 27rpx; font-weight: 700; }
+.edit-sheet__btn--primary { color: #fff; background: var(--mrc-primary-grad, #EF5A3C); }
+button.edit-sheet__btn--primary { margin: 0; padding: 0; line-height: normal; border: 0; }
+button.edit-sheet__btn--primary::after { border: 0; }
+.edit-sheet__input { height: 84rpx; box-sizing: border-box; padding: 0 22rpx; border: 2rpx solid var(--mrc-border); border-radius: 20rpx; color: var(--mrc-text-deep); font-size: 30rpx; font-weight: 700; background: var(--mrc-surface); }
+.edit-sheet__save { display: flex; min-height: 96rpx; align-items: center; justify-content: center; margin-top: 26rpx; border-radius: 48rpx; color: #fff; background: var(--mrc-primary-grad, #EF5A3C); font-size: 29rpx; font-weight: 800; }
+.is-disabled { opacity: .48; pointer-events: none; }
+.pressable { transition: transform 180ms ease, opacity 180ms ease; }
+.pressable:active { transform: scale(.97); }
+@media (prefers-reduced-motion: reduce) { .pressable { transition: none; } .pressable:active { transform: none; } }
 </style>

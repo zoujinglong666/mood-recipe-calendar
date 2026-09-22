@@ -2,6 +2,7 @@
   "navigationStyle": "custom",
   "navigationBarTitleText": "我的",
   "usingComponents": {
+    "wd-popup": "../../node-modules/@wot-ui/ui/components/wd-popup/wd-popup",
     "wd-icon": "../../node-modules/@wot-ui/ui/components/wd-icon/wd-icon"
   }
 }
