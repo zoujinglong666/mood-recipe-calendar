@@ -530,7 +530,7 @@ function openStat(type: 'records' | 'days' | 'streak') {
     </view>
 
     <!-- 编辑资料弹窗：一键选用微信头像与微信昵称 -->
-    <wd-popup v-model="showEdit" position="bottom" :close-on-click-modal="true"
+    <wd-popup v-model="showEdit" position="bottom" :close-on-click-modal="true" :safe-area-inset-bottom="true"
       custom-style="border-radius: 40rpx 40rpx 0 0; overflow: hidden; background: var(--mrc-surface);">
       <view class="edit-sheet">
         <view class="edit-sheet__head">
@@ -1055,7 +1055,7 @@ function openStat(type: 'records' | 'days' | 'streak') {
 }
 
 /* 编辑资料弹窗：一键选用微信头像与微信昵称 */
-.edit-sheet { padding: 28rpx 30rpx calc(36rpx + env(safe-area-inset-bottom)); box-sizing: border-box; }
+.edit-sheet { padding: 28rpx 30rpx 36rpx; box-sizing: border-box; }
 .edit-sheet__head { position: relative; display: flex; min-height: 56rpx; align-items: center; justify-content: center; margin-bottom: 22rpx; }
 .edit-sheet__title { color: var(--mrc-text-strong); font-size: 32rpx; font-weight: 800; }
 .edit-sheet__close { position: absolute; right: 0; top: 50%; transform: translateY(-50%); display: flex; width: 56rpx; height: 56rpx; align-items: center; justify-content: center; }
