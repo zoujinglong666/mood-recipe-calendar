@@ -386,7 +386,7 @@ function previewShareCard(style: ShareStyle) {
   previewImage({
     images: cards.map(item => item.path),
     startPosition: Math.max(0, cards.findIndex(item => item.key === style)),
-    closeOnClick: false,
+    closeOnClick: true,
     loop: cards.length > 1,
   })
 }

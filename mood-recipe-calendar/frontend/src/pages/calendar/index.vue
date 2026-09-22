@@ -140,7 +140,7 @@ function previewRecordPhoto(record: RecordItem) {
   previewImage({
     images: photos.map(item => item.imageUrl),
     startPosition: Math.max(0, photos.findIndex(item => item.id === record.id)),
-    closeOnClick: false,
+    closeOnClick: true,
     loop: photos.length > 1,
   })
 }

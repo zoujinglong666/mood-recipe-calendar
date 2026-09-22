@@ -81,7 +81,7 @@ function previewDishImages(day: PlanDay, dishIndex: number) {
   previewImage({
     images: covers.map(item => item.url),
     startPosition: Math.max(0, covers.findIndex(item => item.index === dishIndex)),
-    closeOnClick: false,
+    closeOnClick: true,
     loop: covers.length > 1,
   })
 }

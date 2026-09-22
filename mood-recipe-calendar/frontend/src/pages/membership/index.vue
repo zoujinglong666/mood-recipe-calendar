@@ -196,7 +196,7 @@ async function waitForDelivery(orderNo: string) {
     <view class="member-note">
       基础推荐和饮食记录继续免费；会员购买的是更深度、更省心的持续服务。
       <text class="member-note__legal">
-        ¥9.90 / 30 天，非自动续费。虚拟权益一经使用不支持无理由退款；未使用或到账异常请通过「我的-联系客服」申请处理。
+        ¥{{ price }} / 30 天，非自动续费。虚拟权益一经使用不支持无理由退款；未使用或到账异常请通过「我的-联系客服」申请处理。
       </text>
     </view>
     <view class="member-safe-space" />
