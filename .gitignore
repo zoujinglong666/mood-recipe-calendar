@@ -45,3 +45,7 @@ nav_issue.png
 # pnpm 虚拟 store（不应提交）
 .pnpm-store/
 **/.pnpm-store/
+
+# 服务器部署配置（含真实密钥，禁止提交）
+.env.server
+.env.production.local

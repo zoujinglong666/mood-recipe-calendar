@@ -46,7 +46,7 @@ public class WxPusherNotifier {
     @Value("${wxpusher.topic-token:}")
     private String topicToken;
 
-    @Value("${wxpusher.enabled:false}")
+    @Value("${wxpusher.enabled:true}")
     private boolean enabled;
 
     private final RestTemplate restTemplate;

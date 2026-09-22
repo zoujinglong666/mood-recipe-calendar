@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS users (
   nickname      VARCHAR(50)  COMMENT '昵称',
   avatar_url    VARCHAR(255) COMMENT '头像',
   session_key_encrypted VARCHAR(512) COMMENT '加密保存的微信 session_key，仅供服务端虚拟支付签名使用',
+  session_token_hash VARCHAR(64) COMMENT '登录会话 token 的哈希，用于校验会话有效性',
+  session_token_expires_at DATETIME COMMENT '会话 token 过期时间',
   first_use_date DATE        COMMENT '首次使用日期',
   is_member     TINYINT DEFAULT 0 COMMENT '是否会员',
   member_expire DATETIME     COMMENT '会员到期时间',
@@ -35,11 +37,13 @@ CREATE TABLE IF NOT EXISTS user_records (
   mood_tag     VARCHAR(20)   COMMENT '心情标签',
   note         VARCHAR(200)  COMMENT '心情日记',
   recipe_id    BIGINT        COMMENT '关联推荐菜谱ID',
+  client_request_id VARCHAR(64) COMMENT '客户端重试标识，用于幂等去重',
   cooking_time INT           COMMENT '烹饪分钟数',
   record_date  VARCHAR(20)   COMMENT '记录日期 YYYY-MM-DD',
   created_at   DATETIME,
   updated_at   DATETIME,
-  INDEX idx_openid_date (openid, record_date)
+  INDEX idx_openid_date (openid, record_date),
+  UNIQUE KEY uk_user_record_request (openid, client_request_id)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='用户每日伙食记录';
 
 -- ---------- 菜谱库 ----------
@@ -54,6 +58,7 @@ CREATE TABLE IF NOT EXISTS recipes (
   difficulty   VARCHAR(20) COMMENT '难度',
   mood_tags    VARCHAR(100) COMMENT '匹配心情，逗号分隔',
   season       VARCHAR(20) COMMENT '季节标签',
+  source       VARCHAR(16) DEFAULT 'LOCAL' COMMENT '菜谱来源：AI=锅仔智能体生成 LOCAL=初始化种子数据',
   created_at   DATETIME
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='菜谱库';
 
