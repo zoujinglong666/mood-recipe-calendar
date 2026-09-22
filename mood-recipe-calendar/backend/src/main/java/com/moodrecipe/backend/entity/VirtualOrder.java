@@ -33,4 +33,8 @@ public class VirtualOrder {
     private LocalDateTime paidAt;
     @Column(name = "delivered_at")
     private LocalDateTime deliveredAt;
+    @Column(name = "wx_notified", nullable = false, columnDefinition = "tinyint(1) default 0")
+    private Boolean wxNotified = false;
+    @Column(name = "notify_attempts", nullable = false, columnDefinition = "int default 0")
+    private Integer notifyAttempts = 0;
 }

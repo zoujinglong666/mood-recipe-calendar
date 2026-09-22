@@ -26,7 +26,13 @@ public class VirtualCommerceController {
 
     @GetMapping("/products")
     public ApiResponse<List<VirtualProduct>> products() {
-        return ApiResponse.ok(commerceService.listProducts());
+        List<VirtualProduct> products = commerceService.listProducts();
+        for (VirtualProduct product : products) {
+            WechatVirtualPaymentService.PaymentAvailability availability = paymentService.getAvailability(product);
+            product.setPaymentAvailable(availability.available());
+            product.setPaymentUnavailableMsg(availability.message());
+        }
+        return ApiResponse.ok(products);
     }
 
     @PostMapping("/orders")

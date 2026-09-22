@@ -14,6 +14,10 @@ export interface VirtualProduct {
   entitlementAmount: number
   validDays: number
   platformItemId?: string | null
+  /** 后端判定的当前是否可购买（依赖微信虚拟支付配置与道具配置）。 */
+  paymentAvailable?: boolean | null
+  /** 不可购买时的原因文案，由后端返回，前端直接展示。 */
+  paymentUnavailableMsg?: string | null
 }
 
 export interface VirtualOrder {

@@ -47,6 +47,14 @@ public class VirtualProduct {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
+    /** 后端预判定：当前是否可购买（依赖微信虚拟支付服务端与道具配置）。不落库。 */
+    @Transient
+    private Boolean paymentAvailable;
+
+    /** 不可购买时的原因文案，由后端返回给前端直接展示。不落库。 */
+    @Transient
+    private String paymentUnavailableMsg;
+
     public boolean isMemberPass() {
         return "MEMBER".equals(entitlementCode);
     }

@@ -41,7 +41,7 @@ const active = computed(() => userStore.userInfo?.isMember === 1
   && new Date(userStore.userInfo!.memberExpire!).getTime() > Date.now())
 const expireText = computed(() => userStore.userInfo?.memberExpire?.slice(0, 10) || '')
 const price = computed(() => ((product.value?.priceFen || 990) / 100).toFixed(2))
-const purchasable = computed(() => paymentSupported && Boolean(product.value?.platformItemId))
+const purchasable = computed(() => paymentSupported && Boolean(product.value?.paymentAvailable))
 const actionText = computed(() => {
   if (active.value)
     return `会员有效至 ${expireText.value}`
@@ -49,8 +49,8 @@ const actionText = computed(() => {
     return '登录后开通会员'
   if (!paymentSupported)
     return '请在微信小程序内开通'
-  if (!purchasable.value)
-    return '会员道具配置中'
+  if (!product.value?.paymentAvailable)
+    return product.value?.paymentUnavailableMsg || '会员暂不可开通'
   return `¥${price.value} · 开通 30 天`
 })
 
@@ -80,7 +80,9 @@ async function purchase() {
     return
   }
   if (!product.value || !purchasable.value) {
-    toast(paymentSupported ? '会员道具 ID 配置后即可开通' : '请在微信小程序内开通')
+    toast(paymentSupported
+      ? (product.value?.paymentUnavailableMsg || '会员暂不可开通')
+      : '请在微信小程序内开通')
     return
   }
   paying.value = true

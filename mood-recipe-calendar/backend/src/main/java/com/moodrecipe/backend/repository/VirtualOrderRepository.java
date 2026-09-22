@@ -23,4 +23,7 @@ public interface VirtualOrderRepository extends JpaRepository<VirtualOrder, Long
 
     List<VirtualOrder> findTop100ByStatusAndCreatedAtBetweenOrderByCreatedAtAsc(
             String status, LocalDateTime after, LocalDateTime before);
+
+    List<VirtualOrder> findTop100ByStatusAndWxNotifiedFalseAndNotifyAttemptsLessThanAndCreatedAtBetweenOrderByCreatedAtAsc(
+            String status, int maxAttempts, LocalDateTime after, LocalDateTime before);
 }

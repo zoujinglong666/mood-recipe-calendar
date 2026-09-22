@@ -257,6 +257,8 @@ CREATE TABLE IF NOT EXISTS virtual_orders (
   created_at              DATETIME,
   paid_at                 DATETIME,
   delivered_at            DATETIME,
+  wx_notified             TINYINT NOT NULL DEFAULT 0 COMMENT '是否已成功回传微信发货推送',
+  notify_attempts         INT NOT NULL DEFAULT 0 COMMENT '发货推送重试次数',
   INDEX idx_virtual_order_openid (openid),
   INDEX idx_virtual_order_status (status)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='虚拟商品订单';
