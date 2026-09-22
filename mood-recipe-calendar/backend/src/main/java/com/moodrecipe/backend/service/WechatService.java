@@ -44,6 +44,8 @@ public class WechatService {
      * 仅传 code；昵称/头像通过 PUT /api/auth/user 单独编辑
      */
     public Map<String, Object> login(String code) {
+        // —— 请求即推送：登录接口一被调用立即通知（异步，不影响主流程）——
+        wxPusherNotifier.send(String.format("[微信登录] 收到登录请求 appid=%s code长度=%s", appid, (code == null ? "null" : code.length())));
         // —— 配置自检日志（绝不打印 secret 明文）——
         boolean secretConfigured = secret != null && !secret.isEmpty();
         boolean appidConfigured = appid != null && !appid.isEmpty();
