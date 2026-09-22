@@ -466,21 +466,21 @@ function askDeleteAccount() {
               </text>
             </view>
           </view>
-<!--          <view class="backend-options" aria-label="后端服务">-->
-<!--            <view v-for="option in API_BACKENDS" :key="option.url" class="backend-option pressable" :class="{ 'is-selected': currentBackendUrl === option.url }" role="button" :aria-label="`切换到${option.name}`" @click="selectBackend(option)">-->
-<!--              <view class="backend-option__main">-->
-<!--                <text class="backend-option__name">-->
-<!--                  {{ option.name }}-->
-<!--                </text>-->
-<!--                <text class="backend-option__desc">-->
-<!--                  {{ option.desc }}-->
-<!--                </text>-->
-<!--              </view>-->
-<!--              <text class="backend-option__check">-->
-<!--                {{ currentBackendUrl === option.url ? '✓' : '' }}-->
-<!--              </text>-->
-<!--            </view>-->
-<!--          </view>-->
+          <view class="backend-options" aria-label="后端服务">
+            <view v-for="option in API_BACKENDS" :key="option.url" class="backend-option pressable" :class="{ 'is-selected': currentBackendUrl === option.url }" role="button" :aria-label="`切换到${option.name}`" @click="selectBackend(option)">
+              <view class="backend-option__main">
+                <text class="backend-option__name">
+                  {{ option.name }}
+                </text>
+                <text class="backend-option__desc">
+                  {{ option.desc }}
+                </text>
+              </view>
+              <text class="backend-option__check">
+                {{ currentBackendUrl === option.url ? '✓' : '' }}
+              </text>
+            </view>
+          </view>
           <text class="backend-note">
             开发环境请选「本地开发」，正式发布前务必切回「生产环境」。
           </text>

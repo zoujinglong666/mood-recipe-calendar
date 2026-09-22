@@ -15,6 +15,7 @@ export interface ApiBackend {
 
 export const API_BACKENDS: ApiBackend[] = [
   { name: '本地开发', url: 'http://localhost:8080/api', env: 'development', desc: 'localhost:8080' },
+  { name: '局域网开发', url: 'http://10.40.173.23:8080/api', env: 'development', desc: '10.40.173.23:8080（本机局域网）' },
   { name: '生产环境', url: 'https://moodrecipe.icu/api', env: 'production', desc: 'moodrecipe.icu' },
 ]
 
@@ -36,11 +37,21 @@ function isTrustedApiUrl(url: string): boolean {
   }
 }
 
-/** 读取当前后端地址：优先用户手动选择（生产环境校验域名），其次编译环境变量，最后默认生产 */
+/** 是否为设置页里的预设后端（预设项永远可信，不受生产白名单限制） */
+function isKnownBackend(url: string): boolean {
+  return API_BACKENDS.some(b => b.url === url)
+}
+
+/**
+ * 读取当前后端地址：优先用户手动选择，其次编译环境变量，最后默认生产。
+ * 注意：预设后端（API_BACKENDS 中的项，如「本地开发」）始终生效，
+ * 即使在生产构建里也允许切到 localhost / 局域网，便于开发联调；
+ * 仅「自定义」地址在生产环境受 isTrustedApiUrl 白名单约束。
+ */
 export function getApiBaseUrl(): string {
   try {
     const saved = uni.getStorageSync(STORAGE_KEY)
-    if (saved && isTrustedApiUrl(String(saved)))
+    if (saved && (isKnownBackend(String(saved)) || isTrustedApiUrl(String(saved))))
       return String(saved)
   }
   catch {}
