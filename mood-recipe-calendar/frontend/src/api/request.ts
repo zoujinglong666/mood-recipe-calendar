@@ -13,11 +13,20 @@ export interface ApiBackend {
   desc: string
 }
 
-export const API_BACKENDS: ApiBackend[] = [
+/** 仅开发/联调构建可见：本机与局域网后端（生产构建不导出） */
+const DEV_ONLY_BACKENDS: ApiBackend[] = [
   { name: '本地开发', url: 'http://localhost:8080/api', env: 'development', desc: 'localhost:8080' },
   { name: '局域网开发', url: 'http://10.40.173.23:8080/api', env: 'development', desc: '10.40.173.23:8080（本机局域网）' },
+]
+
+/** 生产构建仅暴露正式环境，隐藏本地/局域网切换入口，避免审核与真机误切 */
+const PROD_BACKENDS: ApiBackend[] = [
   { name: '生产环境', url: 'https://moodrecipe.icu/api', env: 'production', desc: 'moodrecipe.icu' },
 ]
+
+export const API_BACKENDS: ApiBackend[] = import.meta.env.PROD
+  ? PROD_BACKENDS
+  : [...DEV_ONLY_BACKENDS, ...PROD_BACKENDS]
 
 const STORAGE_KEY = 'apiBaseUrl'
 
@@ -37,16 +46,15 @@ function isTrustedApiUrl(url: string): boolean {
   }
 }
 
-/** 是否为设置页里的预设后端（预设项永远可信，不受生产白名单限制） */
+/** 是否为设置页里的预设后端（预设项可信，无需过生产白名单） */
 function isKnownBackend(url: string): boolean {
   return API_BACKENDS.some(b => b.url === url)
 }
 
 /**
  * 读取当前后端地址：优先用户手动选择，其次编译环境变量，最后默认生产。
- * 注意：预设后端（API_BACKENDS 中的项，如「本地开发」）始终生效，
- * 即使在生产构建里也允许切到 localhost / 局域网，便于开发联调；
- * 仅「自定义」地址在生产环境受 isTrustedApiUrl 白名单约束。
+ * 生产构建的 API_BACKENDS 只含「生产环境」；历史残留的本地/局域网地址
+ * 会被 isTrustedApiUrl 白名单拦截，回退到默认生产地址。
  */
 export function getApiBaseUrl(): string {
   try {
