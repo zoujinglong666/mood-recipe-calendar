@@ -1,9 +1,0 @@
-{
-  "navigationStyle": "custom",
-  "navigationBarTitleText": "心情日历",
-  "usingComponents": {
-    "wd-navbar": "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar",
-    "error-state": "../../components/guozai/ErrorState",
-    "loading-state": "../../components/guozai/LoadingState"
-  }
-}

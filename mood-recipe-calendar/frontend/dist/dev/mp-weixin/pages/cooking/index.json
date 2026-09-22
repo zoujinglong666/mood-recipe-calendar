@@ -1,9 +1,0 @@
-{
-  "navigationStyle": "custom",
-  "navigationBarTitleText": "跟锅仔做菜",
-  "usingComponents": {
-    "wd-popup": "../../node-modules/@wot-ui/ui/components/wd-popup/wd-popup",
-    "wd-navbar": "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar",
-    "icon": "../../components/common/Icon"
-  }
-}

@@ -1,8 +1,0 @@
-{
-  "component": true,
-  "usingComponents": {
-    "wd-icon": "../wd-icon/wd-icon",
-    "wd-overlay": "../wd-overlay/wd-overlay",
-    "wd-swiper": "../wd-swiper/wd-swiper"
-  }
-}

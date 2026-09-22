@@ -1,1 +1,0 @@
-<view style="{{g}}"><view class="{{d}}" style="{{e}}" id="{{f}}"><view class="wd-sticky__container" style="{{c}}"><wd-resize wx:if="{{b}}" u-s="{{['d']}}" bindresize="{{a}}" u-i="5e124c5f-0" bind:__l="__l" u-p="{{b}}"><slot/></wd-resize></view></view></view>

@@ -1,1 +1,0 @@
-<view class="gz-loading data-v-a8e33f4d"><view class="gz-loading__wrap data-v-a8e33f4d"><image class="gz-loading__img data-v-a8e33f4d" src="{{a}}" mode="aspectFit"/><view class="gz-loading__ring data-v-a8e33f4d"/></view><text class="gz-loading__text data-v-a8e33f4d">{{b}}</text></view>

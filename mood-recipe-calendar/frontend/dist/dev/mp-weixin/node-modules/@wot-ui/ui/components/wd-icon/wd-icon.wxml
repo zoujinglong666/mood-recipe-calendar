@@ -1,1 +1,0 @@
-<view class="{{c}}" style="{{d}}" bindtap="{{e}}"><image wx:if="{{a}}" class="wd-icon__image" src="{{b}}"></image></view>

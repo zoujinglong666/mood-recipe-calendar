@@ -85,8 +85,10 @@ public class WechatService {
             if (root.has("errcode") && root.get("errcode").asInt() != 0) {
                 String errcode = root.path("errcode").asText();
                 String errmsg = root.path("errmsg").asText();
-                String msg = String.format("[微信登录] 微信返回错误 errcode=%s errmsg=%s appid=%s secret已配置=%s",
-                        errcode, errmsg, appid, secretConfigured);
+                String hint = wechatErrorHint(errcode);
+                String msg = String.format("[微信登录] 微信返回错误 errcode=%s errmsg=%s appid=%s secret已配置=%s%s",
+                        errcode, errmsg, appid, secretConfigured,
+                        hint.isEmpty() ? "" : " 提示=" + hint);
                 log.error(msg);
                 wxPusherNotifier.send(msg);
                 throw new RuntimeException("微信登录失败: " + errmsg);
@@ -131,5 +133,20 @@ public class WechatService {
         result.put("isNew", user.getCreatedAt() != null &&
             user.getCreatedAt().plusSeconds(5).isAfter(java.time.LocalDateTime.now()));
         return result;
+    }
+
+    /**
+     * 把微信常见的登录错误码翻译成可操作的排查提示，方便一眼定位根因。
+     */
+    private static String wechatErrorHint(String errcode) {
+        return switch (errcode) {
+            case "40013" ->
+                    "（invalid appid：请确认后端 wechat.appid 与 wx.login 所在小程序 appid 完全一致，且该 appid 在微信公众平台未被注销/禁用/认证过期；常见诱因是 wx.login 的 code 来自另一个 appid 或测试号/游客模式）";
+            case "40001", "40125" -> "（AppSecret 错误/失效：请到微信公众平台重置 AppSecret 并更新 WECHAT_SECRET）";
+            case "40163", "41008" -> "（code 无效/已使用：wx.login 的 code 只能兑换一次且有效期约 5 分钟）";
+            case "40029" -> "（code 不正确：可能来自不同 appid 的小程序或已过期）";
+            case "40226" -> "（小程序高危行为受限：该 appid 被微信风控，需到后台解封）";
+            default -> "";
+        };
     }
 }

@@ -1,1 +1,0 @@
-<view data-theme="{{a}}" class="{{b}}" style="{{c}}"><slot/></view>

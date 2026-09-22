@@ -1,7 +1,0 @@
-{
-  "component": true,
-  "usingComponents": {
-    "wd-badge": "../wd-badge/wd-badge",
-    "wd-icon": "../wd-icon/wd-icon"
-  }
-}
