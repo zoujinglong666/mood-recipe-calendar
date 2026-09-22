@@ -3,7 +3,7 @@ HELP.md
 target/
 !target/
 target/*
-!target/*.jar
+# target jar 不进 git（超 GitHub 50MB 限制，部署走本地打包上传）
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
