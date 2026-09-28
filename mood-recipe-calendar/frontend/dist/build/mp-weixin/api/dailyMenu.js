@@ -1,0 +1,1 @@
+"use strict";const e=require("./request.js");function r(r){var t;return{...r,recipe:{...r.recipe,image:e.resolveAssetUrl((null==(t=r.recipe)?void 0:t.image)||"")}}}exports.fetchDailyBoard=function(){return e.get("/daily-menu").then(r)},exports.refreshDailyBoard=function(){return e.post("/daily-menu/refresh",{}).then(r)};
