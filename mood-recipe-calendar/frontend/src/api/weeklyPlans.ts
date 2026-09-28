@@ -1,4 +1,5 @@
 import { get, post } from './request'
+import type { UsageQuotaView } from './recipes'
 
 export interface PlanDish { name: string, ingredients: string[], steps: string[], fallbackImageUrl?: string, imageUrl?: string }
 export interface PlanDay { day: string, dishName: string, ingredients: string[], steps: string[], reuseHint: string, healthTip: string, imageUrl?: string, fallbackImageUrl?: string, dishes?: PlanDish[] }
@@ -13,7 +14,7 @@ export interface MealAgentTurn {
   reply: string
   action: string
   state: MealAgentState
-  card: { type: string, title: string, description: string, options: MealAgentOption[] }
+  card?: { type: string, title: string, description: string, options: MealAgentOption[] } | null
   askReason?: string
   memoryUsed?: string[]
   conflicts?: string[]
@@ -28,6 +29,9 @@ export function getWeeklyPlan(id: number) {
 }
 export function getWeeklyPlanHistory() {
   return get<WeeklyPlanSummary[]>('/weekly-plans/history')
+}
+export function fetchWeeklyPlanQuota() {
+  return get<UsageQuotaView>('/weekly-plans/quota')
 }
 export function generateWeeklyPlan(data: { people: number, days: number, cookingDays: number[], healthGoal: string, sendNotification: boolean, dishesPerDay: number, budget?: string, conversationNotes?: string }) {
   return post<WeeklyPlan>('/weekly-plans/generate', data)

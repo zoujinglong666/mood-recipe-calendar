@@ -33,6 +33,10 @@ public class UserFoodPreference {
     @Column(length = 500)
     private String allergens = "";
 
+    @JsonIgnore
+    @Column(name = "normalized_blocked_terms", columnDefinition = "TEXT")
+    private String normalizedBlockedTerms = "[]";
+
     @Column(name = "eat_scallion")
     private Boolean eatScallion;
 

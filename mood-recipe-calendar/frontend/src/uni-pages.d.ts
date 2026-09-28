@@ -19,6 +19,7 @@ type _LocationUrl =
   "/pages/privacy/index" |
   "/pages/profile/index" |
   "/pages/recipe/index" |
+  "/pages/record/detail" |
   "/pages/record/index" |
   "/pages/report/index" |
   "/pages/settings/index" |

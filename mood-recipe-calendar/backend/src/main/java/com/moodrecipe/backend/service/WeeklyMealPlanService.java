@@ -52,6 +52,12 @@ public class WeeklyMealPlanService {
         List<PlanDay> result = planned == null || planned.days() == null || planned.days().isEmpty()
                 ? legacyDays(openid, cookingDays, dishesPerDay, healthGoal, budget, notes)
                 : fromPlanned(planned.days());
+        if (!displayablePlan(result)) {
+            result = legacyDays(openid, cookingDays, dishesPerDay, healthGoal, budget, notes);
+        }
+        if (!displayablePlan(result)) {
+            throw new IllegalStateException("本次菜单数据异常，请重新生成");
+        }
         rememberPlannedDishes(openid, result);
 
         WeeklyMealPlan plan = new WeeklyMealPlan();
@@ -294,10 +300,33 @@ public class WeeklyMealPlanService {
     private List<String> steps(String value) { return readStrings(value); }
     private List<String> readStrings(String value) { try { return json.readValue(value, new TypeReference<List<String>>() {}); } catch (Exception e) { return value == null || value.isBlank() ? List.of() : List.of(value); } }
     private List<PlanDay> readDays(String value) { try { return json.readValue(value, new TypeReference<List<PlanDay>>() {}); } catch (Exception e) { return List.of(); } }
+    private List<PlanDay> visibleDays(String value) {
+        List<PlanDay> days = readDays(value);
+        return displayablePlan(days) ? days : List.of();
+    }
+    private boolean displayablePlan(List<PlanDay> days) {
+        if (days == null || days.isEmpty()) return false;
+        for (PlanDay day : days) {
+            if (day == null || !MenuPlannerAgent.displayableText(day.day(), 12)
+                    || !MenuPlannerAgent.displayableText(day.dishName(), 240)
+                    || !MenuPlannerAgent.displayableText(day.reuseHint(), 240)
+                    || !MenuPlannerAgent.displayableText(day.healthTip(), 240)) return false;
+            List<PlanDish> dishes = dishesFor(day);
+            if (dishes.isEmpty()) return false;
+            for (PlanDish dish : dishes) {
+                if (dish == null || !MenuPlannerAgent.displayableText(dish.name(), 40)
+                        || !displayableTexts(dish.ingredients(), 80) || !displayableTexts(dish.steps(), 240)) return false;
+            }
+        }
+        return true;
+    }
+    private boolean displayableTexts(List<String> values, int maxLength) {
+        return values == null || values.stream().allMatch(value -> MenuPlannerAgent.displayableText(value, maxLength));
+    }
     private List<ShoppingItem> readShopping(String value) { try { return json.readValue(value, new TypeReference<List<ShoppingItem>>() {}); } catch (Exception e) { return List.of(); } }
     private String write(Object value) { try { return json.writeValueAsString(value); } catch (Exception e) { throw new IllegalStateException("计划保存失败"); } }
-    private PlanView view(WeeklyMealPlan plan) { return new PlanView(plan.getId(), readDays(plan.getPlanJson()), readShopping(plan.getShoppingJson()), plan.isFavorite(), plan.getCreatedAt(), readAudit(plan.getAgentJson())); }
-    private PlanSummary summary(WeeklyMealPlan plan) { return new PlanSummary(plan.getId(), plan.getCreatedAt(), plan.isFavorite(), readDays(plan.getPlanJson())); }
+    private PlanView view(WeeklyMealPlan plan) { return new PlanView(plan.getId(), visibleDays(plan.getPlanJson()), readShopping(plan.getShoppingJson()), plan.isFavorite(), plan.getCreatedAt(), readAudit(plan.getAgentJson())); }
+    private PlanSummary summary(WeeklyMealPlan plan) { return new PlanSummary(plan.getId(), plan.getCreatedAt(), plan.isFavorite(), visibleDays(plan.getPlanJson())); }
     private PlanAudit readAudit(String value) { try { return value == null || value.isBlank() ? null : json.readValue(value, PlanAudit.class); } catch (Exception e) { return null; } }
 
     public record GenerateRequest(int people, int days, List<Integer> cookingDays, String healthGoal,

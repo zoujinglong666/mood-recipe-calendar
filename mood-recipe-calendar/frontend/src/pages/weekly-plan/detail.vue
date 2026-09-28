@@ -12,10 +12,10 @@ import { toastError, toastSuccess } from '@/utils/toast'
 definePage({ name: 'weekly-plan-detail', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '这一周吃什么' } })
 
 const router = useRouter()
-const route = useRoute()
 const { previewImage } = useImagePreview()
 const plan = ref<WeeklyPlan>()
 const loading = ref(true)
+const requestedPlanId = ref<number>()
 const swapping = ref(-1)
 const activeDay = ref(0)
 const shoppingOpen = ref(false)
@@ -24,6 +24,8 @@ const coverLoading = ref<Record<string, boolean>>({})
 const activeDish = ref<Record<number, number>>({})
 const sharingDay = ref(-1)
 let coverQueue = Promise.resolve()
+let loadSequence = 0
+let loadStarted = false
 const weekdayNames = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
 const outcomeOptions = [
   { key: 'DONE', label: '做完了' },
@@ -149,14 +151,19 @@ function onOutcomeChange(dayIndex: number, dishIndex: number, dishName: string, 
 }
 
 async function load() {
+  loadStarted = true
+  const sequence = ++loadSequence
+  const id = requestedPlanId.value
   loading.value = true
   try {
-    const id = Number(route.query.id)
-    plan.value = Number.isFinite(id) && id > 0 ? await getWeeklyPlan(id) : await getCurrentPlan()
+    const loaded = id ? await getWeeklyPlan(id) : await getCurrentPlan()
+    if (sequence !== loadSequence) return
+    plan.value = loaded
     activeDay.value = 0
     queueCovers(0)
   }
   catch (error) {
+    if (sequence !== loadSequence) return
     toastError(error, '还没有备餐计划')
     router.back()
   }
@@ -165,7 +172,15 @@ async function load() {
   }
 }
 
-onShow(load)
+onLoad((query) => {
+  const id = Number(query?.id)
+  requestedPlanId.value = Number.isFinite(id) && id > 0 ? id : undefined
+  void load()
+})
+
+onShow(() => {
+  if (!loadStarted) void load()
+})
 
 function queueCovers(dayIndex: number) {
   coverQueue = coverQueue.then(async () => {
@@ -538,9 +553,9 @@ async function shareDay(day: PlanDay, index: number) {
 .dish-cover__count { left: 16rpx; }
 .dish-cover--loading image { opacity: .72; }
 .dish-pager { display: flex; gap: 10rpx; margin-top: 16rpx; overflow-x: auto; }
-.dish-pager__item { display: flex; min-width: 0; min-height: 64rpx; flex: 1; align-items: center; gap: 8rpx; padding: 0 14rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 16rpx; color: var(--mrc-text-sub); transition: transform 160ms ease-out, opacity 160ms ease-out, background-color 160ms ease-out; box-sizing: border-box; }
+.dish-pager__item { display: flex; min-width: 0; min-height: 64rpx; flex: 0 0 172rpx; align-items: center; gap: 8rpx; padding: 0 14rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 16rpx; color: var(--mrc-text-sub); transition: transform 160ms ease-out, opacity 160ms ease-out, background-color 160ms ease-out; box-sizing: border-box; }
 .dish-pager__item text:first-child { display: flex; width: 28rpx; height: 28rpx; flex: 0 0 auto; align-items: center; justify-content: center; border-radius: 50%; background: var(--mrc-border-light); color: var(--mrc-text-sub); font-size: 18rpx; font-weight: 800; }
-.dish-pager__item text:last-child { overflow: hidden; font-size: 21rpx; font-weight: 700; white-space: nowrap; text-overflow: ellipsis; }
+.dish-pager__item text:last-child { min-width: 0; flex: 1; overflow: hidden; font-size: 21rpx; font-weight: 700; white-space: nowrap; text-overflow: ellipsis; }
 .dish-pager__item--active { border-color: var(--mrc-primary); background: var(--mrc-surface-peach); color: var(--mrc-text-strong); }
 .dish-pager__item--active text:first-child { background: var(--mrc-primary); color: var(--mrc-surface); }
 .dish-pager__item:active { transform: scale(.98); opacity: .82; }

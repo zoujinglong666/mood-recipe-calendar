@@ -43,7 +43,7 @@ public final class MenuQualityScorer {
         }
     }
 
-    public record DishInput(String name, String role, List<String> ingredients, Integer cookingTime, String difficulty) {
+    public record DishInput(String name, String role, List<String> ingredients, List<String> steps, Integer cookingTime, String difficulty) {
         public String text() {
             return (name == null ? "" : name) + " " + String.join(" ", ingredients == null ? List.<String>of() : ingredients);
         }

@@ -13,6 +13,12 @@ interface ChooseImageOptions {
   onFail?: () => void
 }
 
+interface ChooseImagesOptions {
+  count: number
+  onSelected: (tempPaths: string[]) => void
+  onFail?: () => void
+}
+
 /** 相册/相机权限被拒时引导用户去设置开启 */
 function guideToSettings() {
   uni.showModal({
@@ -42,17 +48,28 @@ function guideToPrivacy() {
 }
 
 export function chooseImageFile(options: ChooseImageOptions) {
+  chooseImageFiles({
+    count: 1,
+    onSelected: paths => options.onSelected(paths[0]),
+    onFail: options.onFail,
+  })
+}
+
+/** 选择一到九张图片，供菜谱时光机的多图记录使用。 */
+export function chooseImageFiles(options: ChooseImagesOptions) {
   const msg = (err: any) => String(err?.errMsg || '')
 
   uni.chooseMedia({
-    count: 1,
+    count: Math.max(1, Math.min(9, options.count)),
     mediaType: ['image'],
     sourceType: ['album', 'camera'],
     sizeType: ['compressed'],
     success: (res: any) => {
-      const filePath = res?.tempFiles?.[0]?.tempFilePath
-      if (filePath)
-        options.onSelected(filePath)
+      const filePaths = (res?.tempFiles || [])
+        .map((file: any) => file?.tempFilePath)
+        .filter(Boolean)
+      if (filePaths.length)
+        options.onSelected(filePaths)
     },
     fail: (err: any) => {
       const errMsg = msg(err)

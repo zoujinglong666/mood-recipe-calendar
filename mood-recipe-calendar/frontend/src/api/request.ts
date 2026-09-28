@@ -66,12 +66,24 @@ export function getApiBaseUrl(): string {
   return import.meta.env.VITE_API_BASE_URL || 'https://moodrecipe.icu/api'
 }
 
-/** 设置后端地址（持久化到本地，切换后立即生效） */
-export function setApiBaseUrl(url: string) {
-  try {
-    uni.setStorageSync(STORAGE_KEY, url)
+/** 设置后端地址（持久化到本地，切换后立即生效）。非法地址不写入并提示，避免静默回退到生产 */
+export function setApiBaseUrl(url: string): boolean {
+  if (!url || !/^https?:\/\//.test(url)) {
+    uni.showToast({ title: '地址格式不正确', icon: 'none' })
+    return false
   }
-  catch {}
+  try {
+    if (!new URL(url).hostname) {
+      uni.showToast({ title: '地址格式不正确', icon: 'none' })
+      return false
+    }
+    uni.setStorageSync(STORAGE_KEY, url)
+    return true
+  }
+  catch {
+    uni.showToast({ title: '地址格式不正确', icon: 'none' })
+    return false
+  }
 }
 
 export function resolveAssetUrl(url?: string) {
@@ -126,37 +138,30 @@ function handleResponse<T>(res: any, resolve: (v: T) => void, reject: (e: Error)
   }
 }
 
-/**
- * 通用 GET 请求
- */
-export function get<T = any>(url: string, params?: Record<string, any>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const query = params
-      ? `?${Object.entries(params)
-        .filter(([, v]) => v !== undefined && v !== null)
-        .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
-        .join('&')}`
-      : ''
-    uni.request({
-      url: getApiBaseUrl() + url + query,
-      method: 'GET',
-      header: authHeader(),
-      success: (res: any) => handleResponse(res, resolve, reject),
-      fail: err => reject(new Error(err.errMsg || '网络错误')),
-    })
-  })
+/** 默认请求超时（毫秒）。GET/PUT/DELETE 统一使用；POST 涉及 AI 生图等较长链路，保留更长超时 */
+const DEFAULT_TIMEOUT = 15000
+
+interface RequestOptions {
+  url: string
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE'
+  data?: any
+  params?: Record<string, any>
+  timeout?: number
 }
 
-/**
- * 通用 POST 请求
- */
-export function post<T = any>(url: string, data?: any): Promise<T> {
+function uniRequest<T>(opts: RequestOptions): Promise<T> {
+  const query = opts.params
+    ? `?${Object.entries(opts.params)
+      .filter(([, v]) => v !== undefined && v !== null)
+      .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
+      .join('&')}`
+    : ''
   return new Promise((resolve, reject) => {
     uni.request({
-      url: getApiBaseUrl() + url,
-      method: 'POST',
-      timeout: 60000,
-      data,
+      url: getApiBaseUrl() + opts.url + query,
+      method: opts.method,
+      timeout: opts.timeout ?? DEFAULT_TIMEOUT,
+      data: opts.data,
       header: { 'Content-Type': 'application/json', ...authHeader() },
       success: (res: any) => handleResponse(res, resolve, reject),
       fail: err => reject(new Error(err.errMsg || '网络错误')),
@@ -164,36 +169,24 @@ export function post<T = any>(url: string, data?: any): Promise<T> {
   })
 }
 
-/**
- * 通用 PUT 请求
- */
-export function put<T = any>(url: string, data?: any): Promise<T> {
-  return new Promise((resolve, reject) => {
-    uni.request({
-      url: getApiBaseUrl() + url,
-      method: 'PUT',
-      data,
-      header: { 'Content-Type': 'application/json', ...authHeader() },
-      success: (res: any) => handleResponse(res, resolve, reject),
-      fail: err => reject(new Error(err.errMsg || '网络错误')),
-    })
-  })
+/** 通用 GET 请求 */
+export function get<T = any>(url: string, params?: Record<string, any>, timeout?: number): Promise<T> {
+  return uniRequest<T>({ url, method: 'GET', params, timeout })
 }
 
-/**
- * 通用 DELETE 请求
- */
-export function del<T = any>(url: string, data?: any): Promise<T> {
-  return new Promise((resolve, reject) => {
-    uni.request({
-      url: getApiBaseUrl() + url,
-      method: 'DELETE',
-      data,
-      header: { 'Content-Type': 'application/json', ...authHeader() },
-      success: (res: any) => handleResponse(res, resolve, reject),
-      fail: err => reject(new Error(err.errMsg || '网络错误')),
-    })
-  })
+/** 通用 POST 请求（默认超时较长，适配 AI 生图/长链路接口） */
+export function post<T = any>(url: string, data?: any, timeout = 60000): Promise<T> {
+  return uniRequest<T>({ url, method: 'POST', data, timeout })
+}
+
+/** 通用 PUT 请求 */
+export function put<T = any>(url: string, data?: any, timeout?: number): Promise<T> {
+  return uniRequest<T>({ url, method: 'PUT', data, timeout })
+}
+
+/** 通用 DELETE 请求 */
+export function del<T = any>(url: string, data?: any, timeout?: number): Promise<T> {
+  return uniRequest<T>({ url, method: 'DELETE', data, timeout })
 }
 
 /**

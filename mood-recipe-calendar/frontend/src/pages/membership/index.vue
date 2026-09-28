@@ -30,10 +30,10 @@ paymentSupported = typeof (uni as any).requestVirtualPayment === 'function'
 // #endif
 
 const benefits = [
-  { icon: '✦', title: '锅仔管饭智能体', value: '把一家人的吃饭问题交给锅仔', detail: '结合人数、预算、忌口和不做饭日期，安排周菜单、购物清单并随时重排。' },
-  { icon: '∞', title: 'AI 私人菜单', value: '30 天内不限次数定制', detail: '按家中现有食材、时间、口味和健康目标，生成更贴合当下的一餐。' },
-  { icon: '▣', title: '月度画册收藏版', value: '高清导出不限次数', detail: '把当月真实记录、心情和锅仔寄语整理成无水印收藏图，随时保存分享。' },
-  { icon: '⌁', title: '一张会员通行证', value: '不用再逐项购买权益', detail: '30 天内统一覆盖智能规划、私人菜单和高清画册，家庭需求变化时随时回来调整。' },
+  { icon: '600', title: '每月 600 次首页推荐', value: '比普通用户每月多约 510 次', detail: '每天 20 次，按你的心情、口味和忌口推荐；额度次日刷新。' },
+  { icon: '✦', title: '30 天锅仔专属管饭', value: '一个月都有人替你想吃什么', detail: '结合人数、预算、忌口和不做饭日期，安排周菜单、购物清单并随时重排。' },
+  { icon: '▣', title: '每月不限次高清画册', value: '把这个月认真收藏下来', detail: '将当月真实记录、心情和锅仔寄语整理成无水印收藏图，随时保存分享。' },
+  { icon: '⌁', title: '一次开通，30 天全权益可用', value: '不用为每项服务单独付费', detail: '智能规划、私人菜单和高清画册一次覆盖，生活节奏变化时随时回来调整。' },
 ]
 
 const active = computed(() => userStore.userInfo?.isMember === 1

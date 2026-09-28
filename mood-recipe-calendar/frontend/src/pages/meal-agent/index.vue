@@ -8,11 +8,14 @@ import { generateWeeklyPlan, getCurrentPlan, requestWeeklyPlanCompletionNotice, 
 import { navBack } from '@/composables/useNavBar'
 import { STATIC_BASE_URL } from '@/utils/assets'
 import { toastError } from '@/utils/toast'
+import { useUserStore } from '@/stores/user'
+import { ensureLogin, refreshUserInfo } from '@/utils/login'
 
 definePage({ name: 'meal-agent', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '锅仔管饭' } })
 
 const router = useRouter()
 const route = useRoute()
+const userStore = useUserStore()
 const memory = ref<FoodMemoryView>()
 const currentPlan = ref<WeeklyPlan>()
 const loading = ref(true)
@@ -37,6 +40,7 @@ const agentState = ref<MealAgentState>({})
 const agentTurn = ref<MealAgentTurn>()
 const agentBusy = ref(false)
 const householdSelection = ref<string[]>([])
+const otherInput = ref(false)
 let messageId = 0
 let progressTimer: ReturnType<typeof setInterval> | undefined
 
@@ -47,6 +51,10 @@ const agentSteps = [
   { title: '搭配主菜与配菜', copy: '避开拒绝过的菜，减少重复' },
   { title: '合并买菜清单', copy: '复用食材，整理成一张清单' },
 ]
+
+const isMember = computed(() => userStore.userInfo?.isMember === 1
+  && Boolean(userStore.userInfo?.memberExpire)
+  && new Date(userStore.userInfo!.memberExpire!).getTime() > Date.now())
 
 const memoryTags = computed(() => {
   const value = memory.value
@@ -89,12 +97,21 @@ onUnmounted(stopProgress)
 
 async function load() {
   loading.value = true
+  try {
+    await ensureLogin()
+    await refreshUserInfo(true)
+  }
+  catch (error) {
+    toastError(error, '登录后才能安排菜单')
+    loading.value = false
+    return
+  }
   const [memoryResult, planResult] = await Promise.allSettled([fetchFoodMemory(), getCurrentPlan()])
   memory.value = memoryResult.status === 'fulfilled' ? memoryResult.value : undefined
   currentPlan.value = planResult.status === 'fulfilled' ? planResult.value : undefined
   if (memory.value?.explicit.healthGoal)
     healthGoal.value = memory.value.explicit.healthGoal
-  if (!messages.value.length) {
+  if (isMember.value && !messages.value.length) {
     addAgent(agentGreeting.value, memoryTags.value)
     const initialPrompt = typeof route.query.prompt === 'string' ? route.query.prompt.trim() : ''
     await runAgent(initialPrompt, Boolean(initialPrompt))
@@ -121,6 +138,7 @@ async function runAgent(message: string, echo = false, echoLabel = message) {
   try {
     const turn = await runMealAgentTurn(message, agentState.value)
     agentTurn.value = turn
+    otherInput.value = false
     agentState.value = turn.state
     householdSelection.value = turn.action === 'ASK_HOUSEHOLD'
       ? [turn.state.hasElder ? 'elder' : '', turn.state.hasChild ? 'child' : ''].filter(Boolean)
@@ -179,6 +197,22 @@ async function submitComposer() {
   if (!text)
     return
   composerText.value = ''
+  await runAgent(text, true)
+}
+
+async function selectCardOption(value: string, label: string) {
+  if (value === 'other') {
+    otherInput.value = true
+    return
+  }
+  await runAgent(value, true, label)
+}
+
+async function submitOther() {
+  const text = composerText.value.trim()
+  if (!text) return
+  composerText.value = ''
+  otherInput.value = false
   await runAgent(text, true)
 }
 
@@ -254,6 +288,10 @@ function openCurrentPlan() {
   if (currentPlan.value)
     router.push({ name: 'weekly-plan-detail', query: { id: String(currentPlan.value.id) } })
 }
+
+function openMembership() {
+  router.push({ name: 'membership' })
+}
 </script>
 
 <template>
@@ -302,7 +340,7 @@ function openCurrentPlan() {
 
       <view v-if="generating || completed" class="tool-panel" aria-live="polite">
         <view class="tool-panel__head">
-          <text>{{ completed ? '这一周已经排好' : '锅仔正在调用工具' }}</text><text>{{ completed ? '完成' : `${Math.min(activeStep + 1, agentSteps.length)}/${agentSteps.length}` }}</text>
+          <text>{{ completed ? '这一周已经排好' : (isMember ? '锅仔正在调用工具' : '正在生成简单菜单') }}</text><text>{{ completed ? '完成' : `${Math.min(activeStep + 1, agentSteps.length)}/${agentSteps.length}` }}</text>
         </view>
         <view v-for="(step, index) in agentSteps" :key="step.title" class="tool-step" :class="{ 'tool-step--done': completed || index < activeStep, 'tool-step--active': !completed && index === activeStep }">
           <view class="tool-step__state">
@@ -320,7 +358,7 @@ function openCurrentPlan() {
             </text>
           </view>
         </view>
-        <view v-if="completed" class="conversation-rating">
+        <view v-if="completed && isMember" class="conversation-rating">
           <text>这次锅仔问得合适吗？</text>
           <wd-radio-group custom-class="rating-selector" type="button" direction="horizontal" :model-value="rating" @change="onRatingChange">
             <wd-radio value="满意">
@@ -337,15 +375,16 @@ function openCurrentPlan() {
             查看这周菜单
           </button>
         </view>
+        <button v-else-if="completed" class="open-plan-button" @click="openGeneratedPlan">查看这周菜单</button>
       </view>
-      <view v-if="generating || completed" class="composer composer--fixed">
+      <view v-if="isMember && (generating || completed)" class="composer composer--fixed">
         <input v-model="composerText" :disabled="agentBusy" confirm-type="send" placeholder="还想补充什么？直接告诉锅仔" aria-label="告诉锅仔你的安排" @confirm="submitComposer">
         <button :disabled="agentBusy" :aria-label="agentBusy ? '锅仔正在思考' : '发送'" @click="submitComposer">
           {{ agentBusy ? '思考中' : '发送' }}
         </button>
       </view>
 
-      <view v-else class="chat-shell">
+      <view v-else-if="isMember" class="chat-shell">
         <view class="chat-list">
           <view v-for="message in messages" :key="message.id" class="chat-row" :class="`chat-row--${message.role}`">
             <image v-if="message.role === 'agent'" :src="`${STATIC_BASE_URL}/static/guozai/action_08_peek.png`" mode="aspectFit" aria-hidden="true" />
@@ -369,14 +408,14 @@ function openCurrentPlan() {
           </view>
         </view>
 
-        <view v-if="agentTurn && !agentBusy" class="choice-card" :class="{ 'choice-card--cuisine': agentTurn.card.type === 'CUISINE' }" aria-live="polite">
+        <view v-if="agentTurn?.card && !agentBusy" class="choice-card" :class="{ 'choice-card--cuisine': agentTurn.card.type === 'CUISINE' }" aria-live="polite">
           <view class="agent-card__head">
             <view><text>{{ agentTurn.card.title }}</text><text>{{ agentTurn.card.description }}</text></view>
             <image v-if="agentTurn.card.type === 'CUISINE'" :src="`${STATIC_BASE_URL}/static/guozai/action_06_glasses.png`" mode="aspectFit" aria-hidden="true" />
           </view>
           <view v-if="agentTurn.action === 'ASK_HOUSEHOLD'" class="household-picker">
             <view class="choice-grid choice-grid--household">
-              <button v-for="option in agentTurn.card.options" :key="option.value" :class="{ selected: householdSelection.includes(householdValue(option.value)) }" :aria-pressed="householdSelection.includes(householdValue(option.value))" :disabled="agentBusy" @click="toggleHousehold(option.value)">
+              <button v-for="option in agentTurn.card.options" :key="option.value" :class="{ selected: householdSelection.includes(householdValue(option.value)) }" :aria-pressed="householdSelection.includes(householdValue(option.value))" :disabled="agentBusy" @click="option.value === 'other' ? (otherInput = true) : toggleHousehold(option.value)">
                 <text class="selection-mark" aria-hidden="true">
                   {{ householdSelection.includes(householdValue(option.value)) ? '✓' : '' }}
                 </text>
@@ -386,12 +425,14 @@ function openCurrentPlan() {
             <button class="household-confirm" :disabled="!householdSelection.length || agentBusy" @click="confirmHousehold">
               确认选择
             </button>
+            <view v-if="otherInput" class="other-input"><input v-model="composerText" confirm-type="send" placeholder="直接告诉锅仔你的情况" @confirm="submitOther"><button @click="submitOther">发送</button></view>
           </view>
           <view v-else class="choice-grid" :class="{ 'choice-grid--cuisine': agentTurn.card.type === 'CUISINE' }">
-            <button v-for="option in agentTurn.card.options" :key="option.value" :disabled="agentBusy" @click="option.value === 'generate' ? generate() : runAgent(option.value, true, option.label)">
+            <button v-for="option in agentTurn.card.options" :key="option.value" :disabled="agentBusy" @click="option.value === 'generate' ? generate() : selectCardOption(option.value, option.label)">
               {{ option.label }}
             </button>
           </view>
+          <view v-if="otherInput" class="other-input"><input v-model="composerText" confirm-type="send" placeholder="直接告诉锅仔你的想法" @confirm="submitOther"><button @click="submitOther">发送</button></view>
         </view>
 
         <view class="composer composer--fixed">
@@ -403,6 +444,19 @@ function openCurrentPlan() {
         <view class="archive-link" role="button" aria-label="查看备餐档案" @click="router.push({ name: 'weekly-plan' })">
           查看以前的菜单 ›
         </view>
+      </view>
+
+      <view v-else class="simple-plan">
+        <view class="simple-plan__tag">普通用户 · 本周 1 次</view>
+        <text class="simple-plan__title">手动选好，生成简单周菜单</text>
+        <text class="simple-plan__copy">锅仔会按人数、做饭天数和菜数，避开你的忌口，整理出一份基础菜单和买菜清单。</text>
+        <view class="simple-plan__section"><text>几个人吃</text><view><button v-for="value in [1, 2, 3, 4]" :key="value" :class="{ selected: people === value }" @click="people = value">{{ value }} 人</button></view></view>
+        <view class="simple-plan__section"><text>每天几道菜</text><view><button v-for="value in [1, 2, 3]" :key="value" :class="{ selected: dishesPerDay === value }" @click="dishesPerDay = value">{{ value }} 道</button></view></view>
+        <button class="simple-plan__generate" :disabled="generating" @click="generate">生成本周简单菜单</button>
+        <view class="simple-plan__divider" />
+        <text class="simple-plan__member-title">开通会员，交给锅仔来安排</text>
+        <text class="simple-plan__member-copy">每日 20 次首页推荐，专享对话式周菜单和随时重排。</text>
+        <button class="simple-plan__member" @click="openMembership">查看会员权益</button>
       </view>
     </template>
   </view>
@@ -420,6 +474,7 @@ function openCurrentPlan() {
 .current-plan { display: flex; align-items: center; justify-content: space-between; min-height: 100rpx; margin-bottom: 18rpx; padding: 16rpx 22rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 24rpx; background: var(--mrc-surface-sun); box-sizing: border-box; }.current-plan:active { opacity: .74; }.current-plan > view { display: flex; flex-direction: column; gap: 5rpx; }.current-plan__label { color: var(--mrc-accent); font-size: 19rpx; font-weight: 700; }.current-plan__title { color: var(--mrc-text-deep); font-size: 25rpx; font-weight: 700; }.current-plan__action { color: var(--mrc-accent); font-size: 21rpx; font-weight: 700; }
 .tool-panel { overflow: hidden; border: 2rpx solid var(--mrc-border); border-radius: 32rpx; background: linear-gradient(180deg, var(--mrc-surface) 0%, var(--mrc-surface-sun) 100%); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }
 .chat-shell { padding-bottom: 12rpx; }
+.simple-plan { display: flex; flex-direction: column; gap: 18rpx; margin-top: 10rpx; padding: 30rpx 26rpx; border: 2rpx solid var(--mrc-border); border-radius: 30rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); }.simple-plan__tag { align-self: flex-start; padding: 8rpx 14rpx; border-radius: 999rpx; background: var(--mrc-surface-peach); color: var(--mrc-accent); font-size: 19rpx; font-weight: 800; }.simple-plan__title { color: var(--mrc-text-deep); font-size: 30rpx; font-weight: 800; }.simple-plan__copy, .simple-plan__member-copy { color: var(--mrc-text-sub); font-size: 22rpx; line-height: 1.6; }.simple-plan__section { display: flex; flex-direction: column; gap: 12rpx; color: var(--mrc-text-deep); font-size: 23rpx; font-weight: 750; }.simple-plan__section > view { display: flex; gap: 12rpx; }.simple-plan__section button { min-width: 92rpx; min-height: 64rpx; margin: 0; padding: 0 18rpx; border: 2rpx solid var(--mrc-border); border-radius: 18rpx; background: var(--mrc-surface); color: var(--mrc-text-sub); font-size: 21rpx; }.simple-plan__section button::after, .simple-plan__generate::after, .simple-plan__member::after { display: none; }.simple-plan__section button.selected { border-color: var(--mrc-accent); background: var(--mrc-accent-soft); color: var(--mrc-accent); font-weight: 800; }.simple-plan__generate, .simple-plan__member { min-height: 86rpx; margin: 0; border: 0; border-radius: 22rpx; font-size: 24rpx; font-weight: 800; }.simple-plan__generate { background: var(--mrc-primary-grad); color: #fff; }.simple-plan__generate[disabled] { opacity: .55; }.simple-plan__divider { height: 2rpx; background: var(--mrc-border-light); }.simple-plan__member-title { color: var(--mrc-text-deep); font-size: 25rpx; font-weight: 800; }.simple-plan__member { background: var(--mrc-text-deep); color: #fff; }
 .chat-list { display: flex; flex-direction: column; gap: 18rpx; padding: 10rpx 4rpx 22rpx; }
 .chat-row { display: flex; align-items: flex-end; gap: 10rpx; }.chat-row > image { width: 62rpx; height: 62rpx; flex: 0 0 auto; }.chat-row--user { justify-content: flex-end; }.chat-bubble { max-width: 78%; padding: 19rpx 22rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 8rpx 25rpx 25rpx 25rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); color: var(--mrc-text-deep); font-size: 25rpx; line-height: 1.55; box-sizing: border-box; }.chat-row--user .chat-bubble { border-color: var(--mrc-accent); border-radius: 25rpx 8rpx 25rpx 25rpx; background: var(--mrc-accent); color: #fff; }.memory-tags { display: flex; flex-wrap: wrap; gap: 8rpx; margin-top: 12rpx; }.memory-tags text { padding: 7rpx 14rpx; border-radius: 999rpx; background: var(--mrc-surface-peach); color: var(--mrc-text-sub); font-size: 19rpx; line-height: 1.3; }
 .chat-row--thinking { animation: thinking-in .22s ease-out both; }.thinking-bubble { display: flex; align-items: center; gap: 14rpx; color: var(--mrc-text-sub); }.thinking-dots { display: flex; align-items: center; gap: 7rpx; height: 24rpx; }.thinking-dot { width: 11rpx; height: 11rpx; border-radius: 50%; background: var(--mrc-accent); box-shadow: 0 3rpx 8rpx var(--mrc-accent-soft); animation: thinking-dot 1.05s cubic-bezier(.45, 0, .55, 1) infinite; will-change: transform, opacity; }.thinking-dot--2 { animation-delay: .14s; }.thinking-dot--3 { animation-delay: .28s; }

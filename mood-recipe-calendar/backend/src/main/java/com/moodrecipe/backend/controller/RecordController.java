@@ -43,10 +43,10 @@ public class RecordController {
     public ApiResponse<UserRecord> save(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @Valid @RequestBody RecordRequest req) {
         if (!contentSafety.allowsText(openid, req.dishName(), req.moodTag(), req.note()))
             return ApiResponse.error(400, "文字未通过安全检查");
-        boolean fromRecipe = (req.recipeId() != null && !req.recipeId().isBlank())
-                || (req.exposureId() != null && !req.exposureId().isBlank());
-        if ((req.imageUrl() == null || req.imageUrl().isBlank()) && !fromRecipe) {
-            return ApiResponse.error(400, "手动记录请先添加菜品照片");
+        List<String> imageUrls = imageUrls(req);
+        if (imageUrls.size() > 9) return ApiResponse.error(400, "一条记录最多添加 9 张照片");
+        if (imageUrls.isEmpty()) {
+            return ApiResponse.error(400, "请先添加自己拍摄的菜品照片");
         }
         String recordDate = req.recordDate() == null ? LocalDate.now().format(DATE_FMT) : req.recordDate();
         try {
@@ -60,7 +60,8 @@ public class RecordController {
         }
         UserRecord record = new UserRecord();
         record.setOpenid(openid);
-        record.setImageUrl(req.imageUrl() == null || req.imageUrl().isBlank() ? DEFAULT_DISH_IMAGE : req.imageUrl());
+        record.setImageUrl(imageUrls.isEmpty() ? DEFAULT_DISH_IMAGE : imageUrls.get(0));
+        record.setImageUrls(imageUrls);
         record.setDishName(req.dishName());
         record.setMoodTag(req.moodTag());
         record.setNote(req.note());
@@ -89,10 +90,43 @@ public class RecordController {
         return ApiResponse.ok(saved);
     }
 
+    @PutMapping("/{id}")
+    public ApiResponse<UserRecord> update(@PathVariable Long id,
+                                          @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
+                                          @Valid @RequestBody RecordRequest req) {
+        UserRecord record = repository.findById(id).orElse(null);
+        if (record == null) return ApiResponse.error(404, "记录不存在");
+        if (!openid.equals(record.getOpenid())) return ApiResponse.error(403, "无权编辑该记录");
+        List<String> imageUrls = imageUrls(req);
+        if (imageUrls.isEmpty() || imageUrls.size() > 9) return ApiResponse.error(400, "请保留 1 到 9 张照片");
+        if (!contentSafety.allowsText(openid, req.dishName(), req.moodTag(), req.note())) return ApiResponse.error(400, "文字未通过安全检查");
+        record.setImageUrls(imageUrls); record.setImageUrl(imageUrls.get(0)); record.setDishName(req.dishName());
+        record.setMoodTag(req.moodTag()); record.setNote(req.note()); record.setCookingTime(req.cookingTime());
+        if (req.recordDate() != null) record.setRecordDate(req.recordDate());
+        return ApiResponse.ok(repository.save(record));
+    }
+
+    private List<String> imageUrls(RecordRequest req) {
+        List<String> values = req.imageUrls() == null ? List.of() : req.imageUrls();
+        List<String> result = values.stream().filter(value -> value != null && !value.isBlank()).distinct().toList();
+        if (!result.isEmpty()) return result;
+        return req.imageUrl() == null || req.imageUrl().isBlank() ? List.of() : List.of(req.imageUrl());
+    }
+
     /** 某用户全部记录 */
     @GetMapping
     public ApiResponse<List<UserRecord>> list(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
         return ApiResponse.ok(repository.findByOpenidOrderByCreatedAtDesc(openid));
+    }
+
+    /** 获取当前用户的一条记录，用于详情与编辑。 */
+    @GetMapping("/{id}")
+    public ApiResponse<UserRecord> getById(@PathVariable Long id,
+                                           @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
+        UserRecord record = repository.findById(id).orElse(null);
+        if (record == null) return ApiResponse.error(404, "记录不存在");
+        if (!openid.equals(record.getOpenid())) return ApiResponse.error(403, "无权查看该记录");
+        return ApiResponse.ok(record);
     }
 
     /** 某用户某月记录 */

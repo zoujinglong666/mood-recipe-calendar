@@ -24,6 +24,7 @@ final class AgentDishes {
                     name,
                     item.path("role").asText("MAIN"),
                     AgentJson.strings(item, "ingredients"),
+                    AgentJson.strings(item, "steps"),
                     item.hasNonNull("cookingTime") ? item.path("cookingTime").asInt(30) : 30,
                     item.path("difficulty").asText("简单")));
         }

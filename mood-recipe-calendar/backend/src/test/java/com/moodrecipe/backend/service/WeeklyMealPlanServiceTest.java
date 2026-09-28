@@ -120,6 +120,33 @@ class WeeklyMealPlanServiceTest {
         assertEquals(List.of(LocalDate.now().getDayOfWeek().getValue() - 1), request.getValue().cookingDays());
     }
 
+    @Test
+    void replacesInvalidPlannerJsonBeforeItCanReachTheClient() {
+        WeeklyMealPlanRepository plans = mock(WeeklyMealPlanRepository.class);
+        MenuPlannerAgent planner = mock(MenuPlannerAgent.class);
+        GuozaiAgent agent = mock(GuozaiAgent.class);
+        when(plans.save(any(WeeklyMealPlan.class))).thenAnswer(invocation -> {
+            WeeklyMealPlan saved = invocation.getArgument(0);
+            saved.setId(4L);
+            saved.setCreatedAt(LocalDateTime.now());
+            return saved;
+        });
+        when(planner.plan(any(MenuPlannerAgent.PlanRequest.class))).thenReturn(new MenuPlannerAgent.PlanResult(
+                List.of(new MenuPlannerAgent.PlannedDay(0,
+                        List.of(new MenuPlannerAgent.PlannedDish("ç•ªéŒŒ‚ç’ë›×", List.of("ç•ªéŒŒ"),
+                                List.of("ç‚’ç†Ÿå‘³å³å¯"), 20, "简单", "MAIN", null)), "复用食材", "搭配蔬菜")),
+                null, List.of(), List.of(), List.of(), "trace-bad"));
+        when(agent.planWeeklyMenu(anyString(), anyInt(), anyInt(), anyString())).thenReturn(List.of(recipe("番茄炒蛋")));
+        WeeklyMealPlanService service = new WeeklyMealPlanService(plans, agent, planner,
+                mock(AgentMemoryStore.class), mock(AgnesRecipeImageService.class),
+                mock(WechatSubscriptionMessageService.class), new ObjectMapper());
+
+        WeeklyMealPlanService.PlanView plan = service.generate("user-1",
+                new WeeklyMealPlanService.GenerateRequest(1, 1, List.of(0), "BALANCED", false, 1));
+
+        assertEquals("番茄炒蛋", plan.days().get(0).dishes().get(0).name());
+    }
+
     private Recipe recipe(String name) {
         Recipe recipe = new Recipe();
         recipe.setName(name);

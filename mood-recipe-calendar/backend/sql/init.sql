@@ -1,7 +1,7 @@
 ﻿-- ============================================================
 -- 心情菜谱日历 · MySQL 初始化脚本（部署版，MySQL 8.0+）
 -- 使用方式：
---   mysql -uroot -p < init.sql
+--   mysql -uroot -p --default-character-set=utf8mb4 < init.sql
 -- ============================================================
 
 CREATE DATABASE IF NOT EXISTS mood_recipe
@@ -9,6 +9,9 @@ CREATE DATABASE IF NOT EXISTS mood_recipe
   COLLATE utf8mb4_unicode_ci;
 
 USE mood_recipe;
+
+-- 强制本会话使用 utf8mb4：避免客户端默认 latin1/cp1252 时把中文字节双编码成乱码
+SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- ---------- 用户表 ----------
 CREATE TABLE IF NOT EXISTS users (
@@ -33,6 +36,7 @@ CREATE TABLE IF NOT EXISTS user_records (
   id           BIGINT AUTO_INCREMENT PRIMARY KEY,
   openid       VARCHAR(64)   COMMENT '微信 openid',
   image_url    TEXT          COMMENT '菜品图片地址',
+  image_urls   TEXT          COMMENT '菜品图片地址列表，每行一个',
   dish_name    VARCHAR(100)  COMMENT '菜名',
   mood_tag     VARCHAR(20)   COMMENT '心情标签',
   note         VARCHAR(200)  COMMENT '心情日记',
@@ -84,6 +88,7 @@ CREATE TABLE IF NOT EXISTS user_food_preferences (
   favorite_dishes      VARCHAR(500) DEFAULT '' COMMENT '喜欢的菜品',
   avoid_ingredients    VARCHAR(500) DEFAULT '' COMMENT '忌口食材',
   allergens            VARCHAR(500) DEFAULT '' COMMENT '过敏原',
+  normalized_blocked_terms TEXT COMMENT '大模型归一化后的忌口与过敏拦截词 JSON',
   eat_scallion         TINYINT(1) COMMENT '是否吃葱',
   eat_cilantro         TINYINT(1) COMMENT '是否吃香菜',
   spice_level          VARCHAR(16) DEFAULT 'NORMAL' COMMENT '辣度 NORMAL/MILD/SPICY/NONE',
@@ -92,6 +97,12 @@ CREATE TABLE IF NOT EXISTS user_food_preferences (
   updated_at           DATETIME,
   INDEX idx_pref_openid (openid)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='用户口味偏好';
+
+CREATE TABLE IF NOT EXISTS usage_quotas (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY, openid VARCHAR(64) NOT NULL, feature VARCHAR(32) NOT NULL,
+  period_start DATE NOT NULL, used_count INT NOT NULL DEFAULT 0,
+  UNIQUE KEY uk_usage_quota (openid, feature, period_start)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='会员与免费功能配额';
 
 -- ---------- 每周备餐计划 ----------
 CREATE TABLE IF NOT EXISTS weekly_meal_plans (
@@ -596,6 +607,20 @@ SELECT '生熟分开避免交叉污染', '生食与熟食分开处理和存放�
   'FOOD_SAFETY', '生熟分开,交叉污染,砧板,刀具,生肉,清洁', '世界卫生组织：食品安全五大要点',
   'https://www.who.int/activities/promoting-safe-food-handling/five-key-to-safer-food', '2026-09', NOW(), 1, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM cooking_knowledge_chunks WHERE title='生熟分开避免交叉污染');
+
+-- ---------- 今日菜单缓存（TodayBoard，v2 每日钩子） ----------
+CREATE TABLE IF NOT EXISTS daily_menus (
+  id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+  openid      VARCHAR(64)  NOT NULL COMMENT '微信 openid',
+  menu_date   DATE         NOT NULL COMMENT '菜单归属日期',
+  recipe_id   BIGINT       NOT NULL COMMENT '当日菜单对应的菜谱',
+  guozai_line VARCHAR(200) COMMENT '锅仔今日一句话',
+  source      VARCHAR(16)  NOT NULL DEFAULT 'POOL' COMMENT 'POOL=菜谱池挑选 AI=生成（预留）',
+  variant     INT          NOT NULL DEFAULT 0 COMMENT '当日换了几次',
+  created_at  DATETIME,
+  updated_at  DATETIME,
+  UNIQUE KEY uk_daily_menu_openid_date (openid, menu_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='今日菜单缓存（TodayBoard）';
 
 SELECT '初始化完成' AS status;
 SELECT COUNT(*) AS total_recipes FROM recipes;

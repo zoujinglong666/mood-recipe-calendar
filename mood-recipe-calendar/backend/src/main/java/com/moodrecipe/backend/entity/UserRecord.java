@@ -1,12 +1,14 @@
 package com.moodrecipe.backend.entity;
 
 import jakarta.persistence.*;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 用户每日伙食记录（对应 PRD user_records）
@@ -30,6 +32,16 @@ public class UserRecord {
     /** 菜品图片地址 */
     @Column(name = "image_url", columnDefinition = "TEXT")
     private String imageUrl;
+
+    @Column(name = "image_urls", columnDefinition = "TEXT")
+    private String imageUrlsJson;
+
+    @JsonProperty("imageUrls")
+    public List<String> getImageUrls() {
+        if (imageUrlsJson == null || imageUrlsJson.isBlank()) return imageUrl == null || imageUrl.isBlank() ? List.of() : List.of(imageUrl);
+        return java.util.Arrays.stream(imageUrlsJson.split("\\n")).filter(value -> !value.isBlank()).toList();
+    }
+    public void setImageUrls(List<String> urls) { this.imageUrlsJson = String.join("\n", urls == null ? List.of() : urls); }
 
     /** 菜名 */
     @Column(name = "dish_name")

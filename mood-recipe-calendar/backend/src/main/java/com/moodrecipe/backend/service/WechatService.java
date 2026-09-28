@@ -122,6 +122,12 @@ public class WechatService {
             return userRepository.save(u);
         });
 
+        // first_use_date 兜底：该字段后补，历史用户可能为 NULL；缺失会让 7 日留存 cohort 无法归因
+        if (user.getFirstUseDate() == null) {
+            user.setFirstUseDate(java.time.LocalDate.now());
+            user = userRepository.save(user);
+        }
+
         // session_key 每次登录都可能变化。未配置加密密钥时保留登录能力，虚拟支付接口会明确拒绝。
         if (sessionKey != null && !sessionKey.isBlank() && sessionKeyCipher.isConfigured()) {
             user.setSessionKeyEncrypted(sessionKeyCipher.encrypt(sessionKey));

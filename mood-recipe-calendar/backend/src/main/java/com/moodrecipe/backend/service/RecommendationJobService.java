@@ -63,14 +63,20 @@ public class RecommendationJobService {
     }
 
     public synchronized JobView start(String openid, String mood, RecommendationWork work) {
+        return start(openid, mood, () -> { }, work);
+    }
+
+    /** 仅当确实创建新任务时执行预留动作，避免轮询或复用进行中任务重复扣次。 */
+    public synchronized JobView start(String openid, String mood, Runnable onNewJob, RecommendationWork work) {
         cleanup();
-        String activeKey = openid + "\u0000" + mood;
+        String activeKey = openid;
         String existingId = activeJobs.get(activeKey);
         if (existingId != null) {
             Job existing = jobs.get(existingId);
             if (existing != null && existing.status == JobStatus.RUNNING) return existing.view();
         }
 
+        onNewJob.run();
         Job job = new Job(UUID.randomUUID().toString(), openid);
         jobs.put(job.id, job);
         activeJobs.put(activeKey, job.id);

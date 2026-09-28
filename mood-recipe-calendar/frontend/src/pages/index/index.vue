@@ -1,35 +1,12 @@
-﻿<script setup lang="ts">
-import { computed, ref } from 'vue'
+﻿<script lang="ts">
 import { STATIC_BASE_URL } from '@/utils/assets'
-import Icon from '../../components/common/Icon.vue'
-import { ensureLogin } from '../../utils/login'
-import { toastError } from '../../utils/toast'
-import { fetchCompanionMessage, fetchRecordsByMonth, type CompanionMessage, type RecordItem } from '../../api/records'
 
-definePage({ name: 'home', layout: 'tabbar', style: { navigationStyle: 'custom', navigationBarTitleText: '首页' } })
-const router = useRouter()
 interface HeroGuozai {
   img: string
   name: string
 }
-const isBouncing = ref(false)
-function bounceGuozai() {
-  isBouncing.value = true
-  setTimeout(() => {
-    isBouncing.value = false
-    if (companion.value.actionTarget === 'meal-agent') {
-      router.push({ name: 'meal-agent', query: { prompt: companion.value.actionPrompt || companion.value.actionText } })
-      return
-    }
-    router.push({ name: 'mood' })
-  }, 400)
-}
 
-const now = new Date()
-const weekCN = ['日', '一', '二', '三', '四', '五', '六']
-const dateTitle = `${now.getMonth() + 1}月${now.getDate()}日 周${weekCN[now.getDay()]}`
-const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-/** 全部锅仔形象池（点击切换时遍历全部，不受时间段限制） */
+/** 全部锅仔形象池（点击切换时遍历全部，不受时间段限制）。提到模块作用域，避免每次组件实例化重建 */
 const ALL_HERO_GUOZAI: HeroGuozai[] = [
   { img: STATIC_BASE_URL + '/static/guozai/action_01_bowl.png', name: '端碗锅仔' },
   { img: STATIC_BASE_URL + '/static/guozai/action_02_soup.png', name: '喝汤锅仔' },
@@ -79,12 +56,46 @@ const HERO_GUOZAI_BY_PERIOD: Record<string, HeroGuozai[]> = {
     { img: STATIC_BASE_URL + '/static/guozai/action_07_empty.png', name: '空空锅仔' },
   ],
 }
+const weekCN = ['日', '一', '二', '三', '四', '五', '六']
 function getPeriod(hour: number) {
   return hour < 5 ? 'late' : hour < 11 ? 'morning' : hour < 15 ? 'noon' : hour < 18 ? 'afternoon' : hour < 22 ? 'evening' : 'late'
 }
+</script>
+
+<script setup lang="ts">
+import { computed, ref } from 'vue'
+import Icon from '../../components/common/Icon.vue'
+import { ensureLogin } from '../../utils/login'
+import { toastError } from '../../utils/toast'
+import { fetchCompanionMessage, fetchRecordsByMonth, type CompanionMessage, type RecordItem } from '../../api/records'
+import { fetchRecipeQuota, type UsageQuotaView } from '../../api/recipes'
+import { fetchDailyBoard, refreshDailyBoard, type DailyBoard } from '../../api/dailyMenu'
+
+definePage({ name: 'home', layout: 'tabbar', style: { navigationStyle: 'custom', navigationBarTitleText: '首页' } })
+const router = useRouter()
+const isBouncing = ref(false)
+function bounceGuozai() {
+  isBouncing.value = true
+  setTimeout(() => {
+    isBouncing.value = false
+    if (companion.value.actionTarget === 'meal-agent') {
+      router.push({ name: 'meal-agent', query: { prompt: companion.value.actionPrompt || companion.value.actionText } })
+      return
+    }
+    router.push({ name: 'mood' })
+  }, 400)
+}
+
+/** 当前时间，每次 onShow 刷新，避免跨天/跨月后日期与日历停留在打开时刻 */
+const now = ref(new Date())
+const dateTitle = computed(() => {
+  const d = now.value
+  return `${d.getMonth() + 1}月${d.getDate()}日 周${weekCN[d.getDay()]}`
+})
+const currentMonth = computed(() => `${now.value.getFullYear()}-${String(now.value.getMonth() + 1).padStart(2, '0')}`)
 /** 初始按时间段选一个锅仔，找到它在全局池中的索引 */
-const initialPeriodPool = HERO_GUOZAI_BY_PERIOD[getPeriod(now.getHours())] || HERO_GUOZAI_BY_PERIOD.morning
-const initialGuozai = initialPeriodPool[now.getDate() % initialPeriodPool.length]
+const initialPeriodPool = HERO_GUOZAI_BY_PERIOD[getPeriod(now.value.getHours())] || HERO_GUOZAI_BY_PERIOD.morning
+const initialGuozai = initialPeriodPool[now.value.getDate() % initialPeriodPool.length]
 const initialGlobalIndex = Math.max(0, ALL_HERO_GUOZAI.findIndex(g => g.img === initialGuozai.img))
 const heroGuozaiIndex = ref(initialGlobalIndex)
 const heroGuozai = computed(() => ALL_HERO_GUOZAI[heroGuozaiIndex.value % ALL_HERO_GUOZAI.length])
@@ -96,7 +107,13 @@ function cycleHeroGuozai() {
   setTimeout(() => { isHeroCycling.value = false }, 400)
 }
 const monthRecords = ref<RecordItem[]>([])
-const companion = ref<CompanionMessage>(localCompanion(now.getHours()))
+const companion = ref<CompanionMessage>(localCompanion(now.value.getHours()))
+const recipeQuota = ref<UsageQuotaView>()
+const recipeQuotaText = computed(() => {
+  const quota = recipeQuota.value
+  if (!quota) return '抽一道今日治愈菜'
+  return quota.member ? `会员今日还可推荐 ${quota.remaining} 次` : `今日还可推荐 ${quota.remaining}/3 次`
+})
 const monthRecordMap = computed(() => {
   const map = new Map<number, RecordItem>()
   monthRecords.value.forEach((record) => {
@@ -105,7 +122,7 @@ const monthRecordMap = computed(() => {
   })
   return map
 })
-const currentMonthLabel = `${now.getMonth() + 1}月食光`
+const currentMonthLabel = computed(() => `${now.value.getMonth() + 1}月食光`)
 const latestMonthRecord = computed(() => [...monthRecords.value].sort((a, b) => b.recordDate.localeCompare(a.recordDate))[0])
 const calendarMemory = computed(() => {
   const record = latestMonthRecord.value
@@ -114,24 +131,30 @@ const calendarMemory = computed(() => {
   return `${day}号的${record.dishName}，锅仔还记得。`
 })
 const calCells = computed(() => {
-  const year = now.getFullYear()
-  const month = now.getMonth()
+  const year = now.value.getFullYear()
+  const month = now.value.getMonth()
   const firstDay = new Date(year, month, 1).getDay()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const cells: ({ d: number; isToday: boolean; record?: RecordItem } | null)[] = []
   for (let i = 0; i < firstDay; i++) cells.push(null)
-  for (let d = 1; d <= daysInMonth; d++) cells.push({ d, isToday: d === now.getDate(), record: monthRecordMap.value.get(d) })
+  for (let d = 1; d <= daysInMonth; d++) cells.push({ d, isToday: d === now.value.getDate(), record: monthRecordMap.value.get(d) })
   while (cells.length % 7 !== 0) cells.push(null)
   return cells
 })
+const loading = ref(false)
 async function loadData() {
+  if (loading.value) return
+  loading.value = true
   try {
     const openid = await ensureLogin()
-    const [records] = await Promise.all([fetchRecordsByMonth(openid, currentMonth), loadCompanion()])
+    const [records, quota] = await Promise.all([fetchRecordsByMonth(openid, currentMonth.value), fetchRecipeQuota(), loadCompanion(), loadTodayBoard()])
     monthRecords.value = records
+    recipeQuota.value = quota
   } catch (e: any) {
     if (e?.message !== 'NOT_LOGGED_IN')
       toastError(e, '加载失败，请稍后重试')
+  } finally {
+    loading.value = false
   }
 }
 
@@ -162,7 +185,39 @@ async function loadCompanion() {
     companion.value = localCompanion(hour)
   }
 }
-onShow(loadData)
+/** 今日菜单（TodayBoard）：打开即有的零输入答案；加载失败静默，不影响首屏其余内容。 */
+const todayBoard = ref<DailyBoard>()
+const boardRefreshing = ref(false)
+async function loadTodayBoard() {
+  try {
+    todayBoard.value = await fetchDailyBoard()
+  }
+  catch {
+    todayBoard.value = undefined
+  }
+}
+async function refreshBoard() {
+  if (boardRefreshing.value) return
+  boardRefreshing.value = true
+  try {
+    todayBoard.value = await refreshDailyBoard()
+  }
+  catch (e: any) {
+    toastError(e, '今天没有别的菜可换啦')
+  }
+  finally {
+    boardRefreshing.value = false
+  }
+}
+function goCookToday() {
+  const id = todayBoard.value?.recipe?.id
+  if (id) router.push({ name: 'recipe', query: { recipeId: String(id) } })
+}
+
+onShow(() => {
+  now.value = new Date()
+  loadData()
+})
 const MOODS = ['开心', '平静', '疲惫', '焦虑', '难过', '嘴馋', '低落', '想家', '期待', '满足', '得意', '害羞']
 function gotoLucky() { router.push({ name: 'recipe', query: { mood: MOODS[Math.floor(Math.random() * MOODS.length)], random: '1' } }) }
 function goto(name: string, q?: Record<string, string>) { router.push({ name, query: q || {} }) }
@@ -197,10 +252,33 @@ function openCalendarCell(cell: { d: number; record?: RecordItem }) {
         <view class="home-hero__spark home-hero__spark--one" /><view class="home-hero__spark home-hero__spark--two" />
       </view>
 
+      <!-- 今日菜单（TodayBoard）：打开即有的零输入每日答案 -->
+      <view v-if="todayBoard" class="home-board" role="button" :aria-label="`锅仔今天留了${todayBoard.recipe.name}，打开看做法`" @click="goCookToday">
+        <view class="home-board__text">
+          <text class="home-board__eyebrow">锅仔今天给你留了</text>
+          <text class="home-board__name">{{ todayBoard.recipe.name }}</text>
+          <text class="home-board__line">{{ todayBoard.guozaiLine }}</text>
+          <view class="home-board__meta">
+            <text v-if="todayBoard.recipe.cookingTime">{{ todayBoard.recipe.cookingTime }} 分钟</text>
+            <text v-if="todayBoard.recipe.difficulty">· {{ todayBoard.recipe.difficulty }}</text>
+          </view>
+          <view class="home-board__ops">
+            <view class="home-board__swap" role="button" aria-label="换一道" @click.stop="refreshBoard">
+              <text>{{ boardRefreshing ? '锅仔再想想…' : '换一道' }}</text>
+            </view>
+            <view class="home-board__cook" role="button" aria-label="去做这道菜" @click.stop="goCookToday">
+              <text>去做这道菜</text><text class="home-board__cook-arrow">›</text>
+            </view>
+          </view>
+        </view>
+        <image v-if="todayBoard.recipe.image" class="home-board__img" :src="todayBoard.recipe.image" mode="aspectFill" />
+        <image v-else class="home-board__img home-board__img--fallback" :src="STATIC_BASE_URL + '/static/guozai/action_11_cooking.png'" mode="aspectFit" />
+      </view>
+
       <view class="home-lucky" role="button" aria-label="让锅仔随机推荐一道菜" @click="gotoLucky">
         <view class="home-lucky__content">
           <image class="home-lucky__guozai" :src="STATIC_BASE_URL + '/static/guozai/action_10_thinking.png'" mode="aspectFit" />
-          <view><text class="home-lucky__eyebrow">没想法的时候</text><text class="home-lucky__main">让锅仔替你决定</text><text class="home-lucky__sub">抽一道今日治愈菜</text></view>
+          <view><text class="home-lucky__eyebrow">没想法的时候</text><text class="home-lucky__main">让锅仔替你决定</text><text class="home-lucky__sub">{{ recipeQuotaText }}</text></view>
         </view>
         <view class="home-lucky__arrow">›</view>
       </view>
@@ -276,6 +354,21 @@ function openCalendarCell(cell: { d: number; record?: RecordItem }) {
 /* 我的入口：hero 右上角圆形锅仔头像（小程序端 navbar 右侧被胶囊遮挡，故移入内容区） */
 .home-hero__profile { position: absolute; z-index: 4; top: 24rpx; right: 24rpx; width: 88rpx; height: 88rpx; border: 2rpx solid var(--mrc-border); border-radius: 50%; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-sm); display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .home-hero__profile image { width: 58rpx; height: 58rpx; }
+
+/* 今日菜单（TodayBoard）：白卡弱于 lucky 强 CTA，避免同屏抢眼；点击整卡进做法页。 */
+.home-board { display: flex; align-items: stretch; gap: 20rpx; margin-bottom: 24rpx; padding: 26rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 32rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); box-sizing: border-box; }
+.home-board__text { display: flex; flex: 1; min-width: 0; flex-direction: column; }
+.home-board__eyebrow { color: var(--mrc-text-sub); font-size: 20rpx; }
+.home-board__name { margin-top: 6rpx; color: var(--mrc-text-deep); font-size: 34rpx; font-weight: 800; }
+.home-board__line { margin-top: 8rpx; color: var(--mrc-text); font-size: 22rpx; line-height: 1.4; }
+.home-board__meta { display: flex; gap: 8rpx; margin-top: 8rpx; color: var(--mrc-text-sub); font-size: 20rpx; }
+.home-board__ops { display: flex; align-items: center; gap: 20rpx; margin-top: auto; padding-top: 16rpx; }
+.home-board__swap { padding: 10rpx 22rpx; border: 2rpx solid var(--mrc-border); border-radius: 999rpx; color: var(--mrc-text-deep); font-size: 22rpx; font-weight: 600; }
+.home-board__swap:active { opacity: 0.7; }
+.home-board__cook { display: flex; align-items: center; color: var(--mrc-primary); font-size: 22rpx; font-weight: 700; }
+.home-board__cook-arrow { margin-left: 4rpx; font-size: 30rpx; line-height: 20rpx; }
+.home-board__img { width: 176rpx; height: 176rpx; flex-shrink: 0; border-radius: 24rpx; background: var(--mrc-surface-2); }
+.home-board__img--fallback { background: var(--mrc-surface-peach); }
 
 /* 唯一强 CTA，减少一页内互相抢眼的高饱和元素。 */
 .home-lucky { display: flex; align-items: center; justify-content: space-between; min-height: 156rpx; padding: 24rpx 32rpx; border-radius: 32rpx; background: var(--mrc-primary-grad); box-shadow: var(--mrc-shadow-coral), var(--mrc-gloss); box-sizing: border-box; }

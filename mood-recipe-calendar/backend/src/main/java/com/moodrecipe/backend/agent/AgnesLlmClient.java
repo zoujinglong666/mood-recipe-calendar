@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -31,7 +30,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * 提示词与用户正文一律不写入日志。
  */
-@Service
 public class AgnesLlmClient implements LlmClient {
 
     private static final Logger log = LoggerFactory.getLogger(AgnesLlmClient.class);

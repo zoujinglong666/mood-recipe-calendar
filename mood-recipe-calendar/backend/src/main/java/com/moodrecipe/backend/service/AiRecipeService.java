@@ -94,7 +94,9 @@ public class AiRecipeService {
                 用户补充的烹饪偏好是：「%s」。只在合理且安全的范围内遵循它；如果为空则忽略。
                 只返回一个合法 JSON 对象，不要 Markdown、不要解释。格式严格为：
                 {"name":"菜名","description":"30字以内的治愈理由","ingredients":["食材及用量"],"steps":["步骤"],"cookingTime":30,"difficulty":"简单","moodTags":"%s","season":"四季"}
-                规则：3-7 种常见食材；3-5 个步骤；20-45 分钟；食材用量明确；不虚构功效。
+                规则：3-7 种常见食材；4-6 个步骤；20-45 分钟；食材用量明确；不虚构功效。
+                步骤拆分硬性要求：必须把做法拆成多个独立步骤，每一步只做一件事（如「切配」「热锅倒油」分开），
+                每步 15-30 字、以动词开头、不使用分号连接多步、不把整道菜写进一个步骤里。
                 """.formatted(mood, sanitizePreference(preference), mood);
 
         Optional<ChatResult> result = chatRaw(systemPrompt, userPrompt, 0.8, 1024, progress);
@@ -160,7 +162,8 @@ public class AiRecipeService {
                 请生成 %d 道互不重复、普通家庭能完成的中国家常菜，主菜和配菜比例合理。
                 只返回合法 JSON 数组，不要 Markdown、不要解释。每项格式严格为：
                 {"name":"菜名","description":"20字以内搭配理由","ingredients":["食材及用量"],"steps":["步骤"],"cookingTime":30,"difficulty":"简单","moodTags":"平静","season":"四季"}
-                规则：菜名不得重复；每道3-7种常见食材、3-5步、10-60分钟；用量明确；严格遵守忌口。
+                规则：菜名不得重复；每道3-7种常见食材、4-6步、10-60分钟；用量明确；严格遵守忌口。
+                步骤必须拆成多个独立步骤，每步只做一件事、15-30字、动词开头，不要用分号把多步合并成一句。
                 """.formatted(sanitizePreference(context), safeCount);
         return chatRaw(persona.systemPrompt(), prompt, 0.85, 6000, ignored -> { })
                 .flatMap(result -> parseRecipeList(result.content(), safeCount));
@@ -279,7 +282,7 @@ public class AiRecipeService {
             JsonNode node = objectMapper.readTree(json);
             String name = node.path("name").asText().trim();
             List<String> ingredients = readTextArray(node.path("ingredients"));
-            List<String> steps = readTextArray(node.path("steps"));
+            List<String> steps = normalizeSteps(readTextArray(node.path("steps")));
             int cookingTime = node.path("cookingTime").asInt(30);
             if (name.isEmpty() || ingredients.isEmpty() || steps.isEmpty()) return Optional.empty();
 
@@ -318,6 +321,29 @@ public class AiRecipeService {
             log.warn("AI 周菜单解析失败: {}", ex.toString());
             return Optional.empty();
         }
+    }
+
+    /**
+     * 兜底拆分：模型偶尔把整道菜塞进一个步骤（用分号/句号连接多步）。
+     * 当步骤过少且单步过长时，按分隔符切成多步，保证前端能分步展示。
+     */
+    private List<String> normalizeSteps(List<String> raw) {
+        if (raw.isEmpty()) return raw;
+        List<String> result = new ArrayList<>();
+        for (String step : raw) {
+            String value = step.trim();
+            if (value.isEmpty()) continue;
+            // 单步超过 40 字且含分号/句号，视为多步合并，拆开
+            if (value.length() > 40 && value.matches(".*[；;。].*")) {
+                for (String part : value.split("[；;。]+")) {
+                    String piece = part.trim().replaceAll("^[，,、]+", "");
+                    if (!piece.isEmpty()) result.add(piece);
+                }
+            } else {
+                result.add(value);
+            }
+        }
+        return result.isEmpty() ? raw : result;
     }
 
     private List<String> readTextArray(JsonNode node) {

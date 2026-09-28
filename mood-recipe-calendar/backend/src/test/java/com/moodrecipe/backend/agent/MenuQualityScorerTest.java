@@ -107,6 +107,6 @@ class MenuQualityScorerTest {
     }
 
     private MenuQualityScorer.DishInput dish(String name, List<String> ingredients) {
-        return new MenuQualityScorer.DishInput(name, "MAIN", ingredients, 30, "简单");
+        return new MenuQualityScorer.DishInput(name, "MAIN", ingredients, List.of(), 30, "简单");
     }
 }

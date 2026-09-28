@@ -61,12 +61,17 @@ async function load() {
     records.value = await fetchRecords(await ensureLogin())
     const targetId = Number(uni.getStorageSync('mrc_timeline_record_id'))
     if (targetId) {
-      selected.value = records.value.find(item => item.id === targetId) || null
+      const target = records.value.find(item => item.id === targetId)
       uni.removeStorageSync('mrc_timeline_record_id')
+      if (target) openRecordDetail(target)
     }
   }
   catch (e: any) { toastError(e, '时光机加载失败，请重试') }
   finally { loading.value = false }
+}
+
+function openRecordDetail(record: RecordItem) {
+  router.push({ name: 'record-detail', query: { id: String(record.id) } })
 }
 
 async function openLinkedRecipe(restart: boolean) {
@@ -126,6 +131,11 @@ function previewRecordPhoto(record: RecordItem | null) {
     loop: photos.length > 1,
   })
 }
+
+function previewRecordImage(record: RecordItem, index: number) {
+  const images = record.imageUrls?.length ? record.imageUrls : [record.imageUrl]
+  previewImage({ images, startPosition: index, closeOnClick: true, loop: images.length > 1 })
+}
 </script>
 
 <template>
@@ -154,9 +164,9 @@ function previewRecordPhoto(record: RecordItem | null) {
         <view v-for="(item, itemIndex) in group.items" :key="item.id" class="timeline-item">
           <view class="timeline-date"><text>{{ dayNumber(item.recordDate) }}</text><text>{{ weekday(item.recordDate) }}</text></view>
           <view class="timeline-rail"><view class="timeline-dot" /><view class="timeline-rail__line" /></view>
-          <view class="timeline-card pressable" :class="{ 'timeline-card--alt': itemIndex % 2 }" role="button" :aria-label="`查看 ${item.recordDate} 的${item.dishName}记录`" @click="selected=item">
-            <view class="timeline-card__photo">
-              <image class="timeline-card__img" :src="item.imageUrl" mode="aspectFill" lazy-load :aria-label="item.dishName" />
+          <view class="timeline-card pressable" :class="{ 'timeline-card--alt': itemIndex % 2 }" role="button" :aria-label="`查看 ${item.recordDate} 的${item.dishName}记录`" @click="openRecordDetail(item)">
+            <view class="timeline-card__photo" :class="`timeline-card__photo--${item.imageUrls?.length || 1}`">
+              <image v-for="(image, imageIndex) in item.imageUrls || [item.imageUrl]" :key="image" class="timeline-card__img" :src="image" mode="aspectFill" lazy-load :aria-label="item.dishName" @click.stop="previewRecordImage(item, imageIndex)" />
               <view class="timeline-card__shade" />
               <view class="timeline-card__caption">
                 <text class="timeline-card__eyebrow">{{ item.moodTag }}时，吃了</text>
@@ -216,6 +226,7 @@ function previewRecordPhoto(record: RecordItem | null) {
 .timeline-card--alt { border-color: var(--mrc-border); }
 .timeline-card__photo { position: relative; height: 330rpx; overflow: hidden; background: var(--mrc-surface-2); }
 .timeline-card__img { width: 100%; height: 100%; }
+.timeline-card__photo--2, .timeline-card__photo--3, .timeline-card__photo--4, .timeline-card__photo--5, .timeline-card__photo--6, .timeline-card__photo--7, .timeline-card__photo--8, .timeline-card__photo--9 { display: grid; gap: 4rpx; padding: 4rpx; box-sizing: border-box; }.timeline-card__photo--2 { grid-template-columns: repeat(2, 1fr); }.timeline-card__photo--3, .timeline-card__photo--4 { grid-template-columns: repeat(2, 1fr); }.timeline-card__photo--5, .timeline-card__photo--6, .timeline-card__photo--7, .timeline-card__photo--8, .timeline-card__photo--9 { grid-template-columns: repeat(3, 1fr); }
 .timeline-card__shade { position: absolute; inset: 28% 0 0; background: linear-gradient(transparent, rgba(25, 17, 12, .84)); }
 .timeline-card__caption { position: absolute; z-index: 2; right: 24rpx; bottom: 24rpx; left: 24rpx; padding-right: 66rpx; }
 .timeline-card__eyebrow, .timeline-card__dish, .timeline-card__meta { display: block; color: #fff; text-shadow: 0 2rpx 10rpx rgba(20, 12, 8, .32); }

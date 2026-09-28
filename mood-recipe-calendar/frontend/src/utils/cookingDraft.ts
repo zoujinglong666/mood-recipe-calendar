@@ -29,7 +29,6 @@ export function saveRecordDraft(recipe: RecipeItem, mood: string) {
     mood,
     recipeId: recipe.id,
     exposureId: recipe.exposureId,
-    image: recipe.image,
     cookingTime: recipe.cookingTime,
     clientRequestId: createRequestId(),
     source: 'recipe',

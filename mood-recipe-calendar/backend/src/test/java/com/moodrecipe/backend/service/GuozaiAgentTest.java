@@ -65,6 +65,28 @@ class GuozaiAgentTest {
         assertTrue(message.actionPrompt().contains("中秋"));
     }
 
+    /** 节日寄语（AI 不可用时的兜底）必须包含一句温暖祝福，避免只剩事实陈述、显得单调。 */
+    @Test
+    void festivalFallbackContainsWarmBlessing() {
+        RecipeRepository recipes = mock(RecipeRepository.class);
+        RecipeInteractionRepository interactions = mock(RecipeInteractionRepository.class);
+        UserFoodPreferenceRepository preferences = mock(UserFoodPreferenceRepository.class);
+
+        // 中秋前一天：AI 返回 empty，触发 festivalFallback
+        CompanionMessageService.Message midAutumn = buildAgent(recipes, interactions, preferences)
+                .companion("user-1", 18, LocalDate.of(2026, 9, 24));
+        assertEquals("MID_AUTUMN", midAutumn.scene());
+        assertTrue(midAutumn.message().contains("平安顺遂"),
+                "中秋兜底寄语应包含祝福，实际为：" + midAutumn.message());
+
+        // 国庆期间同样应有祝福
+        CompanionMessageService.Message nationalDay = buildAgent(recipes, interactions, preferences)
+                .companion("user-1", 18, LocalDate.of(2026, 10, 1));
+        assertEquals("NATIONAL_DAY", nationalDay.scene());
+        assertTrue(nationalDay.message().contains("愿你"),
+                "国庆兜底寄语应包含祝福，实际为：" + nationalDay.message());
+    }
+
     private GuozaiAgent buildAgent(RecipeRepository recipes, RecipeInteractionRepository interactions,
                                    UserFoodPreferenceRepository preferences, AiRecipeService ai,
                                    RecommendationExposureService exposures) {
@@ -205,6 +227,80 @@ class GuozaiAgentTest {
         Recipe result = buildAgent(recipes, interactions, preferences, ai, exposures)
                 .recommend("user-1", "平静", null);
         assertEquals("番茄炒蛋", result.getName());
+    }
+
+    @Test
+    void rejectsShrimpRecipeWhenUserWritesAllergyAsNaturalLanguage() {
+        RecipeRepository recipes = mock(RecipeRepository.class);
+        RecipeInteractionRepository interactions = mock(RecipeInteractionRepository.class);
+        UserFoodPreferenceRepository preferences = mock(UserFoodPreferenceRepository.class);
+        AiRecipeService ai = mock(AiRecipeService.class);
+        RecommendationExposureService exposures = mock(RecommendationExposureService.class);
+        Recipe shrimpDish = recipe(null, "虾仁炒蛋", "虾仁 200g，鸡蛋 3 个");
+        Recipe tomatoDish = recipe(2L, "番茄炒蛋", "番茄 2 个，鸡蛋 3 个");
+        UserFoodPreference preference = new UserFoodPreference();
+        preference.setAllergens("对虾过敏");
+
+        when(ai.recommendWithPersona(anyString(), anyString(), any())).thenReturn(Optional.of(shrimpDish));
+        when(preferences.findByOpenid("user-1")).thenReturn(Optional.of(preference));
+        when(recipes.save(shrimpDish)).thenReturn(shrimpDish);
+        when(interactions.findTop30ByOpenidOrderByCreatedAtDesc("user-1")).thenReturn(List.of());
+        when(interactions.findByOpenidAndAction("user-1", "DISLIKE")).thenReturn(List.of());
+        when(recipes.findAiWithImages()).thenReturn(List.of(tomatoDish));
+
+        Recipe result = buildAgent(recipes, interactions, preferences, ai, exposures)
+                .recommend("user-1", "平静", null);
+
+        assertEquals("番茄炒蛋", result.getName());
+    }
+
+    @Test
+    void rejectsRecipeUsingSavedModelNormalizedTerms() {
+        RecipeRepository recipes = mock(RecipeRepository.class);
+        RecipeInteractionRepository interactions = mock(RecipeInteractionRepository.class);
+        UserFoodPreferenceRepository preferences = mock(UserFoodPreferenceRepository.class);
+        AiRecipeService ai = mock(AiRecipeService.class);
+        RecommendationExposureService exposures = mock(RecommendationExposureService.class);
+        Recipe shrimpDish = recipe(null, "虾仁炒蛋", "虾仁 200g，鸡蛋 3 个");
+        Recipe tomatoDish = recipe(2L, "番茄炒蛋", "番茄 2 个，鸡蛋 3 个");
+        UserFoodPreference preference = new UserFoodPreference();
+        preference.setNormalizedBlockedTerms("[\"虾仁\"]");
+
+        when(ai.recommendWithPersona(anyString(), anyString(), any())).thenReturn(Optional.of(shrimpDish));
+        when(preferences.findByOpenid("user-1")).thenReturn(Optional.of(preference));
+        when(recipes.save(shrimpDish)).thenReturn(shrimpDish);
+        when(interactions.findTop30ByOpenidOrderByCreatedAtDesc("user-1")).thenReturn(List.of());
+        when(interactions.findByOpenidAndAction("user-1", "DISLIKE")).thenReturn(List.of());
+        when(recipes.findAiWithImages()).thenReturn(List.of(tomatoDish));
+
+        Recipe result = buildAgent(recipes, interactions, preferences, ai, exposures)
+                .recommend("user-1", "平静", null);
+
+        assertEquals("番茄炒蛋", result.getName());
+    }
+
+    @Test
+    void fallsBackWhenAiRepeatsARecentlyShownDish() {
+        RecipeRepository recipes = mock(RecipeRepository.class);
+        RecipeInteractionRepository interactions = mock(RecipeInteractionRepository.class);
+        UserFoodPreferenceRepository preferences = mock(UserFoodPreferenceRepository.class);
+        AiRecipeService ai = mock(AiRecipeService.class);
+        RecommendationExposureService exposures = mock(RecommendationExposureService.class);
+        Recipe repeated = recipe(null, "番茄炒蛋", "番茄 2 个，鸡蛋 3 个");
+        Recipe alternative = recipe(2L, "清蒸鸡腿", "鸡腿 2 个");
+
+        when(ai.recommendWithPersona(anyString(), anyString(), any())).thenReturn(Optional.of(repeated));
+        when(preferences.findByOpenid("user-1")).thenReturn(Optional.empty());
+        when(exposures.wasRecentlyShownOrRejected("user-1", repeated)).thenReturn(true);
+        when(interactions.findTop30ByOpenidOrderByCreatedAtDesc("user-1")).thenReturn(List.of());
+        when(interactions.findByOpenidAndAction("user-1", "DISLIKE")).thenReturn(List.of());
+        when(recipes.findAiWithImages()).thenReturn(List.of(alternative));
+
+        Recipe result = buildAgent(recipes, interactions, preferences, ai, exposures)
+                .recommend("user-1", "平静", null);
+
+        assertEquals("清蒸鸡腿", result.getName());
+        verify(recipes, never()).save(repeated);
     }
 
     @Test

@@ -7,6 +7,7 @@ import com.moodrecipe.backend.repository.UserFoodPreferenceRepository;
 import com.moodrecipe.backend.repository.RecipeInteractionRepository;
 import com.moodrecipe.backend.repository.RecommendationExposureRepository;
 import com.moodrecipe.backend.service.GuozaiMemory;
+import com.moodrecipe.backend.service.AllergenNormalizationService;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,15 +24,18 @@ public class UserFoodPreferenceController {
     private final RecipeInteractionRepository interactions;
     private final RecommendationExposureRepository exposures;
     private final GuozaiMemory memory;
+    private final AllergenNormalizationService allergenNormalizer;
 
     public UserFoodPreferenceController(UserFoodPreferenceRepository repository,
                                         RecipeInteractionRepository interactions,
                                         RecommendationExposureRepository exposures,
-                                        GuozaiMemory memory) {
+                                        GuozaiMemory memory,
+                                        AllergenNormalizationService allergenNormalizer) {
         this.repository = repository;
         this.interactions = interactions;
         this.exposures = exposures;
         this.memory = memory;
+        this.allergenNormalizer = allergenNormalizer;
     }
 
     @GetMapping
@@ -76,6 +80,8 @@ public class UserFoodPreferenceController {
         preference.setFavoriteDishes(clean(request.favoriteDishes()));
         preference.setAvoidIngredients(clean(request.avoidIngredients()));
         preference.setAllergens(clean(request.allergens()));
+        preference.setNormalizedBlockedTerms(allergenNormalizer.normalizeJson(
+                preference.getAvoidIngredients(), preference.getAllergens()));
         preference.setEatScallion(request.eatScallion());
         preference.setEatCilantro(request.eatCilantro());
         preference.setSpiceLevel(request.spiceLevel());

@@ -11,6 +11,8 @@ import com.moodrecipe.backend.service.VirtualCommerceService;
 import com.moodrecipe.backend.service.OperationalEventService;
 import com.moodrecipe.backend.service.RecommendationJobService;
 import com.moodrecipe.backend.service.RecommendationExposureService;
+import com.moodrecipe.backend.service.UsageQuotaService;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.moodrecipe.backend.config.SessionAuthInterceptor;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,11 +29,20 @@ public class RecipeController {
     private final OperationalEventService operationalEvents;
     private final RecommendationJobService recommendationJobs;
     private final RecommendationExposureService exposures;
+    private final UsageQuotaService quotas;
 
     public RecipeController(RecipeRepository repository, RecipeInteractionRepository interactions,
                             GuozaiAgent guozaiAgent, VirtualCommerceService virtualCommerceService,
                             OperationalEventService operationalEvents, RecommendationJobService recommendationJobs,
                             RecommendationExposureService exposures) {
+        this(repository, interactions, guozaiAgent, virtualCommerceService, operationalEvents, recommendationJobs, exposures, null);
+    }
+
+    @Autowired
+    public RecipeController(RecipeRepository repository, RecipeInteractionRepository interactions,
+                            GuozaiAgent guozaiAgent, VirtualCommerceService virtualCommerceService,
+                            OperationalEventService operationalEvents, RecommendationJobService recommendationJobs,
+                            RecommendationExposureService exposures, UsageQuotaService quotas) {
         this.repository = repository;
         this.interactions = interactions;
         this.guozaiAgent = guozaiAgent;
@@ -39,6 +50,7 @@ public class RecipeController {
         this.operationalEvents = operationalEvents;
         this.recommendationJobs = recommendationJobs;
         this.exposures = exposures;
+        this.quotas = quotas;
     }
 
     /** 全部菜谱 */
@@ -52,22 +64,42 @@ public class RecipeController {
     public ApiResponse<Recipe> recommend(
             @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
             @RequestParam(defaultValue = "平静") String mood) {
-
-        Recipe recipe = recommendInternal(openid, mood, null);
+        try { if (quotas != null) quotas.consume(openid, UsageQuotaService.Feature.HOME_RECOMMEND); }
+        catch (IllegalStateException e) { return ApiResponse.error(403, e.getMessage()); }
+        Recipe recipe;
+        try { recipe = recommendInternal(openid, mood, null); }
+        catch (RuntimeException e) { if (quotas != null) quotas.release(openid, UsageQuotaService.Feature.HOME_RECOMMEND); throw e; }
+        if (recipe == null && quotas != null) quotas.release(openid, UsageQuotaService.Feature.HOME_RECOMMEND);
         return recipe == null
                 ? ApiResponse.error(404, "没有找到符合当前忌口的菜，请到锅仔记忆里调整后再试")
                 : ApiResponse.ok(recipe);
     }
 
-    /** 创建异步今日推荐任务；同一用户同一心情的进行中任务会被复用。 */
+    /** 创建异步今日推荐任务；同一用户的进行中任务会被复用。 */
     @PostMapping("/recommend-jobs")
     public ApiResponse<RecommendationJobService.JobView> createRecommendationJob(
             @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
             @RequestBody RecommendJobRequest request) {
         String mood = request == null || request.mood() == null || request.mood().isBlank()
                 ? "平静" : request.mood().trim();
-        return ApiResponse.ok(recommendationJobs.start(openid, mood,
-                progress -> recommendInternal(openid, mood, progress)));
+        try {
+            return ApiResponse.ok(recommendationJobs.start(openid, mood,
+                    () -> { if (quotas != null) quotas.consume(openid, UsageQuotaService.Feature.HOME_RECOMMEND); }, progress -> {
+            try {
+                Recipe recipe = recommendInternal(openid, mood, progress);
+                if (recipe == null && quotas != null) quotas.release(openid, UsageQuotaService.Feature.HOME_RECOMMEND);
+                return recipe;
+            } catch (RuntimeException e) {
+                if (quotas != null) quotas.release(openid, UsageQuotaService.Feature.HOME_RECOMMEND);
+                throw e;
+            }
+        }));
+        } catch (IllegalStateException e) { return ApiResponse.error(403, e.getMessage()); }
+    }
+
+    @GetMapping("/quota")
+    public ApiResponse<UsageQuotaService.View> quota(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
+        return quotas == null ? ApiResponse.error(503, "配额服务不可用") : ApiResponse.ok(quotas.view(openid, UsageQuotaService.Feature.HOME_RECOMMEND));
     }
 
     /** 任务不存在和不属于当前用户统一返回 404，避免泄露他人任务。 */

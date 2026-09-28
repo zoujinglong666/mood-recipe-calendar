@@ -29,7 +29,7 @@ public final class AgentCards {
     }
 
     public static List<String> allowedValues(String action) {
-        return switch (action == null ? "" : action) {
+        List<String> values = switch (action == null ? "" : action) {
             case "ASK_PEOPLE" -> IntStream.rangeClosed(1, 50).mapToObj(value -> "people=" + value).toList();
             case "ASK_HOUSEHOLD" -> List.of("elder=yes", "child=yes", "household=elder",
                     "household=child", "household=elder,child", "household=none");
@@ -42,6 +42,10 @@ public final class AgentCards {
             case "READY" -> List.of("generate");
             default -> List.of();
         };
+        if (values.isEmpty() || "READY".equals(action)) return values;
+        List<String> withOther = new ArrayList<>(values);
+        withOther.add("other");
+        return List.copyOf(withOther);
     }
 
     /** 反查一个选项值属于哪张卡，用于把"用户点了这个选项"归因到具体动作上。 */
@@ -69,7 +73,7 @@ public final class AgentCards {
     }
 
     public static DialogueState.Card defaultCard(String action, DialogueState.AgentState state) {
-        return switch (action == null ? "" : action) {
+        DialogueState.Card card = switch (action == null ? "" : action) {
             case "ASK_PEOPLE" -> options("一起吃饭的人数", "也可以直接输入具体人数",
                     "people=1", "1 人", "people=2", "2 人", "people=3", "3 人", "people=4", "4 人",
                     "people=6", "6 人", "people=8", "8 人");
@@ -92,6 +96,10 @@ public final class AgentCards {
             default -> new DialogueState.Card("READY", "锅仔已经收齐信息",
                     "现在生成菜单、买菜清单和做法", List.of(new DialogueState.Option("开始安排", "generate")));
         };
+        if ("READY".equals(action)) return card;
+        List<DialogueState.Option> options = new ArrayList<>(card.options());
+        options.add(new DialogueState.Option("其他", "other"));
+        return new DialogueState.Card(card.type(), card.title(), card.description(), List.copyOf(options));
     }
 
     /** 模型给的卡片只有在类型和选项值都合法时才被采纳，否则退回默认卡。 */
@@ -113,8 +121,11 @@ public final class AgentCards {
         }
         if (title == null || title.isBlank()) return defaultCard(action, state);
         String safeDescription = description == null ? "" : description;
-        return new DialogueState.Card(type, title, safeDescription,
-                options.stream().limit(4).toList());
+        List<DialogueState.Option> safeOptions = new ArrayList<>(options.stream().limit(4).toList());
+        if (!"READY".equals(action) && safeOptions.stream().noneMatch(option -> "other".equals(option.value()))) {
+            safeOptions.add(new DialogueState.Option("其他", "other"));
+        }
+        return new DialogueState.Card(type, title, safeDescription, List.copyOf(safeOptions));
     }
 
     private static DialogueState.Card options(String title, String description, String... pairs) {

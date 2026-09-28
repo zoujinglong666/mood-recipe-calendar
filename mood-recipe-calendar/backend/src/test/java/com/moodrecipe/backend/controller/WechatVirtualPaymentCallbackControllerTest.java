@@ -5,8 +5,8 @@ import com.moodrecipe.backend.entity.VirtualProduct;
 import com.moodrecipe.backend.repository.VirtualOrderRepository;
 import com.moodrecipe.backend.repository.VirtualProductRepository;
 import com.moodrecipe.backend.service.OperationalEventService;
-import com.moodrecipe.backend.service.VirtualCommerceService;
 import com.moodrecipe.backend.service.WechatMessageCrypto;
+import com.moodrecipe.backend.service.WechatVirtualPaymentService;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -20,15 +20,15 @@ class WechatVirtualPaymentCallbackControllerTest {
     void rejectsInvalidSignatureAndTamperedAmount() {
         VirtualOrderRepository orders = mock(VirtualOrderRepository.class);
         VirtualProductRepository products = mock(VirtualProductRepository.class);
-        VirtualCommerceService commerce = mock(VirtualCommerceService.class);
+        WechatVirtualPaymentService paymentService = mock(WechatVirtualPaymentService.class);
         WechatMessageCrypto crypto = mock(WechatMessageCrypto.class);
         OperationalEventService events = mock(OperationalEventService.class);
         WechatVirtualPaymentCallbackController controller = new WechatVirtualPaymentCallbackController(
-                orders, products, commerce, crypto, events);
+                orders, products, crypto, events, paymentService);
 
         Map<String, Object> body = Map.of("Event", "xpay_goods_deliver_notify");
         assertEquals(403, controller.deliver("bad", null, "1", "n", body).getStatusCode().value());
-        verifyNoInteractions(commerce);
+        verifyNoInteractions(paymentService);
 
         when(crypto.verify("ok", "1", "n", null)).thenReturn(true);
         VirtualOrder order = new VirtualOrder();
@@ -46,17 +46,17 @@ class WechatVirtualPaymentCallbackControllerTest {
                 "WeChatPayInfo", Map.of("TransactionId", "tx-1"));
 
         assertEquals(500, controller.deliver("ok", null, "1", "n", tampered).getStatusCode().value());
-        verify(commerce, never()).fulfillPaidOrder(anyString(), anyString());
+        verify(paymentService, never()).fulfillAndNotify(anyString(), anyString(), anyString());
     }
 
     @Test
     void acceptsEncryptedIosDeliveryWithoutWechatPayInfo() {
         VirtualOrderRepository orders = mock(VirtualOrderRepository.class);
         VirtualProductRepository products = mock(VirtualProductRepository.class);
-        VirtualCommerceService commerce = mock(VirtualCommerceService.class);
+        WechatVirtualPaymentService paymentService = mock(WechatVirtualPaymentService.class);
         WechatMessageCrypto crypto = mock(WechatMessageCrypto.class);
         WechatVirtualPaymentCallbackController controller = new WechatVirtualPaymentCallbackController(
-                orders, products, commerce, crypto, mock(OperationalEventService.class));
+                orders, products, crypto, mock(OperationalEventService.class), paymentService);
 
         VirtualOrder order = new VirtualOrder();
         order.setOrderNo("VP-IOS");
@@ -76,6 +76,6 @@ class WechatVirtualPaymentCallbackControllerTest {
 
         assertEquals(200, controller.deliver(null, "safe-signature", "1", "n",
                 Map.of("Encrypt", "ciphertext")).getStatusCode().value());
-        verify(commerce).fulfillPaidOrder("VP-IOS", "VP-IOS");
+        verify(paymentService).fulfillAndNotify("user-1", "VP-IOS", "VP-IOS");
     }
 }

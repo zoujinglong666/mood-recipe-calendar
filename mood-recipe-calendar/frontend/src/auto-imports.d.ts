@@ -27,6 +27,7 @@ declare global {
   const beginAuthRecovery: typeof import('./utils/authRecovery')['beginAuthRecovery']
   const cancelAuthRecovery: typeof import('./utils/authRecovery')['cancelAuthRecovery']
   const chooseImageFile: typeof import('./utils/chooseImage')['chooseImageFile']
+  const chooseImageFiles: typeof import('./utils/chooseImage')['chooseImageFiles']
   const chunkPages: typeof import('./utils/albumLayout')['chunkPages']
   const clearAgentMemory: typeof import('./api/auth')['clearAgentMemory']
   const clearCookingLearning: typeof import('./api/cookingAgent')['clearCookingLearning']
@@ -75,6 +76,7 @@ declare global {
   const fetchAllRecipes: typeof import('./api/recipes')['fetchAllRecipes']
   const fetchCheckinStatus: typeof import('./api/gallery')['fetchCheckinStatus']
   const fetchCompanionMessage: typeof import('./api/records')['fetchCompanionMessage']
+  const fetchDailyBoard: typeof import('./api/dailyMenu')['fetchDailyBoard']
   const fetchEntitlements: typeof import('./api/virtualCommerce')['fetchEntitlements']
   const fetchFoodMemory: typeof import('./api/preferences')['fetchFoodMemory']
   const fetchFoodPreference: typeof import('./api/preferences')['fetchFoodPreference']
@@ -84,14 +86,17 @@ declare global {
   const fetchProducts: typeof import('./api/gallery')['fetchProducts']
   const fetchRecipeDetail: typeof import('./api/recipes')['fetchRecipeDetail']
   const fetchRecipeFeedback: typeof import('./api/recipes')['fetchRecipeFeedback']
+  const fetchRecipeQuota: typeof import('./api/recipes')['fetchRecipeQuota']
   const fetchRecipesByMood: typeof import('./api/recipes')['fetchRecipesByMood']
   const fetchRecommendationJob: typeof import('./api/recipes')['fetchRecommendationJob']
+  const fetchRecord: typeof import('./api/records')['fetchRecord']
   const fetchRecords: typeof import('./api/records')['fetchRecords']
   const fetchRecordsByMonth: typeof import('./api/records')['fetchRecordsByMonth']
   const fetchStats: typeof import('./api/records')['fetchStats']
   const fetchVirtualOrder: typeof import('./api/virtualCommerce')['fetchVirtualOrder']
   const fetchVirtualOrders: typeof import('./api/virtualCommerce')['fetchVirtualOrders']
   const fetchVirtualProducts: typeof import('./api/virtualCommerce')['fetchVirtualProducts']
+  const fetchWeeklyPlanQuota: typeof import('./api/weeklyPlans')['fetchWeeklyPlanQuota']
   const fetchYearStats: typeof import('./api/records')['fetchYearStats']
   const forgetAgentMemory: typeof import('./api/auth')['forgetAgentMemory']
   const generatePlanDayCover: typeof import('./api/weeklyPlans')['generatePlanDayCover']
@@ -194,6 +199,7 @@ declare global {
   const refDefault: typeof import('@vueuse/core')['refDefault']
   const refThrottled: typeof import('@vueuse/core')['refThrottled']
   const refWithControl: typeof import('@vueuse/core')['refWithControl']
+  const refreshDailyBoard: typeof import('./api/dailyMenu')['refreshDailyBoard']
   const refreshNavMetrics: typeof import('./composables/useNavBar')['refreshNavMetrics']
   const refreshUserInfo: typeof import('./utils/login')['refreshUserInfo']
   const replacePlanDay: typeof import('./api/weeklyPlans')['replacePlanDay']
@@ -249,6 +255,7 @@ declare global {
   const unref: typeof import('vue')['unref']
   const unrefElement: typeof import('@vueuse/core')['unrefElement']
   const until: typeof import('@vueuse/core')['until']
+  const updateRecord: typeof import('./api/records')['updateRecord']
   const updateUserInfo: typeof import('./api/auth')['updateUserInfo']
   const uploadFile: typeof import('./api/request')['uploadFile']
   const useActiveElement: typeof import('@vueuse/core')['useActiveElement']
@@ -473,6 +480,7 @@ declare module 'vue' {
     readonly beginAuthRecovery: UnwrapRef<typeof import('./utils/authRecovery')['beginAuthRecovery']>
     readonly cancelAuthRecovery: UnwrapRef<typeof import('./utils/authRecovery')['cancelAuthRecovery']>
     readonly chooseImageFile: UnwrapRef<typeof import('./utils/chooseImage')['chooseImageFile']>
+    readonly chooseImageFiles: UnwrapRef<typeof import('./utils/chooseImage')['chooseImageFiles']>
     readonly chunkPages: UnwrapRef<typeof import('./utils/albumLayout')['chunkPages']>
     readonly clearAgentMemory: UnwrapRef<typeof import('./api/auth')['clearAgentMemory']>
     readonly clearCookingLearning: UnwrapRef<typeof import('./api/cookingAgent')['clearCookingLearning']>
@@ -521,6 +529,7 @@ declare module 'vue' {
     readonly fetchAllRecipes: UnwrapRef<typeof import('./api/recipes')['fetchAllRecipes']>
     readonly fetchCheckinStatus: UnwrapRef<typeof import('./api/gallery')['fetchCheckinStatus']>
     readonly fetchCompanionMessage: UnwrapRef<typeof import('./api/records')['fetchCompanionMessage']>
+    readonly fetchDailyBoard: UnwrapRef<typeof import('./api/dailyMenu')['fetchDailyBoard']>
     readonly fetchEntitlements: UnwrapRef<typeof import('./api/virtualCommerce')['fetchEntitlements']>
     readonly fetchFoodMemory: UnwrapRef<typeof import('./api/preferences')['fetchFoodMemory']>
     readonly fetchFoodPreference: UnwrapRef<typeof import('./api/preferences')['fetchFoodPreference']>
@@ -530,14 +539,17 @@ declare module 'vue' {
     readonly fetchProducts: UnwrapRef<typeof import('./api/gallery')['fetchProducts']>
     readonly fetchRecipeDetail: UnwrapRef<typeof import('./api/recipes')['fetchRecipeDetail']>
     readonly fetchRecipeFeedback: UnwrapRef<typeof import('./api/recipes')['fetchRecipeFeedback']>
+    readonly fetchRecipeQuota: UnwrapRef<typeof import('./api/recipes')['fetchRecipeQuota']>
     readonly fetchRecipesByMood: UnwrapRef<typeof import('./api/recipes')['fetchRecipesByMood']>
     readonly fetchRecommendationJob: UnwrapRef<typeof import('./api/recipes')['fetchRecommendationJob']>
+    readonly fetchRecord: UnwrapRef<typeof import('./api/records')['fetchRecord']>
     readonly fetchRecords: UnwrapRef<typeof import('./api/records')['fetchRecords']>
     readonly fetchRecordsByMonth: UnwrapRef<typeof import('./api/records')['fetchRecordsByMonth']>
     readonly fetchStats: UnwrapRef<typeof import('./api/records')['fetchStats']>
     readonly fetchVirtualOrder: UnwrapRef<typeof import('./api/virtualCommerce')['fetchVirtualOrder']>
     readonly fetchVirtualOrders: UnwrapRef<typeof import('./api/virtualCommerce')['fetchVirtualOrders']>
     readonly fetchVirtualProducts: UnwrapRef<typeof import('./api/virtualCommerce')['fetchVirtualProducts']>
+    readonly fetchWeeklyPlanQuota: UnwrapRef<typeof import('./api/weeklyPlans')['fetchWeeklyPlanQuota']>
     readonly fetchYearStats: UnwrapRef<typeof import('./api/records')['fetchYearStats']>
     readonly forgetAgentMemory: UnwrapRef<typeof import('./api/auth')['forgetAgentMemory']>
     readonly generatePlanDayCover: UnwrapRef<typeof import('./api/weeklyPlans')['generatePlanDayCover']>
@@ -640,6 +652,7 @@ declare module 'vue' {
     readonly refDefault: UnwrapRef<typeof import('@vueuse/core')['refDefault']>
     readonly refThrottled: UnwrapRef<typeof import('@vueuse/core')['refThrottled']>
     readonly refWithControl: UnwrapRef<typeof import('@vueuse/core')['refWithControl']>
+    readonly refreshDailyBoard: UnwrapRef<typeof import('./api/dailyMenu')['refreshDailyBoard']>
     readonly refreshNavMetrics: UnwrapRef<typeof import('./composables/useNavBar')['refreshNavMetrics']>
     readonly refreshUserInfo: UnwrapRef<typeof import('./utils/login')['refreshUserInfo']>
     readonly replacePlanDay: UnwrapRef<typeof import('./api/weeklyPlans')['replacePlanDay']>
@@ -695,6 +708,7 @@ declare module 'vue' {
     readonly unref: UnwrapRef<typeof import('vue')['unref']>
     readonly unrefElement: UnwrapRef<typeof import('@vueuse/core')['unrefElement']>
     readonly until: UnwrapRef<typeof import('@vueuse/core')['until']>
+    readonly updateRecord: UnwrapRef<typeof import('./api/records')['updateRecord']>
     readonly updateUserInfo: UnwrapRef<typeof import('./api/auth')['updateUserInfo']>
     readonly uploadFile: UnwrapRef<typeof import('./api/request')['uploadFile']>
     readonly useActiveElement: UnwrapRef<typeof import('@vueuse/core')['useActiveElement']>

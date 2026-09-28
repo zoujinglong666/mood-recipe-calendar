@@ -45,8 +45,22 @@ function parseList(value?: string) {
   catch { return [] }
 }
 
+/** 兜底拆分：历史数据或模型偶发把整道菜塞进一个步骤时，按分号/句号切成多步 */
+function normalizeStepList(list: string[]): string[] {
+  if (list.length !== 1)
+    return list
+  const only = list[0]
+  if (!only || only.length <= 40 || !/[；;。]/.test(only))
+    return list
+  const parts = only
+    .split(/[；;。]+/)
+    .map(p => p.trim().replace(/^[，,、]+/, ''))
+    .filter(Boolean)
+  return parts.length > 1 ? parts : list
+}
+
 const recipe = computed(() => draft.value?.recipe)
-const steps = computed(() => parseList(recipe.value?.steps))
+const steps = computed(() => normalizeStepList(parseList(recipe.value?.steps)))
 const ingredients = computed(() => parseList(recipe.value?.ingredients))
 const currentStep = computed(() => steps.value[stepIndex.value] || '')
 const recipeKey = computed(() => String(recipe.value?.id || recipe.value?.name || ''))

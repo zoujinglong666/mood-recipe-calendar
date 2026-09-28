@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { navBack } from '@/composables/useNavBar'
 import { STATIC_BASE_URL } from '@/utils/assets'
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
 import Icon from '../../components/common/Icon.vue'
 import SuccessModal from '../../components/guozai/SuccessModal.vue'
 import MoodPicker from '../../components/guozai/MoodPicker.vue'
 import { ensureLogin } from '../../utils/login'
 import { toast, toastSuccess, toastError } from '../../utils/toast'
-import { saveRecord } from '../../api/records'
+import { fetchRecord, saveRecord, updateRecord } from '../../api/records'
 import { uploadFile } from '../../api/request'
-import { chooseImageFile } from '../../utils/chooseImage'
+import { chooseImageFiles } from '../../utils/chooseImage'
 import { createRequestId, RECORD_DRAFT_KEY } from '../../utils/cookingDraft'
 
 definePage({
@@ -27,19 +27,28 @@ const dishName = ref('')
 const selectedMood = ref('')
 const note = ref('')
 const cookingTime = ref('30分钟')
-const dishImage = ref('')
-const imageUrl = ref('')
+type RecordPhoto = { localUrl: string, remoteUrl: string, uploading: boolean }
+const photos = ref<RecordPhoto[]>([])
 const recipeId = ref<string | undefined>()
 const exposureId = ref<string | undefined>()
-const fromRecipe = ref(false)
 const clientRequestId = ref(createRequestId())
 const savedRecordId = ref<number>()
 const showSuccess = ref(false)
 const submitting = ref(false)
-const uploading = ref(false)
+const editingId = ref<number>()
+const recordDate = ref<string>()
+const isEditing = computed(() => Boolean(editingId.value))
+const uploading = computed(() => photos.value.some(photo => photo.uploading))
 
 // tabbar 页通过 switchTab 进入，无法带 query；从推荐页跳转时由 storage 暂存菜名与心情
-onShow(() => {
+onShow(async () => {
+  const editId = Number(uni.getStorageSync('mrc_record_edit_id'))
+  if (editId && editId !== editingId.value) {
+    uni.removeStorageSync('mrc_record_edit_id')
+    await loadForEdit(editId)
+    return
+  }
+  if (isEditing.value) return
   try {
     const d = uni.getStorageSync(RECORD_DRAFT_KEY)
     if (d) {
@@ -47,51 +56,79 @@ onShow(() => {
       if (d.mood) selectedMood.value = d.mood
       if (d.recipeId !== undefined && d.recipeId !== null) recipeId.value = String(d.recipeId)
       if (d.exposureId) exposureId.value = String(d.exposureId)
-      if (d.image) {
-        dishImage.value = String(d.image)
-        imageUrl.value = String(d.image)
-      }
       if (d.cookingTime) cookingTime.value = `${Number(d.cookingTime)}分钟`
       if (d.clientRequestId) clientRequestId.value = String(d.clientRequestId)
-      fromRecipe.value = d.source === 'recipe'
     }
   } catch (e) { /* ignore */ }
 })
 
-async function chooseImage() {
+async function addImages() {
   if (uploading.value) {
     toast('图片上传中，请稍候')
     return
   }
-  chooseImageFile({
-    onSelected: (tempPath) => {
-      uploading.value = true
-      dishImage.value = tempPath
-      uploadImage(tempPath)
-    },
+  const capacity = 9 - photos.value.length
+  if (!capacity) {
+    toast('一条记录最多添加 9 张照片')
+    return
+  }
+  chooseImageFiles({
+    count: capacity,
+    onSelected: tempPaths => uploadImages(tempPaths),
     onFail: () => toast('选择图片失败，请重试'),
   })
 }
 
-async function uploadImage(tempPath: string) {
+async function uploadImages(tempPaths: string[]) {
+  const newPhotos = tempPaths.slice(0, 9 - photos.value.length)
+    .map(localUrl => ({ localUrl, remoteUrl: '', uploading: true }))
+  photos.value.push(...newPhotos)
+  await Promise.all(newPhotos.map(async (photo) => {
+    try {
+      photo.remoteUrl = (await uploadFile(photo.localUrl)).url
+    }
+    catch (e: any) {
+      photos.value = photos.value.filter(item => item !== photo)
+      toastError(e, '有照片上传失败，请重新添加')
+    }
+    finally { photo.uploading = false }
+  }))
+  if (newPhotos.some(photo => photo.remoteUrl)) toastSuccess('照片已收好')
+}
+
+function removePhoto(index: number) {
+  photos.value.splice(index, 1)
+}
+
+function movePhoto(index: number, direction: -1 | 1) {
+  const target = index + direction
+  if (target < 0 || target >= photos.value.length) return
+  const [photo] = photos.value.splice(index, 1)
+  photos.value.splice(target, 0, photo)
+}
+
+async function loadForEdit(id: number) {
   try {
-    const result = await uploadFile(tempPath)
-    imageUrl.value = result.url
-    toastSuccess('照片已收好')
+    const record = await fetchRecord(id)
+    editingId.value = record.id
+    recordDate.value = record.recordDate
+    dishName.value = record.dishName
+    selectedMood.value = record.moodTag
+    note.value = record.note || ''
+    cookingTime.value = `${record.cookingTime || 30}分钟`
+    recipeId.value = record.recipeId
+    exposureId.value = record.exposureId
+    photos.value = (record.imageUrls || [record.imageUrl]).map(url => ({ localUrl: url, remoteUrl: url, uploading: false }))
   }
   catch (e: any) {
-    toastError(e, '图片上传失败')
-    dishImage.value = ''
-    imageUrl.value = ''
-  }
-  finally {
-    uploading.value = false
+    toastError(e, '记录加载失败')
+    router.back()
   }
 }
 
 async function publish() {
   if (submitting.value) return
-  if (!dishImage.value && !fromRecipe.value) {
+  if (!photos.value.length) {
     toast('请先上传菜品照片')
     return
   }
@@ -111,9 +148,10 @@ async function publish() {
   submitting.value = true
   try {
     const openid = await ensureLogin()
-    const saved = await saveRecord({
+    const payload = {
       openid,
-      imageUrl: imageUrl.value || dishImage.value,
+      imageUrl: photos.value[0]?.remoteUrl || photos.value[0]?.localUrl || '',
+      imageUrls: photos.value.map(photo => photo.remoteUrl || photo.localUrl),
       dishName: dishName.value.trim(),
       moodTag: selectedMood.value,
       note: note.value,
@@ -121,7 +159,11 @@ async function publish() {
       exposureId: exposureId.value,
       clientRequestId: clientRequestId.value,
       cookingTime: parseInt(cookingTime.value) || 30,
-    })
+      recordDate: recordDate.value,
+    }
+    const saved = isEditing.value
+      ? await updateRecord(editingId.value!, payload)
+      : await saveRecord(payload)
     savedRecordId.value = saved.id
     uni.removeStorageSync(RECORD_DRAFT_KEY)
     uni.removeStorageSync('mrc_companion_message')
@@ -141,12 +183,12 @@ function onSuccessConfirm() {
   selectedMood.value = ''
   note.value = ''
   cookingTime.value = '30分钟'
-  dishImage.value = ''
-  imageUrl.value = ''
+  photos.value = []
   recipeId.value = undefined
   exposureId.value = undefined
-  fromRecipe.value = false
   clientRequestId.value = createRequestId()
+  editingId.value = undefined
+  recordDate.value = undefined
   savedRecordId.value = undefined
   router.push({ name: 'timeline' })
 }
@@ -175,23 +217,24 @@ function chooseCookingTime() {
       <image class="record-intro__guozai" :src="STATIC_BASE_URL + '/static/guozai/action_03_camera.png'" mode="aspectFit" />
     </view>
 
-    <!-- 拍照区 -->
-    <view class="record-photo" role="button" aria-label="添加或更换菜品照片" @click="chooseImage">
-      <template v-if="dishImage">
-        <image class="record-photo__img" :src="dishImage" mode="aspectFill" />
-        <view class="record-photo__change">
-          <Icon name="camera" :size="30" color="#FFFFFF" />
-          <text>{{ uploading ? '上传中…' : '更换照片' }}</text>
+    <view class="record-photo-section">
+      <view class="record-photo-section__head"><text>这一餐的照片</text><text>{{ photos.length }}/9 · 可调整顺序</text></view>
+      <view class="record-photo-grid">
+        <view v-for="(photo, index) in photos" :key="photo.localUrl" class="record-photo-item">
+          <image class="record-photo-item__image" :src="photo.localUrl" mode="aspectFill" />
+          <view v-if="photo.uploading" class="record-photo-item__uploading">上传中…</view>
+          <view class="record-photo-item__tools">
+            <text role="button" :aria-label="`将第${index + 1}张照片向前移动`" :class="{ 'record-photo-item__tool--disabled': index === 0 }" @click.stop="movePhoto(index, -1)">‹</text>
+            <text role="button" :aria-label="`删除第${index + 1}张照片`" @click.stop="removePhoto(index)">×</text>
+            <text role="button" :aria-label="`将第${index + 1}张照片向后移动`" :class="{ 'record-photo-item__tool--disabled': index === photos.length - 1 }" @click.stop="movePhoto(index, 1)">›</text>
+          </view>
         </view>
-        <view v-if="uploading" class="record-photo__uploading"><text>锅仔正在收好照片…</text></view>
-      </template>
-      <template v-else>
-        <view class="record-photo__camera">
-          <Icon name="camera" :size="56" color="#EF5A3C" />
+        <view v-if="photos.length < 9" class="record-photo-add" role="button" aria-label="添加菜品照片" @click="addImages">
+          <Icon name="camera" :size="48" color="#EF5A3C" />
+          <text>{{ photos.length ? '添加照片' : '拍照或从相册选择' }}</text>
         </view>
-        <text class="record-photo__title">{{ fromRecipe ? '想换成自己的成品照吗？' : '先拍下今天这道菜' }}</text>
-        <text class="record-photo__tip">{{ fromRecipe ? '可选 · 不拍也能先收进时光机' : '拍照或从相册选择 · 必填' }}</text>
-      </template>
+      </view>
+      <text class="record-photo-section__tip">第一张将作为封面；点击左右箭头调整展示顺序</text>
     </view>
 
     <view class="record-form-card">
@@ -235,16 +278,16 @@ function chooseCookingTime() {
 
     <view class="record-submit">
       <view class="record-submit__btn" :class="{ 'record-submit__btn--disabled': submitting || uploading }" role="button" aria-label="保存今日伙食记录" @click="publish">
-        <text>{{ submitting ? '正在保存…' : '收进我的时光机' }}</text>
-        <text v-if="!submitting" class="record-submit__sub">以后翻到今天，还能想起这一餐</text>
+        <text>{{ submitting ? '正在保存…' : (isEditing ? '保存这次修改' : '收进我的时光机') }}</text>
+        <text v-if="!submitting" class="record-submit__sub">{{ isEditing ? '照片顺序会同步更新' : '以后翻到今天，还能想起这一餐' }}</text>
       </view>
     </view>
 
     <!-- 成功弹窗 -->
     <SuccessModal
       :visible="showSuccess"
-      title="记录成功！"
-      subtitle="今天也好好吃饭了呢"
+      :title="isEditing ? '记录已更新！' : '记录成功！'"
+      :subtitle="isEditing ? '这一餐的新样子已经收好' : '今天也好好吃饭了呢'"
       @confirm="onSuccessConfirm"
     />
   </view>
@@ -266,45 +309,19 @@ function chooseCookingTime() {
 .record-intro__sub { margin-top: 8rpx; color: var(--mrc-text-sub); font-size: 22rpx; line-height: 1.45; }
 .record-intro__guozai { position: absolute; right: -4rpx; bottom: -12rpx; width: 142rpx; height: 142rpx; }
 
-/* 拍照区 */
-.record-photo {
-  position: relative;
-  width: 100%;
-  height: 344rpx;
-  background: radial-gradient(circle at 78% 18%, rgba(255, 197, 61, 0.22), transparent 28%), var(--mrc-surface-sun);
-  border: 2rpx dashed var(--mrc-border-strong);
-  border-radius: 36rpx;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 24rpx;
-  overflow: hidden;
-}
-.record-photo__img {
-  width: 100%;
-  height: 100%;
-}
-.record-photo:active { opacity: .88; }
-.record-photo__camera {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 104rpx;
-  height: 104rpx;
-  background: var(--mrc-surface);
-  border-radius: 32rpx;
-  box-shadow: var(--mrc-shadow-sm);
-  margin-bottom: 16rpx;
-}
-.record-photo__title { color: var(--mrc-text-deep); font-size: 30rpx; font-weight: 800; }
-.record-photo__tip {
-  margin-top: 8rpx;
-  font-size: 27rpx;
-  color: var(--mrc-text-sub);
-}
-.record-photo__change { position: absolute; right: 20rpx; bottom: 20rpx; display: flex; align-items: center; gap: 8rpx; min-height: 72rpx; padding: 0 22rpx; border-radius: 36rpx; background: rgba(44, 24, 16, .72); color: #fff; font-size: 23rpx; font-weight: 700; }
-.record-photo__uploading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(44, 24, 16, .45); color: #fff; font-size: 26rpx; font-weight: 700; }
+.record-photo-section { margin-bottom: 24rpx; padding: 28rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 32rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }
+.record-photo-section__head { display: flex; justify-content: space-between; margin-bottom: 20rpx; color: var(--mrc-text-strong); font-size: 29rpx; font-weight: 800; }
+.record-photo-section__head text:last-child, .record-photo-section__tip { color: var(--mrc-text-sub); font-size: 21rpx; font-weight: 500; }
+.record-photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12rpx; }
+.record-photo-item, .record-photo-add { position: relative; aspect-ratio: 1; overflow: hidden; border-radius: 18rpx; }
+.record-photo-item { background: var(--mrc-surface-2); }
+.record-photo-item__image { width: 100%; height: 100%; }
+.record-photo-add { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10rpx; min-height: 190rpx; border: 2rpx dashed var(--mrc-border-strong); background: var(--mrc-surface-sun); color: var(--mrc-text-sub); font-size: 22rpx; text-align: center; }
+.record-photo-item__uploading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(44, 24, 16, .45); color: #fff; font-size: 22rpx; }
+.record-photo-item__tools { position: absolute; right: 8rpx; bottom: 8rpx; display: flex; overflow: hidden; border-radius: 22rpx; background: rgba(44, 24, 16, .7); color: #fff; }
+.record-photo-item__tools text { min-width: 38rpx; min-height: 38rpx; display: flex; align-items: center; justify-content: center; font-size: 34rpx; line-height: 1; }
+.record-photo-item__tool--disabled { opacity: .35; pointer-events: none; }
+.record-photo-section__tip { display: block; margin-top: 16rpx; }
 
 .record-form-card, .record-mood-card, .record-textarea { margin-bottom: 24rpx; padding: 28rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 32rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }
 .record-section-title { display: flex; align-items: center; gap: 16rpx; margin-bottom: 22rpx; }

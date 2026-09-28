@@ -53,7 +53,7 @@ class DialogueAgentTest {
         DialogueState.Turn turn = agent(llm, List.of()).turn(OPENID, "帮我安排一下", null);
 
         assertEquals("ASK_PEOPLE", turn.action(), "模型想跳过关键信息时，服务端必须拦住");
-        assertNotNull(turn.card());
+        assertTrue(turn.card() == null, "已理解但缺少信息时应使用文字追问，不强制弹卡");
     }
 
     /** 自主学习：问了多次都没人答的问题，不再追问，直接用默认值。 */

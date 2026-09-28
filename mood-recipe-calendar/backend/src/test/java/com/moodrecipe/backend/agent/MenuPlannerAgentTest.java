@@ -82,7 +82,7 @@ class MenuPlannerAgentTest {
     }
 
     @Test
-    void largeMenuUsesOneAiPassThenLocalValidation() {
+    void largeMenuUsesOneAiPassPerDay() {
         SequencingLlm llm = new SequencingLlm(
                 "{\"days\":[{\"dishes\":[{\"name\":\"番茄炒蛋\",\"ingredients\":[\"番茄\",\"鸡蛋\"]}]}]}");
         MenuPlannerAgent planner = planner(llm, recipes(), List.of());
@@ -90,7 +90,21 @@ class MenuPlannerAgentTest {
         planner.plan(new MenuPlannerAgent.PlanRequest(
                 OPENID, List.of(5, 6), 9, "BALANCED", "DAILY", "八人宴请"));
 
-        assertEquals(1, llm.planCalls(), "大菜单不能在一次 HTTP 请求里串行重试数分钟");
+        assertTrue(llm.planCalls() >= 2, "大菜单应按天分批生成，避免单次超长输出");
+    }
+
+    @Test
+    void neverReturnsMojibakeDishNamesFromStructuredModelOutput() {
+        SequencingLlm llm = new SequencingLlm(
+                "{\"days\":[{\"dishes\":[{\"name\":\"ç•ªéŒŒ‚ç’ë›×\",\"ingredients\":[\"ç•ªéŒŒ\"],\"steps\":[\"ç‚’ç†Ÿå‘³å³å¯\"]}]}]}");
+        MenuPlannerAgent planner = planner(llm, recipes(), List.of());
+
+        MenuPlannerAgent.PlanResult result = planner.plan(new MenuPlannerAgent.PlanRequest(
+                OPENID, List.of(0), 1, "BALANCED", "DAILY", ""));
+
+        assertEquals("番茄炒蛋", result.days().get(0).dishes().get(0).name());
+        assertTrue(result.degradeReasons().stream().anyMatch(reason -> reason.contains("结构化结果")),
+                result.degradeReasons().toString());
     }
 
     private MenuPlannerAgent planner(LlmClient llm, RecipeRepository recipes,

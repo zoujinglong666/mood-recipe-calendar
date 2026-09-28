@@ -1,9 +1,10 @@
-import { get, post, del, resolveAssetUrl } from './request'
+import { get, post, put, del, resolveAssetUrl } from './request'
 
 export interface RecordItem {
   id: number
   openid: string
   imageUrl: string
+  imageUrls?: string[]
   dishName: string
   moodTag: string
   note?: string
@@ -17,6 +18,7 @@ export interface RecordItem {
 export interface RecordPayload {
   openid: string
   imageUrl: string
+  imageUrls?: string[]
   dishName: string
   moodTag: string
   note?: string
@@ -56,6 +58,17 @@ export function saveRecord(payload: RecordPayload) {
   return post<RecordItem>('/records', request).then(normalizeRecord)
 }
 
+/** 获取一条自己的记录，用于详情和编辑。 */
+export function fetchRecord(id: number) {
+  return get<RecordItem>(`/records/${id}`).then(normalizeRecord)
+}
+
+/** 更新一条自己的记录。 */
+export function updateRecord(id: number, payload: RecordPayload) {
+  const { openid: _openid, ...request } = payload
+  return put<RecordItem>(`/records/${id}`, request).then(normalizeRecord)
+}
+
 /** 获取用户全部记录 */
 export function fetchRecords(openid: string) {
   return get<RecordItem[]>('/records', { openid }).then(items => items.map(normalizeRecord))
@@ -67,7 +80,8 @@ export function fetchRecordsByMonth(openid: string, month: string) {
 }
 
 function normalizeRecord(record: RecordItem): RecordItem {
-  return { ...record, imageUrl: resolveAssetUrl(record.imageUrl) }
+  const imageUrls = (record.imageUrls?.length ? record.imageUrls : [record.imageUrl]).map(resolveAssetUrl)
+  return { ...record, imageUrl: imageUrls[0] || resolveAssetUrl(record.imageUrl), imageUrls }
 }
 
 /** 删除记录 */

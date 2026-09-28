@@ -5,12 +5,62 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RecommendationJobServiceTest {
+
+    @Test
+    void reservesQuotaOnlyForANewJob() throws Exception {
+        RecommendationJobService service = new RecommendationJobService(Duration.ofSeconds(1));
+        CountDownLatch releaseWork = new CountDownLatch(1);
+        AtomicInteger reservations = new AtomicInteger();
+        try {
+            var first = service.start("user-1", "平静", reservations::incrementAndGet, progress -> {
+                try { releaseWork.await(); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+                Recipe recipe = new Recipe();
+                recipe.setName("番茄炒蛋");
+                return recipe;
+            });
+            var reused = service.start("user-1", "平静", reservations::incrementAndGet, progress -> null);
+
+            assertEquals(first.jobId(), reused.jobId());
+            assertEquals(1, reservations.get());
+            releaseWork.countDown();
+            waitForTerminal(service, first.jobId());
+        } finally {
+            releaseWork.countDown();
+            service.close();
+        }
+    }
+
+    @Test
+    void reusesRunningJobWhenMoodChanges() throws Exception {
+        RecommendationJobService service = new RecommendationJobService(Duration.ofSeconds(1));
+        CountDownLatch releaseWork = new CountDownLatch(1);
+        AtomicInteger reservations = new AtomicInteger();
+        try {
+            var first = service.start("user-1", "平静", reservations::incrementAndGet, progress -> {
+                try { releaseWork.await(); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+                Recipe recipe = new Recipe();
+                recipe.setName("番茄炒蛋");
+                return recipe;
+            });
+            var reused = service.start("user-1", "疲惫", reservations::incrementAndGet, progress -> null);
+
+            assertEquals(first.jobId(), reused.jobId());
+            assertEquals(1, reservations.get());
+            releaseWork.countDown();
+            waitForTerminal(service, first.jobId());
+        } finally {
+            releaseWork.countDown();
+            service.close();
+        }
+    }
 
     @Test
     void protectsOwnerAndKeepsFallbackDegradationUntilExpiry() throws Exception {

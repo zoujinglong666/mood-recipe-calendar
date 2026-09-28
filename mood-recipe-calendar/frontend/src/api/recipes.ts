@@ -37,6 +37,14 @@ export interface RecommendationJob {
   recipe?: RecipeItem
 }
 
+export interface UsageQuotaView {
+  member: boolean
+  limit: number
+  used: number
+  remaining: number
+  resetsAt: string
+}
+
 /** 全部菜谱 */
 export function fetchAllRecipes() {
   return get<RecipeItem[]>('/recipes').then(items => items.map(normalizeRecipe))
@@ -53,6 +61,10 @@ export function createRecommendationJob(mood: string) {
     ...job,
     recipe: job.recipe ? normalizeRecipe(job.recipe) : undefined,
   }))
+}
+
+export function fetchRecipeQuota() {
+  return get<UsageQuotaView>('/recipes/quota')
 }
 
 /** 查询当前登录用户自己的推荐任务。 */

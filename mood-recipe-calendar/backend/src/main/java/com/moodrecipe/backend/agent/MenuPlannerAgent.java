@@ -70,8 +70,12 @@ public class MenuPlannerAgent {
                 requestedDays * request.dishesPerDay() * 320));
 
         if (llm.isConfigured()) {
+            if (requestedDays * request.dishesPerDay() > 12) {
+                candidate = planInDailyBatches(request, profile, independentMeal, rejected, degradeReasons, trace);
+                if (candidate != null) quality = scorer.evaluate(candidate, constraints);
+            }
             int repairRounds = requestedDays * request.dishesPerDay() >= 8 ? 0 : MAX_REPAIR_ROUNDS;
-            for (int round = 0; round <= repairRounds; round++) {
+            for (int round = 0; candidate == null && round <= repairRounds; round++) {
                 long start = System.currentTimeMillis();
                 LlmResult result = llm.complete(LlmRequest.json("agent-plan-menu", AgentPrompts.system(),
                         AgentPrompts.planMenu(constraintsText(profile, request, independentMeal), daysText(request.cookingDays()),
@@ -139,6 +143,44 @@ public class MenuPlannerAgent {
                 trace.steps(), memoryUsed, traceId);
     }
 
+    private List<MenuQualityScorer.DayInput> planInDailyBatches(PlanRequest request, UserProfile profile,
+                                                                  boolean independentMeal, Set<String> rejected,
+                                                                  List<String> degradeReasons, AgentTrace trace) {
+        List<Integer> days = request.cookingDays() == null || request.cookingDays().isEmpty()
+                ? List.of(0, 1, 2) : request.cookingDays();
+        List<MenuQualityScorer.DayInput> result = new ArrayList<>();
+        Set<String> used = new LinkedHashSet<>();
+        for (int weekday : days) {
+            PlanRequest batch = new PlanRequest(request.openid(), List.of(weekday), request.dishesPerDay(),
+                    request.healthGoal(), request.budget(), request.notes());
+            long start = System.currentTimeMillis();
+            LlmResult response = llm.complete(LlmRequest.json("agent-plan-menu", AgentPrompts.system(),
+                    AgentPrompts.planMenu(constraintsText(profile, batch, independentMeal), daysText(batch.cookingDays()),
+                            batch.dishesPerDay(), String.join("、", rejected)), 0.55,
+                    Math.max(2_400, batch.dishesPerDay() * 420), TimeoutTier.STANDARD));
+            if (!response.ok()) {
+                degradeReasons.add("周" + (weekday + 1) + "菜单生成失败：" + response.reason());
+                return null;
+            }
+            List<MenuQualityScorer.DayInput> parsed = parseDays(response.text(), List.of(weekday));
+            if (parsed == null || parsed.size() != 1 || parsed.get(0).dishes().size() != batch.dishesPerDay()) {
+                degradeReasons.add("周" + (weekday + 1) + "菜单菜数不足或格式异常");
+                return null;
+            }
+            for (MenuQualityScorer.DishInput dish : parsed.get(0).dishes()) {
+                String name = MenuQualityScorer.normalize(dish.name());
+                if (name.isBlank() || name.indexOf('\ufffd') >= 0 || !used.add(name)) {
+                    degradeReasons.add("周" + (weekday + 1) + "菜单含异常或重复菜名");
+                    return null;
+                }
+                rejected.add(dish.name());
+            }
+            result.add(parsed.get(0));
+            trace.record("plan", "daily-batch", System.currentTimeMillis() - start, "周" + (weekday + 1) + "完成", true);
+        }
+        return result;
+    }
+
     private List<MenuQualityScorer.DayInput> parseDays(String content, List<Integer> cookingDays) {
         try {
             JsonNode root = json.readTree(stripFence(content));
@@ -146,20 +188,28 @@ public class MenuPlannerAgent {
             if (!daysNode.isArray()) return null;
             List<Integer> target = cookingDays == null || cookingDays.isEmpty() ? List.of(0, 1, 2) : cookingDays;
             List<MenuQualityScorer.DayInput> days = new ArrayList<>();
+            Set<String> usedNames = new LinkedHashSet<>();
             for (int i = 0; i < target.size(); i++) {
                 JsonNode dayNode = i < daysNode.size() ? daysNode.get(i) : null;
                 if (dayNode == null) continue;
+                if (!dayNode.path("dishes").isArray()) return null;
                 List<MenuQualityScorer.DishInput> dishes = new ArrayList<>();
                 for (JsonNode dishNode : dayNode.path("dishes")) {
                     String name = dishNode.path("name").asText("").trim();
-                    if (name.isEmpty()) continue;
+                    if (!displayableText(name, 40) || !usedNames.add(MenuQualityScorer.normalize(name))) return null;
+                    if (!stringArray(dishNode.path("ingredients"), 80) || !stringArray(dishNode.path("steps"), 240)) return null;
                     List<String> ingredients = new ArrayList<>();
                     for (JsonNode item : dishNode.path("ingredients")) {
                         String value = item.asText("").trim();
                         if (!value.isEmpty()) ingredients.add(value);
                     }
+                    List<String> steps = new ArrayList<>();
+                    for (JsonNode item : dishNode.path("steps")) {
+                        String value = item.asText("").trim();
+                        if (!value.isEmpty()) steps.add(value);
+                    }
                     dishes.add(new MenuQualityScorer.DishInput(name, dishNode.path("role").asText("MAIN"),
-                            ingredients, dishNode.path("cookingTime").asInt(30),
+                            ingredients, steps, dishNode.path("cookingTime").asInt(30),
                             dishNode.path("difficulty").asText("简单")));
                 }
                 days.add(new MenuQualityScorer.DayInput(target.get(i), dishes));
@@ -168,6 +218,29 @@ public class MenuPlannerAgent {
         } catch (Exception ignored) {
             return null;
         }
+    }
+
+    /** 模型 JSON 解析成功不代表能展示：拒绝替换字符、控制字符和常见 UTF-8 误解码残留。 */
+    public static boolean displayableText(String value, int maxLength) {
+        if (value == null || value.isBlank() || value.length() > maxLength) return false;
+        for (int offset = 0; offset < value.length();) {
+            int codePoint = value.codePointAt(offset);
+            if (codePoint == 0xfffd || Character.isISOControl(codePoint)
+                    || (codePoint >= 0x80 && codePoint <= 0xff && codePoint != 0x00b7)) {
+                return false;
+            }
+            offset += Character.charCount(codePoint);
+        }
+        return true;
+    }
+
+    private static boolean stringArray(JsonNode node, int maxLength) {
+        if (node.isMissingNode() || node.isNull()) return true;
+        if (!node.isArray()) return false;
+        for (JsonNode item : node) {
+            if (!item.isTextual() || !displayableText(item.asText().trim(), maxLength)) return false;
+        }
+        return true;
     }
 
     private List<MenuQualityScorer.DayInput> localRepair(List<MenuQualityScorer.DayInput> days,
@@ -185,7 +258,7 @@ public class MenuPlannerAgent {
                 kept.addAll(replacements(constraints, badDishes, kept, missing, index));
             }
             if (kept.isEmpty()) {
-                kept.add(new MenuQualityScorer.DishInput("清炒时蔬", "SIDE", List.of("时蔬"), 15, "简单"));
+                kept.add(new MenuQualityScorer.DishInput("清炒时蔬", "SIDE", List.of("时蔬"), List.of(), 15, "简单"));
             }
             repaired.add(new MenuQualityScorer.DayInput(day.weekday(), kept));
             index++;
@@ -236,7 +309,7 @@ public class MenuPlannerAgent {
             if (badDishes.contains(candidate) || blocked(candidate, constraints)) continue;
             if (kept.stream().anyMatch(dish -> same(dish.name(), candidate))) continue;
             if (constraints.recentDishes().stream().anyMatch(recent -> same(recent, candidate))) continue;
-            chosen.add(new MenuQualityScorer.DishInput(candidate, "MAIN", List.of(candidate), 30, "简单"));
+            chosen.add(new MenuQualityScorer.DishInput(candidate, "MAIN", List.of(candidate), List.of(), 30, "简单"));
         }
         return chosen;
     }
@@ -258,7 +331,7 @@ public class MenuPlannerAgent {
                 String name = pool.get(cursor % pool.size());
                 cursor++;
                 dishes.add(new MenuQualityScorer.DishInput(name, i == 0 ? "MAIN" : "SIDE",
-                        List.of(name), 30, "简单"));
+                        List.of(name), List.of(), 30, "简单"));
             }
             days.add(new MenuQualityScorer.DayInput(weekday, dishes));
         }
@@ -284,7 +357,7 @@ public class MenuPlannerAgent {
         List<Recipe> all = new ArrayList<>(recipes.findAiWithImages());
         all.addAll(recipes.findAll());
         for (Recipe recipe : all) {
-            if (recipe.getName() == null || recipe.getName().isBlank()) continue;
+            if (!displayableText(recipe.getName(), 40)) continue;
             unique.putIfAbsent(recipe.getName().trim(), recipe);
         }
         return List.copyOf(unique.keySet());
@@ -304,7 +377,7 @@ public class MenuPlannerAgent {
                     dish.name(),
                     dish.ingredients() == null || dish.ingredients().isEmpty()
                             ? List.of(dish.name()) : dish.ingredients(),
-                    defaultSteps(dish.name()),
+                    dish.steps() == null || dish.steps().isEmpty() ? defaultSteps(dish.name()) : dish.steps(),
                     dish.cookingTime() == null ? 30 : dish.cookingTime(),
                     dish.difficulty() == null ? "简单" : dish.difficulty(),
                     dish.role() == null ? "MAIN" : dish.role(),

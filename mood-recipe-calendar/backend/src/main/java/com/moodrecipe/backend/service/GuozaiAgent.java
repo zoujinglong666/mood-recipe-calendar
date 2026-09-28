@@ -1,5 +1,7 @@
 package com.moodrecipe.backend.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moodrecipe.backend.entity.Recipe;
 import com.moodrecipe.backend.entity.RecipeInteraction;
 import com.moodrecipe.backend.entity.UserFoodPreference;
@@ -29,6 +31,7 @@ import java.util.stream.Collectors;
 public class GuozaiAgent {
 
     private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(GuozaiAgent.class);
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     private static final Map<String, List<String>> CUISINE_KEYWORDS = Map.of(
             "川菜", List.of("麻婆", "宫保", "回锅", "鱼香", "水煮", "辣子", "口水鸡", "酸菜鱼", "担担"),
@@ -99,7 +102,7 @@ public class GuozaiAgent {
             Optional<Recipe> aiRecipe = aiRecipeService.recommendWithPersona(mood, smartPrompt,
                     event -> updateAiProgress(openid, progress, event));
             if (aiRecipe.isPresent() && contentSafe(openid, aiRecipe.get()) && allowedByPreference(aiRecipe.get(), preference)
-                    && !exposures.isRejected(openid, aiRecipe.get())) {
+                    && !exposures.wasRecentlyShownOrRejected(openid, aiRecipe.get())) {
                 Recipe generated = aiRecipe.get();
                 // AI 菜谱无论图片是否生成成功都先落库；图片服务失败不应丢掉完整菜谱。
                 try {
@@ -335,11 +338,13 @@ public class GuozaiAgent {
         if (festival.isPresent()) {
             FestivalMoment moment = festival.get();
             analysis += "；当前节日场景：" + moment.prompt()
-                    + "。寄语必须同时包含节日氛围和一条真实用户记忆，不要只说通用祝福";
+                    + "。用户此刻更需要被祝福，请先送上一句真挚的节日祝福，再落到一条真实用户记忆";
             fallback = festivalFallback(moment, snap);
         }
-        String message = aiRecipeService.companionMessageWithPersona(
-                persona.companionPrompt(analysis)).orElse(fallback);
+        String message = (festival.isPresent()
+                ? aiRecipeService.companionMessageWithPersona(persona.festivalCompanionPrompt(analysis))
+                : aiRecipeService.companionMessageWithPersona(persona.companionPrompt(analysis)))
+                .orElse(fallback);
         String insight = buildInsight(snap);
         if (festival.isPresent()) {
             FestivalMoment moment = festival.get();
@@ -374,16 +379,19 @@ public class GuozaiAgent {
     }
 
     private String festivalFallback(FestivalMoment moment, GuozaiMemory.MemorySnapshot snap) {
+        String blessing = "MID_AUTUMN".equals(moment.scene())
+                ? "中秋将至，愿你人圆事圆、平安顺遂"
+                : "假期将至，愿你吃得开心、过得自在";
         if (!snap.favoriteCuisine().isBlank()) {
-            return moment.greeting() + "，你喜欢的" + snap.favoriteCuisine() + "我记得，节日这顿也按这个口味来。";
+            return blessing + "。你喜欢的" + snap.favoriteCuisine() + "我一直记得，节日这顿也按这个口味来。";
         }
         if (!snap.favorite().isBlank()) {
-            return moment.greeting() + "，最近常吃的" + snap.favorite() + "我记得，这次给你搭点不一样的。";
+            return blessing + "。最近常吃的" + snap.favorite() + "我记得，这次给你搭点不一样的。";
         }
         if (snap.streak() >= 2) {
-            return moment.greeting() + "，你已经认真记录" + snap.streak() + "天了，节日这一顿也值得好好安排。";
+            return blessing + "。你已经认真记录" + snap.streak() + "天了，节日这一顿也值得好好安排。";
         }
-        return moment.greeting() + "，不必做得复杂，挑几道合口味的菜慢慢吃就很好。";
+        return blessing + "。不必做得复杂，挑几道合口味的菜慢慢吃，就是很好的团圆。";
     }
 
     record FestivalMoment(String scene, String greeting, String prompt, String actionText, String actionPrompt) { }
@@ -599,12 +607,38 @@ public class GuozaiAgent {
     private boolean allowedByPreference(Recipe recipe, UserFoodPreference preference) {
         if (preference == null) return true;
         String text = searchableText(recipe);
-        List<String> blocked = new ArrayList<>(terms(preference.getAvoidIngredients()));
-        blocked.addAll(terms(preference.getAllergens()));
+        List<String> blocked = new ArrayList<>(blockedTerms(preference.getAvoidIngredients()));
+        blocked.addAll(blockedTerms(preference.getAllergens()));
+        blocked.addAll(normalizedTerms(preference.getNormalizedBlockedTerms()));
         if (Boolean.FALSE.equals(preference.getEatScallion())) blocked.add("葱");
         if (Boolean.FALSE.equals(preference.getEatCilantro())) blocked.add("香菜");
         if ("NONE".equals(preference.getSpiceLevel())) blocked.addAll(List.of("辣", "麻婆", "剁椒"));
         return blocked.stream().noneMatch(text::contains);
+    }
+
+    private List<String> blockedTerms(String value) {
+        return terms(value).stream().flatMap(term -> {
+            String normalized = term.replace("严重过敏", "").replace("过敏原", "")
+                    .replace("过敏", "").replace("不耐受", "").trim();
+            if (normalized.contains("虾")) return java.util.stream.Stream.of(normalized, "虾").distinct();
+            return normalized.isBlank() ? java.util.stream.Stream.empty() : java.util.stream.Stream.of(normalized);
+        }).distinct().toList();
+    }
+
+    private List<String> normalizedTerms(String value) {
+        if (value == null || value.isBlank()) return List.of();
+        try {
+            JsonNode terms = JSON.readTree(value);
+            if (!terms.isArray()) return List.of();
+            List<String> result = new ArrayList<>();
+            for (JsonNode term : terms) {
+                String text = term.asText("").trim();
+                if (text.length() <= 24 && !text.isBlank()) result.add(text);
+            }
+            return result;
+        } catch (Exception ignored) {
+            return List.of();
+        }
     }
 
     private boolean contentSafe(String openid, Recipe recipe) {

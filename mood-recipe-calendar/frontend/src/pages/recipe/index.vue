@@ -19,6 +19,17 @@ definePage({ name: 'recipe', layout: 'default', style: { navigationStyle: 'custo
 const router = useRouter()
 const { previewImage } = useImagePreview()
 const mood = ref('开心')
+/** 兼容跳转链接中经 encodeURIComponent 编码的 mood（如 %E5%BC%80%E5%BF%83），避免页面显示编码串 */
+function normalizeMood(raw: unknown): string {
+  if (typeof raw !== 'string' || !raw)
+    return '开心'
+  try {
+    return decodeURIComponent(raw)
+  }
+  catch {
+    return raw
+  }
+}
 const linkedRecipeId = ref(0)
 const HEALING_TEXTS: Record<string, string> = {
   开心: '你今天的好心情，适合配一口热乎又满足的。',
@@ -54,7 +65,7 @@ const purchasingSku = ref('')
 const aiProducts = ref<VirtualProduct[]>([])
 const feedbackLoading = ref<RecipeFeedbackAction | ''>('')
 const feedbackState = ref<RecipeFeedbackState>({ liked: false, disliked: false, made: false })
-type ShareStyle = 'classic' | 'guozai'
+type ShareStyle = 'classic' | 'guozai' | 'handwritten'
 const showShareSheet = ref(false)
 const shareCardLoading = ref(false)
 const shareCardPaths = ref<Partial<Record<ShareStyle, string>>>({})
@@ -65,6 +76,7 @@ const selectedShareCardPath = computed(() => shareCardPaths.value[shareStyle.val
 const POLL_INTERVAL = 900
 const POLL_TIMEOUT = 90_000
 const MAX_POLL_FAILURES = 3
+const ACTIVE_JOB_KEY = 'mrc_active_recommendation_job'
 let pollTimer: ReturnType<typeof setTimeout> | undefined
 let pollRun = 0
 let pollStartedAt = 0
@@ -83,8 +95,22 @@ function parseStringList(value?: string): string[] {
   }
 }
 
+/** 兜底拆分：历史数据或模型偶发把整道菜塞进一个步骤时，按分号/句号切成多步 */
+function normalizeStepList(list: string[]): string[] {
+  if (list.length !== 1)
+    return list
+  const only = list[0]
+  if (!only || only.length <= 40 || !/[；;。]/.test(only))
+    return list
+  const parts = only
+    .split(/[；;。]+/)
+    .map(p => p.trim().replace(/^[，,、]+/, ''))
+    .filter(Boolean)
+  return parts.length > 1 ? parts : list
+}
+
 const ingredients = computed(() => parseStringList(recipe.value?.ingredients))
-const steps = computed(() => parseStringList(recipe.value?.steps))
+const steps = computed(() => normalizeStepList(parseStringList(recipe.value?.steps)))
 const feedbackAvailable = computed(() => Number(recipe.value?.id) > 0 || Boolean(recipe.value?.exposureId))
 const recipeImageAvailable = computed(() => Boolean(recipe.value?.image) && !imageFailed.value)
 const healingText = computed(() => recipe.value?.recommendationReason?.trim() || HEALING_TEXTS[mood.value] || recipe.value?.description || '好好吃饭，锅仔会陪你慢慢找到喜欢的味道。')
@@ -135,10 +161,30 @@ async function loadRecipe() {
       loading.value = false
       return
     }
+    const activeJobId = String(uni.getStorageSync(ACTIVE_JOB_KEY) || '')
+    if (activeJobId) {
+      try {
+        const activeJob = await fetchRecommendationJob(activeJobId)
+        if (run !== pollRun)
+          return
+        if (activeJob.status === 'RUNNING') {
+          recommendationJob.value = activeJob
+          pollStartedAt = Date.now()
+          pollFailures = 0
+          applyJob(activeJob, run)
+          return
+        }
+        uni.removeStorageSync(ACTIVE_JOB_KEY)
+      }
+      catch {
+        uni.removeStorageSync(ACTIVE_JOB_KEY)
+      }
+    }
     const created = await createRecommendationJob(mood.value)
     if (run !== pollRun)
       return
     recommendationJob.value = created
+    uni.setStorageSync(ACTIVE_JOB_KEY, created.jobId)
     pollStartedAt = Date.now()
     pollFailures = 0
     applyJob(created, run)
@@ -152,7 +198,7 @@ async function loadRecipe() {
 }
 
 onLoad((query) => {
-  mood.value = typeof query?.mood === 'string' ? query.mood : '开心'
+  mood.value = normalizeMood(query?.mood)
   linkedRecipeId.value = Number(query?.recipeId) || 0
   void loadRecipe()
 })
@@ -195,6 +241,7 @@ function stopPolling() {
 function applyJob(job: RecommendationJob, run: number) {
   recommendationJob.value = job
   if (job.status === 'SUCCEEDED') {
+    uni.removeStorageSync(ACTIVE_JOB_KEY)
     recipe.value = job.recipe || null
     loading.value = false
     if (!job.recipe)
@@ -204,6 +251,7 @@ function applyJob(job: RecommendationJob, run: number) {
     return
   }
   if (job.status === 'FAILED') {
+    uni.removeStorageSync(ACTIVE_JOB_KEY)
     loading.value = false
     error.value = job.message || '锅仔这次没想好，重新推荐一次吧'
     return
@@ -335,7 +383,7 @@ async function generateShareCards() {
     await nextTick()
     const cards: Partial<Record<ShareStyle, string>> = {}
     const failed: ShareStyle[] = []
-    for (const style of ['classic', 'guozai'] as const) {
+    for (const style of ['classic', 'guozai', 'handwritten'] as const) {
       try {
         cards[style] = await exportRecipeShare({
           name: recipe.value.name,
@@ -359,7 +407,7 @@ async function generateShareCards() {
     if (!cards[shareStyle.value])
       shareStyle.value = cards.classic ? 'classic' : 'guozai'
     if (failed.length)
-      shareCardError.value = failed.length === 2 ? '食谱卡生成失败，请重试' : '有一张食谱卡没生成好，可重试一次'
+      shareCardError.value = failed.length === 3 ? '食谱卡生成失败，请重试' : '有一张食谱卡没生成好，可重试一次'
   }
   catch (e: unknown) {
     shareCardError.value = readableError(e, '食谱卡生成失败，请重试')
@@ -377,7 +425,7 @@ function selectShareStyle(style: ShareStyle) {
 }
 
 function previewShareCard(style: ShareStyle) {
-  const cards = (['classic', 'guozai'] as const)
+  const cards = (['classic', 'guozai', 'handwritten'] as const)
     .map(key => ({ key, path: shareCardPaths.value[key] }))
     .filter((item): item is { key: ShareStyle, path: string } => Boolean(item.path))
   if (!cards.length)
@@ -401,7 +449,8 @@ async function saveRecipeCard() {
   shareCardLoading.value = true
   shareCardError.value = ''
   try {
-    await saveShareImage(selectedShareCardPath.value, `${recipe.value.name}-${shareStyle.value === 'guozai' ? '锅仔手账' : '今日食谱'}.png`)
+    const cardName = shareStyle.value === 'guozai' ? '锅仔手账' : shareStyle.value === 'handwritten' ? '锅仔手写' : '今日食谱'
+    await saveShareImage(selectedShareCardPath.value, `${recipe.value.name}-${cardName}.png`)
     shareCardSaved.value = true
     toastSuccess('食谱卡已保存')
   }
@@ -561,7 +610,7 @@ async function waitForDelivery(orderNo: string) {
           </view>
           <view class="dish-copy">
             <text v-if="recipe.source === 'AI'" class="dish-copy__source">
-              AI 生成菜谱 · 仅供日常烹饪参考
+              锅仔现想的菜谱 · 按你的口味调整
             </text>
             <text class="dish-copy__name">
               {{ recipe.name }}
@@ -725,7 +774,7 @@ async function waitForDelivery(orderNo: string) {
                 把这顿饭分享出去
               </text>
               <text class="share-sheet__subtitle">
-                {{ shareCardLoading ? '锅仔正在一次生成两张卡…' : '成品图、材料和做法都装进卡里，选一张保存就行。' }}
+                {{ shareCardLoading ? '锅仔正在一次生成三张卡…' : '成品图、材料和做法都装进卡里，选一张保存就行。' }}
               </text>
             </view>
             <view class="share-sheet__close pressable" role="button" aria-label="关闭分享面板" @click="showShareSheet = false">
@@ -768,6 +817,23 @@ async function waitForDelivery(orderNo: string) {
                 锅仔陪你做完这餐
               </text>
             </view>
+            <view class="share-card-option pressable" :class="{ 'is-selected': shareStyle === 'handwritten', 'is-loading': shareCardLoading }" role="button" @click="selectShareStyle('handwritten')">
+              <view v-if="shareCardPaths.handwritten" class="share-card-option__preview-wrap" role="button" aria-label="预览锅仔手写食谱卡" @click.stop="previewShareCard('handwritten')">
+                <image class="share-card-option__image" :src="shareCardPaths.handwritten" mode="widthFix" />
+                <text class="share-card-option__preview-tip">
+                  点击预览
+                </text>
+              </view>
+              <view v-else class="share-card-option__placeholder">
+                <text>{{ shareCardLoading ? '生成中' : '生成失败' }}</text>
+              </view>
+              <text class="share-card-option__title">
+                锅仔手写
+              </text>
+              <text class="share-card-option__desc">
+                写在便签上的家常菜
+              </text>
+            </view>
           </view>
 
           <text v-if="shareCardError" class="share-sheet__error">
@@ -775,7 +841,7 @@ async function waitForDelivery(orderNo: string) {
           </text>
           <view class="share-sheet__actions">
             <view class="share-sheet__action share-sheet__action--secondary pressable" :class="{ 'is-disabled': shareCardLoading }" role="button" @click="generateShareCards">
-              {{ shareCardLoading ? '生成两张卡…' : '重新生成两张' }}
+              {{ shareCardLoading ? '生成三张卡…' : '重新生成三张' }}
             </view>
             <view class="share-sheet__action share-sheet__action--primary pressable" :class="{ 'is-disabled': shareCardLoading || !selectedShareCardPath }" role="button" @click="saveRecipeCard">
               {{ shareCardLoading ? '请稍候…' : shareCardSaved ? '已保存' : '保存选中卡片' }}
@@ -951,7 +1017,7 @@ async function waitForDelivery(orderNo: string) {
 .share-sheet__title { display: block; margin-top: 8rpx; color: var(--mrc-text-strong); font-size: 38rpx; font-weight: 800; line-height: 1.3; }
 .share-sheet__subtitle { display: block; margin-top: 10rpx; color: var(--mrc-text-sub); font-size: 23rpx; line-height: 1.5; }
 .share-sheet__close { display: flex; align-items: center; justify-content: center; width: 88rpx; height: 88rpx; flex-shrink: 0; border-radius: 50%; color: var(--mrc-text-sub); background: var(--mrc-surface-2); font-size: 48rpx; line-height: 1; }
-.share-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx; margin-top: 22rpx; }
+.share-card-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12rpx; margin-top: 22rpx; }
 .share-card-option { min-width: 0; padding: 10rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 24rpx; background: var(--mrc-surface-2); }
 .share-card-option.is-selected { border-color: var(--mrc-accent); background: var(--mrc-surface-peach); box-shadow: inset 0 0 0 2rpx rgba(239, 90, 60, .1); }
 .share-card-option.is-loading { opacity: .72; }

@@ -103,8 +103,9 @@ public class DialogueAgent {
 
         Decision decision = decide(input, state, profile, independentMeal, gaps, conflicts, degraded);
         String action = validateAction(decision.action(), state, gaps, conflicts);
-        DialogueState.Card card = AgentCards.accept(action, state,
-                decision.cardType(), decision.cardTitle(), decision.cardDescription(), decision.cardOptions());
+        boolean needsCard = input.isBlank() || !conflicts.isEmpty() || understanding.unclear();
+        DialogueState.Card card = needsCard ? AgentCards.accept(action, state,
+                decision.cardType(), decision.cardTitle(), decision.cardDescription(), decision.cardOptions()) : null;
 
         String askReason = decision.askReason().isBlank()
                 ? gaps.stream().filter(gap -> gap.action().equals(action)).map(Gap::reason).findFirst().orElse("")
@@ -159,7 +160,8 @@ public class DialogueAgent {
                 String text = item.asText("").trim();
                 if (!text.isEmpty()) conflicts.add(text);
             }
-            return new Understanding(root.path("reply").asText("").trim(), facts, conflicts);
+            boolean unclear = root.path("unclear").isArray() && root.path("unclear").size() > 0;
+            return new Understanding(root.path("reply").asText("").trim(), facts, conflicts, unclear);
         } catch (Exception ex) {
             degraded.add("理解环节降级：模型输出无法解析为结构化结果");
             return Understanding.empty();
@@ -524,9 +526,9 @@ public class DialogueAgent {
         return content.replaceFirst("^```(?:json)?\\s*", "").replaceFirst("\\s*```$", "").trim();
     }
 
-    private record Understanding(String reply, List<AgentFact> facts, List<String> conflicts) {
+    private record Understanding(String reply, List<AgentFact> facts, List<String> conflicts, boolean unclear) {
         static Understanding empty() {
-            return new Understanding("", List.of(), List.of());
+            return new Understanding("", List.of(), List.of(), false);
         }
     }
 
