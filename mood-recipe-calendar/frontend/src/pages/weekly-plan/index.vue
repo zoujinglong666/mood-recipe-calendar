@@ -175,7 +175,7 @@ async function toggleFavorite(id: number) {
                         {{ currentPlan.days.length }} 天、每天 {{ dishesOf(currentPlan.days[0]).length }} 道菜。锅仔已经替你把这一桌想好了。
                       </text>
                     </view>
-                    <image class="active-menu__character" :src="`${STATIC_BASE_URL}/static/guozai/action_11_cooking.png`" mode="aspectFit" aria-label="端着晚餐的锅仔" />
+                    <image class="active-menu__character" :src="`${STATIC_BASE_URL}/static/guozai/action_02_soup.png`" mode="aspectFit" aria-label="端着晚餐的锅仔" />
                   </view>
                   <view class="active-menu__tape">
                     GUOZAI MADE THIS

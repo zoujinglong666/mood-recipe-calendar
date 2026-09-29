@@ -15,7 +15,7 @@ const ALL_HERO_GUOZAI: HeroGuozai[] = [
   { img: STATIC_BASE_URL + '/static/guozai/action_08_peek.png', name: '探头锅仔' },
   { img: STATIC_BASE_URL + '/static/guozai/action_09_celebrate.png', name: '庆祝锅仔' },
   { img: STATIC_BASE_URL + '/static/guozai/action_10_thinking.png', name: '思考锅仔' },
-  { img: STATIC_BASE_URL + '/static/guozai/action_11_cooking.png', name: '厨师锅仔' },
+  { img: STATIC_BASE_URL + '/static/guozai/action_03_camera.png', name: '相机锅仔' },
   { img: STATIC_BASE_URL + '/static/guozai/action_12_heart.png', name: '比心锅仔' },
   { img: STATIC_BASE_URL + '/static/guozai/action_13_wave.png', name: '挥手锅仔' },
   { img: STATIC_BASE_URL + '/static/guozai/action_14_clap.png', name: '鼓掌锅仔' },
@@ -31,7 +31,7 @@ const HERO_GUOZAI_BY_PERIOD: Record<string, HeroGuozai[]> = {
   morning: [
     { img: STATIC_BASE_URL + '/static/guozai/action_01_bowl.png', name: '端碗锅仔' },
     { img: STATIC_BASE_URL + '/static/guozai/action_13_wave.png', name: '挥手锅仔' },
-    { img: STATIC_BASE_URL + '/static/guozai/action_11_cooking.png', name: '厨师锅仔' },
+    { img: STATIC_BASE_URL + '/static/guozai/action_02_soup.png', name: '端锅锅仔' },
   ],
   noon: [
     { img: STATIC_BASE_URL + '/static/guozai/action_02_soup.png', name: '喝汤锅仔' },
@@ -272,7 +272,7 @@ function openCalendarCell(cell: { d: number; record?: RecordItem }) {
           </view>
         </view>
         <image v-if="todayBoard.recipe.image" class="home-board__img" :src="todayBoard.recipe.image" mode="aspectFill" />
-        <image v-else class="home-board__img home-board__img--fallback" :src="STATIC_BASE_URL + '/static/guozai/action_11_cooking.png'" mode="aspectFit" />
+        <image v-else class="home-board__img home-board__img--fallback" :src="STATIC_BASE_URL + '/static/guozai/action_01_bowl.png'" mode="aspectFit" />
       </view>
 
       <view class="home-lucky" role="button" aria-label="让锅仔随机推荐一道菜" @click="gotoLucky">
@@ -284,6 +284,10 @@ function openCalendarCell(cell: { d: number; record?: RecordItem }) {
       </view>
 
       <view class="home-actions">
+        <view class="home-actions__item home-actions__item--recipe" role="button" aria-label="查看今日三餐" @click="goto('daily-meal-plan')">
+          <view class="home-actions__text"><text class="home-actions__label">一日三餐</text><text class="home-actions__name">今天怎么吃</text></view>
+          <image class="home-actions__guozai" :src="STATIC_BASE_URL + '/static/guozai/action_01_bowl.png'" mode="aspectFit" />
+        </view>
         <view class="home-actions__item home-actions__item--recipe" role="button" aria-label="再推荐一道菜" @click="gotoLucky">
           <view class="home-actions__text"><text class="home-actions__label">今日菜单</text><text class="home-actions__name">再来一道</text></view>
           <image class="home-actions__guozai" :src="STATIC_BASE_URL + '/static/guozai/action_02_soup.png'" mode="aspectFit" />

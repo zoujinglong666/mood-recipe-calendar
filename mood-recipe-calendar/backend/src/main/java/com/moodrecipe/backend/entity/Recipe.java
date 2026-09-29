@@ -1,8 +1,11 @@
 package com.moodrecipe.backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.moodrecipe.backend.model.RecommendationInsight;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Entity
@@ -40,6 +43,11 @@ public class Recipe {
     /** AI 临时推荐的反馈标识，不进入公共菜谱表。 */
     @Transient
     private String exposureId;
+
+    /** 本次实际使用的记忆解释，不进入菜谱表。 */
+    @Transient
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    private List<RecommendationInsight> recommendationInsights = List.of();
 
     /** 菜谱来源：AI=锅仔智能体生成并落库，LOCAL=初始化种子数据。 */
     @Column(name = "source", length = 16)

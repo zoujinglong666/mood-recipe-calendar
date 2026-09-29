@@ -1,0 +1,1 @@
+"use strict";const e=require("./request.js");exports.fetchDailyMealPlan=function(a){return e.get("/daily-meal-plan",{date:a})},exports.replaceDailyMealPlanMeal=function(a,t){return e.post(`/daily-meal-plan/${a}/replace?date=${encodeURIComponent(t||"")}`)};

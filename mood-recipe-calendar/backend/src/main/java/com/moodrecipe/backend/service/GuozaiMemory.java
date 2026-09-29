@@ -1,5 +1,7 @@
 package com.moodrecipe.backend.service;
 
+import com.moodrecipe.backend.agent.AgentMemoryStore;
+import com.moodrecipe.backend.agent.UserProfile;
 import com.moodrecipe.backend.entity.OperationalEvent;
 import com.moodrecipe.backend.entity.UserFoodPreference;
 import com.moodrecipe.backend.entity.UserRecord;
@@ -7,6 +9,7 @@ import com.moodrecipe.backend.repository.OperationalEventRepository;
 import com.moodrecipe.backend.repository.UserFoodPreferenceRepository;
 import com.moodrecipe.backend.repository.UserRecordRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -25,12 +28,20 @@ public class GuozaiMemory {
     private final UserRecordRepository records;
     private final UserFoodPreferenceRepository preferences;
     private final OperationalEventRepository events;
+    private final AgentMemoryStore foodProfile;
 
     public GuozaiMemory(UserRecordRepository records, UserFoodPreferenceRepository preferences,
                         OperationalEventRepository events) {
+        this(records, preferences, events, null);
+    }
+
+    @Autowired
+    public GuozaiMemory(UserRecordRepository records, UserFoodPreferenceRepository preferences,
+                        OperationalEventRepository events, AgentMemoryStore foodProfile) {
         this.records = records;
         this.preferences = preferences;
         this.events = events;
+        this.foodProfile = foodProfile;
     }
 
     /** 统一记忆快照。 */
@@ -45,8 +56,19 @@ public class GuozaiMemory {
             String favoriteCuisine,
             UserFoodPreference preference,
             boolean isNewUser,
-            MoodTrend moodTrend
-    ) { }
+            MoodTrend moodTrend,
+            Integer maxCookingMinutes,
+            boolean preferSimple,
+            List<String> lovedDishes,
+            boolean personalizationEnabled
+    ) {
+        public MemorySnapshot(String period, String usualPeriod, String topDish, String topMood, int streak,
+                              boolean recordedToday, String favorite, String favoriteCuisine,
+                              UserFoodPreference preference, boolean isNewUser, MoodTrend moodTrend) {
+            this(period, usualPeriod, topDish, topMood, streak, recordedToday, favorite, favoriteCuisine,
+                    preference, isNewUser, moodTrend, null, false, List.of(), true);
+        }
+    }
 
     /** 情绪趋势分析结果。 */
     public record MoodTrend(
@@ -73,12 +95,22 @@ public class GuozaiMemory {
         String favorite = firstValue(preference == null ? "" : preference.getFavoriteDishes());
         String favoriteCuisine = firstValue(preference == null ? "" : preference.getFavoriteCuisines());
         if (favorite.isBlank()) favorite = topDish;
+        boolean personalizationEnabled = foodProfile == null || foodProfile.personalizationEnabled(openid);
+        UserProfile unified = foodProfile == null ? null
+                : foodProfile.profile(openid, AgentMemoryStore.Scene.SINGLE_RECIPE);
+        if (unified != null) {
+            if (!unified.favoriteCuisines().isEmpty()) favoriteCuisine = unified.favoriteCuisines().get(0);
+            if (!unified.lovedDishes().isEmpty()) favorite = unified.lovedDishes().get(0);
+        }
 
         MoodTrend moodTrend = analyzeMoodTrend(recent);
 
         boolean isNewUser = recent.isEmpty() && (preference == null || !preference.isOnboardingCompleted());
         return new MemorySnapshot(period, usualPeriod, topDish, topMood, streak, recordedToday,
-                favorite, favoriteCuisine, preference, isNewUser, moodTrend);
+                favorite, favoriteCuisine, preference, isNewUser, moodTrend,
+                unified == null ? null : unified.maxCookingMinutes(),
+                unified != null && unified.preferSimple(),
+                unified == null ? List.of() : unified.lovedDishes(), personalizationEnabled);
     }
 
     /**
@@ -112,15 +144,23 @@ public class GuozaiMemory {
     public String buildAnalysis(MemorySnapshot snap) {
         List<String> points = new ArrayList<>();
 
+        if (snap.preferSimple()) points.add("偏好省事做法");
+        if (snap.maxCookingMinutes() != null) {
+            points.add("单菜时长尽量控制在" + snap.maxCookingMinutes() + "分钟内");
+        }
+        if (!snap.lovedDishes().isEmpty()) {
+            points.add("明确喜欢或做过「" + snap.lovedDishes().get(0) + "」");
+        }
+
         // 情绪趋势洞察
-        if (!snap.moodTrend().last7Days().isEmpty()) {
+        if (snap.moodTrend() != null && !snap.moodTrend().last7Days().isEmpty()) {
             String dominant = snap.moodTrend().dominantMood();
             long count = snap.moodTrend().last7Days().getOrDefault(dominant, 0L);
             if (!"还在了解".equals(dominant) && count >= 2) {
                 points.add("最近7天里「" + dominant + "」出现了" + count + "次，是主导心情");
             }
         }
-        if (!snap.moodTrend().recentShift().isBlank()) {
+        if (snap.moodTrend() != null && !snap.moodTrend().recentShift().isBlank()) {
             points.add(snap.moodTrend().recentShift());
         }
 
@@ -157,7 +197,7 @@ public class GuozaiMemory {
         }
 
         // 心情-菜品关联
-        if (!snap.moodTrend().moodDishPairs().isEmpty()) {
+        if (snap.moodTrend() != null && !snap.moodTrend().moodDishPairs().isEmpty()) {
             points.add(snap.moodTrend().moodDishPairs().get(0));
         }
 

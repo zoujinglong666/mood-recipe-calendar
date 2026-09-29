@@ -9,6 +9,8 @@ import { createRecommendationJob, fetchRecipeDetail, fetchRecipeFeedback, fetchR
 import { createVirtualOrder, fetchVirtualOrder, fetchVirtualProducts, getVirtualPaymentParams, requestWechatVirtualPayment } from '../../api/virtualCommerce'
 import Icon from '../../components/common/Icon.vue'
 import ErrorState from '../../components/guozai/ErrorState.vue'
+import GuozaiChoiceChips from '../../components/guozai/GuozaiChoiceChips.vue'
+import GuozaiInsightCard from '../../components/guozai/GuozaiInsightCard.vue'
 import { exportRecipeShare, saveShareImage } from '../../utils/albumShare'
 import { saveCookingDraft, saveRecordDraft } from '../../utils/cookingDraft'
 import { ensureLogin } from '../../utils/login'
@@ -65,6 +67,16 @@ const purchasingSku = ref('')
 const aiProducts = ref<VirtualProduct[]>([])
 const feedbackLoading = ref<RecipeFeedbackAction | ''>('')
 const feedbackState = ref<RecipeFeedbackState>({ liked: false, disliked: false, made: false })
+const recipeFeedbackOptions = computed(() => [
+  { value: 'LIKE', label: feedbackLoading.value === 'LIKE' ? '记住中…' : feedbackState.value.liked ? '已喜欢' : '喜欢' },
+  { value: 'DISLIKE', label: feedbackLoading.value === 'DISLIKE' ? '换菜中…' : '不想吃' },
+  { value: 'MADE', label: '做过' },
+])
+const recipeFeedbackSelections = computed(() => [
+  ...(feedbackState.value.liked ? ['LIKE'] : []),
+  ...(feedbackState.value.disliked ? ['DISLIKE'] : []),
+  ...(feedbackState.value.made ? ['MADE'] : []),
+])
 type ShareStyle = 'classic' | 'guozai' | 'handwritten'
 const showShareSheet = ref(false)
 const shareCardLoading = ref(false)
@@ -359,6 +371,10 @@ async function sendFeedback(action: RecipeFeedbackAction) {
   }
 }
 
+function selectRecipeFeedback(value: string) {
+  void sendFeedback(value as RecipeFeedbackAction)
+}
+
 function openShareSheet() {
   if (!recipe.value) {
     toast('先等锅仔推荐好一餐吧')
@@ -647,6 +663,14 @@ async function waitForDelivery(orderNo: string) {
           </text>
         </view>
 
+        <GuozaiInsightCard
+          v-if="recipe.recommendationInsights?.length"
+          class="recommend-insight"
+          title="锅仔这样调整了这次推荐"
+          :items="recipe.recommendationInsights"
+          variant="recommendation"
+        />
+
         <view v-if="toolTrace.length" class="tool-trace">
           <view class="tool-trace__toggle pressable" role="button" :aria-expanded="showToolTrace" aria-label="查看锅仔本次推荐过程" @click="showToolTrace = !showToolTrace">
             <view>
@@ -679,15 +703,13 @@ async function waitForDelivery(orderNo: string) {
         </view>
 
         <view v-if="feedbackAvailable" class="feedback-row" aria-label="告诉锅仔这道菜是否合胃口">
-          <view class="feedback-action pressable" :class="{ 'is-selected': feedbackState.liked, 'is-disabled': Boolean(feedbackLoading) }" role="button" :aria-label="feedbackState.liked ? '已喜欢这道菜' : '喜欢这道菜'" @click="sendFeedback('LIKE')">
-            <Icon name="heart" :size="30" color="#EF5A3C" /><text>{{ feedbackLoading === 'LIKE' ? '记住中…' : feedbackState.liked ? '已喜欢' : '喜欢' }}</text>
-          </view>
-          <view class="feedback-action pressable" :class="{ 'is-disabled': Boolean(feedbackLoading) }" role="button" aria-label="不想吃这道菜，换一道推荐" @click="sendFeedback('DISLIKE')">
-            <Icon name="dice" :size="30" color="#A1826A" /><text>{{ feedbackLoading === 'DISLIKE' ? '换菜中…' : '不想吃' }}</text>
-          </view>
-          <view class="feedback-action pressable" :class="{ 'is-disabled': Boolean(feedbackLoading) }" role="button" aria-label="做过这道菜并记录" @click="sendFeedback('MADE')">
-            <Icon name="camera" :size="30" color="#A1826A" /><text>做过</text>
-          </view>
+          <GuozaiChoiceChips
+            :model-value="recipeFeedbackSelections"
+            :options="recipeFeedbackOptions"
+            :disabled="Boolean(feedbackLoading)"
+            aria-label="告诉锅仔这道菜是否合胃口"
+            @select="selectRecipeFeedback"
+          />
         </view>
 
         <view class="custom-entry pressable" role="button" aria-label="打开按食材定制菜单" @click="openAiPanel">
@@ -755,7 +777,7 @@ async function waitForDelivery(orderNo: string) {
 
       <view class="primary-bar">
         <view class="primary-bar__inner">
-          <view class="primary-action pressable" role="button" :aria-label="primaryText" @click="handlePrimaryAction">
+          <view class="primary-action mrc-btn-primary" role="button" :aria-label="primaryText" @click="handlePrimaryAction">
             <Icon :name="steps.length ? 'flame' : 'camera'" :size="36" color="#fff" /><text>{{ primaryText }}</text>
           </view>
         </view>
@@ -972,6 +994,7 @@ async function waitForDelivery(orderNo: string) {
 .guozai-note__text { display: block; margin-top: 6rpx; color: var(--mrc-text-deep); font-size: 24rpx; line-height: 1.45; }
 .dish-description { display: block; padding: 20rpx 28rpx 26rpx; color: var(--mrc-text-sub); font-size: 25rpx; line-height: 1.6; }
 .tool-trace { margin-top: 20rpx; overflow: hidden; border: 2rpx solid var(--mrc-border-light); border-radius: 26rpx; background: var(--mrc-surface); }
+.recommend-insight { margin-top: 20rpx; }
 .tool-trace__toggle { display: flex; align-items: center; justify-content: space-between; gap: 18rpx; min-height: 104rpx; padding: 12rpx 24rpx; box-sizing: border-box; }
 .tool-trace__title { display: block; color: var(--mrc-text-deep); font-size: 25rpx; font-weight: 800; }
 .tool-trace__summary { display: block; margin-top: 6rpx; color: var(--mrc-text-sub); font-size: 21rpx; line-height: 1.4; }
@@ -983,9 +1006,7 @@ async function waitForDelivery(orderNo: string) {
 .tool-trace__mark { display: flex; align-items: center; justify-content: center; width: 38rpx; height: 38rpx; flex-shrink: 0; border-radius: 50%; color: var(--mrc-accent); background: var(--mrc-surface-sun); font-size: 18rpx; font-weight: 900; }
 .tool-trace__label { display: block; color: var(--mrc-text-deep); font-size: 23rpx; font-weight: 800; }
 .tool-trace__message { display: block; margin-top: 4rpx; color: var(--mrc-text-sub); font-size: 21rpx; line-height: 1.45; }
-.feedback-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12rpx; margin-top: 20rpx; }
-.feedback-action { display: flex; align-items: center; justify-content: center; gap: 10rpx; min-height: 88rpx; padding: 0 16rpx; box-sizing: border-box; border: 2rpx solid var(--mrc-border); border-radius: 44rpx; color: var(--mrc-text-deep); background: var(--mrc-surface); font-size: 24rpx; font-weight: 700; }
-.feedback-action.is-selected { border-color: var(--mrc-primary); background: var(--mrc-accent-soft); color: var(--mrc-accent); }
+.feedback-row { margin-top: 20rpx; }
 .custom-entry { display: flex; align-items: center; gap: 16rpx; min-height: 112rpx; margin-top: 28rpx; padding: 12rpx 20rpx; box-sizing: border-box; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; background: var(--mrc-surface-2); }
 .custom-entry__image { width: 84rpx; height: 84rpx; flex-shrink: 0; }
 .custom-entry__copy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 6rpx; }
@@ -1008,7 +1029,7 @@ async function waitForDelivery(orderNo: string) {
 .step-item__text { flex: 1; color: var(--mrc-text-deep); font-size: 27rpx; line-height: 1.7; }
 .primary-bar { position: fixed; right: 0; bottom: 0; left: 0; z-index: 30; padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom)); border-top: 2rpx solid var(--mrc-border-light); background: var(--mrc-surface); box-shadow: 0 -8rpx 24rpx rgba(40, 24, 16, .08); }
 .primary-bar__inner { max-width: 820rpx; margin: 0 auto; }
-.primary-action { display: flex; align-items: center; justify-content: center; gap: 12rpx; min-height: 96rpx; border-radius: 48rpx; color: #fff; background: var(--mrc-primary-grad); box-shadow: var(--mrc-shadow-coral); font-size: 30rpx; font-weight: 800; letter-spacing: 1rpx; }
+.primary-action { width: 100%; gap: 12rpx; }
 .recipe-share__canvas { position: fixed; top: -9999px; left: -9999px; width: 750px; height: 1500px; opacity: 0; pointer-events: none; }
 .share-mask { position: fixed; inset: 0; z-index: 61; display: flex; align-items: flex-end; background: rgba(24, 15, 10, .58); }
 .share-sheet { width: 100%; max-height: 90vh; max-height: 90dvh; overflow-y: auto; box-sizing: border-box; padding: 30rpx 32rpx calc(32rpx + env(safe-area-inset-bottom)); border-radius: 40rpx 40rpx 0 0; background: var(--mrc-surface); }

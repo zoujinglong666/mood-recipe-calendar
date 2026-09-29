@@ -16,6 +16,7 @@
     "pages/settings/index",
     "pages/timeline/index",
     "pages/cooking/index",
+    "pages/daily-meal-plan/index",
     "pages/login/index",
     "pages/meal-agent/index",
     "pages/membership/index",

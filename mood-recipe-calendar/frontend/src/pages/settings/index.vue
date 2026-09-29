@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import type { AgentMemoryFact } from '@/api/auth'
 import type { ApiBackend } from '@/api/request'
 import type { ThemeMode } from '@/composables/useManualTheme'
 import { computed, ref } from 'vue'
-import { logout as apiLogout, clearAgentMemory, deleteAccount, forgetAgentMemory, getAgentMemory, setAgentPersonalization, updateUserInfo } from '@/api/auth'
+import { logout as apiLogout, deleteAccount, updateUserInfo } from '@/api/auth'
 import { API_BACKENDS, getApiBaseUrl, setApiBaseUrl, uploadFile } from '@/api/request'
 import Icon from '@/components/common/Icon.vue'
 import { useManualTheme } from '@/composables/useManualTheme'
@@ -28,15 +27,13 @@ const THEME_CHOICES: { value: ThemeChoice, label: string, icon: 'phone' | 'user'
 ]
 
 const userStore = useUserStore()
+const router = useRouter()
 const { isDark, followSystem, currentThemeColor, themeColorOptions, toggleTheme, setFollowSystem, selectThemeColor } = useManualTheme()
 const nickname = ref('')
 const avatarUpdating = ref(false)
 const nicknameSaving = ref(false)
 const logoutLoading = ref(false)
 const deleteLoading = ref(false)
-const memoryLoading = ref(false)
-const personalizationEnabled = ref(true)
-const memoryFacts = ref<AgentMemoryFact[]>([])
 
 const avatar = computed(() => userStore.userInfo?.avatarUrl || `${STATIC_BASE_URL}/static/guozai/mood_01_happy.png`)
 const themeChoice = computed<ThemeChoice>(() => followSystem.value ? 'system' : isDark.value ? 'dark' : 'light')
@@ -80,70 +77,9 @@ onShow(async () => {
   userStore.restoreFromStorage()
   if (userStore.isLoggedIn) {
     await refreshUserInfo()
-    await loadMemory()
   }
   nickname.value = userStore.userInfo?.nickname || ''
 })
-
-async function loadMemory() {
-  memoryLoading.value = true
-  try {
-    const memory = await getAgentMemory()
-    memoryFacts.value = memory.facts || []
-    personalizationEnabled.value = memory.personalizationEnabled !== false
-  }
-  catch (error) {
-    toastError(error, '锅仔记忆读取失败')
-  }
-  finally {
-    memoryLoading.value = false
-  }
-}
-
-async function togglePersonalization(event: any) {
-  const enabled = !!event.detail?.value
-  try {
-    const result = await setAgentPersonalization(enabled)
-    personalizationEnabled.value = result.enabled
-    toastSuccess(enabled ? '已开启个性化推荐' : '已关闭个性化推荐')
-  }
-  catch (error) {
-    personalizationEnabled.value = !enabled
-    toastError(error, '设置失败，请重试')
-  }
-}
-
-async function forgetMemory(key: string) {
-  try {
-    await forgetAgentMemory(key)
-    memoryFacts.value = memoryFacts.value.filter(item => item.key !== key)
-    toastSuccess('这条记忆已删除')
-  }
-  catch (error) {
-    toastError(error, '删除记忆失败')
-  }
-}
-
-function askClearMemory() {
-  uni.showModal({
-    title: '清空锅仔记忆？',
-    content: '口味、家庭情况和饮食偏好将全部清除，菜谱记录本身不会删除。',
-    confirmText: '确认清空',
-    confirmColor: '#D94841',
-    success: async (result) => {
-      if (!result.confirm)
-        return
-      try {
-        await clearAgentMemory()
-        memoryFacts.value = []
-        toastSuccess('锅仔记忆已清空')
-      }
-      catch (error) {
-        toastError(error, '清空失败，请重试')
-      }
-    },
-  })
-}
 
 async function updateAvatar(filePath: string) {
   if (!userStore.isLoggedIn) {
@@ -262,7 +198,6 @@ function askDeleteAccount() {
       try {
         await deleteAccount()
         userStore.logout()
-        memoryFacts.value = []
         nickname.value = ''
         toastSuccess('账号已注销')
         setTimeout(() => uni.reLaunch({ url: '/pages/profile/index' }), 500)
@@ -304,41 +239,15 @@ function askDeleteAccount() {
             你可以随时查看、删除或关闭个性化
           </text>
         </view>
-        <view class="memory-card">
+        <view class="memory-card pressable" role="button" aria-label="打开锅仔记忆专属页面" @click="router.push({ name: 'preferences' })">
           <view class="memory-switch">
             <view>
               <text class="memory-switch__title">
-                个性化推荐
+                打开锅仔记忆本
+              </text><text class="memory-switch__hint">
+                查看、修改和删除锅仔记住的全部内容
               </text>
-              <text class="memory-switch__hint">
-                关闭后不读取，也不写入长期记忆
-              </text>
-            </view>
-            <switch :checked="personalizationEnabled" color="#EF5A3C" @change="togglePersonalization" />
-          </view>
-          <text v-if="memoryLoading" class="memory-empty">
-            正在读取锅仔记忆…
-          </text>
-          <text v-else-if="!memoryFacts.length" class="memory-empty">
-            锅仔目前没有保存长期记忆
-          </text>
-          <view v-else class="memory-list">
-            <view v-for="fact in memoryFacts" :key="fact.key" class="memory-item">
-              <view class="memory-item__copy">
-                <text class="memory-item__value">
-                  {{ fact.value }}
-                </text>
-                <text class="memory-item__source">
-                  {{ fact.source === 'CHAT' ? '来自对话' : fact.source === 'EXPLICIT' ? '你主动设置' : '根据反馈学习' }}
-                </text>
-              </view>
-              <text class="memory-item__delete" role="button" :aria-label="`删除记忆：${fact.value}`" @click="forgetMemory(fact.key)">
-                删除
-              </text>
-            </view>
-          </view>
-          <view v-if="memoryFacts.length" class="memory-clear pressable" role="button" aria-label="清空全部锅仔记忆" @click="askClearMemory">
-            清空全部记忆
+            </view><text>›</text>
           </view>
         </view>
       </view>

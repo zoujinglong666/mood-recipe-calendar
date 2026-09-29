@@ -2,16 +2,15 @@ package com.moodrecipe.backend.controller;
 
 import com.moodrecipe.backend.common.ApiResponse;
 import com.moodrecipe.backend.entity.UserRecord;
-import com.moodrecipe.backend.entity.RecipeInteraction;
+import com.moodrecipe.backend.model.LearningReceipt;
 import com.moodrecipe.backend.model.RecordRequest;
+import com.moodrecipe.backend.model.RecordSaveResponse;
 import com.moodrecipe.backend.repository.UserRecordRepository;
-import com.moodrecipe.backend.repository.RecipeInteractionRepository;
-import com.moodrecipe.backend.service.RecommendationExposureService;
+import com.moodrecipe.backend.service.RecordLearningService;
 import com.moodrecipe.backend.service.WechatContentSafetyService;
 import jakarta.validation.Valid;
 import com.moodrecipe.backend.config.SessionAuthInterceptor;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -23,24 +22,22 @@ import java.util.stream.Collectors;
 public class RecordController {
 
     private final UserRecordRepository repository;
-    private final RecipeInteractionRepository recipeInteractions;
-    private final RecommendationExposureService exposures;
+    private final RecordLearningService learning;
     private final WechatContentSafetyService contentSafety;
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ISO_LOCAL_DATE;
     private static final String DEFAULT_DISH_IMAGE = "/static/dish_tomato_beef.png";
 
-    public RecordController(UserRecordRepository repository, RecipeInteractionRepository recipeInteractions,
-                            RecommendationExposureService exposures, WechatContentSafetyService contentSafety) {
+    public RecordController(UserRecordRepository repository, RecordLearningService learning,
+                            WechatContentSafetyService contentSafety) {
         this.repository = repository;
-        this.recipeInteractions = recipeInteractions;
-        this.exposures = exposures;
+        this.learning = learning;
         this.contentSafety = contentSafety;
     }
 
     /** 保存一条记录 */
     @PostMapping
-    @Transactional
-    public ApiResponse<UserRecord> save(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @Valid @RequestBody RecordRequest req) {
+    public ApiResponse<RecordSaveResponse> save(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
+                                                 @Valid @RequestBody RecordRequest req) {
         if (!contentSafety.allowsText(openid, req.dishName(), req.moodTag(), req.note()))
             return ApiResponse.error(400, "文字未通过安全检查");
         List<String> imageUrls = imageUrls(req);
@@ -56,7 +53,9 @@ public class RecordController {
         }
         if (req.clientRequestId() != null && !req.clientRequestId().isBlank()) {
             var existing = repository.findByOpenidAndClientRequestId(openid, req.clientRequestId());
-            if (existing.isPresent()) return ApiResponse.ok(existing.get());
+            if (existing.isPresent()) {
+                return ApiResponse.ok(new RecordSaveResponse(existing.get(), LearningReceipt.savedOnly()));
+            }
         }
         UserRecord record = new UserRecord();
         record.setOpenid(openid);
@@ -70,24 +69,15 @@ public class RecordController {
         record.setCookingTime(req.cookingTime());
         record.setRecordDate(recordDate);
         UserRecord saved = repository.save(record);
+        LearningReceipt receipt;
         try {
-            if (req.recipeId() != null && !req.recipeId().isBlank()) {
-                Long recipeId = Long.valueOf(req.recipeId());
-                if (!recipeInteractions.existsByOpenidAndRecipeIdAndAction(openid, recipeId, "MADE")) {
-                    RecipeInteraction interaction = new RecipeInteraction();
-                    interaction.setOpenid(openid);
-                    interaction.setRecipeId(recipeId);
-                    interaction.setAction("MADE");
-                    recipeInteractions.save(interaction);
-                }
-            }
-        } catch (NumberFormatException ignored) {
-            // AI 临时菜谱没有持久化 id，仍保留用户的做菜记录。
+            receipt = learning.learn(openid, req.recipeId(), req.exposureId(),
+                    Boolean.TRUE.equals(req.liked()), Boolean.TRUE.equals(req.tooHard()),
+                    Boolean.TRUE.equals(req.leftover()));
+        } catch (RuntimeException ignored) {
+            receipt = LearningReceipt.learningUnavailable();
         }
-        if (req.exposureId() != null && !req.exposureId().isBlank()) {
-            exposures.feedback(openid, req.exposureId(), "MADE");
-        }
-        return ApiResponse.ok(saved);
+        return ApiResponse.ok(new RecordSaveResponse(saved, receipt));
     }
 
     @PutMapping("/{id}")

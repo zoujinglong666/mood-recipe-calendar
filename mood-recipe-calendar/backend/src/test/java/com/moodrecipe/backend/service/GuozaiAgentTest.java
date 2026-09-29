@@ -1,5 +1,6 @@
 package com.moodrecipe.backend.service;
 
+import com.moodrecipe.backend.agent.AgentMemoryStore;
 import com.moodrecipe.backend.entity.Recipe;
 import com.moodrecipe.backend.entity.RecipeInteraction;
 import com.moodrecipe.backend.entity.UserFoodPreference;
@@ -22,6 +23,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
+import org.mockito.ArgumentCaptor;
 
 /**
  * 测试 GuozaiAgent 的本地回退推荐逻辑（AI 不可用时的菜谱筛选、偏好过滤、评分排序）。
@@ -90,10 +92,21 @@ class GuozaiAgentTest {
     private GuozaiAgent buildAgent(RecipeRepository recipes, RecipeInteractionRepository interactions,
                                    UserFoodPreferenceRepository preferences, AiRecipeService ai,
                                    RecommendationExposureService exposures) {
-        GuozaiMemory memory = mock(GuozaiMemory.class);
-        when(memory.snapshot(anyString(), anyInt())).thenReturn(
+        return buildAgent(recipes, interactions, preferences, ai, exposures,
                 new GuozaiMemory.MemorySnapshot("午间", "还在了解", "", "", 0, false,
                         "", "", null, true, null));
+    }
+
+    private GuozaiAgent buildAgent(RecipeRepository recipes, RecipeInteractionRepository interactions,
+                                   UserFoodPreferenceRepository preferences, AiRecipeService ai,
+                                   RecommendationExposureService exposures,
+                                   GuozaiMemory.MemorySnapshot snapshot) {
+        GuozaiMemory memory = mock(GuozaiMemory.class);
+        when(memory.snapshot(anyString(), anyInt())).thenReturn(snapshot);
+        when(memory.buildAnalysis(snapshot)).thenReturn(
+                (snapshot.preferSimple() ? "偏好省事做法；" : "")
+                        + (snapshot.maxCookingMinutes() == null ? "" : "单菜时长尽量控制在"
+                        + snapshot.maxCookingMinutes() + "分钟内"));
 
         GuozaiPersona persona = new GuozaiPersona();
         OperationalEventService events = mock(OperationalEventService.class);
@@ -101,6 +114,67 @@ class GuozaiAgentTest {
         when(exposures.recordShown(anyString(), any(Recipe.class), anyString())).thenReturn("exposure-1");
         return new GuozaiAgent(ai, memory, persona, recipes, interactions, preferences, events, exposures,
                 new WechatContentSafetyService(new com.fasterxml.jackson.databind.ObjectMapper(), "", "", false, false));
+    }
+
+    @Test
+    void prioritizesSimpleRecipeAndReturnsOnlyUsedInsights() {
+        RecipeRepository recipes = mock(RecipeRepository.class);
+        RecipeInteractionRepository interactions = mock(RecipeInteractionRepository.class);
+        UserFoodPreferenceRepository preferences = mock(UserFoodPreferenceRepository.class);
+        AiRecipeService ai = mock(AiRecipeService.class);
+        RecommendationExposureService exposures = mock(RecommendationExposureService.class);
+        when(ai.recommendWithPersona(anyString(), anyString(), any())).thenReturn(Optional.empty());
+        Recipe difficult = recipe(1L, "慢炖牛腩", "牛腩");
+        difficult.setCookingTime(90);
+        difficult.setDifficulty("困难");
+        Recipe simple = recipe(2L, "番茄炒蛋", "番茄，鸡蛋");
+        simple.setCookingTime(15);
+        simple.setDifficulty("简单");
+        RecipeInteraction liked = new RecipeInteraction();
+        liked.setRecipeId(1L);
+        liked.setAction("LIKE");
+        when(preferences.findByOpenid("user-1")).thenReturn(Optional.empty());
+        when(interactions.findTop30ByOpenidOrderByCreatedAtDesc("user-1")).thenReturn(List.of(liked));
+        when(interactions.findByOpenidAndAction("user-1", "DISLIKE")).thenReturn(List.of());
+        when(recipes.findAiWithImages()).thenReturn(List.of(difficult, simple));
+        GuozaiMemory.MemorySnapshot snapshot = new GuozaiMemory.MemorySnapshot(
+                "晚间", "还在了解", "", "", 0, false, "", "", null, false, null,
+                35, true, List.of(), true);
+
+        Recipe result = buildAgent(recipes, interactions, preferences, ai, exposures, snapshot)
+                .recommend("user-1", "平静", null);
+
+        assertEquals("番茄炒蛋", result.getName());
+        assertEquals(2, result.getRecommendationInsights().size());
+        assertEquals(List.of(AgentMemoryStore.KEY_SIMPLE, AgentMemoryStore.KEY_MAX_MINUTES),
+                result.getRecommendationInsights().stream().map(item -> item.memoryKey()).toList());
+    }
+
+    @Test
+    void addsRecommendationConstraintsAndInsightsToAiResult() {
+        RecipeRepository recipes = mock(RecipeRepository.class);
+        RecipeInteractionRepository interactions = mock(RecipeInteractionRepository.class);
+        UserFoodPreferenceRepository preferences = mock(UserFoodPreferenceRepository.class);
+        AiRecipeService ai = mock(AiRecipeService.class);
+        RecommendationExposureService exposures = mock(RecommendationExposureService.class);
+        Recipe generated = recipe(null, "番茄炒蛋", "番茄，鸡蛋");
+        generated.setCookingTime(15);
+        generated.setDifficulty("简单");
+        when(ai.recommendWithPersona(anyString(), anyString(), any())).thenReturn(Optional.of(generated));
+        when(preferences.findByOpenid("user-1")).thenReturn(Optional.empty());
+        when(recipes.save(generated)).thenReturn(generated);
+        GuozaiMemory.MemorySnapshot snapshot = new GuozaiMemory.MemorySnapshot(
+                "晚间", "还在了解", "", "", 0, false, "", "", null, false, null,
+                35, true, List.of(), true);
+
+        Recipe result = buildAgent(recipes, interactions, preferences, ai, exposures, snapshot)
+                .recommend("user-1", "平静", null);
+
+        ArgumentCaptor<String> prompt = ArgumentCaptor.forClass(String.class);
+        verify(ai).recommendWithPersona(anyString(), prompt.capture(), any());
+        assertTrue(prompt.getValue().contains("35"));
+        assertTrue(prompt.getValue().contains("省事"));
+        assertEquals(2, result.getRecommendationInsights().size());
     }
 
     @Test
@@ -122,6 +196,7 @@ class GuozaiAgentTest {
 
         Recipe result = agent.recommend("user-1", "平静", null);
         assertEquals("番茄炒蛋", result.getName());
+        assertTrue(result.getRecommendationInsights().isEmpty());
     }
 
     @Test

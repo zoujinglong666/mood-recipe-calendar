@@ -77,6 +77,7 @@ declare global {
   const fetchCheckinStatus: typeof import('./api/gallery')['fetchCheckinStatus']
   const fetchCompanionMessage: typeof import('./api/records')['fetchCompanionMessage']
   const fetchDailyBoard: typeof import('./api/dailyMenu')['fetchDailyBoard']
+  const fetchDailyMealPlan: typeof import('./api/dailyMealPlan')['fetchDailyMealPlan']
   const fetchEntitlements: typeof import('./api/virtualCommerce')['fetchEntitlements']
   const fetchFoodMemory: typeof import('./api/preferences')['fetchFoodMemory']
   const fetchFoodPreference: typeof import('./api/preferences')['fetchFoodPreference']
@@ -202,6 +203,7 @@ declare global {
   const refreshDailyBoard: typeof import('./api/dailyMenu')['refreshDailyBoard']
   const refreshNavMetrics: typeof import('./composables/useNavBar')['refreshNavMetrics']
   const refreshUserInfo: typeof import('./utils/login')['refreshUserInfo']
+  const replaceDailyMealPlanMeal: typeof import('./api/dailyMealPlan')['replaceDailyMealPlanMeal']
   const replacePlanDay: typeof import('./api/weeklyPlans')['replacePlanDay']
   const reportPlanDishOutcome: typeof import('./api/weeklyPlans')['reportPlanDishOutcome']
   const requestDeepRecipe: typeof import('./api/recipes')['requestDeepRecipe']
@@ -530,6 +532,7 @@ declare module 'vue' {
     readonly fetchCheckinStatus: UnwrapRef<typeof import('./api/gallery')['fetchCheckinStatus']>
     readonly fetchCompanionMessage: UnwrapRef<typeof import('./api/records')['fetchCompanionMessage']>
     readonly fetchDailyBoard: UnwrapRef<typeof import('./api/dailyMenu')['fetchDailyBoard']>
+    readonly fetchDailyMealPlan: UnwrapRef<typeof import('./api/dailyMealPlan')['fetchDailyMealPlan']>
     readonly fetchEntitlements: UnwrapRef<typeof import('./api/virtualCommerce')['fetchEntitlements']>
     readonly fetchFoodMemory: UnwrapRef<typeof import('./api/preferences')['fetchFoodMemory']>
     readonly fetchFoodPreference: UnwrapRef<typeof import('./api/preferences')['fetchFoodPreference']>
@@ -655,6 +658,7 @@ declare module 'vue' {
     readonly refreshDailyBoard: UnwrapRef<typeof import('./api/dailyMenu')['refreshDailyBoard']>
     readonly refreshNavMetrics: UnwrapRef<typeof import('./composables/useNavBar')['refreshNavMetrics']>
     readonly refreshUserInfo: UnwrapRef<typeof import('./utils/login')['refreshUserInfo']>
+    readonly replaceDailyMealPlanMeal: UnwrapRef<typeof import('./api/dailyMealPlan')['replaceDailyMealPlanMeal']>
     readonly replacePlanDay: UnwrapRef<typeof import('./api/weeklyPlans')['replacePlanDay']>
     readonly reportPlanDishOutcome: UnwrapRef<typeof import('./api/weeklyPlans')['reportPlanDishOutcome']>
     readonly requestDeepRecipe: UnwrapRef<typeof import('./api/recipes')['requestDeepRecipe']>

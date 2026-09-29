@@ -39,6 +39,9 @@ public class AgentMemoryFact {
     @Column(name = "memory_value", nullable = false, length = 200)
     private String memoryValue;
 
+    @Column(name = "memory_category", nullable = false, length = 32)
+    private String memoryCategory = "EXPLICIT_PREFERENCE";
+
     @Column(nullable = false, length = 16)
     private String source = "CHAT";
 

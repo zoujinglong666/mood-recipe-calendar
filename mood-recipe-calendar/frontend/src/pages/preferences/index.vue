@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import type { FoodMemoryBehavior, HealthGoal, SpiceLevel } from '../../api/preferences'
-import { STATIC_BASE_URL } from '@/utils/assets'
+import type { AgentMemoryFact } from '@/api/auth'
 import { computed, ref } from 'vue'
+import { clearAgentMemory, forgetAgentMemory, getAgentMemory, setAgentPersonalization } from '@/api/auth'
 import { navBack } from '@/composables/useNavBar'
+import { STATIC_BASE_URL } from '@/utils/assets'
 import { clearFoodPreference, fetchFoodMemory, saveFoodPreference } from '../../api/preferences'
 import { ensureLogin } from '../../utils/login'
 import { toast, toastError, toastSuccess } from '../../utils/toast'
@@ -27,6 +29,21 @@ const healthGoal = ref<HealthGoal>('BALANCED')
 const avoidIngredients = ref('')
 const allergens = ref('')
 const behavior = ref<FoodMemoryBehavior | null>(null)
+const learnedFacts = ref<AgentMemoryFact[]>([])
+const personalizationEnabled = ref(true)
+
+const CATEGORY_LABELS: Record<AgentMemoryFact['category'], string> = {
+  EXPLICIT_PREFERENCE: '你主动告诉锅仔的',
+  BEHAVIOR_SIGNAL: '从选择和反馈学到的',
+  MEAL_CONTEXT: '平时怎么吃饭',
+  SHORT_TERM_STATE: '最近这段时间',
+  SAFETY_CONSTRAINT: '安全与忌口',
+}
+const groupedFacts = computed(() => Object.entries(CATEGORY_LABELS).map(([category, label]) => ({
+  category,
+  label,
+  facts: learnedFacts.value.filter(item => item.category === category),
+})).filter(group => group.facts.length))
 
 const FAVORITES = ['家常菜', '汤粥', '面食', '米饭', '清淡', '香辣', '肉食', '海鲜']
 const CUISINES = ['川菜', '湘菜', '粤菜', '江浙菜', '东北菜', '西北菜', '云贵菜', '日韩料理']
@@ -49,6 +66,9 @@ onLoad(async () => {
     const memory = await fetchFoodMemory()
     const data = memory.explicit
     behavior.value = memory.behavior
+    const agentMemory = await getAgentMemory()
+    learnedFacts.value = agentMemory.facts || []
+    personalizationEnabled.value = agentMemory.personalizationEnabled !== false
     favoriteTags.value = data.favoriteTags ? data.favoriteTags.split(',').filter(Boolean) : []
     favoriteCuisines.value = data.favoriteCuisines ? data.favoriteCuisines.split(',').filter(Boolean) : []
     favoriteDishes.value = data.favoriteDishes || ''
@@ -71,6 +91,28 @@ function toggleFavorite(tag: string) {
   favoriteTags.value = favoriteTags.value.includes(tag)
     ? favoriteTags.value.filter(item => item !== tag)
     : [...favoriteTags.value, tag]
+}
+
+async function togglePersonalization(event: any) {
+  const enabled = !!event.detail?.value
+  try {
+    personalizationEnabled.value = (await setAgentPersonalization(enabled)).enabled
+  }
+  catch (error) {
+    personalizationEnabled.value = !enabled
+    toastError(error, '个性化设置失败')
+  }
+}
+
+async function forgetFact(key: string) {
+  try {
+    await forgetAgentMemory(key)
+    learnedFacts.value = learnedFacts.value.filter(item => item.key !== key)
+    toastSuccess('这条记忆已删除')
+  }
+  catch (error) {
+    toastError(error, '删除记忆失败')
+  }
 }
 
 function toggleCuisine(cuisine: string) {
@@ -138,7 +180,7 @@ function clearMemory() {
       if (!result.confirm)
         return
       try {
-        await clearFoodPreference()
+        await Promise.all([clearFoodPreference(), clearAgentMemory()])
         uni.removeStorageSync('mrc_companion_message')
         uni.removeStorageSync('mrc_preference_onboarded')
         favoriteTags.value = []
@@ -151,6 +193,7 @@ function clearMemory() {
         avoidIngredients.value = ''
         allergens.value = ''
         behavior.value = null
+        learnedFacts.value = []
         toast('口味记忆已清除')
       }
       catch (e: any) {
@@ -170,7 +213,7 @@ function clearMemory() {
     </view>
     <template v-else>
       <view class="memory-hero">
-        <image class="memory-hero__image" :src="STATIC_BASE_URL + '/static/guozai/action_10_thinking.png'" mode="aspectFit" />
+        <image class="memory-hero__image" :src="`${STATIC_BASE_URL}/static/guozai/action_10_thinking.png`" mode="aspectFit" />
         <view class="memory-hero__copy">
           <text class="memory-hero__eyebrow">
             只记你愿意告诉我的
@@ -187,24 +230,72 @@ function clearMemory() {
       <view class="memory-summary">
         <view class="memory-summary__head">
           <view>
-            <text class="memory-summary__eyebrow">锅仔这样认识你</text>
-            <text class="memory-summary__title">来自你的选择和真实记录</text>
+            <text class="memory-summary__eyebrow">
+              锅仔这样认识你
+            </text>
+            <text class="memory-summary__title">
+              来自你的选择和真实记录
+            </text>
           </view>
-          <text class="memory-summary__source">行为记忆</text>
+          <text class="memory-summary__source">
+            行为记忆
+          </text>
         </view>
         <view v-if="behavior && (behavior.likedCount || behavior.dislikedCount || behavior.madeCount)" class="memory-summary__grid">
-          <view class="memory-stat"><text>{{ behavior.madeCount }}</text><text>做过</text></view>
-          <view class="memory-stat"><text>{{ behavior.likedCount }}</text><text>喜欢</text></view>
-          <view class="memory-stat"><text>{{ behavior.streak }}</text><text>连续天数</text></view>
+          <view class="memory-stat">
+            <text>{{ behavior.madeCount }}</text><text>做过</text>
+          </view>
+          <view class="memory-stat">
+            <text>{{ behavior.likedCount }}</text><text>喜欢</text>
+          </view>
+          <view class="memory-stat">
+            <text>{{ behavior.streak }}</text><text>连续天数</text>
+          </view>
         </view>
         <view v-if="behavior?.topDish || behavior?.topMood" class="memory-summary__sentence">
-          <text v-if="behavior.topDish">最近常做「{{ behavior.topDish }}」</text>
-          <text v-if="behavior.topMood">记录里「{{ behavior.topMood }}」最多</text>
+          <text v-if="behavior.topDish">
+            最近常做「{{ behavior.topDish }}」
+          </text>
+          <text v-if="behavior.topMood">
+            记录里「{{ behavior.topMood }}」最多
+          </text>
         </view>
         <view v-else class="memory-summary__empty">
           <text>再喜欢、拒绝或记录几顿，锅仔就能总结出你的习惯。</text>
         </view>
-        <text class="memory-summary__foot">这里只展示统计结论，不会把你的记录正文交给推荐模型。</text>
+        <text class="memory-summary__foot">
+          这里只展示统计结论，不会把你的记录正文交给推荐模型。
+        </text>
+      </view>
+
+      <view class="memory-section memory-section--learned">
+        <view class="memory-facts__head">
+          <view>
+            <text class="memory-section__title">
+              锅仔已经记住的事
+            </text><text class="memory-section__hint">
+              每条都有来源，你可以单独删除。
+            </text>
+          </view><switch :checked="personalizationEnabled" color="#EF5A3C" @change="togglePersonalization" />
+        </view>
+        <text v-if="!groupedFacts.length" class="memory-section__hint">
+          目前还没有长期记忆。
+        </text>
+        <view v-for="group in groupedFacts" :key="group.category" class="memory-fact-group">
+          <text class="memory-fact-group__title">
+            {{ group.label }}
+          </text><view v-for="fact in group.facts" :key="fact.key" class="memory-fact">
+            <view>
+              <text class="memory-fact__value">
+                {{ fact.value }}
+              </text><text class="memory-fact__reason">
+                {{ fact.reason || fact.evidence || '来自你的选择' }}
+              </text>
+            </view><text class="memory-fact__delete" @click="forgetFact(fact.key)">
+              删除
+            </text>
+          </view>
+        </view>
       </view>
 
       <view class="memory-section">
@@ -325,10 +416,16 @@ function clearMemory() {
             @click="healthGoal = goal.value"
           >
             <view class="health-goal__copy">
-              <text class="health-goal__label">{{ goal.label }}</text>
-              <text class="health-goal__hint">{{ goal.hint }}</text>
+              <text class="health-goal__label">
+                {{ goal.label }}
+              </text>
+              <text class="health-goal__hint">
+                {{ goal.hint }}
+              </text>
             </view>
-            <text class="health-goal__check">{{ healthGoal === goal.value ? '✓' : '' }}</text>
+            <text class="health-goal__check">
+              {{ healthGoal === goal.value ? '✓' : '' }}
+            </text>
           </view>
         </view>
       </view>
@@ -393,6 +490,7 @@ function clearMemory() {
 .memory-summary__foot { margin-top: 16rpx; color: var(--mrc-text-light); font-size: 20rpx; line-height: 1.5; }
 .memory-section { padding: 28rpx; margin-bottom: 20rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); }
 .memory-section--warning { border-color: var(--mrc-border); }
+.memory-facts__head,.memory-fact{display:flex;align-items:center;justify-content:space-between;gap:20rpx}.memory-fact-group{margin-top:24rpx}.memory-fact-group__title{display:block;color:var(--mrc-accent);font-size:22rpx;font-weight:800}.memory-fact{padding:20rpx 0;border-bottom:2rpx solid var(--mrc-border-light)}.memory-fact>view{min-width:0;flex:1}.memory-fact__value,.memory-fact__reason{display:block}.memory-fact__value{color:var(--mrc-text-deep);font-size:27rpx;font-weight:700}.memory-fact__reason{margin-top:6rpx;color:var(--mrc-text-sub);font-size:21rpx;line-height:1.45}.memory-fact__delete{flex-shrink:0;color:var(--mrc-danger,#a54235);font-size:23rpx}
 .memory-section__title, .memory-section__hint { display: block; }
 .memory-section__title { color: var(--mrc-text-deep); font-size: 31rpx; font-weight: 800; }
 .memory-section__hint { margin-top: 8rpx; color: var(--mrc-text-sub); font-size: 23rpx; line-height: 1.55; }

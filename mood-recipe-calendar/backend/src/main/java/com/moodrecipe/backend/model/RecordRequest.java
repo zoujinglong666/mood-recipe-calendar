@@ -20,10 +20,21 @@ public record RecordRequest(
         @Size(max = 64) String clientRequestId,
         @Min(0) @Max(1440) Integer cookingTime,
         @Pattern(regexp = "^\\d{4}-\\d{2}-\\d{2}$") String recordDate,
-        List<@Size(max = 2048) String> imageUrls
+        List<@Size(max = 2048) String> imageUrls,
+        Boolean liked,
+        Boolean tooHard,
+        Boolean leftover
 ) {
     public RecordRequest(String imageUrl, String dishName, String moodTag, String note, String recipeId,
                          String exposureId, String clientRequestId, Integer cookingTime, String recordDate) {
-        this(imageUrl, dishName, moodTag, note, recipeId, exposureId, clientRequestId, cookingTime, recordDate, List.of());
+        this(imageUrl, dishName, moodTag, note, recipeId, exposureId, clientRequestId, cookingTime,
+                recordDate, List.of(), null, null, null);
+    }
+
+    public RecordRequest(String imageUrl, String dishName, String moodTag, String note, String recipeId,
+                         String exposureId, String clientRequestId, Integer cookingTime, String recordDate,
+                         List<String> imageUrls) {
+        this(imageUrl, dishName, moodTag, note, recipeId, exposureId, clientRequestId, cookingTime,
+                recordDate, imageUrls, null, null, null);
     }
 }

@@ -9,6 +9,7 @@ type _LocationUrl =
   "/pages/album/index" |
   "/pages/calendar/index" |
   "/pages/cooking/index" |
+  "/pages/daily-meal-plan/index" |
   "/pages/feedback/index" |
   "/pages/gallery/index" |
   "/pages/login/index" |

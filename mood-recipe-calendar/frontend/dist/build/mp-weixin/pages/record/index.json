@@ -4,7 +4,9 @@
   "usingComponents": {
     "wd-navbar": "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar",
     "icon": "../../components/common/Icon",
-    "success-modal": "../../components/guozai/SuccessModal",
-    "mood-picker": "../../components/guozai/MoodPicker"
+    "guozai-choice-chips": "../../components/guozai/GuozaiChoiceChips",
+    "guozai-insight-card": "../../components/guozai/GuozaiInsightCard",
+    "mood-picker": "../../components/guozai/MoodPicker",
+    "success-modal": "../../components/guozai/SuccessModal"
   }
 }

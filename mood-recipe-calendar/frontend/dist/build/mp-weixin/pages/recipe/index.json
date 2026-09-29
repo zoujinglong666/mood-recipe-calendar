@@ -5,6 +5,8 @@
     "wd-image-preview": "../../node-modules/@wot-ui/ui/components/wd-image-preview/wd-image-preview",
     "wd-navbar": "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar",
     "icon": "../../components/common/Icon",
-    "error-state": "../../components/guozai/ErrorState"
+    "error-state": "../../components/guozai/ErrorState",
+    "guozai-choice-chips": "../../components/guozai/GuozaiChoiceChips",
+    "guozai-insight-card": "../../components/guozai/GuozaiInsightCard"
   }
 }

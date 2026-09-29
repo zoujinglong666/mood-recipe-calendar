@@ -14,6 +14,13 @@ export interface RecipeItem {
   season: string
   source: 'AI' | 'LOCAL'
   recommendationReason?: string
+  recommendationInsights?: RecommendationInsight[]
+}
+
+export interface RecommendationInsight {
+  type: 'MEMORY' | 'CHANGE'
+  text: string
+  memoryKey?: string | null
 }
 
 export type RecommendationJobStatus = 'RUNNING' | 'SUCCEEDED' | 'FAILED'

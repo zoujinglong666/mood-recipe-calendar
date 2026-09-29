@@ -86,7 +86,7 @@ public class AgentController {
     }
 
     private static MemoryFact toView(MemoryItem item) {
-        return new MemoryFact(item.key(), item.value(), Math.round(item.confidence() * 100d) / 100d,
+        return new MemoryFact(item.key(), item.value(), item.category(), Math.round(item.confidence() * 100d) / 100d,
                 item.source(), item.evidence(), item.reason(),
                 item.updatedAt() == null ? null : item.updatedAt().toString());
     }
@@ -95,7 +95,7 @@ public class AgentController {
                              List<String> skipQuestions, Integer maxCookingMinutes,
                              boolean preferSimple, List<String> avoidDishes, boolean personalizationEnabled) {}
 
-    public record MemoryFact(String key, String value, double confidence, String source,
+    public record MemoryFact(String key, String value, String category, double confidence, String source,
                              String evidence, String reason, String updatedAt) {}
 
     public record ForgetResult(String forgotten) {}

@@ -15,6 +15,8 @@ declare module 'vue' {
     GlobalToast: typeof import('./components/GlobalToast.vue')['default']
     GuozaiEmptyState: typeof import('./components/guozai/EmptyState.vue')['default']
     GuozaiErrorState: typeof import('./components/guozai/ErrorState.vue')['default']
+    GuozaiGuozaiChoiceChips: typeof import('./components/guozai/GuozaiChoiceChips.vue')['default']
+    GuozaiGuozaiInsightCard: typeof import('./components/guozai/GuozaiInsightCard.vue')['default']
     GuozaiLoadingState: typeof import('./components/guozai/LoadingState.vue')['default']
     GuozaiMoodPicker: typeof import('./components/guozai/MoodPicker.vue')['default']
     GuozaiSuccessModal: typeof import('./components/guozai/SuccessModal.vue')['default']

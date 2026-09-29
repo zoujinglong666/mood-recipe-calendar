@@ -6,16 +6,22 @@ interface Props {
   title?: string
   subtitle?: string
   confirmText?: string
+  secondaryText?: string
 }
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   title: '记录成功！',
   subtitle: '今天也好好吃饭了呢',
   confirmText: '好的',
+  secondaryText: '',
 })
-const emit = defineEmits<{ (e: 'confirm'): void }>()
+const emit = defineEmits<{ confirm: [], secondary: [] }>()
 
 function handleConfirm() {
   emit('confirm')
+}
+
+function handleSecondary() {
+  emit('secondary')
 }
 </script>
 
@@ -30,13 +36,33 @@ function handleConfirm() {
           mode="aspectFit"
         />
         <!-- 星星装饰 -->
-        <text class="gz-modal__star gz-modal__star--1 star-float">✨</text>
-        <text class="gz-modal__star gz-modal__star--2 star-float">⭐</text>
-        <text class="gz-modal__star gz-modal__star--3 star-float">✨</text>
+        <text class="gz-modal__star gz-modal__star--1 star-float">
+          ✨
+        </text>
+        <text class="gz-modal__star gz-modal__star--2 star-float">
+          ⭐
+        </text>
+        <text class="gz-modal__star gz-modal__star--3 star-float">
+          ✨
+        </text>
       </view>
-      <text class="gz-modal__title">{{ title }}</text>
-      <text class="gz-modal__subtitle">{{ subtitle }}</text>
-      <view class="gz-modal__btn" @click="handleConfirm">{{ confirmText }}</view>
+      <text class="gz-modal__title">
+        {{ title }}
+      </text>
+      <text class="gz-modal__subtitle">
+        {{ subtitle }}
+      </text>
+      <view v-if="$slots.default" class="gz-modal__content">
+        <slot />
+      </view>
+      <view class="gz-modal__actions" :class="{ 'gz-modal__actions--double': secondaryText }">
+        <view v-if="secondaryText" class="mrc-btn-outline gz-modal__btn" role="button" :aria-label="secondaryText" @click="handleSecondary">
+          {{ secondaryText }}
+        </view>
+        <view class="mrc-btn-primary gz-modal__btn" role="button" :aria-label="confirmText" @click="handleConfirm">
+          {{ confirmText }}
+        </view>
+      </view>
     </view>
   </view>
 </template>
@@ -102,22 +128,14 @@ function handleConfirm() {
 .gz-modal__subtitle {
   font-size: 28rpx;
   color: var(--mrc-text-sub);
-  margin-bottom: 36rpx;
+  margin-bottom: 28rpx;
 }
+.gz-modal__content { width: 100%; margin-bottom: 28rpx; }
+.gz-modal__actions { width: 100%; display: flex; gap: var(--mrc-space-sm); }
+.gz-modal__actions--double .gz-modal__btn { flex: 1; min-width: 0; }
 .gz-modal__btn {
-  width: 100%;
-  height: 88rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, var(--mrc-primary), var(--mrc-primary-deep));
-  color: var(--mrc-white);
-  font-size: 30rpx;
-  font-weight: 600;
-  border-radius: 44rpx;
-  box-shadow: 0 8rpx 20rpx rgba(253, 145, 132, 0.35);
-}
-.gz-modal__btn:active {
-  transform: scale(0.97);
+  height: 96rpx;
+  font-size: var(--mrc-fs-body);
+  letter-spacing: 0;
 }
 </style>

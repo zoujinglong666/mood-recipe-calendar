@@ -17,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** 记忆不是"存字符串"，而是带置信度、来源、证据和时效的事实，这里锁住这些性质。 */
@@ -26,9 +27,10 @@ class AgentMemoryStoreTest {
 
     private final FakeMemoryFacts facts = new FakeMemoryFacts();
     private final PlanDishOutcomeRepository outcomes = mock(PlanDishOutcomeRepository.class);
+    private final RecipeInteractionRepository interactions = mock(RecipeInteractionRepository.class);
     private final AgentMemoryStore store = new AgentMemoryStore(facts.repository(),
             mock(UserFoodPreferenceRepository.class), mock(UserRecordRepository.class),
-            mock(RecipeInteractionRepository.class), mock(RecipeRepository.class), outcomes);
+            interactions, mock(RecipeRepository.class), outcomes);
 
     @Test
     void remembersValueWithConfidenceSourceAndEvidence() {
@@ -41,6 +43,21 @@ class AgentMemoryStoreTest {
         assertEquals(0.9d, item.confidence(), 1e-6);
         assertEquals("赣菜", facts.get(OPENID, AgentMemoryStore.KEY_CUISINE).getMemoryValue());
         assertEquals("原话：我老家在抚州", facts.get(OPENID, AgentMemoryStore.KEY_CUISINE).getEvidence());
+        assertEquals(AgentMemoryStore.CATEGORY_EXPLICIT_PREFERENCE, item.category());
+    }
+
+    @Test
+    void safetyConstraintNeverAcceptsInferenceOrConfidenceDecay() {
+        assertEquals(null, store.remember(AgentMemoryStore.RememberCommand.inferred(
+                OPENID, AgentMemoryStore.KEY_ALLERGENS, "虾", "模型猜测")));
+        AgentMemoryFact fact = FakeMemoryFacts.fact(OPENID, AgentMemoryStore.KEY_ALLERGENS,
+                "虾", 0.3, AgentMemoryStore.SRC_EXPLICIT);
+        fact.setUpdatedAt(LocalDateTime.now().minusYears(10));
+        facts.seed(fact);
+
+        MemoryItem item = store.recall(OPENID, AgentMemoryStore.Scene.SINGLE_RECIPE, 10).get(0);
+        assertEquals(AgentMemoryStore.CATEGORY_SAFETY_CONSTRAINT, item.category());
+        assertEquals(0.3d, item.confidence(), 1e-6);
     }
 
     /** 随口的推断不能盖掉用户明确说过的事实。 */
@@ -143,9 +160,24 @@ class AgentMemoryStoreTest {
     }
 
     @Test
+    void mergesExplicitSafetyMemoryIntoEveryRecommendationProfile() {
+        facts.seed(FakeMemoryFacts.fact(OPENID, AgentMemoryStore.KEY_ALLERGENS, "对虾", 0.9,
+                AgentMemoryStore.SRC_EXPLICIT));
+        facts.seed(FakeMemoryFacts.fact(OPENID, AgentMemoryStore.KEY_AVOID_INGREDIENTS, "香菜", 0.9,
+                AgentMemoryStore.SRC_EXPLICIT));
+
+        UserProfile profile = store.profile(OPENID, AgentMemoryStore.Scene.WEEKLY_PLAN);
+
+        assertTrue(profile.allergens().contains("对虾"));
+        assertTrue(profile.avoidIngredients().contains("香菜"));
+    }
+
+    @Test
     void disablingPersonalizationStopsMemoryReadsAndWrites() {
         store.remember(AgentMemoryStore.RememberCommand.explicit(
                 OPENID, AgentMemoryStore.KEY_CUISINE, "赣菜", "用户主动设置"));
+        store.remember(new AgentMemoryStore.RememberCommand(OPENID, AgentMemoryStore.KEY_ALLERGENS,
+                "对虾", 0.9, AgentMemoryStore.SRC_EXPLICIT, "用户明确设置", null));
 
         store.setPersonalizationEnabled(OPENID, false);
         assertFalse(store.personalizationEnabled(OPENID));
@@ -153,7 +185,25 @@ class AgentMemoryStoreTest {
         assertEquals(null, store.remember(AgentMemoryStore.RememberCommand.explicit(
                 OPENID, AgentMemoryStore.KEY_SPICE, "微辣", "关闭后不应写入")));
         assertEquals(null, facts.get(OPENID, AgentMemoryStore.KEY_SPICE));
-        assertTrue(store.profile(OPENID, AgentMemoryStore.Scene.WEEKLY_PLAN).memory().isEmpty());
+        UserProfile profile = store.profile(OPENID, AgentMemoryStore.Scene.WEEKLY_PLAN);
+        assertTrue(profile.favoriteCuisines().isEmpty());
+        assertTrue(profile.allergens().contains("对虾"), "关闭个性化也不能关闭过敏保护");
+    }
+
+    @Test
+    void forgetAndClearImmediatelyRemoveOrdinaryFacts() {
+        store.remember(AgentMemoryStore.RememberCommand.explicit(
+                OPENID, AgentMemoryStore.KEY_CUISINE, "赣菜", "用户主动设置"));
+        store.remember(AgentMemoryStore.RememberCommand.explicit(
+                OPENID, AgentMemoryStore.KEY_SPICE, "微辣", "用户主动设置"));
+
+        store.forget(OPENID, AgentMemoryStore.KEY_CUISINE);
+        assertFalse(keys(store, AgentMemoryStore.Scene.WEEKLY_PLAN).contains(AgentMemoryStore.KEY_CUISINE));
+
+        store.clear(OPENID);
+        assertTrue(store.all(OPENID).isEmpty());
+        assertTrue(store.personalizationEnabled(OPENID));
+        verify(interactions).deleteByOpenid(OPENID);
     }
 
     private List<String> keys(AgentMemoryStore store, AgentMemoryStore.Scene scene) {

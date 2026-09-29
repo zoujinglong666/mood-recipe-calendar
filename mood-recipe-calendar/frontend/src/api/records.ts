@@ -1,4 +1,4 @@
-import { get, post, put, del, resolveAssetUrl } from './request'
+import { del, get, post, put, resolveAssetUrl } from './request'
 
 export interface RecordItem {
   id: number
@@ -27,6 +27,26 @@ export interface RecordPayload {
   clientRequestId?: string
   cookingTime?: number
   recordDate?: string
+  liked?: boolean
+  tooHard?: boolean
+  leftover?: boolean
+}
+
+export interface LearningReceiptItem {
+  type: 'MADE' | 'LIKED' | 'SIMPLE' | 'TIME' | 'LEFTOVER'
+  text: string
+  memoryKey?: string | null
+}
+
+export interface LearningReceipt {
+  status: 'LEARNED' | 'SAVED_ONLY'
+  title: string
+  items: LearningReceiptItem[]
+}
+
+export interface RecordSaveResult {
+  record: RecordItem
+  learningReceipt: LearningReceipt
 }
 
 export interface StatsResult {
@@ -35,7 +55,7 @@ export interface StatsResult {
   moodDistribution: Record<string, number>
   currentStreak: number
   longestStreak: number
-  topDishes: { name: string; count: number }[]
+  topDishes: { name: string, count: number }[]
 }
 
 export interface YearStatsResult extends StatsResult {
@@ -55,7 +75,10 @@ export interface CompanionMessage {
 /** 保存记录 */
 export function saveRecord(payload: RecordPayload) {
   const { openid: _openid, ...request } = payload
-  return post<RecordItem>('/records', request).then(normalizeRecord)
+  return post<RecordSaveResult>('/records', request).then(result => ({
+    ...result,
+    record: normalizeRecord(result.record),
+  }))
 }
 
 /** 获取一条自己的记录，用于详情和编辑。 */

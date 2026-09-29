@@ -1,16 +1,18 @@
 <script setup lang="ts">
-import { navBack } from '@/composables/useNavBar'
-import { STATIC_BASE_URL } from '@/utils/assets'
+import type { LearningReceipt } from '../../api/records'
 import { computed, ref } from 'vue'
-import Icon from '../../components/common/Icon.vue'
-import SuccessModal from '../../components/guozai/SuccessModal.vue'
-import MoodPicker from '../../components/guozai/MoodPicker.vue'
-import { ensureLogin } from '../../utils/login'
-import { toast, toastSuccess, toastError } from '../../utils/toast'
+import { STATIC_BASE_URL } from '@/utils/assets'
 import { fetchRecord, saveRecord, updateRecord } from '../../api/records'
 import { uploadFile } from '../../api/request'
+import Icon from '../../components/common/Icon.vue'
+import GuozaiChoiceChips from '../../components/guozai/GuozaiChoiceChips.vue'
+import GuozaiInsightCard from '../../components/guozai/GuozaiInsightCard.vue'
+import MoodPicker from '../../components/guozai/MoodPicker.vue'
+import SuccessModal from '../../components/guozai/SuccessModal.vue'
 import { chooseImageFiles } from '../../utils/chooseImage'
 import { createRequestId, RECORD_DRAFT_KEY } from '../../utils/cookingDraft'
+import { ensureLogin } from '../../utils/login'
+import { toast, toastError, toastSuccess } from '../../utils/toast'
 
 definePage({
   name: 'record',
@@ -27,7 +29,7 @@ const dishName = ref('')
 const selectedMood = ref('')
 const note = ref('')
 const cookingTime = ref('30分钟')
-type RecordPhoto = { localUrl: string, remoteUrl: string, uploading: boolean }
+interface RecordPhoto { localUrl: string, remoteUrl: string, uploading: boolean }
 const photos = ref<RecordPhoto[]>([])
 const recipeId = ref<string | undefined>()
 const exposureId = ref<string | undefined>()
@@ -37,8 +39,15 @@ const showSuccess = ref(false)
 const submitting = ref(false)
 const editingId = ref<number>()
 const recordDate = ref<string>()
+const feedbackSelections = ref<string[]>([])
+const learningReceipt = ref<LearningReceipt>()
 const isEditing = computed(() => Boolean(editingId.value))
 const uploading = computed(() => photos.value.some(photo => photo.uploading))
+const feedbackOptions = [
+  { value: 'liked', label: '喜欢这道菜' },
+  { value: 'tooHard', label: '做起来太难' },
+  { value: 'leftover', label: '有剩菜' },
+]
 
 // tabbar 页通过 switchTab 进入，无法带 query；从推荐页跳转时由 storage 暂存菜名与心情
 onShow(async () => {
@@ -48,18 +57,26 @@ onShow(async () => {
     await loadForEdit(editId)
     return
   }
-  if (isEditing.value) return
+  if (isEditing.value)
+    return
   try {
     const d = uni.getStorageSync(RECORD_DRAFT_KEY)
     if (d) {
-      if (d.dish) dishName.value = d.dish
-      if (d.mood) selectedMood.value = d.mood
-      if (d.recipeId !== undefined && d.recipeId !== null) recipeId.value = String(d.recipeId)
-      if (d.exposureId) exposureId.value = String(d.exposureId)
-      if (d.cookingTime) cookingTime.value = `${Number(d.cookingTime)}分钟`
-      if (d.clientRequestId) clientRequestId.value = String(d.clientRequestId)
+      if (d.dish)
+        dishName.value = d.dish
+      if (d.mood)
+        selectedMood.value = d.mood
+      if (d.recipeId !== undefined && d.recipeId !== null)
+        recipeId.value = String(d.recipeId)
+      if (d.exposureId)
+        exposureId.value = String(d.exposureId)
+      if (d.cookingTime)
+        cookingTime.value = `${Number(d.cookingTime)}分钟`
+      if (d.clientRequestId)
+        clientRequestId.value = String(d.clientRequestId)
     }
-  } catch (e) { /* ignore */ }
+  }
+  catch { /* ignore */ }
 })
 
 async function addImages() {
@@ -93,7 +110,8 @@ async function uploadImages(tempPaths: string[]) {
     }
     finally { photo.uploading = false }
   }))
-  if (newPhotos.some(photo => photo.remoteUrl)) toastSuccess('照片已收好')
+  if (newPhotos.some(photo => photo.remoteUrl))
+    toastSuccess('照片已收好')
 }
 
 function removePhoto(index: number) {
@@ -102,7 +120,8 @@ function removePhoto(index: number) {
 
 function movePhoto(index: number, direction: -1 | 1) {
   const target = index + direction
-  if (target < 0 || target >= photos.value.length) return
+  if (target < 0 || target >= photos.value.length)
+    return
   const [photo] = photos.value.splice(index, 1)
   photos.value.splice(target, 0, photo)
 }
@@ -127,7 +146,8 @@ async function loadForEdit(id: number) {
 }
 
 async function publish() {
-  if (submitting.value) return
+  if (submitting.value)
+    return
   if (!photos.value.length) {
     toast('请先上传菜品照片')
     return
@@ -158,19 +178,31 @@ async function publish() {
       recipeId: recipeId.value,
       exposureId: exposureId.value,
       clientRequestId: clientRequestId.value,
-      cookingTime: parseInt(cookingTime.value) || 30,
+      cookingTime: Number.parseInt(cookingTime.value) || 30,
       recordDate: recordDate.value,
+      liked: feedbackSelections.value.includes('liked'),
+      tooHard: feedbackSelections.value.includes('tooHard'),
+      leftover: feedbackSelections.value.includes('leftover'),
     }
-    const saved = isEditing.value
-      ? await updateRecord(editingId.value!, payload)
-      : await saveRecord(payload)
+    let saved
+    if (isEditing.value) {
+      saved = await updateRecord(editingId.value!, payload)
+      learningReceipt.value = undefined
+    }
+    else {
+      const result = await saveRecord(payload)
+      saved = result.record
+      learningReceipt.value = result.learningReceipt
+    }
     savedRecordId.value = saved.id
     uni.removeStorageSync(RECORD_DRAFT_KEY)
     uni.removeStorageSync('mrc_companion_message')
     showSuccess.value = true
-  } catch (e: any) {
+  }
+  catch (e: any) {
     toastError(e, '保存失败')
-  } finally {
+  }
+  finally {
     submitting.value = false
   }
 }
@@ -179,6 +211,17 @@ function onSuccessConfirm() {
   showSuccess.value = false
   if (savedRecordId.value)
     uni.setStorageSync('mrc_timeline_record_id', savedRecordId.value)
+  resetForm()
+  router.push({ name: 'timeline' })
+}
+
+function onSuccessSecondary() {
+  showSuccess.value = false
+  resetForm()
+  router.pushTab({ name: 'home' })
+}
+
+function resetForm() {
   dishName.value = ''
   selectedMood.value = ''
   note.value = ''
@@ -190,7 +233,8 @@ function onSuccessConfirm() {
   editingId.value = undefined
   recordDate.value = undefined
   savedRecordId.value = undefined
-  router.push({ name: 'timeline' })
+  feedbackSelections.value = []
+  learningReceipt.value = undefined
 }
 
 const COOKING_TIME_OPTIONS = ['10分钟', '20分钟', '30分钟', '45分钟', '60分钟', '1小时以上']
@@ -214,7 +258,7 @@ function chooseCookingTime() {
         <text class="record-intro__title">把这一餐，留给以后的你</text>
         <text class="record-intro__sub">锅仔会记住味道，也记住你今天的心情</text>
       </view>
-      <image class="record-intro__guozai" :src="STATIC_BASE_URL + '/static/guozai/action_03_camera.png'" mode="aspectFit" />
+      <image class="record-intro__guozai" :src="`${STATIC_BASE_URL}/static/guozai/action_03_camera.png`" mode="aspectFit" />
     </view>
 
     <view class="record-photo-section">
@@ -261,6 +305,13 @@ function chooseCookingTime() {
       <MoodPicker v-model="selectedMood" :show-hero="false" title="吃完这顿，你是什么心情？" />
     </view>
 
+    <view v-if="!isEditing" class="record-feedback-card">
+      <view class="record-textarea__head">
+        <view><text class="record-textarea__title">这次做饭感觉怎么样？</text><text class="record-textarea__sub">可跳过、可多选，锅仔只学习你主动告诉它的</text></view>
+      </view>
+      <GuozaiChoiceChips v-model="feedbackSelections" :options="feedbackOptions" :disabled="submitting" />
+    </view>
+
     <view class="record-textarea">
       <view class="record-textarea__head">
         <view><text class="record-textarea__title">留一句话给今天</text><text class="record-textarea__sub">可选 · 锅仔不会催你写很多</text></view>
@@ -277,10 +328,10 @@ function chooseCookingTime() {
     </view>
 
     <view class="record-submit">
-      <view class="record-submit__btn" :class="{ 'record-submit__btn--disabled': submitting || uploading }" role="button" aria-label="保存今日伙食记录" @click="publish">
+      <view class="record-submit__btn mrc-btn-primary" :class="{ 'record-submit__btn--disabled': submitting || uploading }" role="button" aria-label="保存今日伙食记录" @click="publish">
         <text>{{ submitting ? '正在保存…' : (isEditing ? '保存这次修改' : '收进我的时光机') }}</text>
-        <text v-if="!submitting" class="record-submit__sub">{{ isEditing ? '照片顺序会同步更新' : '以后翻到今天，还能想起这一餐' }}</text>
       </view>
+      <text v-if="!submitting" class="record-submit__sub">{{ isEditing ? '照片顺序会同步更新' : '以后翻到今天，还能想起这一餐' }}</text>
     </view>
 
     <!-- 成功弹窗 -->
@@ -288,8 +339,18 @@ function chooseCookingTime() {
       :visible="showSuccess"
       :title="isEditing ? '记录已更新！' : '记录成功！'"
       :subtitle="isEditing ? '这一餐的新样子已经收好' : '今天也好好吃饭了呢'"
+      :confirm-text="isEditing ? '回到这条记录' : '查看这条记录'"
+      :secondary-text="isEditing ? '' : '返回首页'"
       @confirm="onSuccessConfirm"
-    />
+      @secondary="onSuccessSecondary"
+    >
+      <GuozaiInsightCard
+        v-if="learningReceipt"
+        :title="learningReceipt.title"
+        :items="learningReceipt.items"
+        :variant="learningReceipt.status === 'LEARNED' ? 'learned' : 'saved'"
+      />
+    </SuccessModal>
   </view>
 </template>
 
@@ -323,7 +384,7 @@ function chooseCookingTime() {
 .record-photo-item__tool--disabled { opacity: .35; pointer-events: none; }
 .record-photo-section__tip { display: block; margin-top: 16rpx; }
 
-.record-form-card, .record-mood-card, .record-textarea { margin-bottom: 24rpx; padding: 28rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 32rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }
+.record-form-card, .record-mood-card, .record-feedback-card, .record-textarea { margin-bottom: 24rpx; padding: 28rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 32rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }
 .record-section-title { display: flex; align-items: center; gap: 16rpx; margin-bottom: 22rpx; }
 .record-section-title__num { width: 48rpx; height: 48rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 50%; background: var(--mrc-accent-soft); color: var(--mrc-accent); font-size: 24rpx; font-weight: var(--mrc-fw-heavy); }
 .record-section-title__main, .record-section-title__sub { display: block; }
@@ -415,24 +476,9 @@ function chooseCookingTime() {
 .record-submit { padding-top: 4rpx; }
 .record-submit__btn {
   width: 100%;
-  min-height: 112rpx;
-  flex-direction: column;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--mrc-primary-grad);
-  color: #fff;
-  font-size: 32rpx;
-  font-weight: 700;
-  border-radius: 50rpx;
-  box-shadow: 0 10rpx 24rpx rgba(253, 145, 132, 0.35);
-  letter-spacing: 4rpx;
 }
-.record-submit__sub { margin-top: 5rpx; font-size: 20rpx; font-weight: 500; letter-spacing: 0; opacity: .84; }
+.record-submit__sub { display: block; margin-top: 12rpx; color: var(--mrc-text-sub); font-size: 20rpx; text-align: center; }
 .record-submit__btn--disabled { opacity: .58; box-shadow: none; }
-.record-submit__btn:active {
-  transform: scale(0.97);
-}
 
 @media (prefers-reduced-motion: reduce) {
   .record-submit__btn { transition: none; }

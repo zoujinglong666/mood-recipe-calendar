@@ -6,6 +6,7 @@ import com.moodrecipe.backend.entity.Recipe;
 import com.moodrecipe.backend.entity.RecipeInteraction;
 import com.moodrecipe.backend.entity.UserFoodPreference;
 import com.moodrecipe.backend.entity.UserRecord;
+import com.moodrecipe.backend.model.RecommendationInsight;
 import com.moodrecipe.backend.repository.RecipeInteractionRepository;
 import com.moodrecipe.backend.repository.RecipeRepository;
 import com.moodrecipe.backend.repository.UserFoodPreferenceRepository;
@@ -115,6 +116,7 @@ public class GuozaiAgent {
                         RecommendationJobService.StepStatus.RUNNING, "锅仔正在整理这道菜");
                 // 动态推荐理由：结合记忆分析 + AI 生成的 description
                 generated.setRecommendationReason(buildSmartReason(mood, snapshot, preference, generated.getDescription()));
+                generated.setRecommendationInsights(recommendationInsights(generated, snapshot));
                 generated.setExposureId(exposures.recordShown(openid, generated, "AI"));
                 update(progress, RecommendationJobService.Stage.FINALIZE,
                         RecommendationJobService.StepStatus.COMPLETED, "菜谱已经整理完成");
@@ -125,7 +127,7 @@ public class GuozaiAgent {
         }
 
         // 回退：本地菜谱库
-        return fallbackLocalRecipe(openid, mood, preference, progress);
+        return fallbackLocalRecipe(openid, mood, preference, snapshot, progress);
     }
 
     /** 深度推荐（已购权益）——结合用户输入的食材、时长、口味 + 锅仔记忆分析。 */
@@ -239,6 +241,7 @@ public class GuozaiAgent {
     }
 
     private Recipe fallbackLocalRecipe(String openid, String mood, UserFoodPreference preference,
+                                       GuozaiMemory.MemorySnapshot snapshot,
                                        RecommendationJobService.Progress progress) {
         update(progress, RecommendationJobService.Stage.TEXT,
                 RecommendationJobService.StepStatus.DEGRADED, "文本模型暂时不可用，改从锅仔菜谱库挑选");
@@ -282,11 +285,13 @@ public class GuozaiAgent {
         if (!unseen.isEmpty()) candidates = unseen;
 
         Recipe recipe = candidates.stream()
-                .max(Comparator.comparingInt((Recipe r) -> score.getOrDefault(r.getId(), 0) + preferenceScore(r, preference))
+                .max(Comparator.comparingInt((Recipe r) -> score.getOrDefault(r.getId(), 0)
+                                + preferenceScore(r, preference) + recommendationMemoryScore(r, snapshot))
                         .thenComparing(Recipe::getId, Comparator.reverseOrder()))
                 .orElse(null);
         if (recipe != null) {
             recipe.setRecommendationReason(localRecommendationReason(recipe, mood, preference, score));
+            recipe.setRecommendationInsights(recommendationInsights(recipe, snapshot));
             recordInteraction(openid, recipe.getId(), "SHOWN");
         }
         update(progress, RecommendationJobService.Stage.LOCAL_FALLBACK,
@@ -663,6 +668,43 @@ public class GuozaiAgent {
             if (containsAny(text, "红烧", "回锅", "炸", "五花", "肥")) score -= 6;
         }
         return score;
+    }
+
+    private int recommendationMemoryScore(Recipe recipe, GuozaiMemory.MemorySnapshot snapshot) {
+        if (snapshot == null || !snapshot.personalizationEnabled()) return 0;
+        int score = 0;
+        if (snapshot.preferSimple()) score += isSimple(recipe) ? 12 : -4;
+        if (snapshot.maxCookingMinutes() != null && recipe.getCookingTime() != null) {
+            score += recipe.getCookingTime() <= snapshot.maxCookingMinutes() ? 8 : -12;
+        }
+        return score;
+    }
+
+    private List<RecommendationInsight> recommendationInsights(Recipe recipe,
+                                                                GuozaiMemory.MemorySnapshot snapshot) {
+        if (snapshot == null || !snapshot.personalizationEnabled()) return List.of();
+        List<RecommendationInsight> result = new ArrayList<>();
+        if (snapshot.preferSimple() && isSimple(recipe)) {
+            result.add(new RecommendationInsight("CHANGE", "你说上次有点难，这次换成更省事的做法",
+                    com.moodrecipe.backend.agent.AgentMemoryStore.KEY_SIMPLE));
+        }
+        if (snapshot.maxCookingMinutes() != null && recipe.getCookingTime() != null
+                && recipe.getCookingTime() <= snapshot.maxCookingMinutes()) {
+            result.add(new RecommendationInsight("MEMORY",
+                    "控制在你偏好的 " + snapshot.maxCookingMinutes() + " 分钟内",
+                    com.moodrecipe.backend.agent.AgentMemoryStore.KEY_MAX_MINUTES));
+        }
+        if (result.size() < 2 && snapshot.lovedDishes().stream()
+                .anyMatch(name -> searchableText(recipe).contains(name))) {
+            result.add(new RecommendationInsight("MEMORY", "参考了你喜欢或做过的菜", "dish.loved"));
+        }
+        return result.stream().limit(2).toList();
+    }
+
+    private boolean isSimple(Recipe recipe) {
+        return safe(recipe.getDifficulty()).contains("简单")
+                || safe(recipe.getDifficulty()).contains("容易")
+                || recipe.getCookingTime() != null && recipe.getCookingTime() <= 35;
     }
 
     private boolean matchesCuisine(String text, String cuisine) {

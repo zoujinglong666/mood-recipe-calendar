@@ -35,8 +35,12 @@ export function deleteAccount() {
 export interface AgentMemoryFact {
   key: string
   value: string
+  category: 'EXPLICIT_PREFERENCE' | 'BEHAVIOR_SIGNAL' | 'MEAL_CONTEXT' | 'SHORT_TERM_STATE' | 'SAFETY_CONSTRAINT'
+  confidence: number
   source: string
   evidence?: string
+  reason?: string
+  updatedAt?: string
 }
 
 export interface AgentMemoryView {

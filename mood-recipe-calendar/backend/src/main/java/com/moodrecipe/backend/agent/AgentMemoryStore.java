@@ -13,6 +13,7 @@ import com.moodrecipe.backend.repository.RecipeRepository;
 import com.moodrecipe.backend.repository.UserFoodPreferenceRepository;
 import com.moodrecipe.backend.repository.UserRecordRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -54,6 +55,13 @@ public class AgentMemoryStore {
     public static final String KEY_SIMPLE = "preference.simpleDishes";
     public static final String KEY_PERSONALIZATION = "settings.personalization";
     public static final String AFFINITY_PREFIX = "affinity.";
+    public static final String KEY_ALLERGENS = "safety.allergens";
+    public static final String KEY_AVOID_INGREDIENTS = "safety.avoidIngredients";
+    public static final String CATEGORY_EXPLICIT_PREFERENCE = "EXPLICIT_PREFERENCE";
+    public static final String CATEGORY_BEHAVIOR_SIGNAL = "BEHAVIOR_SIGNAL";
+    public static final String CATEGORY_MEAL_CONTEXT = "MEAL_CONTEXT";
+    public static final String CATEGORY_SHORT_TERM_STATE = "SHORT_TERM_STATE";
+    public static final String CATEGORY_SAFETY_CONSTRAINT = "SAFETY_CONSTRAINT";
 
     /** 不同来源的半衰期（天）：用户明确设置的记得久，模型推断的忘得快。 */
     private static final Map<String, Double> HALF_LIFE_DAYS = Map.of(
@@ -90,6 +98,7 @@ public class AgentMemoryStore {
         if (command == null || command.openid() == null || command.openid().isBlank()) return null;
         if (command.key() == null || command.key().isBlank()) return null;
         if (command.value() == null || command.value().isBlank()) return null;
+        if (isSafetyKey(command.key()) && SRC_INFERRED.equals(command.source())) return null;
         if (!KEY_PERSONALIZATION.equals(command.key()) && !personalizationEnabled(command.openid())) return null;
 
         String value = command.value().trim();
@@ -102,6 +111,7 @@ public class AgentMemoryStore {
             fact.setOpenid(command.openid());
             fact.setMemoryKey(command.key());
             fact.setMemoryValue(value);
+            fact.setMemoryCategory(categoryOf(command.key(), command.ttlDays()));
             fact.setSource(command.source());
             fact.setConfidence(clamp(command.confidence()));
             fact.setEvidence(trim(command.evidence(), 500));
@@ -126,6 +136,9 @@ public class AgentMemoryStore {
             fact.setExpiresAt(command.ttlDays() == null || command.ttlDays() <= 0
                     ? fact.getExpiresAt() : LocalDateTime.now().plusDays(command.ttlDays()));
             if (fact.getHitCount() == null) fact.setHitCount(0);
+            if (fact.getMemoryCategory() == null || fact.getMemoryCategory().isBlank()) {
+                fact.setMemoryCategory(categoryOf(command.key(), command.ttlDays()));
+            }
         }
         AgentMemoryFact saved = facts.save(fact);
         return toItem(saved, "刚写入");
@@ -170,14 +183,17 @@ public class AgentMemoryStore {
                 .toList();
     }
 
+    @Transactional
     public void forget(String openid, String key) {
         if (KEY_PERSONALIZATION.equals(key)) return;
         facts.deleteByOpenidAndMemoryKey(openid, key);
     }
 
+    @Transactional
     public void clear(String openid) {
         boolean enabled = personalizationEnabled(openid);
         facts.deleteByOpenid(openid);
+        interactions.deleteByOpenid(openid);
         setPersonalizationEnabled(openid, enabled);
     }
 
@@ -197,7 +213,8 @@ public class AgentMemoryStore {
         LocalDateTime now = LocalDateTime.now();
         for (AgentMemoryFact fact : facts.findByOpenidAndStatusOrderByUpdatedAtDesc(openid, AgentMemoryFact.STATUS_ACTIVE)) {
             boolean expired = fact.getExpiresAt() != null && fact.getExpiresAt().isBefore(now);
-            boolean faded = effectiveConfidence(fact) < AgentMemoryFact.MIN_CONFIDENCE;
+            boolean faded = !isSafetyKey(fact.getMemoryKey())
+                    && effectiveConfidence(fact) < AgentMemoryFact.MIN_CONFIDENCE;
             if (expired || faded) {
                 fact.setStatus(AgentMemoryFact.STATUS_ARCHIVED);
                 facts.save(fact);
@@ -207,8 +224,8 @@ public class AgentMemoryStore {
 
     /** 组装可解释的用户档案。 */
     public UserProfile profile(String openid, Scene scene) {
-        if (!personalizationEnabled(openid)) return UserProfile.empty(openid);
         UserFoodPreference preference = preferences.findByOpenid(openid).orElse(null);
+        if (!personalizationEnabled(openid)) return safetyOnlyProfile(openid, preference);
         List<UserRecord> recent = records.findTop30ByOpenidOrderByCreatedAtDesc(openid);
         List<RecipeInteraction> history = interactions.findTop30ByOpenidOrderByCreatedAtDesc(openid);
         Map<Long, String> recipeNames = recipeNames(history);
@@ -243,6 +260,8 @@ public class AgentMemoryStore {
         String healthGoal = null;
         String budget = null;
         List<String> cuisines = new ArrayList<>();
+        List<String> rememberedAvoidIngredients = new ArrayList<>();
+        List<String> rememberedAllergens = new ArrayList<>();
 
         for (MemoryItem item : memory) {
             String key = item.key();
@@ -272,6 +291,10 @@ public class AgentMemoryStore {
                 budget = item.value();
             } else if (KEY_CUISINE.equals(key)) {
                 cuisines.add(item.value());
+            } else if (KEY_AVOID_INGREDIENTS.equals(key)) {
+                rememberedAvoidIngredients.addAll(split(item.value()));
+            } else if (KEY_ALLERGENS.equals(key)) {
+                rememberedAllergens.addAll(split(item.value()));
             } else if ("dish.avoid".equals(key)) {
                 avoidDishes.addAll(split(item.value()));
             } else if (KEY_RECENT_DISHES.equals(key)) {
@@ -297,18 +320,48 @@ public class AgentMemoryStore {
                 .filter(Objects::nonNull).distinct()
                 .filter(date -> withinDays(date, today, 30)).count();
 
+        if (preference != null) {
+            rememberedAvoidIngredients.addAll(split(preference.getAvoidIngredients()));
+            rememberedAllergens.addAll(split(preference.getAllergens()));
+        }
+
         return new UserProfile(openid, people, dishesPerDay, cookingDays, spice, elder, child,
                 healthGoal, budget, cuisines.stream().distinct().toList(),
-                preference == null ? List.of() : split(preference.getAvoidIngredients()),
-                preference == null ? List.of() : split(preference.getAllergens()),
+                rememberedAvoidIngredients.stream().distinct().toList(),
+                rememberedAllergens.stream().distinct().toList(),
                 recentDishes.stream().distinct().limit(16).toList(),
                 lovedDishes, rejectedDishes, avoidDishes, skipQuestions, affinity, maxMinutes,
                 preferSimple, recordDays, memory);
     }
 
+    private UserProfile safetyOnlyProfile(String openid, UserFoodPreference preference) {
+        List<String> avoidIngredients = new ArrayList<>();
+        List<String> allergens = new ArrayList<>();
+        if (preference != null) {
+            avoidIngredients.addAll(split(preference.getAvoidIngredients()));
+            allergens.addAll(split(preference.getAllergens()));
+        }
+        facts.findByOpenidAndStatusOrderByUpdatedAtDesc(openid, AgentMemoryFact.STATUS_ACTIVE).stream()
+                .filter(fact -> isSafetyKey(fact.getMemoryKey()))
+                .forEach(fact -> {
+                    if (KEY_ALLERGENS.equals(fact.getMemoryKey())) allergens.addAll(split(fact.getMemoryValue()));
+                    if (KEY_AVOID_INGREDIENTS.equals(fact.getMemoryKey())) {
+                        avoidIngredients.addAll(split(fact.getMemoryValue()));
+                    }
+                });
+        UserProfile empty = UserProfile.empty(openid);
+        return new UserProfile(openid, empty.people(), empty.dishesPerDay(), empty.cookingDays(),
+                empty.spiceLevel(), empty.hasElder(), empty.hasChild(), empty.healthGoal(), empty.budget(),
+                empty.favoriteCuisines(), avoidIngredients.stream().distinct().toList(),
+                allergens.stream().distinct().toList(), empty.recentDishes(), empty.lovedDishes(),
+                empty.rejectedDishes(), empty.avoidDishes(), empty.skipQuestions(), empty.cuisineAffinity(),
+                empty.maxCookingMinutes(), empty.preferSimple(), empty.recordDays(), empty.memory());
+    }
+
     /** 时间衰减后的有效置信度：越久没被印证，越不可信。 */
     public double effectiveConfidence(AgentMemoryFact fact) {
         double stored = fact.getConfidence() == null ? 0.6 : fact.getConfidence();
+        if (isSafetyKey(fact.getMemoryKey())) return stored;
         LocalDateTime updated = fact.getUpdatedAt() == null ? LocalDateTime.now() : fact.getUpdatedAt();
         double ageDays = Math.max(0d, ChronoUnit.HOURS.between(updated, LocalDateTime.now()) / 24d);
         double halfLife = HALF_LIFE_DAYS.getOrDefault(fact.getSource(), 30d);
@@ -318,8 +371,32 @@ public class AgentMemoryStore {
     }
 
     private MemoryItem toItem(AgentMemoryFact fact, String reason) {
-        return new MemoryItem(fact.getMemoryKey(), fact.getMemoryValue(), effectiveConfidence(fact),
+        return new MemoryItem(fact.getMemoryKey(), fact.getMemoryValue(), categoryOf(fact), effectiveConfidence(fact),
                 fact.getSource(), fact.getEvidence(), fact.getUpdatedAt(), reason);
+    }
+
+    private String categoryOf(AgentMemoryFact fact) {
+        if (isSafetyKey(fact.getMemoryKey())) return CATEGORY_SAFETY_CONSTRAINT;
+        return fact.getMemoryCategory() == null || fact.getMemoryCategory().isBlank()
+                ? categoryOf(fact.getMemoryKey(), fact.getExpiresAt() == null ? null : 1)
+                : fact.getMemoryCategory();
+    }
+
+    private String categoryOf(String key, Integer ttlDays) {
+        if (isSafetyKey(key)) return CATEGORY_SAFETY_CONSTRAINT;
+        if (ttlDays != null && ttlDays > 0) return CATEGORY_SHORT_TERM_STATE;
+        if (key != null && (key.startsWith(AFFINITY_PREFIX) || key.startsWith("dish.")
+                || key.startsWith("strategy.") || key.startsWith("preference.simple"))) {
+            return CATEGORY_BEHAVIOR_SIGNAL;
+        }
+        if (Set.of(KEY_PEOPLE, KEY_DISHES, KEY_DAYS, KEY_HOUSEHOLD, KEY_BUDGET).contains(key)) {
+            return CATEGORY_MEAL_CONTEXT;
+        }
+        return CATEGORY_EXPLICIT_PREFERENCE;
+    }
+
+    private boolean isSafetyKey(String key) {
+        return key != null && key.startsWith("safety.");
     }
 
     private String reasonOf(AgentMemoryFact fact) {
