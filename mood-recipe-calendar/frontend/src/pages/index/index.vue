@@ -81,7 +81,7 @@ function bounceGuozai() {
   setTimeout(() => {
     isBouncing.value = false
     if (companion.value.actionTarget === 'meal-agent') {
-      router.push({ name: 'meal-agent', params: { prompt: companion.value.actionPrompt || companion.value.actionText } })
+      router.push({ name: 'meal-agent', query: { prompt: companion.value.actionPrompt || companion.value.actionText } })
       return
     }
     router.push({ name: 'mood' })

@@ -7,6 +7,7 @@ import { fetchFoodMemory } from '@/api/preferences'
 import { fetchAgentConversationQuota, generateWeeklyPlan, getCurrentPlan, requestWeeklyPlanCompletionNotice, runMealAgentTurn } from '@/api/weeklyPlans'
 import { navBack } from '@/composables/useNavBar'
 import { STATIC_BASE_URL } from '@/utils/assets'
+import { safeDecodePrompt } from '@/utils/safeDecodePrompt'
 import { toastError } from '@/utils/toast'
 import { useUserStore } from '@/stores/user'
 import { ensureLogin, refreshUserInfo } from '@/utils/login'
@@ -124,7 +125,7 @@ async function load() {
     healthGoal.value = memory.value.explicit.healthGoal
   if (canUseAgent.value && !messages.value.length) {
     addAgent(agentGreeting.value, memoryTags.value)
-    const initialPrompt = typeof route.query.prompt === 'string' ? route.query.prompt.trim() : ''
+    const initialPrompt = safeDecodePrompt(route.query.prompt)
     await runAgent(initialPrompt, Boolean(initialPrompt))
   }
   loading.value = false
@@ -413,9 +414,9 @@ function openGallery() {
       </view>
       <view v-if="canUseAgent && (generating || completed)" class="composer composer--fixed">
         <input v-model="composerText" :disabled="agentBusy" confirm-type="send" placeholder="还想补充什么？直接告诉锅仔" aria-label="告诉锅仔你的安排" @confirm="submitComposer">
-        <button :disabled="agentBusy" :aria-label="agentBusy ? '锅仔正在思考' : '发送'" @click="submitComposer">
-          {{ agentBusy ? '思考中' : '发送' }}
-        </button>
+        <GuozaiButton class="composer__send" variant="primary" :block="false" :disabled="agentBusy || !composerText.trim()" :loading="agentBusy" :aria-label="agentBusy ? '锅仔正在思考' : '发送'" @click="submitComposer">
+          发送
+        </GuozaiButton>
       </view>
 
       <view v-else-if="canUseAgent" class="chat-shell">
@@ -468,21 +469,21 @@ function openGallery() {
             <button class="household-confirm" :disabled="!householdSelection.length || agentBusy" @click="confirmHousehold">
               确认选择
             </button>
-            <view v-if="otherInput" class="other-input"><input v-model="composerText" inputmode="text" confirm-type="send" placeholder="直接告诉锅仔你的情况" @confirm="submitOther"><button @click="submitOther">发送</button></view>
+            <view v-if="otherInput" class="other-input"><input v-model="composerText" class="other-input__field" :disabled="agentBusy" inputmode="text" confirm-type="send" placeholder="直接告诉锅仔你的情况" @confirm="submitOther"><GuozaiButton class="other-input__send" variant="primary" :block="false" :disabled="agentBusy || !composerText.trim()" :loading="agentBusy" aria-label="发送自定义家庭情况" @click="submitOther">发送</GuozaiButton></view>
           </view>
           <view v-else class="choice-grid" :class="{ 'choice-grid--cuisine': agentTurn.card.type === 'CUISINE', 'choice-grid--ready': agentTurn.card.type === 'READY' }">
             <button v-for="option in agentTurn.card.options" :key="option.value" :class="{ 'choice-option--long': option.label.length > 8 }" :disabled="agentBusy" @click="option.value === 'generate' ? generate() : selectCardOption(option.value, option.label)">
               {{ option.label }}
             </button>
           </view>
-          <view v-if="otherInput && agentTurn.action !== 'ASK_HOUSEHOLD'" class="other-input"><input v-model="composerText" inputmode="text" confirm-type="send" placeholder="直接告诉锅仔你的想法" @confirm="submitOther"><button @click="submitOther">发送</button></view>
+          <view v-if="otherInput && agentTurn.action !== 'ASK_HOUSEHOLD'" class="other-input"><input v-model="composerText" class="other-input__field" :disabled="agentBusy" inputmode="text" confirm-type="send" placeholder="直接告诉锅仔你的想法" @confirm="submitOther"><GuozaiButton class="other-input__send" variant="primary" :block="false" :disabled="agentBusy || !composerText.trim()" :loading="agentBusy" aria-label="发送自定义回答" @click="submitOther">发送</GuozaiButton></view>
         </view>
 
         <view class="composer composer--fixed">
           <input v-model="composerText" :disabled="agentBusy" inputmode="text" confirm-type="send" placeholder="也可以直接说：周三不做饭，想减脂" aria-label="告诉锅仔你的安排" @confirm="submitComposer">
-          <button :disabled="agentBusy" :aria-label="agentBusy ? '锅仔正在思考' : '发送'" @click="submitComposer">
-            {{ agentBusy ? '思考中' : '发送' }}
-          </button>
+          <GuozaiButton class="composer__send" variant="primary" :block="false" :disabled="agentBusy || !composerText.trim()" :loading="agentBusy" :aria-label="agentBusy ? '锅仔正在思考' : '发送'" @click="submitComposer">
+            发送
+          </GuozaiButton>
         </view>
         <view class="archive-link" role="button" aria-label="查看备餐档案" @click="router.push({ name: 'weekly-plan' })">
           查看以前的菜单 ›
@@ -533,7 +534,8 @@ function openGallery() {
 .choice-grid--household { grid-template-columns: repeat(3, 1fr); }.choice-grid--household button { position: relative; min-height: 92rpx; padding: 12rpx 8rpx; transition: border-color .18s ease, background-color .18s ease, color .18s ease; }.choice-grid--household button.selected { border-color: var(--mrc-accent); background: var(--mrc-accent-soft); color: var(--mrc-accent); }.choice-grid--household button .selection-mark { position: absolute; top: 8rpx; right: 10rpx; display: flex; width: 28rpx; height: 28rpx; align-items: center; justify-content: center; border: 2rpx solid var(--mrc-border); border-radius: 50%; color: transparent; font-size: 18rpx; line-height: 1; }.choice-grid--household button.selected .selection-mark { border-color: var(--mrc-accent); background: var(--mrc-accent); color: #fff; }.household-confirm { min-height: 82rpx; margin: 16rpx 0 0; border: 0; border-radius: 20rpx; background: var(--mrc-text-deep); color: #fff; font-size: 24rpx; font-weight: 750; }.household-confirm::after { display: none; }.household-confirm[disabled] { opacity: .38; }.choice-grid--spice { grid-template-columns: repeat(3, 1fr); }
 .weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8rpx; }.weekdays view { display: flex; min-height: 76rpx; align-items: center; justify-content: center; border: 2rpx solid var(--mrc-border); border-radius: 18rpx; color: var(--mrc-text-sub); font-size: 22rpx; }.weekdays view.selected { border-color: var(--mrc-accent); background: var(--mrc-accent-soft); color: var(--mrc-accent); font-weight: 800; }.choice-confirm { min-height: 88rpx; margin: 18rpx 0 0; border: 0; border-radius: 22rpx; background: var(--mrc-text-deep); color: #fff; font-size: 25rpx; font-weight: 750; }
 .plan-confirm__summary { display: flex; justify-content: space-between; padding: 4rpx 4rpx 18rpx; color: var(--mrc-text-deep); font-size: 24rpx; font-weight: 750; }.plan-confirm__summary text:last-child { color: var(--mrc-accent); font-size: 21rpx; }.generate-button { display: flex; min-height: 98rpx; align-items: center; justify-content: space-between; margin: 0; padding: 0 26rpx; border: 0; border-radius: 24rpx; background: var(--mrc-primary-grad); color: #fff; box-shadow: var(--mrc-shadow-coral); line-height: 1.2; }.generate-button:active { transform: scale(.98); }.generate-button { font-size: 28rpx; font-weight: 800; }.generate-button text { font-size: 19rpx; font-weight: 500; opacity: .86; }.restart-button { min-height: 72rpx; margin: 8rpx 0 0; border: 0; background: transparent; color: var(--mrc-text-sub); font-size: 21rpx; }
-.composer { display: flex; align-items: center; gap: 10rpx; min-height: 96rpx; margin-top: 18rpx; padding: 10rpx 12rpx 10rpx 22rpx; border: 2rpx solid var(--mrc-border); border-radius: 28rpx; background: var(--mrc-surface); box-sizing: border-box; }.composer--fixed { position: fixed; z-index: 20; right: 28rpx; bottom: calc(18rpx + env(safe-area-inset-bottom)); left: 28rpx; margin: 0; box-shadow: 0 12rpx 40rpx rgba(69, 37, 24, .16); }.composer input { min-width: 0; flex: 1; color: var(--mrc-text-deep); font-size: 23rpx; }.composer input[disabled] { opacity: .58; }.composer button { display: flex; width: 88rpx; min-height: 70rpx; align-items: center; justify-content: center; margin: 0; padding: 0; border: 0; border-radius: 20rpx; background: var(--mrc-text-deep); color: #fff; font-size: 21rpx; }.composer button[disabled] { opacity: .55; }.archive-link { display: flex; min-height: 82rpx; align-items: center; justify-content: center; color: var(--mrc-text-sub); font-size: 21rpx; }
+.composer { display: flex; align-items: center; gap: 10rpx; min-height: 96rpx; margin-top: 18rpx; padding: 10rpx 12rpx 10rpx 22rpx; border: 2rpx solid var(--mrc-border); border-radius: 28rpx; background: var(--mrc-surface); box-sizing: border-box; }.composer--fixed { position: fixed; z-index: 20; right: 28rpx; bottom: calc(18rpx + env(safe-area-inset-bottom)); left: 28rpx; margin: 0; box-shadow: 0 12rpx 40rpx rgba(69, 37, 24, .16); }.composer input { min-width: 0; flex: 1; color: var(--mrc-text-deep); font-size: 23rpx; }.composer input[disabled] { opacity: .58; }.composer__send { width: 104rpx; min-height: 70rpx; padding: 0 14rpx !important; border-radius: 20rpx !important; font-size: 21rpx !important; }.archive-link { display: flex; min-height: 82rpx; align-items: center; justify-content: center; color: var(--mrc-text-sub); font-size: 21rpx; }
+.other-input { display: flex; align-items: center; gap: 12rpx; margin-top: 16rpx; padding: 10rpx 12rpx 10rpx 20rpx; border: 2rpx solid var(--mrc-border); border-radius: 24rpx; background: var(--mrc-surface-sun); box-sizing: border-box; }.other-input__field { min-width: 0; flex: 1; color: var(--mrc-text-deep); font-size: 23rpx; line-height: 1.35; }.other-input__field[disabled] { opacity: .58; }.other-input__send { width: 104rpx; min-height: 66rpx; padding: 0 14rpx !important; border-radius: 18rpx !important; font-size: 21rpx !important; }
 .conversation-rating { display: flex; flex-direction: column; gap: 16rpx; margin-top: 18rpx; padding-top: 22rpx; border-top: 2rpx solid var(--mrc-border-light); color: var(--mrc-text-deep); font-size: 25rpx; font-weight: 750; }
 .tool-panel { margin-top: 8rpx; padding: 26rpx; }.tool-panel__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24rpx; color: var(--mrc-text-deep); font-size: 28rpx; font-weight: 800; }.tool-panel__head text:last-child { padding: 7rpx 13rpx; border-radius: 999rpx; background: var(--mrc-accent-soft); color: var(--mrc-accent); font-size: 20rpx; }.tool-step { display: flex; align-items: center; gap: 18rpx; min-height: 98rpx; opacity: .46; }.tool-step--active, .tool-step--done { opacity: 1; }.tool-step__state { display: flex; width: 54rpx; height: 54rpx; flex: 0 0 auto; align-items: center; justify-content: center; border: 2rpx solid var(--mrc-border); border-radius: 50%; color: var(--mrc-text-sub); background: var(--mrc-surface); font-size: 20rpx; }.tool-step--done .tool-step__state { border-color: var(--mrc-primary-deep); background: var(--mrc-primary-grad); color: #fff; box-shadow: 0 6rpx 14rpx rgba(239, 90, 60, .2); }.tool-step--active .tool-step__state { border-color: var(--mrc-accent); background: var(--mrc-surface-peach); box-shadow: 0 0 0 6rpx var(--mrc-accent-soft); }.tool-step__pulse { width: 15rpx; height: 15rpx; border-radius: 50%; background: var(--mrc-accent); animation: pulse 1s ease-in-out infinite; }.tool-step > view:last-child { display: flex; min-width: 0; flex-direction: column; gap: 6rpx; }.tool-step__title { color: var(--mrc-text-deep); font-size: 24rpx; font-weight: 750; }.tool-step__copy { color: var(--mrc-text-sub); font-size: 20rpx; }.tool-step + .tool-step { border-top: 2rpx solid var(--mrc-border-light); }
 @keyframes pulse { 50% { opacity: .35; transform: scale(.7); } }
