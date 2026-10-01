@@ -1,6 +1,0 @@
-{
-  "component": true,
-  "usingComponents": {
-    "wd-button": "../../node-modules/@wot-ui/ui/components/wd-button/wd-button"
-  }
-}

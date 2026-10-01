@@ -234,7 +234,9 @@ export function uploadFile(filePath: string, type: 'image' | 'avatar' = 'image')
       success: (res: any) => {
         console.log(`[upload] 收到响应 HTTP ${res.statusCode} 耗时 ${((Date.now() - startedAt) / 1000).toFixed(1)}s`)
         if (isAuthExpired(res)) {
-          clearLocalAuth()
+          // 注意：这里不清本地登录态。上传常并发多张，若某个请求偶发 401 就清 token，
+          // 会让同批次其余在途请求全部连锁 401（表现为「多选只成功一张」）。
+          // 交由上层在全部失败后再统一处理登录态。
           reject(new Error('登录已过期，请重新登录'))
           return
         }

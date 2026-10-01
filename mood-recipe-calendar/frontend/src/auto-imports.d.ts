@@ -127,6 +127,7 @@ declare global {
   const getWindowInfo: typeof import('./utils/wxSystem')['getWindowInfo']
   const h: typeof import('vue')['h']
   const hideLoading: typeof import('./utils/toast')['hideLoading']
+  const humanizeMemoryValue: typeof import('./utils/memoryLabels')['humanizeMemoryValue']
   const ignorableWatch: typeof import('@vueuse/core')['ignorableWatch']
   const initializeThemeOnce: typeof import('./utils/systemTheme')['initializeThemeOnce']
   const inject: typeof import('vue')['inject']
@@ -137,6 +138,7 @@ declare global {
   const isReactive: typeof import('vue')['isReactive']
   const isReadonly: typeof import('vue')['isReadonly']
   const isRef: typeof import('vue')['isRef']
+  const isSafetyMemory: typeof import('./utils/memoryLabels')['isSafetyMemory']
   const loadCookingDraft: typeof import('./utils/cookingDraft')['loadCookingDraft']
   const login: typeof import('./api/auth')['login']
   const logout: typeof import('./api/auth')['logout']
@@ -147,6 +149,7 @@ declare global {
   const mapStores: typeof import('pinia')['mapStores']
   const mapWritableState: typeof import('pinia')['mapWritableState']
   const markRaw: typeof import('vue')['markRaw']
+  const memoryKeyLabel: typeof import('./utils/memoryLabels')['memoryKeyLabel']
   const navBack: typeof import('./composables/useNavBar')['navBack']
   const nextTick: typeof import('vue')['nextTick']
   const onActivated: typeof import('vue')['onActivated']
@@ -224,6 +227,7 @@ declare global {
   const resolveRef: typeof import('@vueuse/core')['resolveRef']
   const resolveUnref: typeof import('@vueuse/core')['resolveUnref']
   const runMealAgentTurn: typeof import('./api/weeklyPlans')['runMealAgentTurn']
+  const safeDecodePrompt: typeof import('./utils/safeDecodePrompt')['safeDecodePrompt']
   const saveCookingDraft: typeof import('./utils/cookingDraft')['saveCookingDraft']
   const saveFoodPreference: typeof import('./api/preferences')['saveFoodPreference']
   const saveRecord: typeof import('./api/records')['saveRecord']
@@ -239,6 +243,7 @@ declare global {
   const shallowReadonly: typeof import('vue')['shallowReadonly']
   const shallowRef: typeof import('vue')['shallowRef']
   const showLoading: typeof import('./utils/toast')['showLoading']
+  const sourceLabel: typeof import('./utils/memoryLabels')['sourceLabel']
   const storeToRefs: typeof import('pinia')['storeToRefs']
   const submitFeedback: typeof import('./api/feedback')['submitFeedback']
   const subscribeSystemThemeChange: typeof import('./utils/systemTheme')['subscribeSystemThemeChange']
@@ -593,6 +598,7 @@ declare module 'vue' {
     readonly getWindowInfo: UnwrapRef<typeof import('./utils/wxSystem')['getWindowInfo']>
     readonly h: UnwrapRef<typeof import('vue')['h']>
     readonly hideLoading: UnwrapRef<typeof import('./utils/toast')['hideLoading']>
+    readonly humanizeMemoryValue: UnwrapRef<typeof import('./utils/memoryLabels')['humanizeMemoryValue']>
     readonly ignorableWatch: UnwrapRef<typeof import('@vueuse/core')['ignorableWatch']>
     readonly initializeThemeOnce: UnwrapRef<typeof import('./utils/systemTheme')['initializeThemeOnce']>
     readonly inject: UnwrapRef<typeof import('vue')['inject']>
@@ -603,6 +609,7 @@ declare module 'vue' {
     readonly isReactive: UnwrapRef<typeof import('vue')['isReactive']>
     readonly isReadonly: UnwrapRef<typeof import('vue')['isReadonly']>
     readonly isRef: UnwrapRef<typeof import('vue')['isRef']>
+    readonly isSafetyMemory: UnwrapRef<typeof import('./utils/memoryLabels')['isSafetyMemory']>
     readonly loadCookingDraft: UnwrapRef<typeof import('./utils/cookingDraft')['loadCookingDraft']>
     readonly login: UnwrapRef<typeof import('./api/auth')['login']>
     readonly logout: UnwrapRef<typeof import('./api/auth')['logout']>
@@ -613,6 +620,7 @@ declare module 'vue' {
     readonly mapStores: UnwrapRef<typeof import('pinia')['mapStores']>
     readonly mapWritableState: UnwrapRef<typeof import('pinia')['mapWritableState']>
     readonly markRaw: UnwrapRef<typeof import('vue')['markRaw']>
+    readonly memoryKeyLabel: UnwrapRef<typeof import('./utils/memoryLabels')['memoryKeyLabel']>
     readonly navBack: UnwrapRef<typeof import('./composables/useNavBar')['navBack']>
     readonly nextTick: UnwrapRef<typeof import('vue')['nextTick']>
     readonly onActivated: UnwrapRef<typeof import('vue')['onActivated']>
@@ -690,6 +698,7 @@ declare module 'vue' {
     readonly resolveRef: UnwrapRef<typeof import('@vueuse/core')['resolveRef']>
     readonly resolveUnref: UnwrapRef<typeof import('@vueuse/core')['resolveUnref']>
     readonly runMealAgentTurn: UnwrapRef<typeof import('./api/weeklyPlans')['runMealAgentTurn']>
+    readonly safeDecodePrompt: UnwrapRef<typeof import('./utils/safeDecodePrompt')['safeDecodePrompt']>
     readonly saveCookingDraft: UnwrapRef<typeof import('./utils/cookingDraft')['saveCookingDraft']>
     readonly saveFoodPreference: UnwrapRef<typeof import('./api/preferences')['saveFoodPreference']>
     readonly saveRecord: UnwrapRef<typeof import('./api/records')['saveRecord']>
@@ -705,6 +714,7 @@ declare module 'vue' {
     readonly shallowReadonly: UnwrapRef<typeof import('vue')['shallowReadonly']>
     readonly shallowRef: UnwrapRef<typeof import('vue')['shallowRef']>
     readonly showLoading: UnwrapRef<typeof import('./utils/toast')['showLoading']>
+    readonly sourceLabel: UnwrapRef<typeof import('./utils/memoryLabels')['sourceLabel']>
     readonly storeToRefs: UnwrapRef<typeof import('pinia')['storeToRefs']>
     readonly submitFeedback: UnwrapRef<typeof import('./api/feedback')['submitFeedback']>
     readonly subscribeSystemThemeChange: UnwrapRef<typeof import('./utils/systemTheme')['subscribeSystemThemeChange']>

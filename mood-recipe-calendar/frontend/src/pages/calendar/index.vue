@@ -317,13 +317,14 @@ function previewRecordPhoto(record: RecordItem | null) {
           @change="onDetailSwipe"
         >
           <swiper-item v-for="(rec, idx) in detailRecords" :key="rec.id ?? idx">
-            <guozai-image
-              :src="rec.imageUrl"
-              placeholder-class="cal-detail__img"
-              placeholder-text="📷"
-              aria-label="查看这张照片的大图"
-              @click="previewRecordPhoto(rec)"
-            />
+            <view class="cal-detail__img">
+              <guozai-image
+                :src="rec.imageUrl"
+                placeholder-text="📷"
+                aria-label="查看这张照片的大图"
+                @click="previewRecordPhoto(rec)"
+              />
+            </view>
           </swiper-item>
         </swiper>
         <text class="cal-empty-sheet__title">

@@ -98,7 +98,8 @@ function editSelected() {
   const id = selected.value?.id
   if (!id) return
   selected.value = null
-  router.push({ name: 'record-edit', query: { id: String(id) } })
+  // 注意：@wot-ui/router 在 name 跳转时会丢弃 query 字段，必须用 params（它会被拼成 URL 查询串）
+  router.push({ name: 'record-edit', params: { id: String(id) } })
 }
 function onScroll(e: any) {
   const top = Number(e.detail?.scrollTop || 0)

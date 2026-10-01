@@ -26,7 +26,7 @@ declare module 'vue' {
     GuozaiSuccessModal: typeof import('./components/guozai/SuccessModal.vue')['default']
     PrivacyPopup: typeof import('./components/PrivacyPopup.vue')['default']
     RecipeRecipeCard: typeof import('./components/recipe/RecipeCard.vue')['default']
-    WdButton: typeof import('@wot-ui/ui/components/wd-button/wd-button.vue')['default']
+    RecordRecordEditorForm: typeof import('./components/record/RecordEditorForm.vue')['default']
     WdConfigProvider: typeof import('@wot-ui/ui/components/wd-config-provider/wd-config-provider.vue')['default']
     WdFloatingPanel: typeof import('@wot-ui/ui/components/wd-floating-panel/wd-floating-panel.vue')['default']
     WdGap: typeof import('@wot-ui/ui/components/wd-gap/wd-gap.vue')['default']

@@ -4,7 +4,8 @@
   "usingComponents": {
     "wd-image-preview": "../../node-modules/@wot-ui/ui/components/wd-image-preview/wd-image-preview",
     "wd-navbar": "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar",
-    "loading-state": "../../components/guozai/LoadingState",
-    "empty-state": "../../components/guozai/EmptyState"
+    "empty-state": "../../components/guozai/EmptyState",
+    "guozai-button": "../../components/guozai/GuozaiButton",
+    "loading-state": "../../components/guozai/LoadingState"
   }
 }

@@ -17,28 +17,38 @@ function normalizeLoginError(e: unknown): string {
 /**
  * 确保用户已登录，返回 openid。
  * 仅支持微信小程序：uni.login 获取真实 code → 后端 code2session 换 openid。
+ *
+ * 并发去重：服务端每次登录都会覆盖 sessionTokenHash（单 token 模型），
+ * 若并发（如多张图片同时上传触发）各发起一次登录，后一次会让前一次的 token 立即失效，
+ * 表现为「只有最后一个请求成功」。这里复用同一个 in-flight Promise，保证只登录一次。
  */
-export async function ensureLogin(): Promise<string> {
+let loginInFlight: Promise<string> | null = null
+
+export function ensureLogin(): Promise<string> {
   const userStore = useUserStore()
 
   // 已登录直接返回
   if (userStore.isLoggedIn) {
-    return userStore.openid
+    return Promise.resolve(userStore.openid)
   }
 
   // 用户主动退出登录后，页面 onShow 自动调用时不应静默重新登录
   if (userStore.userInitiatedLogout) {
-    throw new Error('NOT_LOGGED_IN')
+    return Promise.reject(new Error('NOT_LOGGED_IN'))
   }
 
   // 从本地存储恢复
   userStore.restoreFromStorage()
   if (userStore.isLoggedIn) {
-    return userStore.openid
+    return Promise.resolve(userStore.openid)
   }
 
-  // 微信小程序登录：wx.login 获取 code
-  return new Promise((resolve, reject) => {
+  // 已有登录请求在飞行中，复用同一个 Promise，避免并发重复登录互相顶掉 token
+  if (loginInFlight) {
+    return loginInFlight
+  }
+
+  loginInFlight = new Promise<string>((resolve, reject) => {
     uni.login({
       provider: 'weixin',
       success: async (res) => {
@@ -56,7 +66,11 @@ export async function ensureLogin(): Promise<string> {
       },
       fail: () => reject(new Error('微信登录失败')),
     })
+  }).finally(() => {
+    loginInFlight = null
   })
+
+  return loginInFlight
 }
 
 /**

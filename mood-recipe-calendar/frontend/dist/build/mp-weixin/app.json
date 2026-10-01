@@ -23,9 +23,9 @@
     "pages/record/detail",
     "pages/weekly-plan/detail",
     "pages/weekly-plan/index",
-    "pages/component-demo/index",
     "pages/recommendation-history/index",
-    "pages/fridge/index"
+    "pages/fridge/index",
+    "pages/record/edit"
   ],
   "subPackages": [],
   "window": {

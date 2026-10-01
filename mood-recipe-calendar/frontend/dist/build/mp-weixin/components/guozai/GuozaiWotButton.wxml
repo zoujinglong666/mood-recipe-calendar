@@ -1,1 +1,0 @@
-<wd-button wx:if="{{f}}" u-s="{{['d']}}" style="{{a}}" bindtouchstart="{{b}}" bindtouchend="{{c}}" bindtouchcancel="{{d}}" bindclick="{{e}}" u-i="fb7ec4ce-0" bind:__l="__l" u-p="{{f}}"><slot/></wd-button>

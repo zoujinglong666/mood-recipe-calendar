@@ -13,7 +13,6 @@ import { chooseImageFiles } from '../../utils/chooseImage'
 import { createRequestId, RECORD_DRAFT_KEY } from '../../utils/cookingDraft'
 import { ensureLogin } from '../../utils/login'
 import { toast, toastError, toastSuccess } from '../../utils/toast'
-import { log } from 'console'
 
 definePage({
   name: 'record',
@@ -97,6 +96,13 @@ async function addImages() {
   })
 }
 
+/**
+ * 限并发上传：多选照片时若同时发起 N 个 uploadFile，会因并发竞态导致只有一张成功
+ * （会话/连接资源被抢占）。这里改为「最多同时上传 2 张」，其余排队，逐批推进，
+ * 既避免竞态，又保留比纯串行更快的整体速度。
+ */
+const UPLOAD_CONCURRENCY = 2
+
 async function uploadImages(tempPaths: string[]) {
   const startIndex = photos.value.length
   photos.value.push(...tempPaths.slice(0, 9 - photos.value.length)
@@ -104,21 +110,33 @@ async function uploadImages(tempPaths: string[]) {
   // 必须从 reactive 数组取代理对象：闭包若持有 push 前的 raw 对象，
   // 后续 photo.uploading/remoteUrl 赋值不触发渲染，UI 会永远停在「上传中…」
   const queue = photos.value.slice(startIndex)
-  console.log(`[upload] 照片队列开始: ${queue.length} 张，已有 ${startIndex} 张`)
-  await Promise.all(queue.map(async (photo) => {
-    try {
-      photo.remoteUrl = (await uploadFile(photo.localUrl)).url
-      console.log('[upload] 单张完成:', photo.localUrl)
+  console.log(`[upload] 照片队列开始: ${queue.length} 张（并发 ${UPLOAD_CONCURRENCY}），已有 ${startIndex} 张`)
+
+  const failed = new Set<string>()
+  let cursor = 0
+  async function worker() {
+    while (cursor < queue.length) {
+      const photo = queue[cursor++]
+      try {
+        photo.remoteUrl = (await uploadFile(photo.localUrl)).url
+        console.log('[upload] 单张完成:', photo.localUrl)
+      }
+      catch (e: any) {
+        console.warn('[upload] 单张失败:', photo.localUrl, e?.message)
+        failed.add(photo.localUrl)
+      }
+      finally { photo.uploading = false }
     }
-    catch (e: any) {
-      console.warn('[upload] 单张失败，从列表移除:', photo.localUrl, e?.message)
-      photos.value = photos.value.filter(item => item !== photo)
-      toastError(e, '有照片上传失败，请重新添加')
-    }
-    finally { photo.uploading = false }
-  }))
+  }
+  await Promise.all(Array.from({ length: Math.min(UPLOAD_CONCURRENCY, queue.length) }, () => worker()))
+
+  // 批量失败后再统一移除，避免并发中多次 filter 互相覆盖
+  if (failed.size) {
+    photos.value = photos.value.filter(item => !failed.has(item.localUrl))
+    toastError(new Error(`${failed.size} 张照片上传失败，请重新添加`), '部分照片上传失败')
+  }
   console.log(`[upload] 照片队列结束: 成功 ${queue.filter(photo => photo.remoteUrl).length}/${queue.length} 张`)
-  if (queue.some(photo => photo.remoteUrl))
+  if (queue.some(photo => photo.remoteUrl) && !failed.size)
     toastSuccess('照片已收好')
 }
 

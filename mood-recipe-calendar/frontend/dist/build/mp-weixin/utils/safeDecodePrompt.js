@@ -1,0 +1,1 @@
+"use strict";exports.safeDecodePrompt=function(e){if("string"!=typeof e)return"";let t=e.trim();for(let r=0;r<2&&/%[0-9a-f]{2}/i.test(t);r+=1)try{const e=decodeURIComponent(t.replace(/\+/g," "));if(e===t)break;t=e}catch{break}return t};

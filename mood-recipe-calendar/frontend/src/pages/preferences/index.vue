@@ -5,6 +5,7 @@ import { computed, ref } from 'vue'
 import { clearAgentMemory, forgetAgentMemory, getAgentMemory, setAgentPersonalization } from '@/api/auth'
 import { navBack } from '@/composables/useNavBar'
 import { STATIC_BASE_URL } from '@/utils/assets'
+import { humanizeMemoryValue, memoryKeyLabel, sourceLabel } from '@/utils/memoryLabels'
 import { clearFoodPreference, fetchFoodMemory, saveFoodPreference } from '../../api/preferences'
 import { ensureLogin } from '../../utils/login'
 import { toast, toastError, toastSuccess } from '../../utils/toast'
@@ -108,10 +109,10 @@ async function forgetFact(key: string) {
   try {
     await forgetAgentMemory(key)
     learnedFacts.value = learnedFacts.value.filter(item => item.key !== key)
-    toastSuccess('这条记忆已删除')
+    toastSuccess('好，锅仔已经忘掉这条了')
   }
   catch (error) {
-    toastError(error, '删除记忆失败')
+    toastError(error, '暂时忘不掉，请稍后再试')
   }
 }
 
@@ -194,10 +195,10 @@ function clearMemory() {
         allergens.value = ''
         behavior.value = null
         learnedFacts.value = []
-        toast('口味记忆已清除')
+        toast('好，锅仔都忘掉了')
       }
       catch (e: any) {
-        toastError(e, '清除失败，请重试')
+        toastError(e, '暂时忘不掉，请稍后再试')
       }
     },
   })
@@ -274,7 +275,7 @@ function clearMemory() {
             <text class="memory-section__title">
               锅仔已经记住的事
             </text><text class="memory-section__hint">
-              每条都有来源，你可以单独删除。
+              每条都有来源，不想留着可以让锅仔忘掉。
             </text>
           </view><switch :checked="personalizationEnabled" color="#EF5A3C" @change="togglePersonalization" />
         </view>
@@ -286,13 +287,15 @@ function clearMemory() {
             {{ group.label }}
           </text><view v-for="fact in group.facts" :key="fact.key" class="memory-fact">
             <view>
-              <text class="memory-fact__value">
-                {{ fact.value }}
+              <text class="memory-fact__label">
+                {{ memoryKeyLabel(fact.key) }}
+              </text><text class="memory-fact__value">
+                {{ humanizeMemoryValue(fact.key, fact.value) }}
               </text><text class="memory-fact__reason">
-                {{ fact.reason || fact.evidence || '来自你的选择' }}
+                {{ sourceLabel(fact) }}
               </text>
             </view><text class="memory-fact__delete" @click="forgetFact(fact.key)">
-              删除
+              忘掉这条
             </text>
           </view>
         </view>
@@ -458,7 +461,7 @@ function clearMemory() {
           暂时跳过
         </button>
         <button v-else class="memory-clear" :disabled="saving" @click="clearMemory">
-          清除全部口味记忆
+          让锅仔忘掉全部记忆
         </button>
       </view>
     </template>
@@ -490,7 +493,7 @@ function clearMemory() {
 .memory-summary__foot { margin-top: 16rpx; color: var(--mrc-text-light); font-size: 20rpx; line-height: 1.5; }
 .memory-section { padding: 28rpx; margin-bottom: 20rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); }
 .memory-section--warning { border-color: var(--mrc-border); }
-.memory-facts__head,.memory-fact{display:flex;align-items:center;justify-content:space-between;gap:20rpx}.memory-fact-group{margin-top:24rpx}.memory-fact-group__title{display:block;color:var(--mrc-accent);font-size:22rpx;font-weight:800}.memory-fact{padding:20rpx 0;border-bottom:2rpx solid var(--mrc-border-light)}.memory-fact>view{min-width:0;flex:1}.memory-fact__value,.memory-fact__reason{display:block}.memory-fact__value{color:var(--mrc-text-deep);font-size:27rpx;font-weight:700}.memory-fact__reason{margin-top:6rpx;color:var(--mrc-text-sub);font-size:21rpx;line-height:1.45}.memory-fact__delete{flex-shrink:0;color:var(--mrc-danger,#a54235);font-size:23rpx}
+.memory-facts__head,.memory-fact{display:flex;align-items:center;justify-content:space-between;gap:20rpx}.memory-fact-group{margin-top:24rpx}.memory-fact-group__title{display:block;color:var(--mrc-accent);font-size:22rpx;font-weight:800}.memory-fact{padding:20rpx 0;border-bottom:2rpx solid var(--mrc-border-light)}.memory-fact>view{min-width:0;flex:1}.memory-fact__value,.memory-fact__reason{display:block}.memory-fact__label{display:block;color:var(--mrc-text-sub);font-size:21rpx;font-weight:600}.memory-fact__value{margin-top:4rpx;color:var(--mrc-text-deep);font-size:27rpx;font-weight:700}.memory-fact__reason{margin-top:6rpx;color:var(--mrc-text-light);font-size:21rpx;line-height:1.45}.memory-fact__delete{flex-shrink:0;color:var(--mrc-danger,#a54235);font-size:23rpx}
 .memory-section__title, .memory-section__hint { display: block; }
 .memory-section__title { color: var(--mrc-text-deep); font-size: 31rpx; font-weight: 800; }
 .memory-section__hint { margin-top: 8rpx; color: var(--mrc-text-sub); font-size: 23rpx; line-height: 1.55; }

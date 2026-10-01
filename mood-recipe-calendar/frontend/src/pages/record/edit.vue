@@ -8,7 +8,13 @@ definePage({ name: 'record-edit', layout: 'default', style: { navigationStyle: '
 
 const router = useRouter()
 const route = useRoute()
-const recordId = Number(route.query.id)
+// 同 record/detail：@wot-ui/router 的 route.query 不可靠（name 跳转会丢弃 query 字段，
+// 且 query 是靠 page.$page.fullPath 反解的），改用 uni-app 原生 onLoad 的 options 取 id。
+const recordId = ref(0)
+onLoad((options: any) => {
+  const raw = options?.id ?? route.query?.id ?? (route as any).params?.id
+  recordId.value = Number(raw)
+})
 const saved = ref(false)
 
 function cancel() {

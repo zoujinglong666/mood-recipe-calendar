@@ -319,7 +319,7 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
         </view>
         <view class="home-actions__item home-actions__item--record" role="button" aria-label="记录一餐" @click="router.pushTab({ name: 'record' })">
           <view class="home-actions__text"><text class="home-actions__label">吃过什么</text><text class="home-actions__name">记录一餐</text></view>
-          <image class="home-actions__guozai" :src="STATIC_BASE_URL + '/static/guozai/action_03_camera.png'" mode="aspectFit" />
+          <image class="home-actions__guozai home-actions__guozai--camera" :src="STATIC_BASE_URL + '/static/guozai/action_03_camera.png'" mode="aspectFit" />
         </view>
       </view>
 
@@ -407,6 +407,8 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
 .home-lucky__eyebrow, .home-lucky__main, .home-lucky__sub { display: block; }.home-lucky__eyebrow { margin-bottom: 4rpx; color: rgba(255, 255, 255, 0.82); font-size: 20rpx; }.home-lucky__main { color: #fff; font-size: 32rpx; font-weight: 700; }.home-lucky__sub { margin-top: 4rpx; color: rgba(255, 255, 255, 0.9); font-size: 24rpx; }.home-lucky__arrow { margin-left: 12rpx; color: rgba(255, 255, 255, 0.95); font-size: 56rpx; font-weight: 300; }
 
 .home-actions { display: flex; gap: 16rpx; margin: 24rpx 0 32rpx; }.home-actions__item { display: flex; flex: 1; align-items: center; justify-content: space-between; min-width: 0; min-height: 128rpx; padding: 0 20rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); box-sizing: border-box; }.home-actions__item--recipe { background: var(--mrc-surface-peach); }.home-actions__item--record { overflow: hidden; background: var(--mrc-surface-mint); }.home-actions__text { z-index: 1; display: flex; flex-direction: column; gap: 8rpx; }.home-actions__label { color: var(--mrc-text-sub); font-size: 21rpx; }.home-actions__name { color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 700; white-space: nowrap; }.home-actions__guozai { width: 126rpx; height: 126rpx; margin-right: -16rpx; }
+/* 三张锅仔图内容留白不同：相机锅仔画幅偏小，单独放大一点，让三张视觉大小一致 */
+.home-actions__guozai--camera { width: 158rpx; height: 158rpx; margin-right: -24rpx; }
 
 .home-cal { padding: 28rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 32rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }
 .home-cal__header { display: flex; align-items: center; justify-content: space-between; min-height: 96rpx; margin-bottom: 20rpx; }
