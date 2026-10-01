@@ -59,8 +59,9 @@ async function load() {
   error.value = ''
   try {
     await ensureLogin()
-    const [, products] = await Promise.all([refreshUserInfo(true), fetchVirtualProducts()])
-    product.value = products.find(item => item.sku === MEMBER_PRODUCT_SKU) || null
+    // 会员商品是页面核心；刷新用户信息失败不应阻断商品展示
+    product.value = (await fetchVirtualProducts()).find(item => item.sku === MEMBER_PRODUCT_SKU) || null
+    refreshUserInfo(true).catch(() => {})
   }
   catch (e: any) {
     error.value = e?.message === 'NOT_LOGGED_IN' ? '' : (e?.message || '权益加载失败')

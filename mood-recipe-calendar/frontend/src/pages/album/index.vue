@@ -114,13 +114,10 @@ async function loadAlbum() {
   error.value = ''
   try {
     const openid = await ensureLogin()
-    const [albumData, recordData] = await Promise.all([
-      fetchMonthAlbum(monthStr),
-      fetchRecordsByMonth(monthStr),
-      refreshUserInfo(true),
-    ])
-    album.value = albumData
-    records.value = recordData
+    // 相册是核心，先加载；本月记录与刷新用户信息失败都不应阻断相册展示
+    album.value = await fetchMonthAlbum(monthStr)
+    fetchRecordsByMonth(monthStr).then(d => { records.value = d }).catch(() => {})
+    refreshUserInfo(true).catch(() => {})
     await refreshEntitlements(openid)
   }
   catch (e: any) {

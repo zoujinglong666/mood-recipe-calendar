@@ -94,16 +94,36 @@ export function updateRecord(id: number, payload: RecordPayload) {
 
 /** 获取用户全部记录 */
 export function fetchRecords() {
-  return get<RecordItem[]>('/records').then(items => items.map(normalizeRecord))
+  return get<RecordItem[]>('/records').then(items => mapRecords(items, 'GET /records'))
 }
 
 /** 获取某月记录 */
 export function fetchRecordsByMonth(month: string) {
-  return get<RecordItem[]>('/records/month', { month }).then(items => items.map(normalizeRecord))
+  return get<RecordItem[]>('/records/month', { month }).then(items => mapRecords(items, 'GET /records/month'))
+}
+
+/** 数组规整：过滤后端返回的非法元素（undefined/null），避免 normalizeRecord 直接抛错炸页面 */
+function mapRecords(items: RecordItem[], source: string): RecordItem[] {
+  if (!Array.isArray(items)) {
+    console.warn(`[records] ${source} 返回非数组:`, typeof items, items)
+    return []
+  }
+  return items
+    .filter((item, index) => {
+      if (item && typeof item === 'object')
+        return true
+      console.warn(`[records] ${source} 第 ${index} 条记录异常:`, JSON.stringify(item))
+      return false
+    })
+    .map(normalizeRecord)
 }
 
 function normalizeRecord(record: RecordItem): RecordItem {
-  const imageUrls = (record.imageUrls?.length ? record.imageUrls : [record.imageUrl]).map(resolveAssetUrl)
+  if (!record || typeof record !== 'object') {
+    console.warn('[records] normalizeRecord 收到非法记录:', record)
+    record = { id: 0, openid: '', imageUrl: '', imageUrls: [], dishName: '', moodTag: '', recordDate: '' }
+  }
+  const imageUrls = (record.imageUrls?.length ? record.imageUrls : [record.imageUrl]).filter(Boolean).map(resolveAssetUrl)
   return { ...record, imageUrl: imageUrls[0] || resolveAssetUrl(record.imageUrl), imageUrls }
 }
 

@@ -19,6 +19,11 @@ export function toastSuccess(msg: string, duration = 1500) {
  * - 传入字符串时直接显示
  */
 export function toastError(err: unknown, fallback = '操作失败，请稍后重试') {
+  // 完整原始错误打进控制台（toast 只显示抽象文案），真机 vConsole 可按 [toastError] 过滤排查
+  if (err !== undefined && err !== null)
+    console.warn('[toastError]', fallback, '->', err)
+  else
+    console.warn('[toastError]', fallback)
   let msg = fallback
   let isCancel = false
   if (err instanceof Error) {
@@ -36,8 +41,9 @@ export function toastError(err: unknown, fallback = '操作失败，请稍后重
     msg = err
     isCancel = /cancel/i.test(err)
   }
-  // 底层网络/超时错误统一抽象成用户能看懂的文案，不暴露 request:fail 等原始串
-  if (!msg || /request:fail|network|timeout|socket|ERR_CONNECTION/i.test(msg))
+  // 底层网络/超时错误统一抽象成用户能看懂的文案，不暴露 request:fail 等原始串；
+  // 上传类错误（uploadFile:fail ...）原样透出，否则超时/域名问题无法排查
+  if (!msg || /request:fail|network|socket|ERR_CONNECTION/i.test(msg))
     msg = fallback
   if (isCancel)
     msg = '已取消支付'

@@ -190,17 +190,49 @@ export function del<T = any>(url: string, data?: any, timeout?: number, params?:
 }
 
 /**
+ * 确保上传路径可用：chooseAvatar 等回调可能给出远程图片 URL（如 thirdwx.qlogo.cn），
+ * uni.uploadFile 只接受本地临时路径，远程 URL 需先下载为临时文件。
+ */
+function ensureUploadablePath(filePath: string): Promise<string> {
+  // 本地临时路径直接用：wxfile://、http(s)://tmp/（真机/工具临时目录）、blob:/data:（H5）、非 http 协议
+  if (!/^https?:\/\//i.test(filePath) || /^https?:\/\/tmp\//i.test(filePath))
+    return Promise.resolve(filePath)
+  console.log('[upload] 远程图片路径，先下载为临时文件:', filePath)
+  return new Promise((resolve, reject) => {
+    uni.downloadFile({
+      url: filePath,
+      success: (res: any) => {
+        if (res.statusCode === 200 && res.tempFilePath) {
+          console.log('[upload] 远程图片下载完成:', res.tempFilePath)
+          resolve(res.tempFilePath)
+        }
+        else {
+          console.warn('[upload] 远程图片下载失败: HTTP', res.statusCode)
+          reject(new Error(`素材下载失败(HTTP ${res.statusCode})`))
+        }
+      },
+      fail: err => reject(new Error(err.errMsg || '素材下载失败')),
+    })
+  })
+}
+
+/**
  * 文件上传
  * @param type 上传场景：image=菜品/记录图片（COS 内 mood-recipe/uploads/），avatar=用户头像（mood-recipe/avatar/）
  */
 export function uploadFile(filePath: string, type: 'image' | 'avatar' = 'image'): Promise<{ url: string, filename: string }> {
-  return new Promise((resolve, reject) => {
+  const startedAt = Date.now()
+  return ensureUploadablePath(filePath).then(localPath => new Promise((resolve, reject) => {
+    console.log(`[upload] 开始上传 type=${type} filePath=${localPath}`)
     uni.uploadFile({
       url: `${getApiBaseUrl()}/upload/image?type=${type}`,
-      filePath,
+      filePath: localPath,
       name: 'file',
+      // 真机弱网下默认无超时会一直 pending，界面卡「上传中」；60s 后明确失败
+      timeout: 60000,
       header: authHeader(),
       success: (res: any) => {
+        console.log(`[upload] 收到响应 HTTP ${res.statusCode} 耗时 ${((Date.now() - startedAt) / 1000).toFixed(1)}s`)
         if (isAuthExpired(res)) {
           clearLocalAuth()
           reject(new Error('登录已过期，请重新登录'))
@@ -209,17 +241,24 @@ export function uploadFile(filePath: string, type: 'image' | 'avatar' = 'image')
         try {
           const result = JSON.parse(res.data) as ApiResult<{ url: string, filename: string }>
           if (result.code === 0) {
+            console.log('[upload] 上传成功 url=', result.data?.url)
             resolve({ ...result.data, url: resolveAssetUrl(result.data.url) })
           }
           else {
-            reject(new Error(result.message || '上传失败'))
+            console.warn('[upload] 业务失败:', result.code, result.message)
+            reject(new Error(result.message || `上传失败(HTTP ${res.statusCode})`))
           }
         }
         catch {
-          reject(new Error('上传响应解析失败'))
+          const snippet = typeof res.data === 'string' ? res.data.slice(0, 80) : ''
+          console.warn('[upload] 响应非 JSON:', res.statusCode, snippet)
+          reject(new Error(`上传响应解析失败(HTTP ${res.statusCode})${snippet ? `: ${snippet}` : ''}`))
         }
       },
-      fail: err => reject(new Error(err.errMsg || '上传失败')),
+      fail: (err) => {
+        console.warn(`[upload] 请求失败 耗时 ${((Date.now() - startedAt) / 1000).toFixed(1)}s:`, err.errMsg)
+        reject(new Error(err.errMsg || '上传失败'))
+      },
     })
-  })
+  }))
 }

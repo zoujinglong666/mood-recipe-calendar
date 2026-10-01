@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 import jakarta.validation.ConstraintViolationException;
 import java.util.stream.Collectors;
@@ -61,6 +63,20 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleMaxUpload(MaxUploadSizeExceededException e) {
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
             .body(ApiResponse.error(413, "文件大小超过限制（最大 10MB）"));
+    }
+
+    /** multipart 请求缺失文件字段（如 POST /api/upload/image 未携带 file 表单项） */
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMissingPart(MissingServletRequestPartException e) {
+        return ResponseEntity.badRequest()
+            .body(ApiResponse.error(400, "缺少上传文件字段: " + e.getRequestPartName()));
+    }
+
+    /** multipart 请求本身解析失败（非 multipart 请求、boundary 缺失、请求体损坏等） */
+    @ExceptionHandler(MultipartException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMultipart(MultipartException e) {
+        return ResponseEntity.badRequest()
+            .body(ApiResponse.error(400, "文件上传格式错误，请重新选择图片后上传"));
     }
 
     /** 非法参数（业务层主动抛出） */

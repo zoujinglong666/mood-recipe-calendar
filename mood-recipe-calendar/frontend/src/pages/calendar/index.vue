@@ -80,12 +80,9 @@ async function loadData() {
   error.value = ''
   try {
     await ensureLogin()
-    const [monthRecords, statsData] = await Promise.all([
-      fetchRecordsByMonth(monthStr),
-      fetchStats(),
-    ])
-    records.value = monthRecords
-    stats.value = { totalDays: statsData.totalDays, currentStreak: statsData.currentStreak }
+    // 日历记录是核心，独立加载；统计（连续天数等）失败不应清空整月日历
+    records.value = await fetchRecordsByMonth(monthStr)
+    fetchStats().then(s => { stats.value = { totalDays: s.totalDays, currentStreak: s.currentStreak } }).catch(() => {})
     if (!initialDayHandled) {
       initialDayHandled = true
       const selectedDay = Number(route.query.day)

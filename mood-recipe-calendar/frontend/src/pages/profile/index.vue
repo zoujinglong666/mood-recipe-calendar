@@ -60,12 +60,9 @@ async function loadData() {
   }
   try {
     await refreshUserInfo()
-    const [statsData, records] = await Promise.all([
-      fetchStats(),
-      fetchRecords(),
-    ])
-    stats.value = statsData
-    history.value = records.slice(0, 3)
+    // 记录是「我的」页核心内容，独立加载；统计接口失败不应清空历史列表
+    history.value = (await fetchRecords()).slice(0, 3)
+    fetchStats().then(s => { stats.value = s }).catch(() => {})
   }
   catch (e: any) {
     stats.value = { totalRecords: 0, totalDays: 0, currentStreak: 0, topDishes: [] }
@@ -102,7 +99,7 @@ function goSettings() {
 /** 更换头像：选择图片 → 上传 COS → 更新用户信息 */
 async function updateAvatar(filePath: string) {
   if (!userStore.isLoggedIn) {
-    toastError(null, '请先登录再修改头像')
+    router.push({ name: 'login' })
     return
   }
   if (!filePath || avatarUpdating.value)
@@ -124,7 +121,7 @@ async function updateAvatar(filePath: string) {
 
 function onChooseAvatar() {
   if (!userStore.isLoggedIn) {
-    toastError(null, '请先登录再修改头像')
+    router.push({ name: 'login' })
     return
   }
   if (avatarUpdating.value) {
@@ -140,7 +137,8 @@ function onChooseAvatar() {
 /** 打开编辑资料弹窗：可一键选用微信头像与微信昵称 */
 function openEdit() {
   if (!userStore.isLoggedIn) {
-    toastError(null, '请先登录再修改资料')
+    // 未登录时昵称位展示的文字就是「微信登录」，点击必须去登录页，不能死拦
+    router.push({ name: 'login' })
     return
   }
   editNickname.value = userStore.userInfo?.nickname || ''
@@ -185,7 +183,12 @@ function showPrivacy() {
 function goAbout() {
   router.push({ name: 'about' })
 }
+// 节流：一次点击若被极快连发两次，会触发两次 navigateTo 叠出「转场动画播放两次」的怪象
+let lastTimelineNavAt = 0
 function goTimeline() {
+  const now = Date.now()
+  if (now - lastTimelineNavAt < 600) return
+  lastTimelineNavAt = now
   router.push({ name: 'timeline' })
 }
 
@@ -528,8 +531,9 @@ function openStat(type: 'records' | 'days' | 'streak') {
              mode="aspectFit"/>
     </view>
 
-    <!-- 编辑资料弹窗：一键选用微信头像与微信昵称 -->
-    <wd-popup v-model="showEdit" position="bottom" :close-on-click-modal="true" :safe-area-inset-bottom="true"
+    <!-- 编辑资料弹窗：一键选用微信头像与微信昵称；z-index 须高于 tabbar(wd-tabbar 默认 10)，
+         否则同层级下 DOM 靠后的 tabbar 会盖住弹窗底部按钮 -->
+    <wd-popup v-model="showEdit" position="bottom" :z-index="30" :close-on-click-modal="true" :safe-area-inset-bottom="true"
       custom-style="border-radius: 40rpx 40rpx 0 0; overflow: hidden; background: var(--mrc-surface);">
       <view class="edit-sheet">
         <view class="edit-sheet__head">

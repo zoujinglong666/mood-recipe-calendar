@@ -68,8 +68,8 @@ public class FileUploadController {
     public ApiResponse<Map<String, String>> uploadImage(
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "type", defaultValue = "image") String type) {
-        if (file.isEmpty()) {
-            return ApiResponse.error("文件不能为空");
+        if (file == null || file.isEmpty()) {
+            return ApiResponse.error(400, "文件不能为空");
         }
         if (!SCENES.contains(type)) {
             return ApiResponse.error(400, "type 仅支持 image 或 avatar");

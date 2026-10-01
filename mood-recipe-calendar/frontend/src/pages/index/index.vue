@@ -147,9 +147,12 @@ async function loadData() {
   loading.value = true
   try {
     await ensureLogin()
-    const [records, quota] = await Promise.all([fetchRecordsByMonth(currentMonth.value), fetchRecipeQuota(), loadCompanion(), loadTodayBoard()])
-    monthRecords.value = records
-    recipeQuota.value = quota
+    // 关键数据（决定「食光坐标」数量）先独立加载；quota/同伴语/今日餐板的失败必须隔离，
+    // 不能因为任何一项 400 就把已加载的本月记录清空（曾经因 /recipes/quota 400 导致首页显示 0 个坐标）
+    monthRecords.value = await fetchRecordsByMonth(currentMonth.value)
+    fetchRecipeQuota().then((q) => { recipeQuota.value = q }).catch(() => {})
+    loadCompanion().catch(() => {})
+    loadTodayBoard().catch(() => {})
   } catch (e: any) {
     if (e?.message !== 'NOT_LOGGED_IN')
       toastError(e, '加载失败，请稍后重试')

@@ -586,4 +586,67 @@ onShow(load)
     transform: translateY(0);
   }
 }
+
+/* 页面统一覆盖：与首页、菜谱详情共用同一套暖色卡片和行动层级。 */
+.content,
+.empty-state {
+  padding: 12rpx 28rpx calc(72rpx + env(safe-area-inset-bottom));
+}
+
+.empty-hero {
+  min-height: 360rpx;
+  padding: 34rpx 30rpx 30rpx;
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 32rpx;
+  background: radial-gradient(circle at 84% 16%, rgba(255, 197, 61, .18), transparent 28%), var(--mrc-surface);
+  box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss);
+}
+
+.empty-hero__copy { width: 70%; }
+.empty-hero__eyebrow, .eyebrow { font-size: 19rpx; letter-spacing: 3rpx; }
+.empty-hero__title { margin-top: 18rpx; color: var(--mrc-text-strong); font-size: 39rpx; letter-spacing: -1.2rpx; line-height: 1.32; }
+.empty-hero__description { max-width: 430rpx; margin-top: 18rpx; font-size: 23rpx; line-height: 1.55; }
+.empty-hero__image { right: -4rpx; bottom: -8rpx; width: 236rpx; height: 236rpx; }
+.empty-hero__orb--large { right: -86rpx; bottom: -112rpx; width: 310rpx; height: 310rpx; }
+
+.empty-checks {
+  z-index: auto;
+  margin: 16rpx 0 0;
+  padding: 24rpx;
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 28rpx;
+  box-shadow: var(--mrc-shadow-soft);
+}
+.empty-checks__title { font-size: 27rpx; line-height: 1.4; }
+.empty-checks__items { margin-top: 22rpx; }
+.empty-check { min-height: 82rpx; border-radius: 20rpx; font-size: 21rpx; }
+
+.empty-action {
+  min-height: 96rpx;
+  margin-top: 18rpx;
+  padding: 0 28rpx;
+  border-radius: 30rpx;
+  box-shadow: var(--mrc-shadow-coral), var(--mrc-gloss);
+  font-size: 27rpx;
+}
+.empty-footnote { margin-top: 14rpx; }
+
+.cover {
+  min-height: 238rpx;
+  padding: 30rpx 28rpx 24rpx;
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 32rpx;
+  box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss);
+}
+.cover image { width: 220rpx; height: 220rpx; }
+.title { margin: 12rpx 0 10rpx; color: var(--mrc-text-strong); font-size: 38rpx; font-weight: 800; }
+.card, .why { margin: 16rpx 0; padding: 24rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; }
+.name { margin: 8rpx 0; color: var(--mrc-text-strong); font-size: 32rpx; font-weight: 800; }
+.arrow { min-width: 88rpx; padding: 10rpx 14rpx; border-radius: var(--mrc-radius-pill); color: var(--mrc-accent); background: var(--mrc-accent-soft); font-size: 21rpx; text-align: center; }
+.ops { margin-top: 14rpx; font-weight: 700; }
+.detail { margin-top: 18rpx; padding-top: 16rpx; }
+.record { display: flex; align-items: center; justify-content: center; min-height: 82rpx; margin-top: 22rpx; border-radius: 22rpx; color: var(--mrc-accent); background: var(--mrc-surface-peach); text-align: center; }
+.notice { margin-top: 22rpx; padding: 0 8rpx; text-align: center; }
+.hero-skeleton { height: 360rpx; border-radius: 32rpx; }
+.card-skeleton { height: 142rpx; margin-top: 16rpx; border-radius: 28rpx; }
 </style>

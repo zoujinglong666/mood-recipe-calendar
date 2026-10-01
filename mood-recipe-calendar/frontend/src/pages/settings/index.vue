@@ -83,7 +83,7 @@ onShow(async () => {
 
 async function updateAvatar(filePath: string) {
   if (!userStore.isLoggedIn) {
-    toast('请先登录再修改头像')
+    router.push({ name: 'login' })
     return
   }
   if (!filePath || avatarUpdating.value)
@@ -109,7 +109,7 @@ function onChooseAvatar(event: any) {
 
 function chooseH5Avatar() {
   if (!userStore.isLoggedIn) {
-    toast('请先登录再修改头像')
+    router.push({ name: 'login' })
     return
   }
   chooseImageFile({
@@ -121,7 +121,7 @@ function chooseH5Avatar() {
 async function saveNickname() {
   const value = nickname.value.trim()
   if (!userStore.isLoggedIn) {
-    toast('请先登录再修改昵称')
+    router.push({ name: 'login' })
     return
   }
   if (!value) {

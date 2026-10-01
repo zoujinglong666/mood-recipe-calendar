@@ -13,6 +13,7 @@ import { chooseImageFiles } from '../../utils/chooseImage'
 import { createRequestId, RECORD_DRAFT_KEY } from '../../utils/cookingDraft'
 import { ensureLogin } from '../../utils/login'
 import { toast, toastError, toastSuccess } from '../../utils/toast'
+import { log } from 'console'
 
 definePage({
   name: 'record',
@@ -97,20 +98,27 @@ async function addImages() {
 }
 
 async function uploadImages(tempPaths: string[]) {
-  const newPhotos = tempPaths.slice(0, 9 - photos.value.length)
-    .map(localUrl => ({ localUrl, remoteUrl: '', uploading: true }))
-  photos.value.push(...newPhotos)
-  await Promise.all(newPhotos.map(async (photo) => {
+  const startIndex = photos.value.length
+  photos.value.push(...tempPaths.slice(0, 9 - photos.value.length)
+    .map(localUrl => ({ localUrl, remoteUrl: '', uploading: true })))
+  // 必须从 reactive 数组取代理对象：闭包若持有 push 前的 raw 对象，
+  // 后续 photo.uploading/remoteUrl 赋值不触发渲染，UI 会永远停在「上传中…」
+  const queue = photos.value.slice(startIndex)
+  console.log(`[upload] 照片队列开始: ${queue.length} 张，已有 ${startIndex} 张`)
+  await Promise.all(queue.map(async (photo) => {
     try {
       photo.remoteUrl = (await uploadFile(photo.localUrl)).url
+      console.log('[upload] 单张完成:', photo.localUrl)
     }
     catch (e: any) {
+      console.warn('[upload] 单张失败，从列表移除:', photo.localUrl, e?.message)
       photos.value = photos.value.filter(item => item !== photo)
       toastError(e, '有照片上传失败，请重新添加')
     }
     finally { photo.uploading = false }
   }))
-  if (newPhotos.some(photo => photo.remoteUrl))
+  console.log(`[upload] 照片队列结束: 成功 ${queue.filter(photo => photo.remoteUrl).length}/${queue.length} 张`)
+  if (queue.some(photo => photo.remoteUrl))
     toastSuccess('照片已收好')
 }
 
@@ -200,6 +208,7 @@ async function publish() {
     showSuccess.value = true
   }
   catch (e: any) {
+    console.error(e)
     toastError(e, '保存失败')
   }
   finally {
