@@ -79,6 +79,7 @@ public final class AgentPrompts {
                 + (rejectedText.isBlank() ? "" : "这些菜这次不能用：" + rejectedText + "\n")
                 + """
                         要求：每个做饭日必须严格生成指定数量且菜名不重复；普通餐兼顾荤素，4 道及以上按宴席思路搭配主菜、清爽菜、汤羹或主食；跨天复用食材减少浪费；避开最近吃过的菜；照顾老人小孩；做法家常可复现。
+                        食材只写食材名和用量，不要把“撒、加入、切”等动作写进食材名；每一步只表达一个主要动作，步骤之间不要重复同一种食材或重复同一句话；使用普通家庭能看懂的中文，例如西兰花用“掰成小朵”，不要写“切朵”；不要输出英文、乱码、问号或生造词。
                         只输出一个 JSON 对象：
                         {"days":[{"weekday":0,"dishes":[{"name":"","role":"MAIN","ingredients":[""],"steps":["",""],"cookingTime":30,"difficulty":"简单"}]}],"notes":"一句话说明这周的安排思路"}
                         weekday 用 0=周一 到 6=周日；cookingTime 是分钟；difficulty 取 简单/中等/难。

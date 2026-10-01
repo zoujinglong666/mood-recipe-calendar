@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moodrecipe.backend.entity.Recipe;
 import com.moodrecipe.backend.repository.RecipeRepository;
+import com.moodrecipe.backend.service.CookingTextNormalizer;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -208,6 +209,8 @@ public class MenuPlannerAgent {
                         String value = item.asText("").trim();
                         if (!value.isEmpty()) steps.add(value);
                     }
+                    ingredients = CookingTextNormalizer.normalizeIngredients(ingredients);
+                    steps = CookingTextNormalizer.normalizeSteps(steps);
                     dishes.add(new MenuQualityScorer.DishInput(name, dishNode.path("role").asText("MAIN"),
                             ingredients, steps, dishNode.path("cookingTime").asInt(30),
                             dishNode.path("difficulty").asText("简单")));

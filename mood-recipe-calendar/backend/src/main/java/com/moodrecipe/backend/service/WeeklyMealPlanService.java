@@ -225,8 +225,8 @@ public class WeeklyMealPlanService {
                 .filter(dish -> dish != null && dish.name() != null && !dish.name().isBlank())
                 .map(dish -> new PlanDish(dish.name(),
                         dish.ingredients() == null || dish.ingredients().isEmpty()
-                                ? List.of(dish.name()) : dish.ingredients(),
-                        dish.steps() == null || dish.steps().isEmpty() ? List.of() : dish.steps(),
+                                ? List.of(dish.name()) : CookingTextNormalizer.normalizeIngredients(dish.ingredients()),
+                        CookingTextNormalizer.normalizeSteps(dish.steps()),
                         dish.fallbackImageUrl(), null))
                 .toList();
         if (dishes.isEmpty()) throw new IllegalStateException("规划智能体没有给出可用菜品");
@@ -256,8 +256,8 @@ public class WeeklyMealPlanService {
     }
 
     private PlanDish toDish(Recipe recipe) {
-        List<String> ingredients = ingredients(recipe.getIngredients());
-        List<String> steps = steps(recipe.getSteps());
+        List<String> ingredients = CookingTextNormalizer.normalizeIngredients(ingredients(recipe.getIngredients()));
+        List<String> steps = CookingTextNormalizer.normalizeSteps(steps(recipe.getSteps()));
         if (steps.isEmpty()) steps = List.of("食材洗净切好。", "锅中少油加热。", "按食材易熟程度依次下锅。", "调味后炒熟即可。");
         return new PlanDish(recipe.getName(), ingredients, steps.stream().limit(5).toList(), recipe.getImage(), null);
     }
