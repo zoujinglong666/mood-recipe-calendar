@@ -1,0 +1,1 @@
+"use strict";const n=require("../common/vendor.js");exports.getAppBaseInfo=function(){return void 0!==n.wx$1&&n.wx$1&&"function"==typeof n.wx$1.getAppBaseInfo?n.wx$1.getAppBaseInfo():n.index.getSystemInfoSync()},exports.getWindowInfo=function(){return void 0!==n.wx$1&&n.wx$1&&"function"==typeof n.wx$1.getWindowInfo?n.wx$1.getWindowInfo():n.index.getSystemInfoSync()};

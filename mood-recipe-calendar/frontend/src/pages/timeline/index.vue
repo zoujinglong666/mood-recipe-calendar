@@ -60,19 +60,15 @@ async function load() {
   try {
     await ensureLogin()
     records.value = await fetchRecords()
-    const targetId = Number(uni.getStorageSync('mrc_timeline_record_id'))
-    if (targetId) {
-      const target = records.value.find(item => item.id === targetId)
-      uni.removeStorageSync('mrc_timeline_record_id')
-      if (target) openRecordDetail(target)
-    }
   }
   catch (e: any) { toastError(e, '时光机加载失败，请重试') }
   finally { loading.value = false }
 }
 
-function openRecordDetail(record: RecordItem) {
-  router.push({ name: 'record-detail', query: { id: String(record.id) } })
+// 「查看详情」：打开时光机自带的内联详情弹层（大图+备注+查看菜谱/再做一次/删除），
+// 不再跳转到独立 record-detail 页，避免跨页跳转在你的环境里无反应
+function openDetail(record: RecordItem) {
+  selected.value = record
 }
 
 async function openLinkedRecipe(restart: boolean) {
@@ -166,7 +162,7 @@ function previewRecordImage(record: RecordItem, index: number) {
         <view v-for="(item, itemIndex) in group.items" :key="item.id" class="timeline-item">
           <view class="timeline-date"><text>{{ dayNumber(item.recordDate) }}</text><text>{{ weekday(item.recordDate) }}</text></view>
           <view class="timeline-rail"><view class="timeline-dot" /><view class="timeline-rail__line" /></view>
-          <view class="timeline-card pressable" :class="{ 'timeline-card--alt': itemIndex % 2 }" role="button" :aria-label="`查看 ${item.recordDate} 的${item.dishName}记录`" @click="openRecordDetail(item)">
+          <view class="timeline-card pressable" :class="{ 'timeline-card--alt': itemIndex % 2 }" role="button" :aria-label="`查看 ${item.recordDate} 的${item.dishName}记录`" @click="openDetail(item)">
             <view class="timeline-card__photo" :class="`timeline-card__photo--${item.imageUrls?.length || 1}`">
               <image v-for="(image, imageIndex) in item.imageUrls || [item.imageUrl]" :key="image" class="timeline-card__img" :src="image" mode="aspectFill" lazy-load :aria-label="item.dishName" @click.stop="previewRecordImage(item, imageIndex)" />
               <view class="timeline-card__shade" />

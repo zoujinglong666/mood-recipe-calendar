@@ -1,4 +1,5 @@
 import type { ThemeMode } from '@/composables/types/theme'
+import { getAppBaseInfo } from '@/utils/wxSystem'
 
 interface ThemeOwnerState {
   initialized: boolean
@@ -29,19 +30,10 @@ function isThemeMode(theme: unknown): theme is ThemeMode {
  */
 export function getSystemTheme(): ThemeMode {
   try {
-    // #ifdef MP-WEIXIN
-    const appBaseInfo = uni.getAppBaseInfo()
+    const appBaseInfo = getAppBaseInfo()
     if (isThemeMode(appBaseInfo?.theme)) {
       return appBaseInfo.theme
     }
-    // #endif
-
-    // #ifndef MP-WEIXIN
-    const systemInfo = uni.getSystemInfoSync()
-    if (isThemeMode(systemInfo?.theme)) {
-      return systemInfo.theme
-    }
-    // #endif
   }
   catch (error) {
     console.warn('获取系统主题失败:', error)

@@ -218,8 +218,6 @@ async function publish() {
 
 function onSuccessConfirm() {
   showSuccess.value = false
-  if (savedRecordId.value)
-    uni.setStorageSync('mrc_timeline_record_id', savedRecordId.value)
   resetForm()
   router.push({ name: 'timeline' })
 }

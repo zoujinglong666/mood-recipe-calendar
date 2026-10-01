@@ -22,7 +22,8 @@
     "pages/membership/index",
     "pages/record/detail",
     "pages/weekly-plan/detail",
-    "pages/weekly-plan/index"
+    "pages/weekly-plan/index",
+    "pages/component-demo/index"
   ],
   "subPackages": [],
   "window": {

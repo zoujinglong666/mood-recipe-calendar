@@ -1,0 +1,1 @@
+<button class="{{['gz-btn', 'data-v-f4e4e5d1', b, c]}}" disabled="{{d}}" aria-label="{{e}}" hover-class="gz-btn--pressed" bindtap="{{f}}"><block wx:if="{{$slots.d}}"><slot></slot></block><block wx:else>{{a}}</block></button>

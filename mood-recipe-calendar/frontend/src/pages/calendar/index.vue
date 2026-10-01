@@ -36,13 +36,16 @@ const error = ref('')
 const records = ref<RecordItem[]>([])
 const stats = ref({ totalDays: 0, currentStreak: 0 })
 
-// 记录日期映射
+// 记录日期映射：同一天可能有多条记录，存为数组而非单条（避免互相覆盖）
 const recordMap = computed(() => {
-  const map = new Map<number, RecordItem>()
+  const map = new Map<number, RecordItem[]>()
   records.value.forEach((r) => {
     const day = Number.parseInt(r.recordDate?.split('-')[2] || '0', 10)
-    if (day > 0)
-      map.set(day, r)
+    if (day > 0) {
+      const list = map.get(day)
+      if (list) list.push(r)
+      else map.set(day, [r])
+    }
   })
   return map
 })
@@ -51,16 +54,17 @@ const firstDay = new Date(year, month - 1, 1).getDay()
 const daysInMonth = new Date(year, month, 0).getDate()
 
 const calCells = computed(() => {
-  const cells: ({ day: number, hasRecord: boolean, isToday: boolean, dishImg: string, mood: string } | null)[] = []
+  const cells: ({ day: number, hasRecord: boolean, isToday: boolean, dishImg: string, mood: string, count: number } | null)[] = []
   for (let i = 0; i < firstDay; i++) cells.push(null)
   for (let d = 1; d <= daysInMonth; d++) {
-    const rec = recordMap.value.get(d)
+    const recs = recordMap.value.get(d)
     cells.push({
       day: d,
-      hasRecord: !!rec,
+      hasRecord: !!recs?.length,
       isToday: d === today,
-      dishImg: rec?.imageUrl || '',
-      mood: rec?.moodTag || '',
+      dishImg: recs?.[0]?.imageUrl || '',
+      mood: recs?.[0]?.moodTag || '',
+      count: recs?.length || 0,
     })
   }
   while (cells.length % 7 !== 0) cells.push(null)
@@ -70,9 +74,11 @@ const calCells = computed(() => {
 // 空状态弹窗
 const showEmpty = ref(false)
 const emptyDay = ref(0)
-// 记录详情弹窗
+// 记录详情弹窗（支持一天多条，左右翻看）
 const showDetail = ref(false)
-const detailRecord = ref<RecordItem | null>(null)
+const detailRecords = ref<RecordItem[]>([])
+const detailIndex = ref(0)
+const detailRecord = computed<RecordItem | null>(() => detailRecords.value[detailIndex.value] ?? null)
 let initialDayHandled = false
 
 async function loadData() {
@@ -86,9 +92,10 @@ async function loadData() {
     if (!initialDayHandled) {
       initialDayHandled = true
       const selectedDay = Number(route.query.day)
-      const selectedRecord = recordMap.value.get(selectedDay)
-      if (selectedRecord) {
-        detailRecord.value = selectedRecord
+      const selRecs = recordMap.value.get(selectedDay)
+      if (selRecs?.length) {
+        detailRecords.value = selRecs
+        detailIndex.value = 0
         showDetail.value = true
       }
     }
@@ -108,11 +115,12 @@ onShow(() => {
 function goAlbum() {
   router.push({ name: 'album' })
 }
-function handleCellClick(c: { day: number, hasRecord: boolean }) {
+function handleCellClick(c: { day: number, hasRecord: boolean, count?: number }) {
   if (c.hasRecord) {
-    const rec = recordMap.value.get(c.day)
-    if (rec) {
-      detailRecord.value = rec
+    const recs = recordMap.value.get(c.day)
+    if (recs?.length) {
+      detailRecords.value = recs
+      detailIndex.value = 0
       showDetail.value = true
     }
   }
@@ -120,6 +128,14 @@ function handleCellClick(c: { day: number, hasRecord: boolean }) {
     emptyDay.value = c.day
     showEmpty.value = true
   }
+}
+function prevDetail() {
+  if (detailRecords.value.length > 1)
+    detailIndex.value = (detailIndex.value - 1 + detailRecords.value.length) % detailRecords.value.length
+}
+function nextDetail() {
+  if (detailRecords.value.length > 1)
+    detailIndex.value = (detailIndex.value + 1) % detailRecords.value.length
 }
 function goRecordFromEmpty() {
   showEmpty.value = false
@@ -130,7 +146,9 @@ function goRecordFromEmpty() {
 /** 当月带照片的记录，用于左右滑动翻看整月食光 */
 const photoRecords = computed(() => records.value.filter(item => Boolean(item.imageUrl)))
 
-function previewRecordPhoto(record: RecordItem) {
+function previewRecordPhoto(record: RecordItem | null) {
+  if (!record)
+    return
   const photos = photoRecords.value
   if (!photos.length)
     return
@@ -228,6 +246,9 @@ function previewRecordPhoto(record: RecordItem) {
                 <text class="cal-cell__record-day">
                   {{ c.day }}
                 </text>
+                <text v-if="c.count > 1" class="cal-cell__count">
+                  {{ c.count }}
+                </text>
               </template>
               <template v-else>
                 <text class="cal-cell__day">
@@ -296,6 +317,11 @@ function previewRecordPhoto(record: RecordItem) {
         <text class="cal-empty-sheet__title">
           {{ detailRecord.dishName }}
         </text>
+        <view v-if="detailRecords.length > 1" class="cal-detail__pager">
+          <text class="cal-detail__pager-btn" @click="prevDetail">‹</text>
+          <text class="cal-detail__pager-ind">{{ detailIndex + 1 }} / {{ detailRecords.length }}</text>
+          <text class="cal-detail__pager-btn" @click="nextDetail">›</text>
+        </view>
         <text class="cal-detail__mood">
           心情：{{ detailRecord.moodTag }}
         </text>
@@ -601,6 +627,46 @@ function previewRecordPhoto(record: RecordItem) {
   color: var(--mrc-text);
   margin-bottom: 24rpx;
   line-height: 1.6;
+}
+.cal-cell__count {
+  position: absolute;
+  bottom: 4rpx;
+  right: 5rpx;
+  min-width: 26rpx;
+  height: 26rpx;
+  padding: 0 5rpx;
+  border-radius: 9rpx;
+  background: var(--mrc-primary);
+  color: #fff;
+  font-size: 15rpx;
+  font-weight: 800;
+  text-align: center;
+  line-height: 26rpx;
+}
+.cal-detail__pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20rpx;
+  margin-top: 2rpx;
+  margin-bottom: 14rpx;
+}
+.cal-detail__pager-btn {
+  width: 58rpx;
+  height: 58rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--mrc-surface-sun);
+  color: var(--mrc-accent);
+  font-size: 42rpx;
+  font-weight: 800;
+}
+.cal-detail__pager-ind {
+  color: var(--mrc-text-sub);
+  font-size: 24rpx;
+  font-weight: 700;
 }
 @media (prefers-reduced-motion: reduce) {
   .cal-cell,

@@ -4,6 +4,7 @@
  * 兼容微信小程序 Canvas 2D（type="2d"）。
  */
 import { getCurrentInstance } from 'vue'
+import { getWindowInfo } from '@/utils/wxSystem'
 import miniProgramCodePath from '../static/share/guozai-miniprogram-code.jpg'
 
 export interface AlbumShareData {
@@ -108,7 +109,7 @@ export async function exportAlbumShare(data: AlbumShareData, canvasId = 'shareCa
 
   const canvas = canvasInfo.node
   const ctx = canvas.getContext('2d')
-  const dpr = (uni.getSystemInfoSync().pixelRatio || 2)
+  const dpr = (getWindowInfo().pixelRatio || 2)
   canvas.width = W * dpr
   canvas.height = H * dpr
   ctx.scale(dpr, dpr)
@@ -306,7 +307,7 @@ export async function exportRecipeShare(data: RecipeShareData, canvasId = 'recip
   const H = 1500
   const canvas = canvasInfo.node
   const ctx = canvas.getContext('2d')
-  const dpr = uni.getSystemInfoSync().pixelRatio || 2
+  const dpr = getWindowInfo().pixelRatio || 2
   canvas.width = W * dpr
   canvas.height = H * dpr
   ctx.scale(dpr, dpr)

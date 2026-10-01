@@ -6,6 +6,7 @@ import { generateWeeklyPlan, getCurrentPlan, getWeeklyPlanHistory, requestWeekly
 import { navBack } from '@/composables/useNavBar'
 import { STATIC_BASE_URL } from '@/utils/assets'
 import { toastError } from '@/utils/toast'
+import { getWindowInfo } from '@/utils/wxSystem'
 
 definePage({ name: 'weekly-plan', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '锅仔备餐小本' } })
 
@@ -30,6 +31,25 @@ const tourSteps: TourStep[] = [
   { element: '#weekly-plan-current-action', content: '从这里打开本周菜单；不满意也能重新编排。锅仔会一步一步陪你开饭。', placement: 'top' },
 ]
 const archivePlans = computed(() => history.value.filter(item => item.id !== currentPlan.value?.id))
+
+/** 底部速览面板：仅在有本周菜单、且不在编排时浮出 */
+const showPeek = computed(() => !loading.value && !showComposer.value && Boolean(currentPlan.value?.days?.length))
+
+/** 面板停靠档位（单位 px）：摘要 → 半屏 → 近全屏 */
+const windowHeight = getWindowInfo().windowHeight || 667
+const peekAnchors = [200, Math.round(windowHeight * 0.5), Math.round(windowHeight * 0.82)]
+
+/** 速览数据：每天取 day + 当天所有菜名 */
+const weekPreview = computed(() => (currentPlan.value?.days || []).map((day, index) => ({
+  index,
+  day: day.day,
+  dishes: dishesOf(day).map(dish => dish.name).filter(Boolean),
+  title: day.dishName,
+  image: day.imageUrl || day.fallbackImageUrl,
+})))
+
+const totalDishes = computed(() => (currentPlan.value?.days || []).reduce((total, day) => total + dishesOf(day).length, 0))
+const peekSummary = computed(() => `${currentPlan.value?.days?.length || 0} 天 · ${totalDishes.value} 道菜`)
 const goals = [{ value: 'BALANCED', label: '均衡吃' }, { value: 'FITNESS', label: '练得好' }, { value: 'LEAN', label: '轻一点' }]
 const dishCounts = [{ value: 1, label: '1 道', copy: '简单吃' }, { value: 2, label: '2 道', copy: '吃得完整' }, { value: 3, label: '3 道', copy: '吃得丰盛' }]
 const weekdays = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
@@ -117,7 +137,7 @@ async function toggleFavorite(id: number) {
 </script>
 
 <template>
-  <view class="plan-page">
+  <view class="plan-page" :class="{ 'plan-page--peek': showPeek }">
     <wd-navbar title="锅仔备餐小本" left-arrow safe-area-inset-top custom-style="background-color: transparent !important;" @click-left="navBack" />
 
     <view id="weekly-plan-cover" class="menu-cover">
@@ -328,6 +348,44 @@ async function toggleFavorite(id: number) {
       </view>
     </template>
 
+    <!-- 本周菜单速览：底部浮动面板，拖顶部条换档位，内容区上下滑动看全周，点某天看做法 -->
+    <wd-floating-panel
+      v-if="showPeek"
+      class="menu-peek"
+      :anchors="peekAnchors"
+      :content-draggable="false"
+      safe-area-inset-bottom
+    >
+      <view class="menu-peek__inner">
+        <view class="menu-peek__head">
+          <view>
+            <text class="menu-peek__label">THIS WEEK</text>
+            <text class="menu-peek__title">本周菜单速览</text>
+          </view>
+          <text class="menu-peek__meta">{{ peekSummary }}</text>
+        </view>
+        <text class="menu-peek__hint">拖动顶部条展开，上下滑动看全周，点某天看做法</text>
+        <view
+          v-for="item in weekPreview"
+          :key="`${item.day}-${item.index}`"
+          class="menu-peek__row"
+          role="button"
+          :aria-label="`查看${item.day}的${item.dishes.join('和') || item.title}`"
+          @click="openPlan()"
+        >
+          <image v-if="item.image" class="menu-peek__thumb" :src="item.image" mode="aspectFill" />
+          <view v-else class="menu-peek__thumb menu-peek__thumb--empty">
+            {{ item.day.slice(-1) }}
+          </view>
+          <view class="menu-peek__copy">
+            <text class="menu-peek__day">{{ item.day }}</text>
+            <text class="menu-peek__dish">{{ item.dishes.join(' · ') || item.title }}</text>
+          </view>
+          <text class="menu-peek__arrow">›</text>
+        </view>
+      </view>
+    </wd-floating-panel>
+
     <wd-tour
       v-model="showTour"
       v-model:current="tourCurrent"
@@ -351,6 +409,29 @@ async function toggleFavorite(id: number) {
 
 <style lang="scss" scoped>
 .plan-page { min-height: 100vh; padding: 0 32rpx calc(76rpx + env(safe-area-inset-bottom)); color: var(--mrc-text); background: var(--mrc-bg); box-sizing: border-box; }
+/* 速览面板浮出时，给底部留出面板摘要档的空间，避免遮住列表最后一项 */
+.plan-page--peek { padding-bottom: calc(460rpx + env(safe-area-inset-bottom)); }
+
+/* 本周菜单速览 · 浮动面板 */
+:deep(.menu-peek.wd-floating-panel) { background: var(--mrc-surface); border-radius: 36rpx 36rpx 0 0; box-shadow: 0 -10rpx 34rpx rgba(148, 91, 56, .16); }
+:deep(.menu-peek .wd-floating-panel__header) { background: transparent; }
+:deep(.menu-peek .wd-floating-panel__header-bar) { width: 72rpx; background: var(--mrc-border-strong); border-radius: 999rpx; }
+:deep(.menu-peek .wd-floating-panel__content) { background: transparent; }
+.menu-peek__inner { padding: 12rpx 28rpx calc(28rpx + env(safe-area-inset-bottom)); box-sizing: border-box; }
+.menu-peek__head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16rpx; }
+.menu-peek__label { display: block; color: var(--mrc-accent); font-size: 18rpx; font-weight: 800; letter-spacing: 1.8rpx; }
+.menu-peek__title { display: block; margin-top: 4rpx; color: var(--mrc-text-strong); font-size: 31rpx; font-weight: 800; }
+.menu-peek__meta { flex-shrink: 0; padding: 6rpx 14rpx; border-radius: 999rpx; background: var(--mrc-surface-sun); color: var(--mrc-accent); font-size: 20rpx; font-weight: 700; }
+.menu-peek__hint { display: block; margin-top: 10rpx; color: var(--mrc-text-sub); font-size: 20rpx; line-height: 1.5; }
+.menu-peek__row { display: flex; align-items: center; gap: 18rpx; min-height: 128rpx; margin-top: 14rpx; padding: 14rpx 16rpx; box-sizing: border-box; border: 2rpx solid var(--mrc-border-light); border-radius: 24rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); transition: transform 160ms ease-out, opacity 160ms ease-out; }
+.menu-peek__row:active { transform: scale(.985); opacity: .84; }
+.menu-peek__thumb { width: 92rpx; height: 92rpx; flex-shrink: 0; border-radius: 18rpx; background: var(--mrc-surface-peach); }
+.menu-peek__thumb--empty { display: flex; align-items: center; justify-content: center; color: var(--mrc-accent); font-size: 34rpx; font-weight: 800; }
+.menu-peek__copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6rpx; }
+.menu-peek__day { color: var(--mrc-accent); font-size: 20rpx; font-weight: 800; }
+.menu-peek__dish { overflow: hidden; color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 800; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+.menu-peek__arrow { flex-shrink: 0; color: var(--mrc-text-light); font-size: 34rpx; }
+@media (prefers-reduced-motion: reduce) { .menu-peek__row { transition: none; } }
 .plan-workspace { margin-top: 26rpx; }
 .plan-tab-panel { padding-top: 8rpx; background: var(--mrc-bg); }
 :deep(.plan-tabs.wd-tabs), :deep(.plan-tabs .wd-tabs__container), :deep(.plan-tabs .wd-tabs__body), :deep(.plan-tabs .wd-tab) { background: transparent; }

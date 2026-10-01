@@ -114,11 +114,16 @@ const recipeQuotaText = computed(() => {
   if (!quota) return '抽一道今日治愈菜'
   return quota.member ? `会员今日还可推荐 ${quota.remaining} 次` : `今日还可推荐 ${quota.remaining}/3 次`
 })
+// 同日历一致：一天可能有多条记录，存为数组而非单条（避免多余记录被静默覆盖）
 const monthRecordMap = computed(() => {
-  const map = new Map<number, RecordItem>()
+  const map = new Map<number, RecordItem[]>()
   monthRecords.value.forEach((record) => {
     const day = Number.parseInt(record.recordDate?.split('-')[2] || '0', 10)
-    if (day > 0) map.set(day, record)
+    if (day > 0) {
+      const list = map.get(day)
+      if (list) list.push(record)
+      else map.set(day, [record])
+    }
   })
   return map
 })
@@ -135,9 +140,12 @@ const calCells = computed(() => {
   const month = now.value.getMonth()
   const firstDay = new Date(year, month, 1).getDay()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
-  const cells: ({ d: number; isToday: boolean; record?: RecordItem } | null)[] = []
+  const cells: ({ d: number; isToday: boolean; records: RecordItem[]; count: number } | null)[] = []
   for (let i = 0; i < firstDay; i++) cells.push(null)
-  for (let d = 1; d <= daysInMonth; d++) cells.push({ d, isToday: d === now.value.getDate(), record: monthRecordMap.value.get(d) })
+  for (let d = 1; d <= daysInMonth; d++) {
+    const rs = monthRecordMap.value.get(d) || []
+    cells.push({ d, isToday: d === now.value.getDate(), records: rs, count: rs.length })
+  }
   while (cells.length % 7 !== 0) cells.push(null)
   return cells
 })
@@ -224,8 +232,8 @@ onShow(() => {
 const MOODS = ['开心', '平静', '疲惫', '焦虑', '难过', '嘴馋', '低落', '想家', '期待', '满足', '得意', '害羞']
 function gotoLucky() { router.push({ name: 'recipe', query: { mood: MOODS[Math.floor(Math.random() * MOODS.length)], random: '1' } }) }
 function goto(name: string, q?: Record<string, string>) { router.push({ name, query: q || {} }) }
-function openCalendarCell(cell: { d: number; record?: RecordItem }) {
-  if (cell.record) router.push({ name: 'calendar', query: { day: String(cell.d) } })
+function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
+  if (cell.records.length) router.push({ name: 'calendar', query: { day: String(cell.d) } })
   else router.pushTab({ name: 'record' })
 }
 </script>
@@ -312,14 +320,15 @@ function openCalendarCell(cell: { d: number; record?: RecordItem }) {
             <view
               v-if="c"
               class="home-cal__main-cell"
-              :class="{ 'home-cal__main-cell--today': c.isToday, 'home-cal__main-cell--warm': c.record }"
+              :class="{ 'home-cal__main-cell--today': c.isToday, 'home-cal__main-cell--warm': c.records.length }"
               role="button"
-              :aria-label="c.record ? `${c.d}日，${c.record.dishName}，打开记录` : `${c.d}日，记录一餐`"
+              :aria-label="c.records.length ? `${c.d}日，${c.records[0].dishName}${c.records.length > 1 ? `等${c.records.length}餐` : ''}，打开记录` : `${c.d}日，记录一餐`"
               @click="openCalendarCell(c)"
             >
-              <image v-if="c.record?.imageUrl" class="home-cal__dish" :src="c.record.imageUrl" mode="aspectFill" />
+              <image v-if="c.records[0]?.imageUrl" class="home-cal__dish" :src="c.records[0].imageUrl" mode="aspectFill" />
               <text class="home-cal__day">{{ c.d }}</text>
-              <view v-if="c.record && !c.record.imageUrl" class="home-cal__record-mark" />
+              <view v-if="c.records.length && !c.records[0].imageUrl" class="home-cal__record-mark" />
+              <text v-if="c.count > 1" class="home-cal__record-count">{{ c.count }}</text>
             </view>
             <view v-else class="home-cal__main-cell" />
           </block>
@@ -398,6 +407,7 @@ function openCalendarCell(cell: { d: number; record?: RecordItem }) {
 .home-cal__dish { position: absolute; inset: 0; width: 100%; height: 100%; }
 .home-cal__main-cell--warm .home-cal__day { position: absolute; right: 5rpx; bottom: 5rpx; z-index: 1; display: flex; align-items: center; justify-content: center; min-width: 30rpx; height: 30rpx; padding: 0 5rpx; border-radius: 15rpx; background: rgba(45, 24, 14, 0.72); color: #fff; font-size: 18rpx; box-sizing: border-box; }
 .home-cal__record-mark { width: 12rpx; height: 12rpx; margin-left: 6rpx; border-radius: 50%; background: var(--mrc-accent); }
+.home-cal__record-count { position: absolute; top: 4rpx; right: 5rpx; z-index: 2; min-width: 26rpx; height: 26rpx; padding: 0 5rpx; border-radius: 9rpx; background: var(--mrc-accent); color: #fff; font-size: 15rpx; font-weight: 800; text-align: center; line-height: 26rpx; box-sizing: border-box; }
 .home-cal__memory { display: flex; align-items: center; gap: 14rpx; min-height: 82rpx; margin-top: 18rpx; padding: 10rpx 18rpx; border-radius: 20rpx; background: var(--mrc-surface-sun); color: var(--mrc-text-deep); font-size: 23rpx; line-height: 1.45; box-sizing: border-box; }
 .home-cal__memory image { width: 64rpx; height: 64rpx; flex: 0 0 auto; }
 .home-cal__cta { display: flex; align-items: center; justify-content: space-between; min-height: 88rpx; margin-top: 8rpx; padding: 0 8rpx 0 12rpx; color: var(--mrc-accent); font-size: 24rpx; font-weight: 700; }

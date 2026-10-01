@@ -1,0 +1,1 @@
+<view class="{{f}}" style="{{g}}" bindtouchstart="{{h}}" bindtouchmove="{{i}}" bindtouchend="{{j}}" bindtouchcancel="{{k}}"><view class="{{b}}"><view class="{{a}}"></view></view><scroll-view class="{{c}}" data-id="content" show-scrollbar="{{d}}" scroll-y catchtouchmove="{{e}}"><slot/></scroll-view></view>

@@ -107,6 +107,7 @@ declare global {
   const getActivePinia: typeof import('pinia')['getActivePinia']
   const getAgentMemory: typeof import('./api/auth')['getAgentMemory']
   const getApiBaseUrl: typeof import('./api/request')['getApiBaseUrl']
+  const getAppBaseInfo: typeof import('./utils/wxSystem')['getAppBaseInfo']
   const getCurrentInstance: typeof import('vue')['getCurrentInstance']
   const getCurrentPath: typeof import('./utils/index')['getCurrentPath']
   const getCurrentPlan: typeof import('./api/weeklyPlans')['getCurrentPlan']
@@ -116,6 +117,7 @@ declare global {
   const getVirtualPaymentParams: typeof import('./api/virtualCommerce')['getVirtualPaymentParams']
   const getWeeklyPlan: typeof import('./api/weeklyPlans')['getWeeklyPlan']
   const getWeeklyPlanHistory: typeof import('./api/weeklyPlans')['getWeeklyPlanHistory']
+  const getWindowInfo: typeof import('./utils/wxSystem')['getWindowInfo']
   const h: typeof import('vue')['h']
   const hideLoading: typeof import('./utils/toast')['hideLoading']
   const ignorableWatch: typeof import('@vueuse/core')['ignorableWatch']
@@ -562,6 +564,7 @@ declare module 'vue' {
     readonly getActivePinia: UnwrapRef<typeof import('pinia')['getActivePinia']>
     readonly getAgentMemory: UnwrapRef<typeof import('./api/auth')['getAgentMemory']>
     readonly getApiBaseUrl: UnwrapRef<typeof import('./api/request')['getApiBaseUrl']>
+    readonly getAppBaseInfo: UnwrapRef<typeof import('./utils/wxSystem')['getAppBaseInfo']>
     readonly getCurrentInstance: UnwrapRef<typeof import('vue')['getCurrentInstance']>
     readonly getCurrentPath: UnwrapRef<typeof import('./utils/index')['getCurrentPath']>
     readonly getCurrentPlan: UnwrapRef<typeof import('./api/weeklyPlans')['getCurrentPlan']>
@@ -571,6 +574,7 @@ declare module 'vue' {
     readonly getVirtualPaymentParams: UnwrapRef<typeof import('./api/virtualCommerce')['getVirtualPaymentParams']>
     readonly getWeeklyPlan: UnwrapRef<typeof import('./api/weeklyPlans')['getWeeklyPlan']>
     readonly getWeeklyPlanHistory: UnwrapRef<typeof import('./api/weeklyPlans')['getWeeklyPlanHistory']>
+    readonly getWindowInfo: UnwrapRef<typeof import('./utils/wxSystem')['getWindowInfo']>
     readonly h: UnwrapRef<typeof import('vue')['h']>
     readonly hideLoading: UnwrapRef<typeof import('./utils/toast')['hideLoading']>
     readonly ignorableWatch: UnwrapRef<typeof import('@vueuse/core')['ignorableWatch']>

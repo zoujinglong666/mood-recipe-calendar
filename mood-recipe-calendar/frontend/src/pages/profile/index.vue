@@ -193,8 +193,7 @@ function goTimeline() {
 }
 
 function openHistoryRecord(item: RecordItem) {
-  uni.setStorageSync('mrc_timeline_record_id', item.id)
-  goTimeline()
+  router.push({ name: 'record-detail', query: { id: String(item.id) } })
 }
 function goPreferences() {
   router.push({ name: 'preferences' })
@@ -207,6 +206,10 @@ function goMembership() {
 }
 function goFeedback() {
   router.push({ name: 'feedback' })
+}
+// [临时] 组件 Demo 入口；验证 GuozaiChipGroup / GuozaiButton / GuozaiWotButton 后删除本函数与模板入口
+function goComponentDemo() {
+  router.push({ name: 'component-demo' })
 }
 
 function openStat(type: 'records' | 'days' | 'streak') {
@@ -419,6 +422,13 @@ function openStat(type: 'records' | 'days' | 'streak') {
       <text class="profile-gallery__arrow">
         ›
       </text>
+    </view>
+
+    <!-- [临时] 组件 Demo 入口，验证后删除 -->
+    <view class="profile-demo-entry" role="button" aria-label="打开组件 Demo 预览" @click="goComponentDemo">
+      <text class="profile-demo-entry__tag">临时</text>
+      <text class="profile-demo-entry__text">组件 Demo 预览</text>
+      <text class="profile-demo-entry__arrow">›</text>
     </view>
 
     <!-- 功能按钮 -->
@@ -772,6 +782,36 @@ function openStat(type: 'records' | 'days' | 'streak') {
 }
 .profile-gallery__arrow {
   font-size: 40rpx;
+  color: var(--mrc-text-light);
+}
+
+/* [临时] 组件 Demo 入口样式，验证组件后随模板入口一并删除 */
+.profile-demo-entry {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin: 20rpx 32rpx 0;
+  padding: 24rpx 28rpx;
+  background: var(--mrc-surface-peach);
+  border: 2rpx dashed var(--mrc-accent);
+  border-radius: 28rpx;
+}
+.profile-demo-entry__tag {
+  font-size: 18rpx;
+  font-weight: 800;
+  color: #fff;
+  background: var(--mrc-accent);
+  padding: 4rpx 12rpx;
+  border-radius: 16rpx;
+}
+.profile-demo-entry__text {
+  flex: 1;
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--mrc-text-deep);
+}
+.profile-demo-entry__arrow {
+  font-size: 36rpx;
   color: var(--mrc-text-light);
 }
 

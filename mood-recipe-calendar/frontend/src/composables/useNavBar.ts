@@ -1,4 +1,5 @@
 import { reactive } from 'vue'
+import { getWindowInfo } from '@/utils/wxSystem'
 
 export interface NavMetrics {
   /** 状态栏高度（px） */
@@ -34,7 +35,7 @@ const navMetrics = reactive<NavMetrics>({ ...FALLBACK })
 export function refreshNavMetrics(): void {
   // #ifdef MP-WEIXIN
   try {
-    const info = uni.getSystemInfoSync()
+    const info = getWindowInfo()
     const statusBarHeight = info.statusBarHeight || FALLBACK.statusBarHeight
     const windowWidth = info.windowWidth || 375
     const menu = uni.getMenuButtonBoundingClientRect()
