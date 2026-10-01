@@ -28,8 +28,7 @@ function preview(index: number) {
 
 function edit() {
   if (!record.value) return
-  uni.setStorageSync('mrc_record_edit_id', record.value.id)
-  router.pushTab({ name: 'record' })
+  router.push({ name: 'record-edit', query: { id: String(record.value.id) } })
 }
 
 async function remove() {

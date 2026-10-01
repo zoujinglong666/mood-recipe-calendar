@@ -94,6 +94,12 @@ async function openLinkedRecipe(restart: boolean) {
   catch (e: any) { toastError(e, '菜谱暂时打不开，请重试') }
   finally { openingRecipe.value = false }
 }
+function editSelected() {
+  const id = selected.value?.id
+  if (!id) return
+  selected.value = null
+  router.push({ name: 'record-edit', query: { id: String(id) } })
+}
 function onScroll(e: any) {
   const top = Number(e.detail?.scrollTop || 0)
   const now = Date.now()
@@ -183,7 +189,7 @@ function previewRecordImage(record: RecordItem, index: number) {
         <text>再往下，就是更久以前的你啦。</text>
       </view>
     </scroll-view>
-    <view v-if="selected" class="detail-mask" @click.self="selected = null"><view class="detail-sheet"><view class="detail-grabber" /><view class="detail-photo"><image :src="selected.imageUrl" mode="aspectFill" :aria-label="`查看${selected.dishName}的大图`" role="button" @click="previewRecordPhoto(selected)"/><view class="detail-photo__date"><text>{{ dayNumber(selected.recordDate) }}</text><text>{{ weekday(selected.recordDate) }}</text></view></view><text class="detail-kicker">锅仔的食光存档</text><text class="detail-title">{{selected.dishName}}</text><text class="detail-meta">{{selected.recordDate}} · {{selected.moodTag}} · {{ selected.cookingTime || 30 }} 分钟</text><text v-if="selected.note" class="detail-note">“{{selected.note}}”</text><view v-if="Number(selected.recipeId)" class="detail-recipe-actions"><view class="detail-recipe detail-recipe--secondary pressable" role="button" aria-label="查看关联菜谱" @click="openLinkedRecipe(false)">查看菜谱</view><view class="detail-recipe detail-recipe--primary pressable" role="button" aria-label="重新做这道菜" @click="openLinkedRecipe(true)">{{ openingRecipe ? '正在打开…' : '再做一次' }}</view></view><view class="detail-delete pressable" role="button" aria-label="删除这条记录" @click="removeSelected">删除这条记录</view><view class="detail-close pressable" role="button" aria-label="收起记录详情" @click="selected=null">收起</view></view></view>
+    <view v-if="selected" class="detail-mask" @click.self="selected = null"><view class="detail-sheet"><view class="detail-grabber" /><view class="detail-photo"><image :src="selected.imageUrl" mode="aspectFill" :aria-label="`查看${selected.dishName}的大图`" role="button" @click="previewRecordPhoto(selected)"/><view class="detail-photo__date"><text>{{ dayNumber(selected.recordDate) }}</text><text>{{ weekday(selected.recordDate) }}</text></view></view><text class="detail-kicker">锅仔的食光存档</text><text class="detail-title">{{selected.dishName}}</text><text class="detail-meta">{{selected.recordDate}} · {{selected.moodTag}} · {{ selected.cookingTime || 30 }} 分钟</text><text v-if="selected.note" class="detail-note">“{{selected.note}}”</text><view v-if="Number(selected.recipeId)" class="detail-recipe-actions"><view class="detail-recipe detail-recipe--secondary pressable" role="button" aria-label="查看关联菜谱" @click="openLinkedRecipe(false)">查看菜谱</view><view class="detail-recipe detail-recipe--primary pressable" role="button" aria-label="重新做这道菜" @click="openLinkedRecipe(true)">{{ openingRecipe ? '正在打开…' : '再做一次' }}</view></view><view class="detail-edit pressable" role="button" aria-label="编辑这条记录" @click="editSelected">编辑记录</view><view class="detail-delete pressable" role="button" aria-label="删除这条记录" @click="removeSelected">删除这条记录</view><view class="detail-close pressable" role="button" aria-label="收起记录详情" @click="selected=null">收起</view></view></view>
     <wd-image-preview />
   </view>
 </template>
@@ -255,6 +261,7 @@ function previewRecordImage(record: RecordItem, index: number) {
 .detail-recipe, .detail-delete, .detail-close { display: flex; min-height: 88rpx; align-items: center; justify-content: center; border-radius: 44rpx; font-size: 27rpx; font-weight: 800; }
 .detail-recipe--secondary { border: 2rpx solid var(--mrc-border); color: var(--mrc-text-deep); background: var(--mrc-surface); }
 .detail-recipe--primary { color: #fff; background: var(--mrc-primary-grad); box-shadow: var(--mrc-shadow-coral); }
+.detail-edit { display: flex; min-height: 88rpx; align-items: center; justify-content: center; margin-top: 18rpx; border: 2rpx solid var(--mrc-border); border-radius: 44rpx; color: var(--mrc-text-deep); background: var(--mrc-surface); font-size: 27rpx; font-weight: 800; }
 .detail-delete { margin-top: 18rpx; border: 2rpx solid var(--mrc-border); color: var(--mrc-danger, #a54235); }
 .detail-close { margin-top: 12rpx; color: var(--mrc-text-sub); background: var(--mrc-surface-2); }
 .pressable:active { transform: scale(.985); opacity: .82; }
