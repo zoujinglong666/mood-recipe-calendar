@@ -1,6 +1,7 @@
 package com.moodrecipe.backend.service;
 
 import com.moodrecipe.backend.agent.AgentMemoryStore;
+import com.moodrecipe.backend.config.AppClock;
 import com.moodrecipe.backend.agent.UserProfile;
 import com.moodrecipe.backend.entity.OperationalEvent;
 import com.moodrecipe.backend.entity.UserFoodPreference;
@@ -91,7 +92,7 @@ public class GuozaiMemory {
         String topMood = mostCommon(recent, UserRecord::getMoodTag);
         int streak = currentStreak(recent);
         boolean recordedToday = recent.stream()
-                .anyMatch(r -> LocalDate.now().toString().equals(r.getRecordDate()));
+                .anyMatch(r -> AppClock.today().toString().equals(r.getRecordDate()));
         String favorite = firstValue(preference == null ? "" : preference.getFavoriteDishes());
         String favoriteCuisine = firstValue(preference == null ? "" : preference.getFavoriteCuisines());
         if (favorite.isBlank()) favorite = topDish;
@@ -117,7 +118,7 @@ public class GuozaiMemory {
      * 情绪趋势分析——基于最近记录，分析心情分布、变化趋势和心情-菜品关联。
      */
     public MoodTrend analyzeMoodTrend(List<UserRecord> recent) {
-        LocalDate now = LocalDate.now();
+        LocalDate now = AppClock.today();
         List<UserRecord> last7 = recordsBetween(recent, now.minusDays(6), now);
         List<UserRecord> last30 = recordsBetween(recent, now.minusDays(29), now);
 
@@ -247,7 +248,7 @@ public class GuozaiMemory {
     public void rememberHomeOpen(String openid, int hour) {
         String period = period(hour);
         String eventType = "HOME_OPEN_" + period;
-        LocalDateTime start = LocalDate.now().atStartOfDay();
+        LocalDateTime start = AppClock.today().atStartOfDay();
         if (events.existsByOpenidAndEventTypeAndCreatedAtBetween(openid, eventType, start, start.plusDays(1))) return;
         OperationalEvent event = new OperationalEvent();
         event.setEventType(eventType);
@@ -279,7 +280,7 @@ public class GuozaiMemory {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
         int streak = 0;
-        LocalDate day = LocalDate.now();
+        LocalDate day = AppClock.today();
         while (days.contains(day.toString())) {
             streak++;
             day = day.minusDays(1);

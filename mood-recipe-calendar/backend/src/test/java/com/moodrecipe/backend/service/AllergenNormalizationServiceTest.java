@@ -41,6 +41,17 @@ class AllergenNormalizationServiceTest {
     }
 
     @Test
+    void keepsShrimpSynonymWhenModelIsUnavailable() {
+        LlmClient llm = mock(LlmClient.class);
+        when(llm.isConfigured()).thenReturn(false);
+
+        List<String> result = new AllergenNormalizationService(llm, new ObjectMapper())
+                .normalize("", "对虾过敏");
+
+        assertEquals(List.of("对虾", "虾", "虾仁"), result);
+    }
+
+    @Test
     void keepsLocalTermsWhenModelReturnsInvalidJson() {
         LlmClient llm = mock(LlmClient.class);
         when(llm.isConfigured()).thenReturn(true);

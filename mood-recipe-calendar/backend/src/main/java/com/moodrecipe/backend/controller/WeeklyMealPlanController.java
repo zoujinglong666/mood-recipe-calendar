@@ -8,6 +8,7 @@ import com.moodrecipe.backend.service.WeeklyMealPlanService;
 import com.moodrecipe.backend.service.GuozaiAgent;
 import com.moodrecipe.backend.service.WechatContentSafetyService;
 import com.moodrecipe.backend.service.UsageQuotaService;
+import com.moodrecipe.backend.service.AgentConversationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,8 +20,10 @@ public class WeeklyMealPlanController {
     private final DialogueAgent mealAgent;
     private final WechatContentSafetyService contentSafety;
     private final UsageQuotaService quotas;
+    private final AgentConversationService conversations;
     @Autowired public WeeklyMealPlanController(WeeklyMealPlanService plans, GuozaiAgent agent, DialogueAgent mealAgent,
-                                    WechatContentSafetyService contentSafety, UsageQuotaService quotas) { this.plans = plans; this.agent = agent; this.mealAgent = mealAgent; this.contentSafety = contentSafety; this.quotas = quotas; }
+                                    WechatContentSafetyService contentSafety, UsageQuotaService quotas,
+                                    AgentConversationService conversations) { this.plans = plans; this.agent = agent; this.mealAgent = mealAgent; this.contentSafety = contentSafety; this.quotas = quotas; this.conversations = conversations; }
     @GetMapping("/current") public ApiResponse<?> current(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) { return plans.current(openid).map(ApiResponse::ok).orElseGet(() -> ApiResponse.error(404, "还没有本周计划")); }
     @GetMapping("/history") public ApiResponse<?> history(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) { return ApiResponse.ok(plans.history(openid)); }
     @GetMapping("/{id}") public ApiResponse<?> get(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @PathVariable Long id) { return plans.get(openid, id).map(ApiResponse::ok).orElseGet(() -> ApiResponse.error(404, "计划不存在")); }
@@ -29,7 +32,7 @@ public class WeeklyMealPlanController {
     @PostMapping("/generate") public ApiResponse<?> generate(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @RequestBody WeeklyMealPlanService.GenerateRequest request) {
         if (request == null || request.people() < 1) return ApiResponse.error(400, "请填写用餐人数");
         if (!contentSafety.allowsText(openid, request.conversationNotes())) return ApiResponse.error(400, "文字未通过安全检查");
-        try { quotas.consume(openid, UsageQuotaService.Feature.SIMPLE_WEEKLY_PLAN); }
+        try { quotas.consume(openid, UsageQuotaService.Feature.SIMPLE_WEEKLY_PLAN, null, request.requestId()); }
         catch (IllegalStateException e) { return ApiResponse.error(403, e.getMessage()); }
         return ApiResponse.ok(plans.generate(openid, request));
     }
@@ -45,10 +48,15 @@ public class WeeklyMealPlanController {
         if (request != null && !contentSafety.allowsText(openid, request.message())) return ApiResponse.error(400, "文字未通过安全检查");
         if (!quotas.member(openid)) {
             if (request == null || request.conversationId() == null || request.conversationId().isBlank()) return ApiResponse.error(400, "缺少对话会话标识");
-            try { quotas.consume(openid, UsageQuotaService.Feature.AGENT_CONVERSATION, request.conversationId().trim()); }
+            try { quotas.consume(openid, UsageQuotaService.Feature.AGENT_CONVERSATION, request.conversationId().trim(), request.requestId()); }
             catch (IllegalStateException e) { return ApiResponse.error(403, e.getMessage()); }
         }
-        return ApiResponse.ok(mealAgent.turn(openid, request == null ? "" : request.message(), request == null ? null : request.state()));
+        String conversationId = request == null ? null : request.conversationId();
+        DialogueState.AgentState serverState = conversations.state(openid, conversationId,
+                request == null ? null : request.state());
+        DialogueState.Turn turn = mealAgent.turn(openid, request == null ? "" : request.message(), serverState);
+        conversations.save(openid, conversationId, turn);
+        return ApiResponse.ok(turn);
     }
     @PostMapping("/{id}/favorite") public ApiResponse<?> favorite(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @PathVariable Long id) { return plans.toggleFavorite(openid, id).map(ApiResponse::ok).orElseGet(() -> ApiResponse.error(404, "计划不存在")); }
     @PostMapping("/{id}/days/{index}/cover") public ApiResponse<?> cover(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @PathVariable Long id, @PathVariable int index) { return plans.ensureCover(openid, id, index).map(ApiResponse::ok).orElseGet(() -> ApiResponse.error(404, "计划不存在")); }
@@ -57,5 +65,5 @@ public class WeeklyMealPlanController {
     @PostMapping("/{id}/shopping/{name}") public ApiResponse<?> toggle(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @PathVariable Long id, @PathVariable String name) { return plans.toggleShopping(openid, id, name).map(ApiResponse::ok).orElseGet(() -> ApiResponse.error(404, "购物项不存在")); }
     public record AgentReplyRequest(String message, String nextQuestion) {}
     public record AgentReply(String reply) {}
-    public record AgentTurnRequest(String message, DialogueState.AgentState state, String conversationId) {}
+    public record AgentTurnRequest(String message, DialogueState.AgentState state, String conversationId, String requestId) {}
 }

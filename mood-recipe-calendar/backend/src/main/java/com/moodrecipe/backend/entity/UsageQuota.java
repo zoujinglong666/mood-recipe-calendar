@@ -13,4 +13,5 @@ public class UsageQuota {
     @Column(name = "period_start", nullable = false) private LocalDate periodStart;
     @Column(name = "used_count", nullable = false) private int usedCount;
     @Column(name = "last_conversation_id", length = 64) private String lastConversationId;
+    @Column(name = "last_request_id", length = 96) private String lastRequestId;
 }

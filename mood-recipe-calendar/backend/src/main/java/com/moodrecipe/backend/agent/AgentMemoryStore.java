@@ -6,6 +6,7 @@ import com.moodrecipe.backend.entity.Recipe;
 import com.moodrecipe.backend.entity.RecipeInteraction;
 import com.moodrecipe.backend.entity.UserFoodPreference;
 import com.moodrecipe.backend.entity.UserRecord;
+import com.moodrecipe.backend.config.AppClock;
 import com.moodrecipe.backend.repository.AgentMemoryFactRepository;
 import com.moodrecipe.backend.repository.PlanDishOutcomeRepository;
 import com.moodrecipe.backend.repository.RecipeInteractionRepository;
@@ -118,7 +119,7 @@ public class AgentMemoryStore {
             fact.setStatus(AgentMemoryFact.STATUS_ACTIVE);
             fact.setHitCount(0);
             fact.setExpiresAt(command.ttlDays() == null || command.ttlDays() <= 0
-                    ? null : LocalDateTime.now().plusDays(command.ttlDays()));
+                    ? null : AppClock.now().plusDays(command.ttlDays()));
         } else {
             double current = effectiveConfidence(fact);
             if (value.equals(fact.getMemoryValue())) {
@@ -134,7 +135,7 @@ public class AgentMemoryStore {
             fact.setStatus(AgentMemoryFact.STATUS_ACTIVE);
             fact.setSource(command.source());
             fact.setExpiresAt(command.ttlDays() == null || command.ttlDays() <= 0
-                    ? fact.getExpiresAt() : LocalDateTime.now().plusDays(command.ttlDays()));
+                    ? fact.getExpiresAt() : AppClock.now().plusDays(command.ttlDays()));
             if (fact.getHitCount() == null) fact.setHitCount(0);
             if (fact.getMemoryCategory() == null || fact.getMemoryCategory().isBlank()) {
                 fact.setMemoryCategory(categoryOf(command.key(), command.ttlDays()));
@@ -152,7 +153,7 @@ public class AgentMemoryStore {
             facts.findByOpenidAndMemoryKeyAndStatus(openid, key, AgentMemoryFact.STATUS_ACTIVE).ifPresent(fact -> {
                 fact.setConfidence(clamp(effectiveConfidence(fact) + 0.03));
                 fact.setHitCount((fact.getHitCount() == null ? 0 : fact.getHitCount()) + 1);
-                fact.setLastUsedAt(LocalDateTime.now());
+                fact.setLastUsedAt(AppClock.now());
                 facts.save(fact);
             });
         }
@@ -210,7 +211,7 @@ public class AgentMemoryStore {
 
     /** 过期或衰减到阈值以下的事实归档，实现"遗忘"。 */
     public void forgetExpired(String openid) {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = AppClock.now();
         for (AgentMemoryFact fact : facts.findByOpenidAndStatusOrderByUpdatedAtDesc(openid, AgentMemoryFact.STATUS_ACTIVE)) {
             boolean expired = fact.getExpiresAt() != null && fact.getExpiresAt().isBefore(now);
             boolean faded = !isSafetyKey(fact.getMemoryKey())
@@ -231,7 +232,7 @@ public class AgentMemoryStore {
         Map<Long, String> recipeNames = recipeNames(history);
         List<MemoryItem> memory = recall(openid, scene, 12);
 
-        LocalDate today = LocalDate.now();
+        LocalDate today = AppClock.today();
         List<String> recentDishes = new ArrayList<>(recent.stream()
                 .filter(record -> withinDays(record.getRecordDate(), today, 14))
                 .map(UserRecord::getDishName)
@@ -362,8 +363,8 @@ public class AgentMemoryStore {
     public double effectiveConfidence(AgentMemoryFact fact) {
         double stored = fact.getConfidence() == null ? 0.6 : fact.getConfidence();
         if (isSafetyKey(fact.getMemoryKey())) return stored;
-        LocalDateTime updated = fact.getUpdatedAt() == null ? LocalDateTime.now() : fact.getUpdatedAt();
-        double ageDays = Math.max(0d, ChronoUnit.HOURS.between(updated, LocalDateTime.now()) / 24d);
+        LocalDateTime updated = fact.getUpdatedAt() == null ? AppClock.now() : fact.getUpdatedAt();
+        double ageDays = Math.max(0d, ChronoUnit.HOURS.between(updated, AppClock.now()) / 24d);
         double halfLife = HALF_LIFE_DAYS.getOrDefault(fact.getSource(), 30d);
         double decayed = stored * Math.pow(0.5, ageDays / halfLife);
         int hits = fact.getHitCount() == null ? 0 : fact.getHitCount();

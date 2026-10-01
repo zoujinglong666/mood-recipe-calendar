@@ -1,6 +1,7 @@
 package com.moodrecipe.backend.controller;
 
 import com.moodrecipe.backend.common.ApiResponse;
+import com.moodrecipe.backend.config.AppClock;
 import com.moodrecipe.backend.config.SessionAuthInterceptor;
 import com.moodrecipe.backend.service.DailyMealPlanService;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,7 +26,7 @@ public class DailyMealPlanController {
     public ApiResponse<?> get(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
                               @RequestParam(required = false) String date) {
         try {
-            LocalDate target = date == null || date.isBlank() ? LocalDate.now() : LocalDate.parse(date);
+            LocalDate target = date == null || date.isBlank() ? AppClock.today() : LocalDate.parse(date);
             return plans.plan(openid, target).map(ApiResponse::ok)
                     .orElseGet(() -> ApiResponse.error(422, "暂时无法生成合格的三餐计划，请调整忌口或稍后再试"));
         } catch (Exception e) {
@@ -37,7 +38,7 @@ public class DailyMealPlanController {
     public ApiResponse<?> replace(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
                                   @PathVariable int mealIndex, @RequestParam(required = false) String date) {
         try {
-            LocalDate target = date == null || date.isBlank() ? LocalDate.now() : LocalDate.parse(date);
+            LocalDate target = date == null || date.isBlank() ? AppClock.today() : LocalDate.parse(date);
             return plans.replace(openid, target, mealIndex).map(ApiResponse::ok)
                     .orElseGet(() -> ApiResponse.error(422, "暂时没有符合条件的替换菜，请稍后再试"));
         } catch (Exception e) { return ApiResponse.error(400, "日期格式应为 YYYY-MM-DD"); }

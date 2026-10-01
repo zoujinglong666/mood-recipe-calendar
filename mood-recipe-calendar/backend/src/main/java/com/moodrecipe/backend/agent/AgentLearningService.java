@@ -1,5 +1,7 @@
 package com.moodrecipe.backend.agent;
 
+import com.moodrecipe.backend.config.AppClock;
+
 import com.moodrecipe.backend.entity.PlanDishOutcome;
 import com.moodrecipe.backend.entity.RecipeInteraction;
 import com.moodrecipe.backend.entity.UserRecord;
@@ -192,7 +194,7 @@ public class AgentLearningService {
 
     private List<WeightedDish> signals(String openid) {
         List<WeightedDish> dishes = new ArrayList<>();
-        LocalDate from = LocalDate.now().minusDays(60);
+        LocalDate from = AppClock.today().minusDays(60);
         for (UserRecord record : records.findTop30ByOpenidOrderByCreatedAtDesc(openid)) {
             if (record.getDishName() == null || record.getDishName().isBlank()) continue;
             if (record.getRecordDate() == null || LocalDate.parse(record.getRecordDate()).isBefore(from)) continue;

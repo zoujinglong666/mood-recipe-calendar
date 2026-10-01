@@ -22,6 +22,10 @@ export interface MealAgentTurn {
   degraded?: string[]
 }
 
+function requestId(prefix: string) {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+}
+
 /** 展示前最后一道闸门：编码污染的数据宁可整页不展示，也不把问号菜名暴露给用户。 */
 export function isDisplayableWeeklyPlan(plan: WeeklyPlan | null | undefined): plan is WeeklyPlan {
   const text = (value: unknown, maxLength: number) => typeof value === 'string'
@@ -63,14 +67,14 @@ export function fetchWeeklyPlanQuota() {
 export function fetchAgentConversationQuota() {
   return get<UsageQuotaView>('/weekly-plans/agent-quota')
 }
-export function generateWeeklyPlan(data: { people: number, days: number, cookingDays: number[], healthGoal: string, sendNotification: boolean, dishesPerDay: number, budget?: string, conversationNotes?: string }) {
-  return post<WeeklyPlan>('/weekly-plans/generate', data)
+export function generateWeeklyPlan(data: { people: number, days: number, cookingDays: number[], healthGoal: string, sendNotification: boolean, dishesPerDay: number, budget?: string, conversationNotes?: string, requestId?: string }) {
+  return post<WeeklyPlan>('/weekly-plans/generate', { ...data, requestId: data.requestId || requestId('plan') })
 }
 export function askMealAgent(message: string, nextQuestion: string) {
   return post<{ reply: string }>('/weekly-plans/agent-replies', { message, nextQuestion })
 }
 export function runMealAgentTurn(message: string, state: MealAgentState, conversationId?: string) {
-  return post<MealAgentTurn>('/weekly-plans/agent-turns', { message, state, conversationId })
+  return post<MealAgentTurn>('/weekly-plans/agent-turns', { message, state, conversationId, requestId: requestId('turn') })
 }
 
 const WEEKLY_PLAN_TEMPLATE_ID = 'h00FlM2Xf_X64sXln5WoYGnbvtJBjasdEraRPjs4NOg'

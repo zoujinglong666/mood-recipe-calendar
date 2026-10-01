@@ -1,6 +1,7 @@
 package com.moodrecipe.backend.controller;
 
 import com.moodrecipe.backend.common.ApiResponse;
+import com.moodrecipe.backend.config.AppClock;
 import com.moodrecipe.backend.entity.UserRecord;
 import com.moodrecipe.backend.model.LearningReceipt;
 import com.moodrecipe.backend.model.RecordRequest;
@@ -45,7 +46,7 @@ public class RecordController {
         if (imageUrls.isEmpty()) {
             return ApiResponse.error(400, "请先添加自己拍摄的菜品照片");
         }
-        String recordDate = req.recordDate() == null ? LocalDate.now().format(DATE_FMT) : req.recordDate();
+        String recordDate = req.recordDate() == null ? AppClock.today().format(DATE_FMT) : req.recordDate();
         try {
             LocalDate.parse(recordDate, DATE_FMT);
         } catch (RuntimeException ignored) {
@@ -239,7 +240,7 @@ public class RecordController {
 
     private int calcCurrentStreak(Set<String> dateSet) {
         int streak = 0;
-        LocalDate today = LocalDate.now();
+        LocalDate today = AppClock.today();
         while (dateSet.contains(today.format(DATE_FMT))) {
             streak++;
             today = today.minusDays(1);

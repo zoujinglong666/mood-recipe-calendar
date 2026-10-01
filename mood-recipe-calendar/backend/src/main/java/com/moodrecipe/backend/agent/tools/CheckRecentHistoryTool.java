@@ -5,6 +5,7 @@ import com.moodrecipe.backend.agent.AgentJson;
 import com.moodrecipe.backend.agent.AgentTool;
 import com.moodrecipe.backend.agent.ToolContext;
 import com.moodrecipe.backend.agent.ToolResult;
+import com.moodrecipe.backend.config.AppClock;
 import com.moodrecipe.backend.entity.UserRecord;
 import com.moodrecipe.backend.repository.RecipeInteractionRepository;
 import com.moodrecipe.backend.repository.RecipeRepository;
@@ -57,7 +58,7 @@ public class CheckRecentHistoryTool implements AgentTool {
     public ToolResult run(String argumentsJson, ToolContext context) {
         JsonNode args = AgentJson.parse(context.json(), argumentsJson);
         int days = Math.max(1, Math.min(args.path("days").asInt(14), 60));
-        LocalDate today = LocalDate.now();
+        LocalDate today = AppClock.today();
         LocalDate from = today.minusDays(days);
 
         List<String> recentDishes = new ArrayList<>();

@@ -121,6 +121,7 @@ public final class AgentCards {
             if (option == null || !displayable(option.label(), 40) || !displayable(option.value(), 80)) {
                 return defaultCard(action, state);
             }
+            if (!validValueForAction(action, option.value())) return defaultCard(action, state);
         }
         if (!displayable(title, 60)) return defaultCard(action, state);
         String safeDescription = description == null ? "" : description;
@@ -135,6 +136,24 @@ public final class AgentCards {
             safeOptions.add(new DialogueState.Option("其他", "other"));
         }
         return new DialogueState.Card(type, title, safeDescription, List.copyOf(safeOptions));
+    }
+
+    /** Dynamic labels are allowed, but a structured value must belong to the current question. */
+    private static boolean validValueForAction(String action, String value) {
+        if ("other".equals(value)) return true;
+        String prefix = value.contains("=") ? value.substring(0, value.indexOf('=')) : "";
+        if (prefix.isBlank()) return true;
+        return switch (action == null ? "" : action) {
+            case "ASK_PEOPLE" -> "people".equals(prefix);
+            case "ASK_HOUSEHOLD" -> "household".equals(prefix) || "elder".equals(prefix)
+                    || "child".equals(prefix) || "pregnant".equals(prefix);
+            case "ASK_SPICE" -> "spice".equals(prefix);
+            case "ASK_DAYS" -> "days".equals(prefix);
+            case "ASK_DISHES" -> "dishes".equals(prefix);
+            case "ASK_GOAL" -> "goal".equals(prefix);
+            case "ASK_BUDGET" -> "budget".equals(prefix);
+            default -> false;
+        };
     }
 
     private static boolean displayable(String value, int maxLength) {

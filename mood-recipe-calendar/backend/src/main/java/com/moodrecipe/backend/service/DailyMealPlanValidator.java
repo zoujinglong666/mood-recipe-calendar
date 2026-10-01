@@ -60,6 +60,7 @@ public class DailyMealPlanValidator {
             String steps = safe(meal.getSteps());
             if (!displayable(name, 40)) reasons.add("菜名不可展示");
             if (!displayable(ingredients, 500) || !displayable(steps, 1500)) reasons.add("菜谱内容不可展示");
+            reasons.addAll(RecipeSemanticValidator.issues(List.of(ingredients), List.of(steps)));
             if (!RecipeSafetyPolicy.isSafe(meal)) reasons.add("菜谱不满足安全限制：" + name);
             if (!names.add(normalize(name))) reasons.add("三餐菜名重复：" + name);
             String text = (name + " " + ingredients).toLowerCase(Locale.ROOT);
@@ -87,6 +88,7 @@ public class DailyMealPlanValidator {
             String ingredients = safe(meal.getIngredients());
             if (!displayable(name, 40) || !displayable(ingredients, 500)
                     || !displayable(safe(meal.getSteps()), 1500)
+                    || !RecipeSemanticValidator.isValid(List.of(ingredients), List.of(safe(meal.getSteps())))
                     || !RecipeSafetyPolicy.isSafe(meal)
                     || !names.add(normalize(name))) return false;
             String text = (name + " " + ingredients).toLowerCase(Locale.ROOT);

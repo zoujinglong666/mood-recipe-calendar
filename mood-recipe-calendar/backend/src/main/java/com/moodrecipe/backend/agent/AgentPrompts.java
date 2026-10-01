@@ -7,7 +7,7 @@ package com.moodrecipe.backend.agent;
  */
 public final class AgentPrompts {
 
-    public static final String VERSION = "agent-v1";
+    public static final String VERSION = "agent-v2";
 
     private AgentPrompts() {
     }

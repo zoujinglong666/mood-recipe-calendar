@@ -111,6 +111,18 @@ class UsageQuotaServiceTest {
                 () -> agentService.consume("user-1", UsageQuotaService.Feature.AGENT_CONVERSATION, "conversation-2"));
     }
 
+    @Test
+    void sameRequestIdDoesNotConsumeTwice() {
+        UsageQuota quota = quota(0);
+        quota.setLastRequestId(null);
+        when(quotas.findForUpdate(anyString(), anyString(), any())).thenReturn(Optional.of(quota));
+
+        service.consume("user-1", UsageQuotaService.Feature.HOME_RECOMMEND, null, "request-1");
+        service.consume("user-1", UsageQuotaService.Feature.HOME_RECOMMEND, null, "request-1");
+
+        assertEquals(1, quota.getUsedCount());
+    }
+
     private UsageQuota quota(int used) {
         UsageQuota quota = new UsageQuota();
         quota.setUsedCount(used);

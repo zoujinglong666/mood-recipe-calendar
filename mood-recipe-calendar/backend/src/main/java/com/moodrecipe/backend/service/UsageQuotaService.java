@@ -1,6 +1,7 @@
 package com.moodrecipe.backend.service;
 
 import com.moodrecipe.backend.entity.UsageQuota;
+import com.moodrecipe.backend.config.AppClock;
 import com.moodrecipe.backend.repository.UsageQuotaRepository;
 import com.moodrecipe.backend.repository.UserRepository;
 import com.moodrecipe.backend.repository.CheckinRepository;
@@ -12,7 +13,7 @@ import java.time.*;
 public class UsageQuotaService {
     public enum Feature { HOME_RECOMMEND, SIMPLE_WEEKLY_PLAN, AGENT_CONVERSATION }
     public record View(boolean member, int limit, int used, int remaining, String resetsAt) {}
-    private static final ZoneId ZONE = ZoneId.of("Asia/Shanghai");
+    private static final ZoneId ZONE = AppClock.ZONE;
     private final UsageQuotaRepository quotas;
     private final UserRepository users;
     private final CheckinRepository checkins;
@@ -29,9 +30,13 @@ public class UsageQuotaService {
     }
     public boolean member(String openid) { return users.findByOpenid(openid).filter(u -> Integer.valueOf(1).equals(u.getIsMember()) && u.getMemberExpire() != null && u.getMemberExpire().isAfter(LocalDateTime.now(ZONE))).isPresent(); }
     @Transactional public View consume(String openid, Feature feature) {
-        return consume(openid, feature, null);
+        return consume(openid, feature, null, null);
     }
     @Transactional public View consume(String openid, Feature feature, String conversationId) {
+        return consume(openid, feature, conversationId, null);
+    }
+    /** Idempotent consumption: a retried request with the same requestId cannot charge twice. */
+    @Transactional public View consume(String openid, Feature feature, String conversationId, String requestId) {
         boolean isMember = member(openid);
         LocalDate today = LocalDate.now(ZONE);
         LocalDate start = periodStart(feature, today);
@@ -43,6 +48,9 @@ public class UsageQuotaService {
             q.setPeriodStart(start);
             return q;
         });
+        if (requestId != null && !requestId.isBlank() && requestId.equals(quota.getLastRequestId())) {
+            return viewOf(isMember, limit, quota.getUsedCount(), today, feature, start);
+        }
         if (feature == Feature.AGENT_CONVERSATION && isMember) return viewOf(isMember, limit, quota.getUsedCount(), today, feature, start);
         if (feature == Feature.AGENT_CONVERSATION && conversationId != null && conversationId.equals(quota.getLastConversationId())) {
             return viewOf(isMember, limit, quota.getUsedCount(), today, feature, start);
@@ -50,6 +58,7 @@ public class UsageQuotaService {
         if (quota.getUsedCount() >= limit) throw new IllegalStateException(message(feature));
         quota.setUsedCount(quota.getUsedCount() + 1);
         if (feature == Feature.AGENT_CONVERSATION) quota.setLastConversationId(conversationId);
+        if (requestId != null && !requestId.isBlank()) quota.setLastRequestId(requestId.trim());
         quotas.save(quota);
         return viewOf(isMember, limit, quota.getUsedCount(), today, feature, start);
     }

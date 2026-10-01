@@ -3,6 +3,7 @@ package com.moodrecipe.backend.service;
 import com.moodrecipe.backend.entity.OperationalEvent;
 import com.moodrecipe.backend.entity.UserFoodPreference;
 import com.moodrecipe.backend.entity.UserRecord;
+import com.moodrecipe.backend.config.AppClock;
 import com.moodrecipe.backend.repository.OperationalEventRepository;
 import com.moodrecipe.backend.repository.UserFoodPreferenceRepository;
 import com.moodrecipe.backend.repository.UserRecordRepository;
@@ -39,14 +40,14 @@ public class CompanionMessageService {
         String topDish = mostCommon(recent, UserRecord::getDishName);
         String topMood = mostCommon(recent, UserRecord::getMoodTag);
         int streak = currentStreak(recent);
-        boolean recordedToday = recent.stream().anyMatch(r -> LocalDate.now().toString().equals(r.getRecordDate()));
+        boolean recordedToday = recent.stream().anyMatch(r -> AppClock.today().toString().equals(r.getRecordDate()));
         String favorite = firstValue(preference == null ? "" : preference.getFavoriteDishes());
         String favoriteCuisine = firstValue(preference == null ? "" : preference.getFavoriteCuisines());
         if (favorite.isBlank()) favorite = topDish;
 
         String greeting = greeting(period);
         List<String> candidates = fallbackCandidates(period, usualPeriod, favorite, favoriteCuisine, topMood, streak, recordedToday, preference, recent.isEmpty());
-        String fallback = candidates.get(Math.floorMod(Objects.hash(openid, LocalDate.now(), period), candidates.size()));
+        String fallback = candidates.get(Math.floorMod(Objects.hash(openid, AppClock.today(), period), candidates.size()));
         String insight = insight(usualPeriod, favorite, favoriteCuisine, streak, preference, recent.isEmpty());
         String context = "当前时段=" + period + "；常打开时段=" + usualPeriod + "；最近常做菜=" + safe(topDish)
                 + "；偏爱=" + safe(favorite) + "；偏爱菜系=" + safe(favoriteCuisine) + "；常见心情=" + safe(topMood) + "；连续记录=" + streak
@@ -57,7 +58,7 @@ public class CompanionMessageService {
 
     private void rememberOpen(String openid, String period) {
         String eventType = "HOME_OPEN_" + period;
-        LocalDateTime start = LocalDate.now().atStartOfDay();
+        LocalDateTime start = AppClock.today().atStartOfDay();
         if (events.existsByOpenidAndEventTypeAndCreatedAtBetween(openid, eventType, start, start.plusDays(1))) return;
         OperationalEvent event = new OperationalEvent();
         event.setEventType(eventType); event.setSeverity("INFO"); event.setOpenid(openid);
@@ -133,7 +134,7 @@ public class CompanionMessageService {
 
     private int currentStreak(List<UserRecord> recent) {
         Set<String> days = recent.stream().map(UserRecord::getRecordDate).filter(Objects::nonNull).collect(Collectors.toSet());
-        int streak = 0; LocalDate day = LocalDate.now();
+        int streak = 0; LocalDate day = AppClock.today();
         while (days.contains(day.toString())) { streak++; day = day.minusDays(1); }
         return streak;
     }

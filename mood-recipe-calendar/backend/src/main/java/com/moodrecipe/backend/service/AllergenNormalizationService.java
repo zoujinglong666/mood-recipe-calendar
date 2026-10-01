@@ -46,7 +46,8 @@ public class AllergenNormalizationService {
                 .flatMap(term -> {
                     String normalized = term.replace("严重过敏", "").replace("过敏原", "")
                             .replace("过敏", "").replace("不耐受", "").trim();
-                    if (normalized.contains("虾")) return Stream.of(normalized, "虾");
+                    // 甲壳类的关键同义词必须在本地完成，不能把安全边界交给模型是否在线。
+                    if (normalized.contains("虾")) return Stream.of(normalized, "虾", "虾仁");
                     return normalized.isBlank() ? Stream.empty() : Stream.of(normalized);
                 })
                 .filter(this::validTerm).distinct().toList();

@@ -313,7 +313,8 @@ public class WeeklyMealPlanService {
             if (dishes.isEmpty()) return false;
             for (PlanDish dish : dishes) {
                 if (dish == null || !MenuPlannerAgent.displayableText(dish.name(), 40)
-                        || !displayableTexts(dish.ingredients(), 80) || !displayableTexts(dish.steps(), 240)) return false;
+                        || !displayableTexts(dish.ingredients(), 80) || !displayableTexts(dish.steps(), 240)
+                        || !RecipeSemanticValidator.isValid(dish.ingredients(), dish.steps())) return false;
             }
         }
         return true;
@@ -341,14 +342,19 @@ public class WeeklyMealPlanService {
     private PlanAudit readAudit(String value) { try { return value == null || value.isBlank() ? null : json.readValue(value, PlanAudit.class); } catch (Exception e) { return null; } }
 
     public record GenerateRequest(int people, int days, List<Integer> cookingDays, String healthGoal,
-                                  boolean sendNotification, int dishesPerDay, String budget, String conversationNotes) {
+                                  boolean sendNotification, int dishesPerDay, String budget, String conversationNotes,
+                                  String requestId) {
         public GenerateRequest(int people, int days, List<Integer> cookingDays, String healthGoal,
                                boolean sendNotification, int dishesPerDay) {
-            this(people, days, cookingDays, healthGoal, sendNotification, dishesPerDay, "DAILY", "");
+            this(people, days, cookingDays, healthGoal, sendNotification, dishesPerDay, "DAILY", "", null);
         }
         public GenerateRequest(int people, int days, List<Integer> cookingDays, String healthGoal,
                                boolean sendNotification, int dishesPerDay, String budget) {
-            this(people, days, cookingDays, healthGoal, sendNotification, dishesPerDay, budget, "");
+            this(people, days, cookingDays, healthGoal, sendNotification, dishesPerDay, budget, "", null);
+        }
+        public GenerateRequest(int people, int days, List<Integer> cookingDays, String healthGoal,
+                               boolean sendNotification, int dishesPerDay, String budget, String conversationNotes) {
+            this(people, days, cookingDays, healthGoal, sendNotification, dishesPerDay, budget, conversationNotes, null);
         }
     }
     public record PlanView(Long id, List<PlanDay> days, List<ShoppingItem> shopping, boolean favorite,
