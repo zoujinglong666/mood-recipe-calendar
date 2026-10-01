@@ -39,11 +39,13 @@ declare global {
   const computedWithControl: typeof import('@vueuse/core')['computedWithControl']
   const consumeAuthReturn: typeof import('./utils/authRecovery')['consumeAuthReturn']
   const consumeEntitlement: typeof import('./api/virtualCommerce')['consumeEntitlement']
+  const consumeFridgeItem: typeof import('./api/fridge')['consumeFridgeItem']
   const controlledComputed: typeof import('@vueuse/core')['controlledComputed']
   const controlledRef: typeof import('@vueuse/core')['controlledRef']
   const cookingAgentTurn: typeof import('./api/cookingAgent')['cookingAgentTurn']
   const createApp: typeof import('vue')['createApp']
   const createEventHook: typeof import('@vueuse/core')['createEventHook']
+  const createFridgeItem: typeof import('./api/fridge')['createFridgeItem']
   const createGlobalState: typeof import('@vueuse/core')['createGlobalState']
   const createInjectionState: typeof import('@vueuse/core')['createInjectionState']
   const createOrder: typeof import('./api/gallery')['createOrder']
@@ -65,6 +67,7 @@ declare global {
   const defineStore: typeof import('pinia')['defineStore']
   const del: typeof import('./api/request')['del']
   const deleteAccount: typeof import('./api/auth')['deleteAccount']
+  const deleteFridgeItem: typeof import('./api/fridge')['deleteFridgeItem']
   const deleteRecord: typeof import('./api/records')['deleteRecord']
   const doCheckin: typeof import('./api/gallery')['doCheckin']
   const eagerComputed: typeof import('@vueuse/core')['eagerComputed']
@@ -73,6 +76,7 @@ declare global {
   const exportAlbumShare: typeof import('./utils/albumShare')['exportAlbumShare']
   const exportRecipeShare: typeof import('./utils/albumShare')['exportRecipeShare']
   const extendRef: typeof import('@vueuse/core')['extendRef']
+  const fetchAgentConversationQuota: typeof import('./api/weeklyPlans')['fetchAgentConversationQuota']
   const fetchAllRecipes: typeof import('./api/recipes')['fetchAllRecipes']
   const fetchCheckinStatus: typeof import('./api/gallery')['fetchCheckinStatus']
   const fetchCompanionMessage: typeof import('./api/records')['fetchCompanionMessage']
@@ -81,6 +85,8 @@ declare global {
   const fetchEntitlements: typeof import('./api/virtualCommerce')['fetchEntitlements']
   const fetchFoodMemory: typeof import('./api/preferences')['fetchFoodMemory']
   const fetchFoodPreference: typeof import('./api/preferences')['fetchFoodPreference']
+  const fetchFridgeItems: typeof import('./api/fridge')['fetchFridgeItems']
+  const fetchFridgeSummary: typeof import('./api/fridge')['fetchFridgeSummary']
   const fetchMonthAlbum: typeof import('./api/albums')['fetchMonthAlbum']
   const fetchMyFeedback: typeof import('./api/feedback')['fetchMyFeedback']
   const fetchOrders: typeof import('./api/gallery')['fetchOrders']
@@ -89,6 +95,7 @@ declare global {
   const fetchRecipeFeedback: typeof import('./api/recipes')['fetchRecipeFeedback']
   const fetchRecipeQuota: typeof import('./api/recipes')['fetchRecipeQuota']
   const fetchRecipesByMood: typeof import('./api/recipes')['fetchRecipesByMood']
+  const fetchRecommendationHistory: typeof import('./api/recipes')['fetchRecommendationHistory']
   const fetchRecommendationJob: typeof import('./api/recipes')['fetchRecommendationJob']
   const fetchRecord: typeof import('./api/records')['fetchRecord']
   const fetchRecords: typeof import('./api/records')['fetchRecords']
@@ -125,6 +132,7 @@ declare global {
   const inject: typeof import('vue')['inject']
   const injectLocal: typeof import('@vueuse/core')['injectLocal']
   const isDefined: typeof import('@vueuse/core')['isDefined']
+  const isDisplayableWeeklyPlan: typeof import('./api/weeklyPlans')['isDisplayableWeeklyPlan']
   const isProxy: typeof import('vue')['isProxy']
   const isReactive: typeof import('vue')['isReactive']
   const isReadonly: typeof import('vue')['isReadonly']
@@ -259,6 +267,7 @@ declare global {
   const unref: typeof import('vue')['unref']
   const unrefElement: typeof import('@vueuse/core')['unrefElement']
   const until: typeof import('@vueuse/core')['until']
+  const updateFridgeItem: typeof import('./api/fridge')['updateFridgeItem']
   const updateRecord: typeof import('./api/records')['updateRecord']
   const updateUserInfo: typeof import('./api/auth')['updateUserInfo']
   const uploadFile: typeof import('./api/request')['uploadFile']
@@ -496,11 +505,13 @@ declare module 'vue' {
     readonly computedWithControl: UnwrapRef<typeof import('@vueuse/core')['computedWithControl']>
     readonly consumeAuthReturn: UnwrapRef<typeof import('./utils/authRecovery')['consumeAuthReturn']>
     readonly consumeEntitlement: UnwrapRef<typeof import('./api/virtualCommerce')['consumeEntitlement']>
+    readonly consumeFridgeItem: UnwrapRef<typeof import('./api/fridge')['consumeFridgeItem']>
     readonly controlledComputed: UnwrapRef<typeof import('@vueuse/core')['controlledComputed']>
     readonly controlledRef: UnwrapRef<typeof import('@vueuse/core')['controlledRef']>
     readonly cookingAgentTurn: UnwrapRef<typeof import('./api/cookingAgent')['cookingAgentTurn']>
     readonly createApp: UnwrapRef<typeof import('vue')['createApp']>
     readonly createEventHook: UnwrapRef<typeof import('@vueuse/core')['createEventHook']>
+    readonly createFridgeItem: UnwrapRef<typeof import('./api/fridge')['createFridgeItem']>
     readonly createGlobalState: UnwrapRef<typeof import('@vueuse/core')['createGlobalState']>
     readonly createInjectionState: UnwrapRef<typeof import('@vueuse/core')['createInjectionState']>
     readonly createOrder: UnwrapRef<typeof import('./api/gallery')['createOrder']>
@@ -522,6 +533,7 @@ declare module 'vue' {
     readonly defineStore: UnwrapRef<typeof import('pinia')['defineStore']>
     readonly del: UnwrapRef<typeof import('./api/request')['del']>
     readonly deleteAccount: UnwrapRef<typeof import('./api/auth')['deleteAccount']>
+    readonly deleteFridgeItem: UnwrapRef<typeof import('./api/fridge')['deleteFridgeItem']>
     readonly deleteRecord: UnwrapRef<typeof import('./api/records')['deleteRecord']>
     readonly doCheckin: UnwrapRef<typeof import('./api/gallery')['doCheckin']>
     readonly eagerComputed: UnwrapRef<typeof import('@vueuse/core')['eagerComputed']>
@@ -530,6 +542,7 @@ declare module 'vue' {
     readonly exportAlbumShare: UnwrapRef<typeof import('./utils/albumShare')['exportAlbumShare']>
     readonly exportRecipeShare: UnwrapRef<typeof import('./utils/albumShare')['exportRecipeShare']>
     readonly extendRef: UnwrapRef<typeof import('@vueuse/core')['extendRef']>
+    readonly fetchAgentConversationQuota: UnwrapRef<typeof import('./api/weeklyPlans')['fetchAgentConversationQuota']>
     readonly fetchAllRecipes: UnwrapRef<typeof import('./api/recipes')['fetchAllRecipes']>
     readonly fetchCheckinStatus: UnwrapRef<typeof import('./api/gallery')['fetchCheckinStatus']>
     readonly fetchCompanionMessage: UnwrapRef<typeof import('./api/records')['fetchCompanionMessage']>
@@ -538,6 +551,8 @@ declare module 'vue' {
     readonly fetchEntitlements: UnwrapRef<typeof import('./api/virtualCommerce')['fetchEntitlements']>
     readonly fetchFoodMemory: UnwrapRef<typeof import('./api/preferences')['fetchFoodMemory']>
     readonly fetchFoodPreference: UnwrapRef<typeof import('./api/preferences')['fetchFoodPreference']>
+    readonly fetchFridgeItems: UnwrapRef<typeof import('./api/fridge')['fetchFridgeItems']>
+    readonly fetchFridgeSummary: UnwrapRef<typeof import('./api/fridge')['fetchFridgeSummary']>
     readonly fetchMonthAlbum: UnwrapRef<typeof import('./api/albums')['fetchMonthAlbum']>
     readonly fetchMyFeedback: UnwrapRef<typeof import('./api/feedback')['fetchMyFeedback']>
     readonly fetchOrders: UnwrapRef<typeof import('./api/gallery')['fetchOrders']>
@@ -546,6 +561,7 @@ declare module 'vue' {
     readonly fetchRecipeFeedback: UnwrapRef<typeof import('./api/recipes')['fetchRecipeFeedback']>
     readonly fetchRecipeQuota: UnwrapRef<typeof import('./api/recipes')['fetchRecipeQuota']>
     readonly fetchRecipesByMood: UnwrapRef<typeof import('./api/recipes')['fetchRecipesByMood']>
+    readonly fetchRecommendationHistory: UnwrapRef<typeof import('./api/recipes')['fetchRecommendationHistory']>
     readonly fetchRecommendationJob: UnwrapRef<typeof import('./api/recipes')['fetchRecommendationJob']>
     readonly fetchRecord: UnwrapRef<typeof import('./api/records')['fetchRecord']>
     readonly fetchRecords: UnwrapRef<typeof import('./api/records')['fetchRecords']>
@@ -582,6 +598,7 @@ declare module 'vue' {
     readonly inject: UnwrapRef<typeof import('vue')['inject']>
     readonly injectLocal: UnwrapRef<typeof import('@vueuse/core')['injectLocal']>
     readonly isDefined: UnwrapRef<typeof import('@vueuse/core')['isDefined']>
+    readonly isDisplayableWeeklyPlan: UnwrapRef<typeof import('./api/weeklyPlans')['isDisplayableWeeklyPlan']>
     readonly isProxy: UnwrapRef<typeof import('vue')['isProxy']>
     readonly isReactive: UnwrapRef<typeof import('vue')['isReactive']>
     readonly isReadonly: UnwrapRef<typeof import('vue')['isReadonly']>
@@ -716,6 +733,7 @@ declare module 'vue' {
     readonly unref: UnwrapRef<typeof import('vue')['unref']>
     readonly unrefElement: UnwrapRef<typeof import('@vueuse/core')['unrefElement']>
     readonly until: UnwrapRef<typeof import('@vueuse/core')['until']>
+    readonly updateFridgeItem: UnwrapRef<typeof import('./api/fridge')['updateFridgeItem']>
     readonly updateRecord: UnwrapRef<typeof import('./api/records')['updateRecord']>
     readonly updateUserInfo: UnwrapRef<typeof import('./api/auth')['updateUserInfo']>
     readonly uploadFile: UnwrapRef<typeof import('./api/request')['uploadFile']>

@@ -56,6 +56,41 @@ class DailyMealPlanServiceTest {
         var result = service.replace("u", date, 2);
         assertTrue(result.isPresent()); assertEquals("番茄炒蛋", result.get().meals().get(2).getName());
     }
+    @Test void fallsBackToSafeRecipesWhenKnowledgeOrSeasonDataIsUnavailable() {
+        DailyMealPlanRepository plans = mock(DailyMealPlanRepository.class);
+        RecipeRepository recipes = mock(RecipeRepository.class);
+        NutritionKnowledgePackRepository packs = mock(NutritionKnowledgePackRepository.class);
+        SeasonalIngredientRepository seasonal = mock(SeasonalIngredientRepository.class);
+        var date = LocalDate.of(2026, 10, 1);
+        when(plans.findByOpenidAndPlanDate("u", date)).thenReturn(java.util.Optional.empty());
+        when(packs.findByEnabledTrueAndLicenseStatus("commercially-usable")).thenReturn(List.of());
+        when(seasonal.findByEnabledTrueAndLicenseStatus("commercially-usable")).thenReturn(List.of());
+        when(recipes.findAll()).thenReturn(List.of(
+                recipe("番茄炒蛋", "番茄,鸡蛋"), recipe("清炒西兰花", "西兰花"), recipe("香菇青菜", "香菇,青菜")));
+        when(plans.save(any())).thenAnswer(i -> i.getArgument(0));
+        LlmClient llm = mock(LlmClient.class); when(llm.isConfigured()).thenReturn(false);
+        DailyMealPlanService service = new DailyMealPlanService(plans, recipes, mock(UserFoodPreferenceRepository.class), packs,
+                seasonal, new DailyMealPlanValidator(new AllergenNormalizationService(llm, new ObjectMapper())), new ObjectMapper());
+
+        var result = service.plan("u", date);
+
+        assertTrue(result.isPresent());
+        assertEquals(3, result.get().meals().size());
+        assertEquals("fallback", result.get().knowledgePackVersion());
+    }
+    @Test void hidesStoredPlanWithQuestionMarkCorruption() {
+        DailyMealPlanRepository plans = mock(DailyMealPlanRepository.class);
+        var date = LocalDate.of(2026, 9, 28);
+        var existing = new com.moodrecipe.backend.entity.DailyMealPlan(); existing.setOpenid("u"); existing.setPlanDate(date);
+        existing.setPlanJson("[{\"name\":\"????\",\"ingredients\":\"????\",\"steps\":\"????\"},{\"name\":\"番茄牛腩\",\"ingredients\":\"番茄\",\"steps\":\"炖熟即可\"},{\"name\":\"清炒时蔬\",\"ingredients\":\"青菜\",\"steps\":\"炒熟即可\"}]");
+        when(plans.findByOpenidAndPlanDate("u", date)).thenReturn(java.util.Optional.of(existing));
+        LlmClient llm = mock(LlmClient.class); when(llm.isConfigured()).thenReturn(false);
+        DailyMealPlanService service = new DailyMealPlanService(plans, mock(RecipeRepository.class), mock(UserFoodPreferenceRepository.class),
+                mock(NutritionKnowledgePackRepository.class), mock(SeasonalIngredientRepository.class),
+                new DailyMealPlanValidator(new AllergenNormalizationService(llm, new ObjectMapper())), new ObjectMapper());
+
+        assertTrue(service.plan("u", date).isEmpty());
+    }
     @Test void usesUnifiedProfileToRejectDislikedDishAndPreferLovedDish() {
         DailyMealPlanRepository plans = mock(DailyMealPlanRepository.class);
         RecipeRepository recipes = mock(RecipeRepository.class);

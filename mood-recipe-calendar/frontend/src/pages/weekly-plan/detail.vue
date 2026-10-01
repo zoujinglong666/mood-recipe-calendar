@@ -5,6 +5,8 @@ import { computed, nextTick, ref } from 'vue'
 import { resolveAssetUrl } from '@/api/request'
 import { generatePlanDishCover, getCurrentPlan, getWeeklyPlan, replacePlanDay, reportPlanDishOutcome, toggleShoppingItem } from '@/api/weeklyPlans'
 import { navBack } from '@/composables/useNavBar'
+import GuozaiButton from '@/components/guozai/GuozaiButton.vue'
+import GuozaiChipGroup from '@/components/guozai/GuozaiChipGroup.vue'
 import { exportRecipeShare, saveShareImage } from '@/utils/albumShare'
 import { STATIC_BASE_URL } from '@/utils/assets'
 import { toastError, toastSuccess } from '@/utils/toast'
@@ -33,6 +35,8 @@ const outcomeOptions = [
   { key: 'HARD', label: '有点难' },
   { key: 'SKIP', label: '没做成' },
 ] as const
+/** 交给 GuozaiChipGroup：value 用 outcome key，label 用中文 */
+const outcomeChipOptions = outcomeOptions.map(option => ({ value: option.key as string, label: option.label }))
 type OutcomeKey = typeof outcomeOptions[number]['key']
 const outcomeMap: Record<OutcomeKey, { cooked: boolean, leftover: boolean, tooHard: boolean }> = {
   DONE: { cooked: true, leftover: false, tooHard: false },
@@ -144,8 +148,8 @@ async function reportOutcome(dayIndex: number, dishIndex: number, dishName: stri
   }
 }
 
-function onOutcomeChange(dayIndex: number, dishIndex: number, dishName: string, event: { value: string | number | boolean }) {
-  const kind = String(event.value) as OutcomeKey
+function onOutcomeChange(dayIndex: number, dishIndex: number, dishName: string, value: string | string[]) {
+  const kind = String(value) as OutcomeKey
   if (kind in outcomeMap)
     void reportOutcome(dayIndex, dishIndex, dishName, kind)
 }
@@ -165,7 +169,7 @@ async function load() {
   catch (error) {
     if (sequence !== loadSequence) return
     toastError(error, '还没有备餐计划')
-    router.back()
+    navBack()
   }
   finally {
     loading.value = false
@@ -352,7 +356,7 @@ async function shareDay(day: PlanDay, index: number) {
                 <swiper-item v-for="(dish, dishIndex) in dishesOf(day)" :key="`${dish.name}-${dishIndex}`">
                   <view class="dish-cover" :class="{ 'dish-cover--loading': coverLoading[coverKey(index, dishIndex)] }">
                     <view v-if="coverOf(day, dishIndex)" class="dish-cover__preview" role="button" :aria-label="`预览${dish.name}菜品大图`" @click.stop="previewDishImages(day, dishIndex)">
-                      <image :src="resolveAssetUrl(coverOf(day, dishIndex))" mode="aspectFill" />
+                      <guozai-image :src="resolveAssetUrl(coverOf(day, dishIndex))" placeholder-text="🍲" />
                       <text class="dish-cover__preview-hint">
                         查看大图
                       </text>
@@ -446,32 +450,32 @@ async function shareDay(day: PlanDay, index: number) {
                       {{ dish.name }}
                     </text>
                   </view>
-                  <wd-radio-group
-                    custom-class="outcome-selector"
-                    type="button"
-                    direction="horizontal"
+                  <GuozaiChipGroup
                     :model-value="outcomes[feedbackKey(index, dishIndex)]"
+                    :options="outcomeChipOptions"
+                    :columns="2"
+                    aria-label="这道菜做得怎么样"
                     @change="onOutcomeChange(index, dishIndex, dish.name, $event)"
-                  >
-                    <wd-radio v-for="option in outcomeOptions" :key="option.key" :value="option.key">
-                      {{ option.label }}
-                    </wd-radio>
-                  </wd-radio-group>
+                  />
                 </view>
               </view>
 
-              <view class="record" role="button" :aria-label="`把${day.dishName}记进时光机`" @click="record(day.dishName)">
-                <view>
-                  <text class="record__title">
-                    做好这一桌？记进时光机
-                  </text>
-                  <text class="record__copy">
-                    给这一顿留下一个小纪念
-                  </text>
-                </view>
-                <text class="record__arrow">
-                  ›
-                </text>
+              <view class="record">
+                <GuozaiButton variant="primary" aria-label="把这一桌记进时光机" @click="record(day.dishName)">
+                  <view class="record__inner">
+                    <view class="record__copy-wrap">
+                      <text class="record__title">
+                        做好这一桌？记进时光机
+                      </text>
+                      <text class="record__copy">
+                        给这一顿留下一个小纪念
+                      </text>
+                    </view>
+                    <text class="record__arrow">
+                      ›
+                    </text>
+                  </view>
+                </GuozaiButton>
               </view>
             </view>
           </scroll-view>
@@ -531,7 +535,7 @@ async function shareDay(day: PlanDay, index: number) {
 .hero-copy, .shopping-copy { margin-top: 6rpx; color: var(--mrc-text-sub); font-size: 23rpx; line-height: 1.55; }
 .week-switcher { display: flex; gap: 8rpx; margin-bottom: 16rpx; }
 .week-tab { display: flex; min-width: 0; min-height: 88rpx; flex: 1; flex-direction: column; align-items: center; justify-content: center; border: 2rpx solid transparent; border-radius: 20rpx; color: var(--mrc-text-sub); font-size: 20rpx; transition: transform 180ms cubic-bezier(.23, 1, .32, 1), background-color 180ms cubic-bezier(.23, 1, .32, 1), color 180ms cubic-bezier(.23, 1, .32, 1); }
-.week-tab:active, .replace-action:active, .details-toggle:active, .record:active, .shopping-toggle:active, .shop-item:active { transform: scale(.98); opacity: .82; }
+.week-tab:active, .replace-action:active, .details-toggle:active, .shopping-toggle:active, .shop-item:active { transform: scale(.98); opacity: .82; }
 .week-tab--active { border-color: var(--mrc-border-light); background: var(--mrc-surface-peach); color: var(--mrc-text-strong); }
 .week-tab__index { margin-top: 2rpx; font-size: 18rpx; opacity: .68; }
 .day-progress { display: flex; justify-content: space-between; margin-bottom: 12rpx; color: var(--mrc-text-sub); font-size: 22rpx; }
@@ -540,7 +544,7 @@ async function shareDay(day: PlanDay, index: number) {
 .recipe-scroll { height: 100%; box-sizing: border-box; }
 .day-card { min-height: 720rpx; margin: 0 2rpx; padding: 30rpx; box-sizing: border-box; transition: transform 220ms cubic-bezier(.23, 1, .32, 1), opacity 180ms ease-out; }
 .day-card--active { transform: translateY(0); opacity: 1; }
-.day-card__topline, .shopping-toggle, .shop-item, .record, .step { display: flex; align-items: center; }
+.day-card__topline, .shopping-toggle, .shop-item, .step { display: flex; align-items: center; }
 .day-card__topline, .shopping-toggle, .shop-item { justify-content: space-between; }
 .replace-action { min-width: 112rpx; min-height: 72rpx; display: flex; align-items: center; justify-content: center; border-radius: 18rpx; background: var(--mrc-surface-peach); color: var(--mrc-accent); font-size: 22rpx; font-weight: 800; transition: transform 160ms ease-out, opacity 160ms ease-out; }
 .dish-cover-carousel { height: 300rpx; margin-top: 24rpx; overflow: hidden; border-radius: 24rpx; }
@@ -594,17 +598,19 @@ async function shareDay(day: PlanDay, index: number) {
 .steps { margin-top: 24rpx; }
 .step { align-items: flex-start; gap: 14rpx; margin-top: 14rpx; color: var(--mrc-text); font-size: 24rpx; line-height: 1.6; }
 .step__number { width: 34rpx; height: 34rpx; flex: 0 0 auto; border-radius: 50%; background: var(--mrc-primary); color: var(--mrc-surface); font-size: 20rpx; font-weight: 800; line-height: 34rpx; text-align: center; }
-.record { justify-content: space-between; gap: 20rpx; min-height: 108rpx; margin-top: 34rpx; padding: 18rpx 22rpx; border-radius: 22rpx; background: var(--mrc-primary); transition: transform 160ms ease-out, opacity 160ms ease-out; }
-.record__title { color: var(--mrc-surface); font-size: 27rpx; font-weight: 800; }
-.record__copy { margin-top: 4rpx; color: var(--mrc-surface); font-size: 21rpx; opacity: .78; }
-.record__arrow { color: var(--mrc-surface); font-size: 48rpx; font-weight: 300; }
+.record { margin-top: 34rpx; }
+.record__inner { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 20rpx; }
+.record__copy-wrap { display: flex; flex-direction: column; align-items: flex-start; }
+.record__title { color: #fff; font-size: 27rpx; font-weight: 800; }
+.record__copy { margin-top: 4rpx; color: #fff; font-size: 21rpx; opacity: .82; }
+.record__arrow { color: #fff; font-size: 48rpx; font-weight: 300; line-height: 1; }
 .agent-check { display: flex; align-items: center; gap: 14rpx; margin: 0 2rpx 16rpx; padding: 16rpx 18rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 22rpx; background: var(--mrc-surface-sun); box-shadow: var(--mrc-shadow-soft); }.agent-check image { width: 62rpx; height: 62rpx; flex: 0 0 auto; }.agent-check > view { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 4rpx; }.agent-check__title { color: var(--mrc-text-strong); font-size: 23rpx; font-weight: 800; }.agent-check__copy { color: var(--mrc-text-sub); font-size: 20rpx; line-height: 1.45; }.agent-check__tag { flex: 0 0 auto; padding: 8rpx 12rpx; border-radius: 999rpx; background: var(--mrc-surface-peach); color: var(--mrc-accent); font-size: 18rpx; font-weight: 700; }
 .dish-feedback { margin-top: 30rpx; padding: 24rpx 20rpx 20rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 24rpx; background: var(--mrc-surface-sun); }
 .dish-feedback__eyebrow { display: block; color: var(--mrc-accent); font-size: 19rpx; font-weight: 800; letter-spacing: 1rpx; }
 .dish-feedback__title { display: block; margin-top: 5rpx; color: var(--mrc-text-strong); font-size: 25rpx; font-weight: 800; }
 .dish-feedback__row { margin-top: 20rpx; padding: 18rpx; border-radius: 20rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); }
-.dish-feedback__dish { display: flex; align-items: center; gap: 12rpx; margin-bottom: 16rpx; }.dish-feedback__number { display: flex; width: 34rpx; height: 34rpx; align-items: center; justify-content: center; border-radius: 50%; background: var(--mrc-accent-soft); color: var(--mrc-accent); font-size: 19rpx; font-weight: 800; }.dish-feedback__name { color: var(--mrc-text-strong); font-size: 24rpx; font-weight: 750; }
-:deep(.outcome-selector) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10rpx; width: 100%; }:deep(.outcome-selector .wd-radio.is-button) { display: flex; width: 100%; min-width: 0; max-width: none; min-height: 68rpx; align-items: center; justify-content: center; margin: 0; border-color: var(--mrc-border); border-radius: 16rpx; background: var(--mrc-surface); box-sizing: border-box; }:deep(.outcome-selector .wd-radio__label) { display: flex; min-height: 64rpx; align-items: center; justify-content: center; padding: 0 10rpx; color: var(--mrc-text-sub); font-size: 21rpx; }:deep(.outcome-selector .wd-radio.is-checked) { border-color: var(--mrc-accent); background: var(--mrc-accent-soft); }:deep(.outcome-selector .wd-radio.is-checked .wd-radio__label) { color: var(--mrc-accent); font-weight: 800; }
+.dish-feedback__dish { display: flex; align-items: center; gap: 12rpx; margin-bottom: 16rpx; }.dish-feedback__number { display: flex; width: 34rpx; height: 34rpx; flex: 0 0 auto; align-items: center; justify-content: center; border-radius: 50%; background: var(--mrc-accent-soft); color: var(--mrc-accent); font-size: 19rpx; font-weight: 800; line-height: 1; }.dish-feedback__name { color: var(--mrc-text-strong); font-size: 24rpx; font-weight: 750; }
+/* 成果选择器改用 GuozaiChipGroup，样式由组件自身承担 */
 .shopping-panel { margin: 12rpx 2rpx 20rpx; overflow: hidden; }
 .shopping-toggle { min-height: 112rpx; padding: 16rpx 26rpx; box-sizing: border-box; transition: transform 160ms ease-out, opacity 160ms ease-out; }
 .shopping-title { color: var(--mrc-text-strong); font-size: 27rpx; font-weight: 800; }
@@ -617,5 +623,5 @@ async function shareDay(day: PlanDay, index: number) {
 .shop-item__quantity { color: var(--mrc-text-sub); font-size: 22rpx; }
 .done { color: var(--mrc-text-light) !important; text-decoration: line-through; }
 .checked { font-weight: 800; }
-@media (prefers-reduced-motion: reduce) { .week-tab, .day-card, .replace-action, .dish-pager__item, .share-day, .details-toggle, .details-toggle__arrow, .record, .shopping-toggle, .shop-item { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .week-tab, .day-card, .replace-action, .dish-pager__item, .share-day, .details-toggle, .details-toggle__arrow, .shopping-toggle, .shop-item { transition: none; } }
 </style>

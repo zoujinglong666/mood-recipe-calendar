@@ -20,7 +20,7 @@ const selected = ref('')
 
 async function onConfirm(m: { key: string }) {
   if (uni.getStorageSync('mrc_preference_onboarded')) {
-    router.push({ name: 'recipe', query: { mood: m.key } })
+    router.push({ name: 'recipe', params: { mood: m.key } })
     return
   }
   try {
@@ -28,9 +28,9 @@ async function onConfirm(m: { key: string }) {
     const preference = await fetchFoodPreference()
     if (preference.onboardingCompleted) {
       uni.setStorageSync('mrc_preference_onboarded', '1')
-      router.push({ name: 'recipe', query: { mood: m.key } })
+      router.push({ name: 'recipe', params: { mood: m.key } })
     } else {
-      router.push({ name: 'preferences', query: { from: 'onboarding', mood: m.key } })
+      router.push({ name: 'preferences', params: { from: 'onboarding', mood: m.key } })
     }
   } catch (e: any) {
     toastError(e, '暂时无法读取锅仔记忆')

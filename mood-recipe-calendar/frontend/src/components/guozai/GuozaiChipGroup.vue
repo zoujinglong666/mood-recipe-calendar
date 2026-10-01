@@ -81,7 +81,10 @@ function toggle(value: string) {
 <style lang="scss" scoped>
 .chip-group { display: flex; flex-wrap: wrap; justify-content: center; gap: 14rpx; }
 .chip-group--grid { display: grid; }
-.chip { min-height: 88rpx; display: flex; align-items: center; justify-content: center; box-sizing: border-box; padding: 0 12rpx; border: 2rpx solid var(--mrc-border); border-radius: 44rpx; background: var(--mrc-surface); color: #4A3022; font-size: 24rpx; font-weight: 700; transition: transform 150ms ease, background-color 200ms ease; }
+/* flex-shrink:0 + 内边距：自适应换行时胶囊不被挤压成椭圆，长文字也能撑住 */
+.chip { flex: 0 0 auto; min-height: 88rpx; display: flex; align-items: center; justify-content: center; box-sizing: border-box; padding: 0 34rpx; border: 2rpx solid var(--mrc-border); border-radius: 44rpx; background: var(--mrc-surface); color: #4A3022; font-size: 24rpx; font-weight: 700; white-space: nowrap; transition: transform 150ms ease, background-color 200ms ease; }
+/* 网格模式下胶囊等分占满列宽 */
+.chip-group--grid .chip { flex: 1 1 auto; min-width: 0; padding: 0 14rpx; }
 .chip--selected { border-color: var(--mrc-accent); background: #FCDCCB; color: #C63F22; font-weight: 800; }
 .chip--disabled { opacity: .5; pointer-events: none; }
 .chip--pressed { transform: scale(.96); }

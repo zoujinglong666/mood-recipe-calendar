@@ -3,8 +3,8 @@
   "navigationBarTitleText": "这一周吃什么",
   "usingComponents": {
     "wd-image-preview": "../../node-modules/@wot-ui/ui/components/wd-image-preview/wd-image-preview",
-    "wd-radio-group": "../../node-modules/@wot-ui/ui/components/wd-radio-group/wd-radio-group",
-    "wd-radio": "../../node-modules/@wot-ui/ui/components/wd-radio/wd-radio",
-    "wd-navbar": "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar"
+    "wd-navbar": "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar",
+    "guozai-button": "../../components/guozai/GuozaiButton",
+    "guozai-chip-group": "../../components/guozai/GuozaiChipGroup"
   }
 }

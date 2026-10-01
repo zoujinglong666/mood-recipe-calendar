@@ -66,7 +66,7 @@ function dateLabel(value?: string) {
 }
 
 function openPlan(id?: number) {
-  router.push({ name: 'weekly-plan-detail', query: id ? { id: String(id) } : {} })
+  router.push({ name: 'weekly-plan-detail', params: id ? { id: String(id) } : {} })
 }
 
 function toggleCookingDay(index: number) {
@@ -111,11 +111,26 @@ function finishTour() {
 async function generate() {
   if (generating.value)
     return
+  // 关键写入：重新生成会消耗一次 AI 并覆盖当前周计划，二次确认防误操作（与按钮防抖节流互补）
+  if (currentPlan.value) {
+    const confirmed = await new Promise<boolean>((resolve) => {
+      uni.showModal({
+        title: '重新生成周计划',
+        content: '将消耗一次 AI 生成，并覆盖当前这册晚餐单，确定继续吗？',
+        confirmText: '重新生成',
+        cancelText: '再想想',
+        success: res => resolve(res.confirm),
+        fail: () => resolve(false),
+      })
+    })
+    if (!confirmed)
+      return
+  }
   generating.value = true
   try {
     const notify = await requestWeeklyPlanCompletionNotice()
     const plan = await generateWeeklyPlan({ people: people.value, days: cookingDays.value.length, cookingDays: cookingDays.value, healthGoal: healthGoal.value, sendNotification: notify, dishesPerDay: dishesPerDay.value })
-    router.replace({ name: 'weekly-plan-detail', query: { id: String(plan.id) } })
+    router.replace({ name: 'weekly-plan-detail', params: { id: String(plan.id) } })
   }
   catch (error) {
     toastError(error, '锅仔暂时没排好这一周，请重试')
@@ -125,7 +140,18 @@ async function generate() {
   }
 }
 
-async function toggleFavorite(id: number) {
+// 节流防连点：收藏/取消是写入操作，快速点击会导致重复请求、状态乱跳（leading 节流，冷却期内忽略）
+function throttleClick<A extends unknown[]>(fn: (...args: A) => void, wait = 1500) {
+  let last = 0
+  return (...args: A) => {
+    const now = Date.now()
+    if (now - last < wait) return
+    last = now
+    fn(...args)
+  }
+}
+
+const toggleFavorite = throttleClick(async (id: number) => {
   try {
     const plan = await toggleWeeklyPlanFavorite(id)
     history.value = history.value.map(item => item.id === id ? { ...item, favorite: plan.favorite } : item)
@@ -133,7 +159,7 @@ async function toggleFavorite(id: number) {
   catch (error) {
     toastError(error, '收藏更新失败')
   }
-}
+}, 1500)
 </script>
 
 <template>

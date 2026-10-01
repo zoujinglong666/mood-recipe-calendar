@@ -70,6 +70,8 @@ import { toastError } from '../../utils/toast'
 import { fetchCompanionMessage, fetchRecordsByMonth, type CompanionMessage, type RecordItem } from '../../api/records'
 import { fetchRecipeQuota, type UsageQuotaView } from '../../api/recipes'
 import { fetchDailyBoard, refreshDailyBoard, type DailyBoard } from '../../api/dailyMenu'
+import { fetchFridgeSummary, type FridgeSummary } from '../../api/fridge'
+import { saveCookingDraft } from '../../utils/cookingDraft'
 
 definePage({ name: 'home', layout: 'tabbar', style: { navigationStyle: 'custom', navigationBarTitleText: '首页' } })
 const router = useRouter()
@@ -79,7 +81,7 @@ function bounceGuozai() {
   setTimeout(() => {
     isBouncing.value = false
     if (companion.value.actionTarget === 'meal-agent') {
-      router.push({ name: 'meal-agent', query: { prompt: companion.value.actionPrompt || companion.value.actionText } })
+      router.push({ name: 'meal-agent', params: { prompt: companion.value.actionPrompt || companion.value.actionText } })
       return
     }
     router.push({ name: 'mood' })
@@ -109,6 +111,7 @@ function cycleHeroGuozai() {
 const monthRecords = ref<RecordItem[]>([])
 const companion = ref<CompanionMessage>(localCompanion(now.value.getHours()))
 const recipeQuota = ref<UsageQuotaView>()
+const fridgeSummary = ref<FridgeSummary>()
 const recipeQuotaText = computed(() => {
   const quota = recipeQuota.value
   if (!quota) return '抽一道今日治愈菜'
@@ -159,6 +162,7 @@ async function loadData() {
     // 不能因为任何一项 400 就把已加载的本月记录清空（曾经因 /recipes/quota 400 导致首页显示 0 个坐标）
     monthRecords.value = await fetchRecordsByMonth(currentMonth.value)
     fetchRecipeQuota().then((q) => { recipeQuota.value = q }).catch(() => {})
+    fetchFridgeSummary().then((value) => { fridgeSummary.value = value }).catch(() => {})
     loadCompanion().catch(() => {})
     loadTodayBoard().catch(() => {})
   } catch (e: any) {
@@ -221,8 +225,12 @@ async function refreshBoard() {
   }
 }
 function goCookToday() {
-  const id = todayBoard.value?.recipe?.id
-  if (id) router.push({ name: 'recipe', query: { recipeId: String(id) } })
+  const board = todayBoard.value
+  if (!board?.recipe?.id)
+    return
+  // 今日菜单已经是一道确定的菜，直接把它交给做菜智能体，不能再次进入推荐页。
+  saveCookingDraft(board.recipe, '满足')
+  router.push({ name: 'cooking' })
 }
 
 onShow(() => {
@@ -230,10 +238,11 @@ onShow(() => {
   loadData()
 })
 const MOODS = ['开心', '平静', '疲惫', '焦虑', '难过', '嘴馋', '低落', '想家', '期待', '满足', '得意', '害羞']
-function gotoLucky() { router.push({ name: 'recipe', query: { mood: MOODS[Math.floor(Math.random() * MOODS.length)], random: '1' } }) }
+function gotoLucky() { router.push({ name: 'recipe', params: { mood: MOODS[Math.floor(Math.random() * MOODS.length)], random: '1' } }) }
 function goto(name: string, q?: Record<string, string>) { router.push({ name, query: q || {} }) }
+function openFridge() { router.push({ name: 'fridge' }) }
 function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
-  if (cell.records.length) router.push({ name: 'calendar', query: { day: String(cell.d) } })
+  if (cell.records.length) router.push({ name: 'calendar', params: { day: String(cell.d) } })
   else router.pushTab({ name: 'record' })
 }
 </script>
@@ -284,6 +293,11 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
         </view>
         <image v-if="todayBoard.recipe.image" class="home-board__img" :src="todayBoard.recipe.image" mode="aspectFill" />
         <image v-else class="home-board__img home-board__img--fallback" :src="STATIC_BASE_URL + '/static/guozai/action_01_bowl.png'" mode="aspectFit" />
+      </view>
+
+      <view v-if="fridgeSummary" class="home-fridge" role="button" aria-label="打开我的冰箱" @click="openFridge">
+        <view class="home-fridge__copy"><text class="home-fridge__eyebrow">锅仔的新记忆</text><text class="home-fridge__title">冰箱里还有什么？</text><text class="home-fridge__sub">{{ fridgeSummary.soon ? `今天优先消耗 ${fridgeSummary.soon} 项食材` : `已记录 ${fridgeSummary.total} 项食材` }}</text></view>
+        <view class="home-fridge__right"><text>{{ fridgeSummary.soon }}</text><text>临期</text><text class="home-fridge__arrow">›</text></view>
       </view>
 
       <view class="home-lucky" role="button" aria-label="让锅仔随机推荐一道菜" @click="gotoLucky">
@@ -385,6 +399,7 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
 .home-board__cook-arrow { margin-left: 4rpx; font-size: 30rpx; line-height: 20rpx; }
 .home-board__img { width: 176rpx; height: 176rpx; flex-shrink: 0; border-radius: 24rpx; background: var(--mrc-surface-2); }
 .home-board__img--fallback { background: var(--mrc-surface-peach); }
+.home-fridge { display: flex; align-items: center; justify-content: space-between; gap: 18rpx; margin: 0 0 24rpx; padding: 22rpx 24rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; background: var(--mrc-surface-mint); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }.home-fridge__copy { display: flex; min-width: 0; flex-direction: column; gap: 6rpx; }.home-fridge__eyebrow { color: var(--mrc-mint); font-size: 19rpx; font-weight: 800; letter-spacing: 1px; }.home-fridge__title { color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 800; }.home-fridge__sub { color: var(--mrc-text-sub); font-size: 20rpx; }.home-fridge__right { display: flex; align-items: center; gap: 4rpx; flex: 0 0 auto; color: var(--mrc-mint); }.home-fridge__right text:first-child { font-size: 34rpx; font-weight: 800; }.home-fridge__right text:nth-child(2) { align-self: flex-end; margin-bottom: 8rpx; font-size: 18rpx; }.home-fridge__arrow { margin-left: 8rpx; font-size: 40rpx; line-height: 1; }.home-fridge:active { opacity: .78; transform: scale(.985); }
 
 /* 唯一强 CTA，减少一页内互相抢眼的高饱和元素。 */
 .home-lucky { display: flex; align-items: center; justify-content: space-between; min-height: 156rpx; padding: 24rpx 32rpx; border-radius: 32rpx; background: var(--mrc-primary-grad); box-shadow: var(--mrc-shadow-coral), var(--mrc-gloss); box-sizing: border-box; }

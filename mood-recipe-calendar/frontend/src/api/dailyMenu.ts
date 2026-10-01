@@ -11,6 +11,11 @@ export interface DailyBoard {
 }
 
 function normalizeBoard(board: DailyBoard): DailyBoard {
+  const visibleText = (value: unknown) => typeof value !== 'string' || !/[?？�]/.test(value)
+  if (!board?.recipe || !visibleText(board.recipe.name) || !visibleText(board.recipe.description)
+    || !visibleText(board.recipe.ingredients) || !visibleText(board.recipe.steps) || !visibleText(board.guozaiLine)) {
+    throw new Error('今日菜单数据异常，已拦截展示')
+  }
   return { ...board, recipe: { ...board.recipe, image: resolveAssetUrl(board.recipe?.image || '') } }
 }
 

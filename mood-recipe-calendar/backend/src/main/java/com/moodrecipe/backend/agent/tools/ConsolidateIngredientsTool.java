@@ -6,6 +6,7 @@ import com.moodrecipe.backend.agent.AgentTool;
 import com.moodrecipe.backend.agent.MenuQualityScorer;
 import com.moodrecipe.backend.agent.ToolContext;
 import com.moodrecipe.backend.agent.ToolResult;
+import com.moodrecipe.backend.service.IngredientSynonymService;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -18,6 +19,12 @@ import java.util.Set;
 /** 合并食材、统计复用率，给出"哪几样可以一次买够"的买菜建议。 */
 @Service
 public class ConsolidateIngredientsTool implements AgentTool {
+
+    private final IngredientSynonymService synonyms;
+
+    public ConsolidateIngredientsTool(IngredientSynonymService synonyms) {
+        this.synonyms = synonyms;
+    }
 
     @Override
     public String name() {
@@ -53,8 +60,10 @@ public class ConsolidateIngredientsTool implements AgentTool {
                 int weekday = day.path("weekday").asInt(0);
                 for (MenuQualityScorer.DishInput dish : AgentDishes.read(context.json(), day.path("dishes"))) {
                     for (String raw : dish.ingredients()) {
-                        String key = MenuQualityScorer.normalizeIngredient(raw);
-                        if (key.isBlank()) continue;
+                        String norm = MenuQualityScorer.normalizeIngredient(raw);
+                        if (norm.isBlank()) continue;
+                        // 同义词归一：把「葱花」「小葱」都识别成「葱」，避免同一食材在清单里拆成多项
+                        String key = synonyms.canonical(norm);
                         byDay.computeIfAbsent(key, ignored -> new LinkedHashSet<>()).add(weekday);
                     }
                 }

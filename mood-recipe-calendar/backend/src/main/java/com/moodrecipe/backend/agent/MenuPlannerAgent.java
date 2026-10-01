@@ -220,12 +220,12 @@ public class MenuPlannerAgent {
         }
     }
 
-    /** 模型 JSON 解析成功不代表能展示：拒绝替换字符、控制字符和常见 UTF-8 误解码残留。 */
+    /** 模型 JSON 解析成功不代表能展示：拒绝替换字符、问号污染、控制字符和常见 UTF-8 误解码残留。 */
     public static boolean displayableText(String value, int maxLength) {
         if (value == null || value.isBlank() || value.length() > maxLength) return false;
         for (int offset = 0; offset < value.length();) {
             int codePoint = value.codePointAt(offset);
-            if (codePoint == 0xfffd || Character.isISOControl(codePoint)
+            if (codePoint == '?' || codePoint == '？' || codePoint == 0xfffd || Character.isISOControl(codePoint)
                     || (codePoint >= 0x80 && codePoint <= 0xff && codePoint != 0x00b7)) {
                 return false;
             }

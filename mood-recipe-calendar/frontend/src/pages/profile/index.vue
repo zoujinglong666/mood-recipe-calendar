@@ -189,11 +189,33 @@ function goTimeline() {
   const now = Date.now()
   if (now - lastTimelineNavAt < 600) return
   lastTimelineNavAt = now
-  router.push({ name: 'timeline' })
+  router.push({ name: 'timeline' }).catch(() => {
+    router.replace({ name: 'timeline' }).catch(() => {
+      toast('暂时打不开时光机，请稍后再试')
+      lastTimelineNavAt = 0
+    })
+  })
+}
+function goRecommendationHistory() {
+  router.push({ name: 'recommendation-history' })
 }
 
+// 节流 + 失败兜底：router.push 是异步的，页面栈满 / 路由超时会 reject，
+// 不 catch 就会「点了没反应」。这里失败降级为 redirectTo，再失败才提示。
+let lastHistoryNavAt = 0
 function openHistoryRecord(item: RecordItem) {
-  router.push({ name: 'record-detail', query: { id: String(item.id) } })
+  const now = Date.now()
+  if (now - lastHistoryNavAt < 600) return
+  lastHistoryNavAt = now
+  // 注意：@wot-ui/router 用 name 跳转时只把 params 拼进 URL，query 会被丢弃，
+  // 必须传 params，否则目标页 route.query.id 为 undefined（报「记录不存在」）
+  const params = { id: String(item.id) }
+  router.push({ name: 'record-detail', params }).catch(() => {
+    router.replace({ name: 'record-detail', params }).catch(() => {
+      toast('这条记录暂时打不开，请稍后再试')
+      lastHistoryNavAt = 0
+    })
+  })
 }
 function goPreferences() {
   router.push({ name: 'preferences' })
@@ -454,6 +476,10 @@ function openStat(type: 'records' | 'days' | 'streak') {
             往回翻每一顿饭
           </text>
         </view>
+      </view>
+      <view class="profile-action" role="button" aria-label="打开推荐记录" @click="goRecommendationHistory">
+        <image :src="`${STATIC_BASE_URL}/static/guozai/action_02_soup.png`" class="profile-action__guozai" mode="aspectFit" />
+        <view class="profile-action__copy"><text class="profile-action__text">推荐记录</text><text class="profile-action__sub">找回锅仔推荐过的菜</text></view>
       </view>
     </view>
 
@@ -818,11 +844,12 @@ function openStat(type: 'records' | 'days' | 'streak') {
 /* 功能按钮 */
 .profile-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 16rpx;
   margin-bottom: 24rpx;
 }
 .profile-action {
-  flex: 1;
+  flex: 1 1 calc(50% - 8rpx);
   display: flex;
   flex-direction: row;
   align-items: center;

@@ -1,6 +1,7 @@
 package com.moodrecipe.backend.agent;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -16,6 +17,8 @@ import java.util.regex.Pattern;
  * 它不再是主力，只作为模型抽取失败时的安全网，以及卡片点选的解析通道。
  */
 public final class HeuristicExtractor {
+
+    private static final ZoneId CHINA_ZONE = ZoneId.of("Asia/Shanghai");
 
     private static final Map<String, String> REGIONS = Map.of(
             "江西", "赣菜", "四川", "川菜", "湖南", "湘菜", "广东", "粤菜",
@@ -54,9 +57,11 @@ public final class HeuristicExtractor {
         if (value.startsWith("budget=")) return state.withBudget(value.substring(7));
         if (value.equals("elder=yes")) return state.withHasElder(true);
         if (value.equals("child=yes")) return state.withHasChild(true);
+        if (value.equals("pregnant=yes")) return state.withMealContext(appendContext(state.mealContext(), "家有孕妇"));
         if (value.startsWith("household=")) {
             String household = value.substring(10);
-            return state.withHousehold(household.contains("elder"), household.contains("child"));
+            DialogueState.AgentState next = state.withHousehold(household.contains("elder"), household.contains("child"));
+            return household.contains("pregnant") ? next.withMealContext(appendContext(next.mealContext(), "家有孕妇")) : next;
         }
         if (value.equals("记住")) return state.withCuisineConfirmed(true);
         if (value.startsWith("days=")) {
@@ -84,14 +89,15 @@ public final class HeuristicExtractor {
             facts.add(AgentFact.explicit("mealContext", text.substring(0, Math.min(text.length(), 200)), "原话：" + text));
             if (text.contains("今天")) {
                 facts.add(AgentFact.explicit("cookingDays",
-                        String.valueOf(LocalDate.now().getDayOfWeek().getValue() - 1), "用户明确说今天"));
+                        String.valueOf(LocalDate.now(CHINA_ZONE).getDayOfWeek().getValue() - 1), "用户明确说今天"));
             }
         }
 
         boolean hasElder = contains(text, "老人", "长辈");
         boolean hasChild = contains(text, "小孩", "孩子", "宝宝");
-        if (hasElder || hasChild) {
-            String household = hasElder && hasChild ? "有老人和小孩" : hasElder ? "有老人" : "有小孩";
+        boolean hasPregnant = contains(text, "孕妇", "孕期", "怀孕");
+        if (hasElder || hasChild || hasPregnant) {
+            String household = (hasElder ? "有老人" : "") + (hasChild ? "和小孩" : "") + (hasPregnant ? "和孕妇" : "");
             facts.add(AgentFact.explicit("household", household, "原话：" + text));
         }
 
@@ -163,5 +169,10 @@ public final class HeuristicExtractor {
 
     private static Integer clamp(Integer value, int min, int max) {
         return value == null ? null : Math.max(min, Math.min(max, value));
+    }
+
+    private static String appendContext(String existing, String addition) {
+        if (existing == null || existing.isBlank()) return addition;
+        return existing.contains(addition) ? existing : existing + "；" + addition;
     }
 }

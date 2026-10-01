@@ -7,6 +7,7 @@ import com.moodrecipe.backend.agent.ToolContext;
 import com.moodrecipe.backend.agent.ToolResult;
 import com.moodrecipe.backend.entity.Recipe;
 import com.moodrecipe.backend.repository.RecipeRepository;
+import com.moodrecipe.backend.service.IngredientSynonymService;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -19,9 +20,11 @@ import java.util.Map;
 public class SearchRecipeTool implements AgentTool {
 
     private final RecipeRepository recipes;
+    private final IngredientSynonymService synonyms;
 
-    public SearchRecipeTool(RecipeRepository recipes) {
+    public SearchRecipeTool(RecipeRepository recipes, IngredientSynonymService synonyms) {
         this.recipes = recipes;
+        this.synonyms = synonyms;
     }
 
     @Override
@@ -65,7 +68,8 @@ public class SearchRecipeTool implements AgentTool {
             String text = (recipe.getName() == null ? "" : recipe.getName()) + " "
                     + (recipe.getDescription() == null ? "" : recipe.getDescription()) + " "
                     + (recipe.getIngredients() == null ? "" : recipe.getIngredients());
-            if (!query.isBlank() && !text.contains(query)) continue;
+            // 同义词扩展匹配：用户查「西红柿」也能召回食材/菜名写「番茄」的菜，提升检索召回
+            if (!query.isBlank() && !synonyms.matchesText(text, query)) continue;
             if (!cuisine.isBlank() && !text.contains(cuisine)) continue;
             if (maxMinutes > 0 && recipe.getCookingTime() != null && recipe.getCookingTime() > maxMinutes) continue;
             Map<String, Object> item = new LinkedHashMap<>();

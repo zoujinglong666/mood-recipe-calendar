@@ -347,10 +347,7 @@ function share() {
           </view>
         </view>
         <image class="rpt-share__guozai" :src="STATIC_BASE_URL + '/static/guozai/action_09_celebrate.png'" mode="aspectFit" />
-        <view class="rpt-share__btn" @click="share">
-          <text class="rpt-share__btn-text">分享我的{{ currentYear }}干饭报告</text>
-          <view class="rpt-share__qrcode"><view class="rpt-share__qr-grid" /></view>
-        </view>
+        <view class="rpt-share__qrcode"><view class="rpt-share__qr-grid" /></view>
         <view class="rpt-share__custom">
           <view class="rpt-share__line" />
           <text class="rpt-share__custom-text">定制我的{{ currentYear }}干饭纪念册</text>
@@ -961,23 +958,6 @@ function share() {
   height: 320rpx;
   margin: 16rpx 0;
 }
-.rpt-share__btn {
-  width: 100%;
-  background: linear-gradient(135deg, var(--mrc-mood-anxious), var(--mrc-primary-deep));
-  border-radius: 48rpx;
-  padding: 32rpx 40rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 24rpx;
-  box-shadow: 0 8rpx 24rpx rgba(253, 145, 132, 0.3);
-  margin-bottom: 32rpx;
-}
-.rpt-share__btn-text {
-  font-size: 38rpx;
-  color: #fff;
-  font-weight: 700;
-}
 .rpt-share__qrcode {
   width: 80rpx;
   height: 80rpx;
@@ -985,6 +965,7 @@ function share() {
   border-radius: 8rpx;
   padding: 8rpx;
   box-sizing: border-box;
+  margin-bottom: 28rpx;
 }
 .rpt-share__qr-grid {
   width: 100%;

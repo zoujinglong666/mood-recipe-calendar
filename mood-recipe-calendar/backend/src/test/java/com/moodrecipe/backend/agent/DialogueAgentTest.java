@@ -53,7 +53,29 @@ class DialogueAgentTest {
         DialogueState.Turn turn = agent(llm, List.of()).turn(OPENID, "帮我安排一下", null);
 
         assertEquals("ASK_PEOPLE", turn.action(), "模型想跳过关键信息时，服务端必须拦住");
-        assertTrue(turn.card() == null, "已理解但缺少信息时应使用文字追问，不强制弹卡");
+        assertNotNull(turn.card(), "缺少关键信息时应主动弹出动态选择器");
+    }
+
+    @Test
+    void turnsModelUncertaintyIntoAnActiveClarifyingQuestion() {
+        FakeLlm llm = new FakeLlm();
+        llm.understand = "{\"facts\":[],\"unclear\":[\"用户说想吃点好的，但没有说明是丰盛还是清淡\"]}";
+        llm.decide = "{\"action\":\"ASK_CLARIFY\",\"reply\":\"我先确认一下\","
+                + "\"card\":{\"type\":\"OPTIONS\",\"title\":\"你说的\u201c好\u201d更接近哪种？\","
+                + "\"description\":\"也可以直接告诉我\",\"options\":["
+                + "{\"label\":\"丰盛一点\",\"value\":\"想吃丰盛的\"},"
+                + "{\"label\":\"清淡舒服\",\"value\":\"想吃清淡的\"}]}}";
+
+        assertEquals("你说的“好”更接近哪种？", AgentCards.accept("ASK_CLARIFY", DialogueState.AgentState.empty(),
+                "OPTIONS", "你说的“好”更接近哪种？", "也可以直接告诉我",
+                List.of(new DialogueState.Option("丰盛一点", "想吃丰盛的"))).title());
+
+        DialogueState.Turn turn = agent(llm, List.of()).turn(OPENID, "我想吃点好的", null);
+
+        assertEquals("ASK_CLARIFY", turn.action());
+        assertNotNull(turn.card());
+        assertEquals("你说的“好”更接近哪种？", turn.card().title());
+        assertTrue(turn.card().options().stream().anyMatch(option -> "其他".equals(option.label())));
     }
 
     /** 自主学习：问了多次都没人答的问题，不再追问，直接用默认值。 */
@@ -154,12 +176,51 @@ class DialogueAgentTest {
     }
 
     @Test
+    void householdPickerIncludesPregnantAndAdultAndKeepsPregnancyContext() {
+        DialogueState.Card card = AgentCards.defaultCard("ASK_HOUSEHOLD", DialogueState.AgentState.empty());
+        assertTrue(card.options().stream().anyMatch(option -> "有孕妇".equals(option.label())));
+        assertTrue(card.options().stream().anyMatch(option -> "都是成人".equals(option.label())));
+
+        DialogueState.AgentState selected = HeuristicExtractor.applySelection(
+                DialogueState.AgentState.empty(), "household=pregnant");
+        assertTrue(selected.mealContext().contains("家有孕妇"));
+    }
+
+    @Test
+    void acceptsModelGeneratedOptionsOutsideThePresetListAndAlwaysAddsOther() {
+        DialogueState.Card card = AgentCards.accept("ASK_SPICE", DialogueState.AgentState.empty(),
+                "OPTIONS", "今晚想怎么吃", "可以直接描述口味",
+                List.of(new DialogueState.Option("酸甜开胃", "想吃酸甜的"),
+                        new DialogueState.Option("家常清淡", "清淡但要有滋味")));
+
+        assertEquals(3, card.options().size());
+        assertTrue(card.options().stream().anyMatch(option -> "想吃酸甜的".equals(option.value())));
+        assertTrue(card.options().stream().anyMatch(option -> "other".equals(option.value())));
+    }
+
+    @Test
     void medicalRequestsUseFixedBoundaryWithoutCallingModel() {
         FakeLlm llm = new FakeLlm();
         DialogueState.Turn turn = agent(llm, List.of()).turn(OPENID, "糖尿病怎么停药，吃什么能治疗？", null);
 
         assertTrue(turn.reply().contains("不能根据疾病给出诊断、治疗或停药建议"));
         assertNotNull(turn.card());
+    }
+
+    @Test
+    void correctsModelWeekdayToChinaToday() {
+        FakeLlm llm = new FakeLlm();
+        llm.decide = "{\"action\":\"ASK_CUISINE\",\"reply\":\"今天（周五）想吃什么菜系？\",\"card\":{\"type\":\"OPTIONS\",\"title\":\"选择菜系\",\"description\":\"\",\"options\":[]}}";
+
+        DialogueState.Turn turn = agent(llm, List.of()).turn(OPENID, "", DialogueState.AgentState.empty()
+                .withPeople(2).withCookingDays(List.of(0)).withDishesPerDay(1)
+                .withHealthGoal("BALANCED").withBudget("DAILY"));
+
+        String expected = switch (java.time.LocalDate.now(java.time.ZoneId.of("Asia/Shanghai")).getDayOfWeek()) {
+            case MONDAY -> "周一"; case TUESDAY -> "周二"; case WEDNESDAY -> "周三";
+            case THURSDAY -> "周四"; case FRIDAY -> "周五"; case SATURDAY -> "周六"; case SUNDAY -> "周日";
+        };
+        assertTrue(turn.reply().contains("今天（" + expected + "）"), turn.reply());
     }
 
     private DialogueAgent agent(LlmClient llm, List<AgentMemoryFact> memory) {

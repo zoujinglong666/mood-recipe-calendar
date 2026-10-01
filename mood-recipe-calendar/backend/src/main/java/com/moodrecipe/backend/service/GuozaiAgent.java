@@ -117,6 +117,7 @@ public class GuozaiAgent {
                 // 动态推荐理由：结合记忆分析 + AI 生成的 description
                 generated.setRecommendationReason(buildSmartReason(mood, snapshot, preference, generated.getDescription()));
                 generated.setRecommendationInsights(recommendationInsights(generated, snapshot));
+                if (generated.getId() != null) recordInteraction(openid, generated.getId(), "SHOWN");
                 generated.setExposureId(exposures.recordShown(openid, generated, "AI"));
                 update(progress, RecommendationJobService.Stage.FINALIZE,
                         RecommendationJobService.StepStatus.COMPLETED, "菜谱已经整理完成");

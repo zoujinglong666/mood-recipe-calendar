@@ -19,6 +19,7 @@ export interface CheckinStatus {
   exchangeReady: boolean
   daysToExchange: number
   totalDays: number
+  agentConversationGifted?: boolean
 }
 
 /** 订单 */

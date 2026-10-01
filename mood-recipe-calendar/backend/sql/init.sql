@@ -101,9 +101,24 @@ CREATE TABLE IF NOT EXISTS user_food_preferences (
 
 CREATE TABLE IF NOT EXISTS usage_quotas (
   id BIGINT AUTO_INCREMENT PRIMARY KEY, openid VARCHAR(64) NOT NULL, feature VARCHAR(32) NOT NULL,
-  period_start DATE NOT NULL, used_count INT NOT NULL DEFAULT 0,
+  period_start DATE NOT NULL, used_count INT NOT NULL DEFAULT 0, last_conversation_id VARCHAR(64) NULL,
   UNIQUE KEY uk_usage_quota (openid, feature, period_start)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='会员与免费功能配额';
+
+-- ---------- 用户冰箱食材 ----------
+CREATE TABLE IF NOT EXISTS fridge_items (
+  id           BIGINT AUTO_INCREMENT PRIMARY KEY,
+  openid       VARCHAR(64) NOT NULL,
+  name         VARCHAR(80) NOT NULL,
+  quantity     DECIMAL(10,2) NOT NULL,
+  unit         VARCHAR(20) NOT NULL,
+  purchased_on DATE,
+  expires_on   DATE,
+  note         VARCHAR(240),
+  created_at   DATETIME NOT NULL,
+  updated_at   DATETIME NOT NULL,
+  KEY idx_fridge_openid_expiry (openid, expires_on)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户冰箱食材库存';
 
 -- ---------- 每周备餐计划 ----------
 CREATE TABLE IF NOT EXISTS weekly_meal_plans (

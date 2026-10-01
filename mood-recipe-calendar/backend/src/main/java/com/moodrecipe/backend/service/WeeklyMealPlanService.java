@@ -12,10 +12,12 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.*;
 
 @Service
 public class WeeklyMealPlanService {
+    private static final ZoneId CHINA_ZONE = ZoneId.of("Asia/Shanghai");
     private final WeeklyMealPlanRepository plans;
     private final GuozaiAgent agent;
     private final MenuPlannerAgent planner;
@@ -281,7 +283,7 @@ public class WeeklyMealPlanService {
         boolean oneOffMeal = List.of("客人", "宾客", "宴请", "聚餐", "家宴", "请客", "招待", "酒席")
                 .stream().anyMatch(notes::contains);
         if (oneOffMeal && notes.contains("今天")) {
-            return List.of(LocalDate.now().getDayOfWeek().getValue() - 1);
+            return List.of(LocalDate.now(CHINA_ZONE).getDayOfWeek().getValue() - 1);
         }
         if (request.cookingDays() != null && !request.cookingDays().isEmpty()) {
             List<Integer> selected = request.cookingDays().stream().filter(day -> day >= 0 && day < 7).distinct().sorted().toList();
@@ -300,10 +302,6 @@ public class WeeklyMealPlanService {
     private List<String> steps(String value) { return readStrings(value); }
     private List<String> readStrings(String value) { try { return json.readValue(value, new TypeReference<List<String>>() {}); } catch (Exception e) { return value == null || value.isBlank() ? List.of() : List.of(value); } }
     private List<PlanDay> readDays(String value) { try { return json.readValue(value, new TypeReference<List<PlanDay>>() {}); } catch (Exception e) { return List.of(); } }
-    private List<PlanDay> visibleDays(String value) {
-        List<PlanDay> days = readDays(value);
-        return displayablePlan(days) ? days : List.of();
-    }
     private boolean displayablePlan(List<PlanDay> days) {
         if (days == null || days.isEmpty()) return false;
         for (PlanDay day : days) {
@@ -323,10 +321,23 @@ public class WeeklyMealPlanService {
     private boolean displayableTexts(List<String> values, int maxLength) {
         return values == null || values.stream().allMatch(value -> MenuPlannerAgent.displayableText(value, maxLength));
     }
-    private List<ShoppingItem> readShopping(String value) { try { return json.readValue(value, new TypeReference<List<ShoppingItem>>() {}); } catch (Exception e) { return List.of(); } }
+    private List<ShoppingItem> readShopping(String value) {
+        try {
+            List<ShoppingItem> items = json.readValue(value, new TypeReference<List<ShoppingItem>>() {});
+            if (items == null) return List.of();
+            return items.stream()
+                    .filter(item -> item != null
+                            && MenuPlannerAgent.displayableText(item.name, 80)
+                            && MenuPlannerAgent.displayableText(item.category, 20)
+                            && MenuPlannerAgent.displayableText(item.quantity, 20))
+                    .toList();
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
     private String write(Object value) { try { return json.writeValueAsString(value); } catch (Exception e) { throw new IllegalStateException("计划保存失败"); } }
-    private PlanView view(WeeklyMealPlan plan) { return new PlanView(plan.getId(), visibleDays(plan.getPlanJson()), readShopping(plan.getShoppingJson()), plan.isFavorite(), plan.getCreatedAt(), readAudit(plan.getAgentJson())); }
-    private PlanSummary summary(WeeklyMealPlan plan) { return new PlanSummary(plan.getId(), plan.getCreatedAt(), plan.isFavorite(), visibleDays(plan.getPlanJson())); }
+    private PlanView view(WeeklyMealPlan plan) { return new PlanView(plan.getId(), readDays(plan.getPlanJson()), readShopping(plan.getShoppingJson()), plan.isFavorite(), plan.getCreatedAt(), readAudit(plan.getAgentJson())); }
+    private PlanSummary summary(WeeklyMealPlan plan) { return new PlanSummary(plan.getId(), plan.getCreatedAt(), plan.isFavorite(), readDays(plan.getPlanJson())); }
     private PlanAudit readAudit(String value) { try { return value == null || value.isBlank() ? null : json.readValue(value, PlanAudit.class); } catch (Exception e) { return null; } }
 
     public record GenerateRequest(int people, int days, List<Integer> cookingDays, String healthGoal,

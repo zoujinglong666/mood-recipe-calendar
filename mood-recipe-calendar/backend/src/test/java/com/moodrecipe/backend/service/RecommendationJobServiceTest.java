@@ -63,6 +63,23 @@ class RecommendationJobServiceTest {
     }
 
     @Test
+    void chargesOnlyWhenSuccessfulResultIsRead() throws Exception {
+        RecommendationJobService service = new RecommendationJobService(Duration.ofSeconds(1));
+        AtomicInteger charges = new AtomicInteger();
+        try {
+            var created = service.start("user-1", "平静", () -> { }, progress -> {
+                Recipe recipe = new Recipe(); recipe.setName("番茄炒蛋"); return recipe;
+            });
+            waitForTerminal(service, created.jobId());
+            service.chargeOnSuccess(created.jobId(), "user-1", charges::incrementAndGet);
+            service.chargeOnSuccess(created.jobId(), "user-1", charges::incrementAndGet);
+            assertEquals(1, charges.get());
+        } finally {
+            service.close();
+        }
+    }
+
+    @Test
     void protectsOwnerAndKeepsFallbackDegradationUntilExpiry() throws Exception {
         RecommendationJobService service = new RecommendationJobService(Duration.ofMillis(20));
         try {

@@ -96,16 +96,27 @@ onShow(() => {
 })
 
 // ---------- 签到 ----------
-async function onCheckin() {
+// 节流防连点：签到是写入操作，快速点击会触发多次入库（leading 节流，冷却期内忽略）
+function throttleClick<A extends unknown[]>(fn: (...args: A) => void, wait = 1500) {
+  let last = 0
+  return (...args: A) => {
+    const now = Date.now()
+    if (now - last < wait) return
+    last = now
+    fn(...args)
+  }
+}
+
+const onCheckin = throttleClick(async () => {
   if (checkin.value.checkedIn) return
   try {
     await ensureLogin()
     checkin.value = await doCheckin()
-    toast('签到成功，锅仔陪你吃饭！')
+    toast('签到成功，已获得 1 次锅仔智能体对话！')
   } catch (e: any) {
     toastError(e, '签到失败')
   }
-}
+}, 1500)
 
 // ---------- 表情包下载（小程序保存到相册） ----------
 function onDownloadSticker(sticker: { name: string; src: string }) {
@@ -167,7 +178,7 @@ const orderTypeText: Record<string, string> = {}
             <text class="checkin-card__streak">
               连续签到 <text class="checkin-card__num">{{ checkin.streak }}</text> / 30 天
             </text>
-            <text class="checkin-card__hint">满 30 天解锁锅仔限定纪念徽章</text>
+            <text class="checkin-card__hint">每日签到送 1 次锅仔对话 · 满 30 天解锁纪念徽章</text>
           </view>
           <view class="checkin-bar">
             <view class="checkin-bar__inner" :style="{ width: progressPct + '%' }" />
@@ -408,7 +419,9 @@ const orderTypeText: Record<string, string> = {}
   box-shadow: 0 6rpx 16rpx rgba(255, 139, 106, 0.4);
 }
 .checkin-btn--done {
-  background: var(--mrc-green);
+  background: var(--mrc-surface, #FFF6EA);
+  color: var(--mrc-primary-deep, #C94418);
+  border: 2rpx solid var(--mrc-primary, #E8652B);
   box-shadow: none;
 }
 .checkin-btn--ready {

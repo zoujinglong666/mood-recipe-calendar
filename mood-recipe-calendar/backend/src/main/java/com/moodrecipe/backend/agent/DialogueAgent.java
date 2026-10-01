@@ -16,6 +16,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.ZoneId;
 
 /**
  * 备餐对话智能体。
@@ -29,6 +32,8 @@ import java.util.Set;
  */
 @Service
 public class DialogueAgent {
+
+    private static final ZoneId CHINA_ZONE = ZoneId.of("Asia/Shanghai");
 
     private static final Set<String> SPICE_VALUES = Set.of("不吃辣", "微辣", "能吃辣");
     private static final Set<String> GOAL_VALUES = Set.of("FITNESS", "LEAN", "BALANCED");
@@ -101,9 +106,11 @@ public class DialogueAgent {
             rememberCuisine(openid, state.favoriteCuisine());
         }
 
-        Decision decision = decide(input, state, profile, independentMeal, gaps, conflicts, degraded);
-        String action = validateAction(decision.action(), state, gaps, conflicts);
-        boolean needsCard = input.isBlank() || !conflicts.isEmpty() || understanding.unclear();
+        Decision decision = decide(input, state, profile, independentMeal, gaps, conflicts, understanding.unclear(), degraded);
+        String action = validateAction(decision.action(), state, gaps, conflicts, understanding.unclear());
+        // 只要当前动作是追问，就把模型生成的动态选择器展示出来；不再要求用户先触发固定关键词。
+        boolean needsCard = input.isBlank() || !conflicts.isEmpty() || !understanding.unclear().isEmpty()
+                || action.startsWith("ASK_") || "CONFIRM_CUISINE".equals(action);
         DialogueState.Card card = needsCard ? AgentCards.accept(action, state,
                 decision.cardType(), decision.cardTitle(), decision.cardDescription(), decision.cardOptions()) : null;
 
@@ -111,6 +118,7 @@ public class DialogueAgent {
                 ? gaps.stream().filter(gap -> gap.action().equals(action)).map(Gap::reason).findFirst().orElse("")
                 : decision.askReason();
         String reply = decision.reply().isBlank() ? fallbackReply(action, conflicts) : decision.reply();
+        reply = correctTodayWeekday(reply);
 
         List<String> memoryUsed = independentMeal ? List.of() : profile.memory().stream()
                 .map(item -> item.key() + "：" + item.reason()).limit(6).toList();
@@ -160,8 +168,12 @@ public class DialogueAgent {
                 String text = item.asText("").trim();
                 if (!text.isEmpty()) conflicts.add(text);
             }
-            boolean unclear = root.path("unclear").isArray() && root.path("unclear").size() > 0;
-            return new Understanding(root.path("reply").asText("").trim(), facts, conflicts, unclear);
+            List<String> unclear = new ArrayList<>();
+            for (JsonNode item : root.path("unclear")) {
+                String text = item.asText("").trim();
+                if (!text.isEmpty()) unclear.add(AgentPrompts.budget(text, 120));
+            }
+            return new Understanding(root.path("reply").asText("").trim(), facts, conflicts, List.copyOf(unclear));
         } catch (Exception ex) {
             degraded.add("理解环节降级：模型输出无法解析为结构化结果");
             return Understanding.empty();
@@ -203,7 +215,10 @@ public class DialogueAgent {
                 case "household" -> {
                     if (value.contains("老人")) state = state.withHasElder(true);
                     if (value.contains("小孩") || value.contains("孩子")) state = state.withHasChild(true);
-                    if (value.contains("都是成人") || value.contains("没有")) state = state.withHousehold(false, false);
+                    if (value.contains("孕妇") || value.contains("孕期") || value.contains("怀孕")) {
+                        state = state.withMealContext(appendContext(state.mealContext(), "家有孕妇"));
+                    }
+                    if (value.contains("都是成人") || value.contains("成人") || value.contains("没有")) state = state.withHousehold(false, false);
                 }
                 case "healthGoal" -> {
                     if (GOAL_VALUES.contains(value)) state = state.withHealthGoal(value);
@@ -325,15 +340,16 @@ public class DialogueAgent {
     // ---------- 决策 ----------
 
     private Decision decide(String input, DialogueState.AgentState state, UserProfile profile, boolean independentMeal,
-                            List<Gap> gaps, List<Conflict> conflicts, List<String> degraded) {
+                            List<Gap> gaps, List<Conflict> conflicts, List<String> unclear, List<String> degraded) {
         List<String> allowed = allowedActions(state, gaps);
+        if (unclear != null && !unclear.isEmpty()) allowed.add("ASK_CLARIFY");
         if (!llm.isConfigured()) {
             degraded.add("决策环节降级：使用本地排序（模型未配置）");
             return Decision.empty();
         }
         String prompt = AgentPrompts.decide(input, jsonValue(state),
                 independentMeal ? "本次为独立宴请，不引用长期记忆" : profileText(profile),
-                gapsText(gaps), conflictsText(conflicts), String.join("、", allowed));
+                gapsText(gaps), conflictsText(conflicts), String.join("；", unclear), String.join("、", allowed));
         LlmResult result = llm.complete(LlmRequest.json("agent-decide", AgentPrompts.system(),
                 prompt, 0.4, 700, TimeoutTier.FAST));
         if (!result.ok()) {
@@ -372,7 +388,8 @@ public class DialogueAgent {
     }
 
     private String validateAction(String proposed, DialogueState.AgentState state,
-                                  List<Gap> gaps, List<Conflict> conflicts) {
+                                  List<Gap> gaps, List<Conflict> conflicts, List<String> unclear) {
+        if (unclear != null && !unclear.isEmpty()) return "ASK_CLARIFY";
         List<String> allowed = allowedActions(state, gaps);
         if (!conflicts.isEmpty() && "READY".equals(proposed) && !gaps.isEmpty()) {
             String suggested = conflicts.get(0).suggestAction();
@@ -474,6 +491,7 @@ public class DialogueAgent {
     private String fallbackReply(String action, List<Conflict> conflicts) {
         if (!conflicts.isEmpty()) return conflicts.get(0).message() + "，先按这个来改？";
         return switch (action == null ? "" : action) {
+            case "ASK_CLARIFY" -> "这里我还没完全确认，先问清楚再安排，避免自作主张。";
             case "CONFIRM_CUISINE" -> "我听到你的家乡味了，先确认要不要记住。";
             case "READY" -> "信息够了，我现在能替你安排这一周。";
             case "ASK_PEOPLE" -> "先定一下人数，分量才好算。";
@@ -490,6 +508,26 @@ public class DialogueAgent {
     private boolean isCuisineAnswer(String input) {
         return input != null && (input.equals("记住") || input.equals("暂不记住")
                 || input.contains("这次尝尝") || input.contains("不用记"));
+    }
+
+    /** 模型不能自行猜今天周几；所有“今天（周X）”统一以中国时区服务端日期为准。 */
+    private String correctTodayWeekday(String reply) {
+        if (reply == null || reply.isBlank()) return reply;
+        String weekday = weekday(LocalDate.now(CHINA_ZONE).getDayOfWeek());
+        return reply.replaceAll("今天\\s*[（(]周[一二三四五六日][）)]", "今天（" + weekday + "）")
+                .replaceAll("今天是周[一二三四五六日]", "今天是" + weekday);
+    }
+
+    private String weekday(DayOfWeek day) {
+        return switch (day) {
+            case MONDAY -> "周一";
+            case TUESDAY -> "周二";
+            case WEDNESDAY -> "周三";
+            case THURSDAY -> "周四";
+            case FRIDAY -> "周五";
+            case SATURDAY -> "周六";
+            case SUNDAY -> "周日";
+        };
     }
 
     private boolean acceptsCuisine(String input) {
@@ -521,14 +559,19 @@ public class DialogueAgent {
         }
     }
 
+    private String appendContext(String existing, String addition) {
+        if (existing == null || existing.isBlank()) return addition;
+        return existing.contains(addition) ? existing : existing + "；" + addition;
+    }
+
     private static String stripFence(String content) {
         if (content == null) return "";
         return content.replaceFirst("^```(?:json)?\\s*", "").replaceFirst("\\s*```$", "").trim();
     }
 
-    private record Understanding(String reply, List<AgentFact> facts, List<String> conflicts, boolean unclear) {
+    private record Understanding(String reply, List<AgentFact> facts, List<String> conflicts, List<String> unclear) {
         static Understanding empty() {
-            return new Understanding("", List.of(), List.of(), false);
+            return new Understanding("", List.of(), List.of(), List.of());
         }
     }
 

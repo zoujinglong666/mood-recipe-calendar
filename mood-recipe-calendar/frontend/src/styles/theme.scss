@@ -83,6 +83,20 @@ page {
   --mrc-space-md: 24rpx;
   --mrc-space-sm: 16rpx;
 
+  /* ---- UI Pro Max 统一语义 Token：页面只引用语义，不再各自发明数值 ---- */
+  --mrc-color-primary: var(--mrc-primary-deep);
+  --mrc-color-secondary: var(--mrc-accent);
+  --mrc-color-success: var(--mrc-mint);
+  --mrc-color-danger: #C44732;
+  --mrc-color-on-primary: #FFFCF7;
+  --mrc-touch-min: 88rpx;       /* 44pt touch target 的小程序等比值 */
+  --mrc-space-1: 8rpx;
+  --mrc-space-2: 16rpx;
+  --mrc-space-3: 24rpx;
+  --mrc-space-4: 32rpx;
+  --mrc-motion-fast: 180ms ease-out;
+  --mrc-motion-standard: 300ms ease-out;
+
   /* ---- 旧别名兼容映射（既有页面引用，保持可用） ---- */
   --mrc-bg-card: var(--mrc-surface);
   --mrc-bg-bar: var(--mrc-surface-2);
@@ -151,7 +165,7 @@ textarea {
   font-weight: 700;
   box-shadow: var(--mrc-shadow-coral), var(--mrc-gloss);
   letter-spacing: 2rpx;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition: transform var(--mrc-motion-fast), box-shadow var(--mrc-motion-fast);
 }
 .mrc-btn-primary:active {
   transform: scale(0.97);

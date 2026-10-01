@@ -5,6 +5,7 @@ import com.moodrecipe.backend.entity.Recipe;
 import com.moodrecipe.backend.entity.RecipeInteraction;
 import com.moodrecipe.backend.entity.UserFoodPreference;
 import com.moodrecipe.backend.entity.UserRecord;
+import com.moodrecipe.backend.agent.MenuPlannerAgent;
 import com.moodrecipe.backend.repository.DailyMenuRepository;
 import com.moodrecipe.backend.repository.RecipeInteractionRepository;
 import com.moodrecipe.backend.repository.RecipeRepository;
@@ -13,6 +14,7 @@ import com.moodrecipe.backend.repository.UserRecordRepository;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -32,6 +34,8 @@ import java.util.stream.Collectors;
  */
 @Service
 public class DailyMenuService {
+
+    private static final ZoneId CHINA_ZONE = ZoneId.of("Asia/Shanghai");
 
     private static final int RECENT_DISH_DEDUPE_DAYS = 3;
 
@@ -56,17 +60,17 @@ public class DailyMenuService {
 
     /** 今日菜单：命中当日缓存直接返回；未命中挑选并落缓存。挑选失败返回 empty。 */
     public Optional<Board> today(String openid) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(CHINA_ZONE);
         Optional<DailyMenu> cached = dailyMenus.findByOpenidAndMenuDate(openid, today);
         if (cached.isPresent()) {
-            return toBoard(cached.get());
+            return toBoard(cached.get()).or(() -> create(openid, today, Set.of()));
         }
         return create(openid, today, Set.of());
     }
 
     /** 换一道：重新挑选并排除当前这道；没有别的可换时返回 empty，当前缓存保持不动。 */
     public Optional<Board> refresh(String openid) {
-        LocalDate today = LocalDate.now();
+        LocalDate today = LocalDate.now(CHINA_ZONE);
         Set<Long> exclude = dailyMenus.findByOpenidAndMenuDate(openid, today)
                 .map(row -> Set.of(row.getRecipeId()))
                 .orElseGet(Set::of);
@@ -97,6 +101,7 @@ public class DailyMenuService {
 
     private Optional<Board> toBoard(DailyMenu row) {
         return recipes.findById(row.getRecipeId())
+                .filter(this::isDisplayableRecipe)
                 .map(recipe -> new Board(row.getMenuDate().toString(), recipe,
                         row.getGuozaiLine(), row.getVariant(), row.getSource()));
     }
@@ -119,6 +124,7 @@ public class DailyMenuService {
         if (pool.isEmpty()) pool = recipes.findAll();
 
         List<Recipe> candidates = pool.stream()
+                .filter(this::isDisplayableRecipe)
                 .filter(recipe -> recipe.getName() != null && !recipe.getName().isBlank())
                 .filter(recipe -> !rejected.contains(recipe.getId()))
                 .filter(recipe -> !excludeIds.contains(recipe.getId()))
@@ -135,8 +141,21 @@ public class DailyMenuService {
                 .orElse(null);
     }
 
+    /** 今日菜单是首页入口，菜名、描述和做法出现编码污染时必须整道拦截。 */
+    private boolean isDisplayableRecipe(Recipe recipe) {
+        return recipe != null
+                && cleanText(recipe.getName(), 80)
+                && cleanText(recipe.getDescription(), 500)
+                && cleanText(recipe.getIngredients(), 1500)
+                && cleanText(recipe.getSteps(), 3000);
+    }
+
+    private boolean cleanText(String value, int maxLength) {
+        return value == null || value.isBlank() || MenuPlannerAgent.displayableText(value.trim(), maxLength);
+    }
+
     private Set<String> recentDishNames(String openid) {
-        String since = LocalDate.now().minusDays(RECENT_DISH_DEDUPE_DAYS).toString();
+        String since = LocalDate.now(CHINA_ZONE).minusDays(RECENT_DISH_DEDUPE_DAYS).toString();
         return records.findTop30ByOpenidOrderByCreatedAtDesc(openid).stream()
                 .filter(record -> record.getRecordDate() != null
                         && record.getRecordDate().compareTo(since) >= 0)

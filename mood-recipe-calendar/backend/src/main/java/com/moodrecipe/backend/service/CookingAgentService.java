@@ -87,8 +87,25 @@ public class CookingAgentService {
 
     private String userPrompt(Recipe recipe, List<String> steps, int current, TurnRequest request,
                               UserProfile profile, List<CookingKnowledgeChunk> evidence) {
-        String history = request.history() == null ? "" : request.history().stream().limit(8)
-                .map(item -> safe(item.role(), 12) + ":" + safe(item.content(), 300)).reduce("", (a, b) -> a + "\n" + b);
+        // 长会话摘要压缩：保留最近若干轮原文，早期对话压缩成一条摘要，避免上下文无限膨胀
+        var hist = request.history();
+        final int keep = 6;
+        String history;
+        if (hist == null || hist.isEmpty()) {
+            history = "";
+        } else if (hist.size() <= keep) {
+            history = hist.stream()
+                    .map(item -> safe(item.role(), 12) + ":" + safe(item.content(), 300))
+                    .reduce("", (a, b) -> a + "\n" + b);
+        } else {
+            String early = hist.subList(0, hist.size() - keep).stream()
+                    .map(item -> safe(item.role(), 12) + ":" + safe(item.content(), 60))
+                    .reduce("", (a, b) -> a + "；" + b);
+            String recent = hist.subList(hist.size() - keep, hist.size()).stream()
+                    .map(item -> safe(item.role(), 12) + ":" + safe(item.content(), 300))
+                    .reduce("", (a, b) -> a + "\n" + b);
+            history = "【早期对话摘要" + early + "】\n" + recent;
+        }
         String evidenceText = evidence.isEmpty() ? "无可靠知识命中" : evidence.stream()
                 .map(item -> "[" + item.getId() + "] " + item.getTitle() + "：" + item.getContent())
                 .reduce("", (a, b) -> a + "\n" + b);

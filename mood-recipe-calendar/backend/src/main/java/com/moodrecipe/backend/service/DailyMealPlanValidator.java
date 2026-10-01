@@ -75,6 +75,36 @@ public class DailyMealPlanValidator {
         return new ValidationResult(reasons.isEmpty(), List.copyOf(reasons));
     }
 
+    /** 降级生成时保留安全、忌口和可展示性硬约束，放宽知识包、季节和跨餐食材重复。 */
+    public boolean isSafe(List<Recipe> meals, UserFoodPreference preference) {
+        if (meals == null || meals.size() != 3) return false;
+        List<String> blocked = preference == null ? List.of()
+                : allergens.normalize(preference.getAvoidIngredients(), preference.getAllergens());
+        Set<String> names = new HashSet<>();
+        for (Recipe meal : meals) {
+            if (meal == null) return false;
+            String name = safe(meal.getName());
+            String ingredients = safe(meal.getIngredients());
+            if (!displayable(name, 40) || !displayable(ingredients, 500)
+                    || !displayable(safe(meal.getSteps()), 1500)
+                    || !RecipeSafetyPolicy.isSafe(meal)
+                    || !names.add(normalize(name))) return false;
+            String text = (name + " " + ingredients).toLowerCase(Locale.ROOT);
+            for (String term : blocked) {
+                if (!term.isBlank() && text.contains(term.toLowerCase(Locale.ROOT))) return false;
+            }
+        }
+        return true;
+    }
+
+    /** 读取历史计划时也必须过展示校验，避免旧数据绕过生成阶段直接进入前端。 */
+    public boolean isDisplayable(List<Recipe> meals) {
+        return meals != null && meals.size() == 3 && meals.stream().allMatch(meal -> meal != null
+                && displayable(safe(meal.getName()), 40)
+                && displayable(safe(meal.getIngredients()), 500)
+                && displayable(safe(meal.getSteps()), 1500));
+    }
+
     private String coreIngredient(String text) {
         return CORE_INGREDIENTS.stream()
                 .filter(item -> text.contains(item.keyword()))
@@ -86,7 +116,7 @@ public class DailyMealPlanValidator {
         if (value.isBlank() || value.length() > maxLength) return false;
         for (int offset = 0; offset < value.length();) {
             int codePoint = value.codePointAt(offset);
-            if (codePoint == 0xfffd || Character.isISOControl(codePoint)
+            if (codePoint == '?' || codePoint == '？' || codePoint == 0xfffd || Character.isISOControl(codePoint)
                     || (codePoint >= 0x80 && codePoint <= 0xff && codePoint != 0x00b7)) return false;
             offset += Character.charCount(codePoint);
         }

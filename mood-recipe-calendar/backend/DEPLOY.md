@@ -25,6 +25,26 @@ SHOW TABLES;  -- 应显示 15 张表
 SELECT COUNT(*) FROM recipes;  -- 应为 24
 ```
 
+已有线上数据库升级时，还要执行新增的今日菜单表迁移，否则 `/api/daily-menu` 首次读取会因缺少 `daily_menus` 表返回 500：
+
+```bash
+mysql -uroot -p --default-character-set=utf8mb4 mood_recipe < sql/2026-09-27-daily-menus.sql
+```
+
+本次签到赠送锅仔对话需要给配额表补充会话幂等字段：
+
+```bash
+mysql -uroot -p --default-character-set=utf8mb4 mood_recipe < sql/migrations/20261001_add_agent_conversation_quota.sql
+```
+
+V2 冰箱食材库存需要新增 `fridge_items` 表：
+
+```bash
+mysql -uroot -p --default-character-set=utf8mb4 mood_recipe < sql/migrations/20261001_add_fridge_items.sql
+```
+
+库存接口：`GET /api/fridge/items`、`GET /api/fridge/summary`、`POST/PUT/DELETE /api/fridge/items/{id}`、`POST /api/fridge/items/{id}/consume`。
+
 ## 3. 环境变量配置
 
 部署前必须设置以下环境变量（**不要写入代码仓库**）：

@@ -137,6 +137,10 @@ function nextDetail() {
   if (detailRecords.value.length > 1)
     detailIndex.value = (detailIndex.value + 1) % detailRecords.value.length
 }
+function onDetailSwipe(e: any) {
+  if (typeof e?.detail?.current === 'number')
+    detailIndex.value = e.detail.current
+}
 function goRecordFromEmpty() {
   showEmpty.value = false
   router.pushTab({ name: 'record' })
@@ -305,15 +309,23 @@ function previewRecordPhoto(record: RecordItem | null) {
     <!-- 记录详情弹窗 -->
     <view v-if="showDetail && detailRecord" class="cal-empty-mask" @click="showDetail = false">
       <view class="cal-empty-sheet pop-in" @click.stop>
-        <image
-          v-if="detailRecord.imageUrl"
-          class="cal-detail__img"
-          :src="detailRecord.imageUrl"
-          mode="aspectFill"
-          role="button"
-          aria-label="查看这张照片的大图"
-          @click="previewRecordPhoto(detailRecord)"
-        />
+        <swiper
+          v-if="detailRecords.length"
+          class="cal-detail__swiper"
+          :current="detailIndex"
+          :duration="280"
+          @change="onDetailSwipe"
+        >
+          <swiper-item v-for="(rec, idx) in detailRecords" :key="rec.id ?? idx">
+            <guozai-image
+              :src="rec.imageUrl"
+              placeholder-class="cal-detail__img"
+              placeholder-text="📷"
+              aria-label="查看这张照片的大图"
+              @click="previewRecordPhoto(rec)"
+            />
+          </swiper-item>
+        </swiper>
         <text class="cal-empty-sheet__title">
           {{ detailRecord.dishName }}
         </text>
@@ -610,6 +622,22 @@ function previewRecordPhoto(record: RecordItem | null) {
 }
 
 /* 详情弹窗 */
+.cal-detail__swiper {
+  width: 100%;
+  height: 300rpx;
+  border-radius: 20rpx;
+  margin-bottom: 20rpx;
+  overflow: hidden;
+}
+.cal-detail__swiper .cal-detail__img {
+  margin-bottom: 0;
+}
+.cal-detail__img--placeholder {
+  width: 100%;
+  height: 300rpx;
+  border-radius: 20rpx;
+  background: var(--mrc-surface, #F4ECE2);
+}
 .cal-detail__img {
   width: 100%;
   height: 300rpx;

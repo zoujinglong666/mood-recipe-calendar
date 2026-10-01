@@ -80,11 +80,11 @@ public class RecipeController {
     public ApiResponse<RecommendationJobService.JobView> createRecommendationJob(
             @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
             @RequestBody RecommendJobRequest request) {
-        String mood = request == null || request.mood() == null || request.mood().isBlank()
+            String mood = request == null || request.mood() == null || request.mood().isBlank()
                 ? "平静" : request.mood().trim();
         try {
             return ApiResponse.ok(recommendationJobs.start(openid, mood,
-                    () -> { if (quotas != null) quotas.consume(openid, UsageQuotaService.Feature.HOME_RECOMMEND); }, progress -> {
+                    () -> { }, progress -> {
             try {
                 Recipe recipe = recommendInternal(openid, mood, progress);
                 if (recipe == null && quotas != null) quotas.release(openid, UsageQuotaService.Feature.HOME_RECOMMEND);
@@ -102,14 +102,33 @@ public class RecipeController {
         return quotas == null ? ApiResponse.error(503, "配额服务不可用") : ApiResponse.ok(quotas.view(openid, UsageQuotaService.Feature.HOME_RECOMMEND));
     }
 
+    @GetMapping("/history")
+    public ApiResponse<List<RecipeHistoryItem>> history(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
+        List<RecipeHistoryItem> items = interactions.findTop30ByOpenidAndActionOrderByCreatedAtDesc(openid, "SHOWN").stream()
+                .map(item -> repository.findById(item.getRecipeId()).map(recipe -> new RecipeHistoryItem(
+                        recipe.getId(), recipe.getName(), recipe.getDescription(), recipe.getImage(), recipe.getIngredients(), recipe.getSteps(),
+                        recipe.getCookingTime(), recipe.getDifficulty(), recipe.getSource(), item.getCreatedAt())))
+                .flatMap(Optional::stream)
+                .toList();
+        return ApiResponse.ok(items);
+    }
+
     /** 任务不存在和不属于当前用户统一返回 404，避免泄露他人任务。 */
     @GetMapping("/recommend-jobs/{jobId}")
     public ApiResponse<RecommendationJobService.JobView> recommendationJob(
             @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
             @PathVariable String jobId) {
-        return recommendationJobs.find(jobId, openid)
-                .map(ApiResponse::ok)
-                .orElseGet(() -> ApiResponse.error(404, "推荐任务已失效，请重新推荐"));
+        var job = recommendationJobs.find(jobId, openid);
+        if (job.isEmpty()) return ApiResponse.error(404, "推荐任务已失效，请重新推荐");
+        try {
+            if (quotas != null && job.get().status() == RecommendationJobService.JobStatus.SUCCEEDED) {
+                recommendationJobs.chargeOnSuccess(jobId, openid,
+                        () -> quotas.consume(openid, UsageQuotaService.Feature.HOME_RECOMMEND));
+            }
+            return ApiResponse.ok(job.get());
+        } catch (IllegalStateException e) {
+            return ApiResponse.error(403, e.getMessage());
+        }
     }
 
     private Recipe recommendInternal(String openid, String mood, RecommendationJobService.Progress progress) {
@@ -244,7 +263,8 @@ public class RecipeController {
     }
 
     /** 菜谱详情 */
-    @GetMapping("/{id}")
+    /** 仅匹配数字 ID，避免 /quota 被旧版或不同 Spring 路由策略误判为 Long。 */
+    @GetMapping("/{id:\\d+}")
     public ApiResponse<Recipe> detail(@PathVariable Long id) {
         return repository.findById(id)
             .map(ApiResponse::ok)
@@ -255,4 +275,7 @@ public class RecipeController {
     public record RecipeFeedbackRequest(String action) { }
     public record FeedbackState(boolean liked, boolean disliked, boolean made) { }
     public record RecommendJobRequest(String mood) { }
+    public record RecipeHistoryItem(Long id, String name, String description, String image, String ingredients, String steps,
+                                    Integer cookingTime, String difficulty, String source,
+                                    java.time.LocalDateTime recommendedAt) { }
 }

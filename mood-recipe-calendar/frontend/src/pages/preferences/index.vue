@@ -153,7 +153,7 @@ async function save() {
 function finish() {
   const mood = String(route.query.mood || '')
   if (onboarding.value && mood)
-    router.replace({ name: 'recipe', query: { mood } })
+    router.replace({ name: 'recipe', params: { mood } })
   else navBack()
 }
 

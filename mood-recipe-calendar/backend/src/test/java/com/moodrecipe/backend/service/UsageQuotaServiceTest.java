@@ -4,6 +4,7 @@ import com.moodrecipe.backend.entity.UsageQuota;
 import com.moodrecipe.backend.entity.User;
 import com.moodrecipe.backend.repository.UsageQuotaRepository;
 import com.moodrecipe.backend.repository.UserRepository;
+import com.moodrecipe.backend.repository.CheckinRepository;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDateTime;
@@ -19,6 +20,7 @@ import static org.mockito.Mockito.when;
 class UsageQuotaServiceTest {
     private final UsageQuotaRepository quotas = mock(UsageQuotaRepository.class);
     private final UserRepository users = mock(UserRepository.class);
+    private final CheckinRepository checkins = mock(CheckinRepository.class);
     private final UsageQuotaService service = new UsageQuotaService(quotas, users);
 
     @Test
@@ -71,6 +73,42 @@ class UsageQuotaServiceTest {
         UsageQuotaService.View view = service.view("user-1", UsageQuotaService.Feature.SIMPLE_WEEKLY_PLAN);
 
         assertEquals(0, view.remaining());
+    }
+
+    @Test
+    void agentConversationRequiresTodaysCheckin() {
+        UsageQuotaService agentService = new UsageQuotaService(quotas, users, checkins);
+        when(checkins.findByOpenidAndCheckinDate(anyString(), anyString())).thenReturn(Optional.empty());
+
+        assertThrows(IllegalStateException.class,
+                () -> agentService.consume("user-1", UsageQuotaService.Feature.AGENT_CONVERSATION, "conversation-1"));
+    }
+
+    @Test
+    void checkinGrantsOneIdempotentMultiTurnConversation() {
+        UsageQuotaService agentService = new UsageQuotaService(quotas, users, checkins);
+        when(checkins.findByOpenidAndCheckinDate(anyString(), anyString())).thenReturn(Optional.of(new com.moodrecipe.backend.entity.Checkin()));
+        UsageQuota quota = quota(0);
+        when(quotas.findForUpdate(anyString(), anyString(), any())).thenReturn(Optional.of(quota));
+
+        UsageQuotaService.View first = agentService.consume("user-1", UsageQuotaService.Feature.AGENT_CONVERSATION, "conversation-1");
+        UsageQuotaService.View second = agentService.consume("user-1", UsageQuotaService.Feature.AGENT_CONVERSATION, "conversation-1");
+
+        assertEquals(0, first.remaining());
+        assertEquals(0, second.remaining());
+        assertEquals(1, quota.getUsedCount());
+    }
+
+    @Test
+    void secondConversationIsBlockedAfterDailyGiftIsUsed() {
+        UsageQuotaService agentService = new UsageQuotaService(quotas, users, checkins);
+        when(checkins.findByOpenidAndCheckinDate(anyString(), anyString())).thenReturn(Optional.of(new com.moodrecipe.backend.entity.Checkin()));
+        UsageQuota quota = quota(1);
+        quota.setLastConversationId("conversation-1");
+        when(quotas.findForUpdate(anyString(), anyString(), any())).thenReturn(Optional.of(quota));
+
+        assertThrows(IllegalStateException.class,
+                () -> agentService.consume("user-1", UsageQuotaService.Feature.AGENT_CONVERSATION, "conversation-2"));
     }
 
     private UsageQuota quota(int used) {

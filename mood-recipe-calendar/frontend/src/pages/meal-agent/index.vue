@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import type { FoodMemoryView } from '@/api/preferences'
-import type { MealAgentState, MealAgentTurn, WeeklyPlan } from '@/api/weeklyPlans'
+import type { MealAgentState, MealAgentTurn, WeeklyPlan, UsageQuotaView } from '@/api/weeklyPlans'
 import { computed, nextTick, ref } from 'vue'
 import { submitFeedback } from '@/api/feedback'
 import { fetchFoodMemory } from '@/api/preferences'
-import { generateWeeklyPlan, getCurrentPlan, requestWeeklyPlanCompletionNotice, runMealAgentTurn } from '@/api/weeklyPlans'
+import { fetchAgentConversationQuota, generateWeeklyPlan, getCurrentPlan, requestWeeklyPlanCompletionNotice, runMealAgentTurn } from '@/api/weeklyPlans'
 import { navBack } from '@/composables/useNavBar'
 import { STATIC_BASE_URL } from '@/utils/assets'
 import { toastError } from '@/utils/toast'
 import { useUserStore } from '@/stores/user'
 import { ensureLogin, refreshUserInfo } from '@/utils/login'
+import GuozaiChipGroup from '@/components/guozai/GuozaiChipGroup.vue'
+import GuozaiButton from '@/components/guozai/GuozaiButton.vue'
 
 definePage({ name: 'meal-agent', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '锅仔管饭' } })
 
@@ -29,6 +31,11 @@ const activeStep = ref(-1)
 const completed = ref(false)
 const generatedPlanId = ref<number>()
 const rating = ref('')
+const RATING_OPTIONS = [
+  { value: '满意', label: '刚刚好' },
+  { value: '一般', label: '还行' },
+  { value: '不满意', label: '不太对' },
+]
 const hasElder = ref(false)
 const hasChild = ref(false)
 const spiceLevel = ref('微辣')
@@ -38,11 +45,13 @@ const composerText = ref('')
 const messages = ref<ChatMessage[]>([])
 const agentState = ref<MealAgentState>({})
 const agentTurn = ref<MealAgentTurn>()
+const agentQuota = ref<UsageQuotaView>()
 const agentBusy = ref(false)
 const householdSelection = ref<string[]>([])
 const otherInput = ref(false)
 let messageId = 0
 let progressTimer: ReturnType<typeof setInterval> | undefined
+const agentConversationId = `agent-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 
 const agentSteps = [
   { title: '读取锅仔记忆', copy: '口味、忌口和最近做过的菜' },
@@ -55,6 +64,7 @@ const agentSteps = [
 const isMember = computed(() => userStore.userInfo?.isMember === 1
   && Boolean(userStore.userInfo?.memberExpire)
   && new Date(userStore.userInfo!.memberExpire!).getTime() > Date.now())
+const canUseAgent = computed(() => isMember.value || (agentQuota.value?.remaining || 0) > 0)
 
 const memoryTags = computed(() => {
   const value = memory.value
@@ -106,12 +116,13 @@ async function load() {
     loading.value = false
     return
   }
-  const [memoryResult, planResult] = await Promise.allSettled([fetchFoodMemory(), getCurrentPlan()])
+  const [memoryResult, planResult, quotaResult] = await Promise.allSettled([fetchFoodMemory(), getCurrentPlan(), fetchAgentConversationQuota()])
   memory.value = memoryResult.status === 'fulfilled' ? memoryResult.value : undefined
   currentPlan.value = planResult.status === 'fulfilled' ? planResult.value : undefined
+  agentQuota.value = quotaResult.status === 'fulfilled' ? quotaResult.value : undefined
   if (memory.value?.explicit.healthGoal)
     healthGoal.value = memory.value.explicit.healthGoal
-  if (isMember.value && !messages.value.length) {
+  if (canUseAgent.value && !messages.value.length) {
     addAgent(agentGreeting.value, memoryTags.value)
     const initialPrompt = typeof route.query.prompt === 'string' ? route.query.prompt.trim() : ''
     await runAgent(initialPrompt, Boolean(initialPrompt))
@@ -120,7 +131,21 @@ async function load() {
 }
 
 function addAgent(text: string, tags?: string[]) {
-  messages.value.push({ id: ++messageId, role: 'agent', text, tags })
+  messages.value.push({ id: ++messageId, role: 'agent', text: localizeAgentText(text), tags })
+}
+
+/** 模型偶尔会把内部枚举原样带进回复，用户界面统一显示中文。 */
+function localizeAgentText(text: string) {
+  return text
+    .replace(/\bbudget\b/gi, '预算')
+    .replace(/\bhealthGoal\b/gi, '饮食目标')
+    .replace(/\bmealContext\b/gi, '用餐场景')
+    .replace(/\bSAVE\b/g, '省钱')
+    .replace(/\bDAILY\b/g, '日常')
+    .replace(/\bTREAT\b/g, '丰盛')
+    .replace(/\bFITNESS\b/g, '均衡')
+    .replace(/\bLEAN\b/g, '清淡')
+    .replace(/\bBALANCED\b/g, '均衡')
 }
 
 async function scrollToLatest() {
@@ -136,7 +161,7 @@ async function runAgent(message: string, echo = false, echoLabel = message) {
   agentBusy.value = true
   await scrollToLatest()
   try {
-    const turn = await runMealAgentTurn(message, agentState.value)
+    const turn = await runMealAgentTurn(message, agentState.value, agentConversationId)
     agentTurn.value = turn
     otherInput.value = false
     agentState.value = turn.state
@@ -155,7 +180,8 @@ async function runAgent(message: string, echo = false, echoLabel = message) {
     addAgent(turn.reply)
   }
   catch (error) {
-    toastError(error, '锅仔刚刚走神了，请再说一次')
+    const message = String((error as any)?.message || '')
+    toastError(error, message.includes('签到') || message.includes('用完') ? '今日签到赠送的对话已用完，明天再来' : '锅仔刚刚走神了，请再说一次')
   }
   finally {
     agentBusy.value = false
@@ -168,6 +194,10 @@ function householdValue(value: string) {
     return 'elder'
   if (value === 'child=yes' || value.includes('child'))
     return 'child'
+  if (value === 'pregnant=yes' || value.includes('pregnant'))
+    return 'pregnant'
+  if (value.includes('adult') || value.includes('none'))
+    return 'adult'
   return 'none'
 }
 
@@ -186,9 +216,9 @@ function toggleHousehold(value: string) {
 async function confirmHousehold() {
   if (!householdSelection.value.length)
     return
-  const none = householdSelection.value.includes('none')
-  const value = none ? 'household=none' : `household=${householdSelection.value.join(',')}`
-  const label = none ? '都是成人' : householdSelection.value.map(item => item === 'elder' ? '有老人' : '有小孩').join('、')
+  const adult = householdSelection.value.includes('adult') || householdSelection.value.includes('none')
+  const value = adult ? 'household=adult' : `household=${householdSelection.value.join(',')}`
+  const label = adult ? '都是成人' : householdSelection.value.map(item => item === 'elder' ? '有老人' : item === 'child' ? '有小孩' : '有孕妇').join('、')
   await runAgent(value, true, label)
 }
 
@@ -275,22 +305,28 @@ async function rateConversation(value: string) {
   }
 }
 
-function onRatingChange(event: { value: string | number | boolean }) {
-  void rateConversation(String(event.value))
+function onRatingChange(value: string | string[]) {
+  const ratingValue = Array.isArray(value) ? value[0] : value
+  if (ratingValue)
+    void rateConversation(ratingValue)
 }
 
 function openGeneratedPlan() {
   if (generatedPlanId.value)
-    router.replace({ name: 'weekly-plan-detail', query: { id: String(generatedPlanId.value) } })
+    router.replace({ name: 'weekly-plan-detail', params: { id: String(generatedPlanId.value) } })
 }
 
 function openCurrentPlan() {
   if (currentPlan.value)
-    router.push({ name: 'weekly-plan-detail', query: { id: String(currentPlan.value.id) } })
+    router.push({ name: 'weekly-plan-detail', params: { id: String(currentPlan.value.id) } })
 }
 
 function openMembership() {
   router.push({ name: 'membership' })
+}
+
+function openGallery() {
+  router.push({ name: 'gallery' })
 }
 </script>
 
@@ -338,7 +374,7 @@ function openMembership() {
         </text>
       </view>
 
-      <view v-if="generating || completed" class="tool-panel" aria-live="polite">
+      <view v-if="canUseAgent && (generating || completed)" class="tool-panel" aria-live="polite">
         <view class="tool-panel__head">
           <text>{{ completed ? '这一周已经排好' : (isMember ? '锅仔正在调用工具' : '正在生成简单菜单') }}</text><text>{{ completed ? '完成' : `${Math.min(activeStep + 1, agentSteps.length)}/${agentSteps.length}` }}</text>
         </view>
@@ -360,31 +396,29 @@ function openMembership() {
         </view>
         <view v-if="completed && isMember" class="conversation-rating">
           <text>这次锅仔问得合适吗？</text>
-          <wd-radio-group custom-class="rating-selector" type="button" direction="horizontal" :model-value="rating" @change="onRatingChange">
-            <wd-radio value="满意">
-              刚刚好
-            </wd-radio>
-            <wd-radio value="一般">
-              还行
-            </wd-radio>
-            <wd-radio value="不满意">
-              不太对
-            </wd-radio>
-          </wd-radio-group>
-          <button class="open-plan-button" @click="openGeneratedPlan">
+          <GuozaiChipGroup
+            :model-value="rating"
+            :options="RATING_OPTIONS"
+            :columns="3"
+            aria-label="为这次对话评分"
+            @change="onRatingChange"
+          />
+          <GuozaiButton variant="primary" aria-label="查看这周菜单" @click="openGeneratedPlan">
             查看这周菜单
-          </button>
+          </GuozaiButton>
         </view>
-        <button v-else-if="completed" class="open-plan-button" @click="openGeneratedPlan">查看这周菜单</button>
+        <GuozaiButton v-else-if="completed" variant="primary" aria-label="查看这周菜单" @click="openGeneratedPlan">
+          查看这周菜单
+        </GuozaiButton>
       </view>
-      <view v-if="isMember && (generating || completed)" class="composer composer--fixed">
+      <view v-if="canUseAgent && (generating || completed)" class="composer composer--fixed">
         <input v-model="composerText" :disabled="agentBusy" confirm-type="send" placeholder="还想补充什么？直接告诉锅仔" aria-label="告诉锅仔你的安排" @confirm="submitComposer">
         <button :disabled="agentBusy" :aria-label="agentBusy ? '锅仔正在思考' : '发送'" @click="submitComposer">
           {{ agentBusy ? '思考中' : '发送' }}
         </button>
       </view>
 
-      <view v-else-if="isMember" class="chat-shell">
+      <view v-else-if="canUseAgent" class="chat-shell">
         <view class="chat-list">
           <view v-for="message in messages" :key="message.id" class="chat-row" :class="`chat-row--${message.role}`">
             <image v-if="message.role === 'agent'" :src="`${STATIC_BASE_URL}/static/guozai/action_08_peek.png`" mode="aspectFit" aria-hidden="true" />
@@ -408,10 +442,19 @@ function openMembership() {
           </view>
         </view>
 
-        <view v-if="agentTurn?.card && !agentBusy" class="choice-card" :class="{ 'choice-card--cuisine': agentTurn.card.type === 'CUISINE' }" aria-live="polite">
+        <view v-if="agentTurn?.card && !agentBusy" class="choice-card" :class="{ 'choice-card--cuisine': agentTurn.card.type === 'CUISINE', 'choice-card--ready': agentTurn.card.type === 'READY' }" aria-live="polite">
           <view class="agent-card__head">
-            <view><text>{{ agentTurn.card.title }}</text><text>{{ agentTurn.card.description }}</text></view>
-            <image v-if="agentTurn.card.type === 'CUISINE'" :src="`${STATIC_BASE_URL}/static/guozai/action_06_glasses.png`" mode="aspectFit" aria-hidden="true" />
+            <view class="agent-card__copy">
+              <text class="agent-card__eyebrow">{{ agentTurn.card.type === 'READY' ? '准备好了' : '锅仔想确认' }}</text>
+              <text class="agent-card__title">{{ agentTurn.card.title }}</text>
+              <text class="agent-card__description">{{ agentTurn.card.description }}</text>
+            </view>
+            <image v-if="agentTurn.card.type === 'CUISINE' || agentTurn.card.type === 'READY'" :src="`${STATIC_BASE_URL}/static/guozai/action_06_glasses.png`" mode="aspectFit" aria-hidden="true" />
+          </view>
+          <view v-if="agentTurn.card.type === 'READY'" class="ready-summary" aria-label="将生成的内容">
+            <view><text class="ready-summary__dot">01</text><text>一周菜单</text></view>
+            <view><text class="ready-summary__dot">02</text><text>买菜清单</text></view>
+            <view><text class="ready-summary__dot">03</text><text>详细做法</text></view>
           </view>
           <view v-if="agentTurn.action === 'ASK_HOUSEHOLD'" class="household-picker">
             <view class="choice-grid choice-grid--household">
@@ -425,18 +468,18 @@ function openMembership() {
             <button class="household-confirm" :disabled="!householdSelection.length || agentBusy" @click="confirmHousehold">
               确认选择
             </button>
-            <view v-if="otherInput" class="other-input"><input v-model="composerText" confirm-type="send" placeholder="直接告诉锅仔你的情况" @confirm="submitOther"><button @click="submitOther">发送</button></view>
+            <view v-if="otherInput" class="other-input"><input v-model="composerText" inputmode="text" confirm-type="send" placeholder="直接告诉锅仔你的情况" @confirm="submitOther"><button @click="submitOther">发送</button></view>
           </view>
-          <view v-else class="choice-grid" :class="{ 'choice-grid--cuisine': agentTurn.card.type === 'CUISINE' }">
-            <button v-for="option in agentTurn.card.options" :key="option.value" :disabled="agentBusy" @click="option.value === 'generate' ? generate() : selectCardOption(option.value, option.label)">
+          <view v-else class="choice-grid" :class="{ 'choice-grid--cuisine': agentTurn.card.type === 'CUISINE', 'choice-grid--ready': agentTurn.card.type === 'READY' }">
+            <button v-for="option in agentTurn.card.options" :key="option.value" :class="{ 'choice-option--long': option.label.length > 8 }" :disabled="agentBusy" @click="option.value === 'generate' ? generate() : selectCardOption(option.value, option.label)">
               {{ option.label }}
             </button>
           </view>
-          <view v-if="otherInput" class="other-input"><input v-model="composerText" confirm-type="send" placeholder="直接告诉锅仔你的想法" @confirm="submitOther"><button @click="submitOther">发送</button></view>
+          <view v-if="otherInput && agentTurn.action !== 'ASK_HOUSEHOLD'" class="other-input"><input v-model="composerText" inputmode="text" confirm-type="send" placeholder="直接告诉锅仔你的想法" @confirm="submitOther"><button @click="submitOther">发送</button></view>
         </view>
 
         <view class="composer composer--fixed">
-          <input v-model="composerText" :disabled="agentBusy" confirm-type="send" placeholder="也可以直接说：周三不做饭，想减脂" aria-label="告诉锅仔你的安排" @confirm="submitComposer">
+          <input v-model="composerText" :disabled="agentBusy" inputmode="text" confirm-type="send" placeholder="也可以直接说：周三不做饭，想减脂" aria-label="告诉锅仔你的安排" @confirm="submitComposer">
           <button :disabled="agentBusy" :aria-label="agentBusy ? '锅仔正在思考' : '发送'" @click="submitComposer">
             {{ agentBusy ? '思考中' : '发送' }}
           </button>
@@ -447,9 +490,11 @@ function openMembership() {
       </view>
 
       <view v-else class="simple-plan">
-        <view class="simple-plan__tag">普通用户 · 本周 1 次</view>
+        <view class="simple-plan__tag">每日签到 · 送 1 次锅仔对话</view>
         <text class="simple-plan__title">手动选好，生成简单周菜单</text>
         <text class="simple-plan__copy">锅仔会按人数、做饭天数和菜数，避开你的忌口，整理出一份基础菜单和买菜清单。</text>
+        <text class="simple-plan__gift">去「锅仔形象馆」签到，今天就能和锅仔聊一轮；一次签到对应一个多轮对话。</text>
+        <button class="simple-plan__checkin" @click="openGallery">去签到领锅仔对话</button>
         <view class="simple-plan__section"><text>几个人吃</text><view><button v-for="value in [1, 2, 3, 4]" :key="value" :class="{ selected: people === value }" @click="people = value">{{ value }} 人</button></view></view>
         <view class="simple-plan__section"><text>每天几道菜</text><view><button v-for="value in [1, 2, 3]" :key="value" :class="{ selected: dishesPerDay === value }" @click="dishesPerDay = value">{{ value }} 道</button></view></view>
         <button class="simple-plan__generate" :disabled="generating" @click="generate">生成本周简单菜单</button>
@@ -475,17 +520,21 @@ function openMembership() {
 .tool-panel { overflow: hidden; border: 2rpx solid var(--mrc-border); border-radius: 32rpx; background: linear-gradient(180deg, var(--mrc-surface) 0%, var(--mrc-surface-sun) 100%); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }
 .chat-shell { padding-bottom: 12rpx; }
 .simple-plan { display: flex; flex-direction: column; gap: 18rpx; margin-top: 10rpx; padding: 30rpx 26rpx; border: 2rpx solid var(--mrc-border); border-radius: 30rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); }.simple-plan__tag { align-self: flex-start; padding: 8rpx 14rpx; border-radius: 999rpx; background: var(--mrc-surface-peach); color: var(--mrc-accent); font-size: 19rpx; font-weight: 800; }.simple-plan__title { color: var(--mrc-text-deep); font-size: 30rpx; font-weight: 800; }.simple-plan__copy, .simple-plan__member-copy { color: var(--mrc-text-sub); font-size: 22rpx; line-height: 1.6; }.simple-plan__section { display: flex; flex-direction: column; gap: 12rpx; color: var(--mrc-text-deep); font-size: 23rpx; font-weight: 750; }.simple-plan__section > view { display: flex; gap: 12rpx; }.simple-plan__section button { min-width: 92rpx; min-height: 64rpx; margin: 0; padding: 0 18rpx; border: 2rpx solid var(--mrc-border); border-radius: 18rpx; background: var(--mrc-surface); color: var(--mrc-text-sub); font-size: 21rpx; }.simple-plan__section button::after, .simple-plan__generate::after, .simple-plan__member::after { display: none; }.simple-plan__section button.selected { border-color: var(--mrc-accent); background: var(--mrc-accent-soft); color: var(--mrc-accent); font-weight: 800; }.simple-plan__generate, .simple-plan__member { min-height: 86rpx; margin: 0; border: 0; border-radius: 22rpx; font-size: 24rpx; font-weight: 800; }.simple-plan__generate { background: var(--mrc-primary-grad); color: #fff; }.simple-plan__generate[disabled] { opacity: .55; }.simple-plan__divider { height: 2rpx; background: var(--mrc-border-light); }.simple-plan__member-title { color: var(--mrc-text-deep); font-size: 25rpx; font-weight: 800; }.simple-plan__member { background: var(--mrc-text-deep); color: #fff; }
+.simple-plan__gift { color: var(--mrc-accent); font-size: 21rpx; line-height: 1.5; }
+.simple-plan__checkin { min-height: 74rpx; margin: 0; border: 2rpx solid var(--mrc-accent); border-radius: 20rpx; background: var(--mrc-surface); color: var(--mrc-accent); font-size: 23rpx; font-weight: 800; }
 .chat-list { display: flex; flex-direction: column; gap: 18rpx; padding: 10rpx 4rpx 22rpx; }
 .chat-row { display: flex; align-items: flex-end; gap: 10rpx; }.chat-row > image { width: 62rpx; height: 62rpx; flex: 0 0 auto; }.chat-row--user { justify-content: flex-end; }.chat-bubble { max-width: 78%; padding: 19rpx 22rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 8rpx 25rpx 25rpx 25rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); color: var(--mrc-text-deep); font-size: 25rpx; line-height: 1.55; box-sizing: border-box; }.chat-row--user .chat-bubble { border-color: var(--mrc-accent); border-radius: 25rpx 8rpx 25rpx 25rpx; background: var(--mrc-accent); color: #fff; }.memory-tags { display: flex; flex-wrap: wrap; gap: 8rpx; margin-top: 12rpx; }.memory-tags text { padding: 7rpx 14rpx; border-radius: 999rpx; background: var(--mrc-surface-peach); color: var(--mrc-text-sub); font-size: 19rpx; line-height: 1.3; }
 .chat-row--thinking { animation: thinking-in .22s ease-out both; }.thinking-bubble { display: flex; align-items: center; gap: 14rpx; color: var(--mrc-text-sub); }.thinking-dots { display: flex; align-items: center; gap: 7rpx; height: 24rpx; }.thinking-dot { width: 11rpx; height: 11rpx; border-radius: 50%; background: var(--mrc-accent); box-shadow: 0 3rpx 8rpx var(--mrc-accent-soft); animation: thinking-dot 1.05s cubic-bezier(.45, 0, .55, 1) infinite; will-change: transform, opacity; }.thinking-dot--2 { animation-delay: .14s; }.thinking-dot--3 { animation-delay: .28s; }
 .choice-card { position: relative; padding: 22rpx; border: 2rpx solid var(--mrc-border); border-radius: 30rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-lift); }
+.agent-card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18rpx; padding: 4rpx 2rpx 20rpx; }.agent-card__copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 7rpx; }.agent-card__eyebrow { color: var(--mrc-accent); font-size: 19rpx; font-weight: 800; letter-spacing: 1.5rpx; }.agent-card__title { color: var(--mrc-text-deep); font-size: 29rpx; font-weight: 800; line-height: 1.25; }.agent-card__description { color: var(--mrc-text-sub); font-size: 21rpx; line-height: 1.45; }.agent-card__head image { width: 92rpx; height: 92rpx; flex: 0 0 auto; margin-top: -8rpx; }
+.choice-card--ready { padding: 26rpx; border-color: rgba(239, 90, 60, .22); background: linear-gradient(145deg, var(--mrc-surface) 0%, var(--mrc-surface-sun) 100%); box-shadow: 0 14rpx 34rpx rgba(113, 63, 36, .12); }.choice-card--ready .agent-card__eyebrow { display: flex; align-items: center; gap: 8rpx; }.choice-card--ready .agent-card__eyebrow::before { width: 14rpx; height: 14rpx; border-radius: 50%; background: var(--mrc-mint); box-shadow: 0 0 0 6rpx rgba(74, 220, 171, .15); content: ''; }.choice-card--ready .agent-card__title { font-size: 33rpx; letter-spacing: -.3rpx; }.choice-card--ready .agent-card__description { max-width: 88%; }.ready-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10rpx; margin: 2rpx 0 20rpx; padding: 12rpx; border: 2rpx solid rgba(239, 90, 60, .1); border-radius: 20rpx; background: rgba(255, 255, 255, .52); }.ready-summary view { display: flex; min-width: 0; flex-direction: column; gap: 7rpx; color: var(--mrc-text-sub); font-size: 19rpx; line-height: 1.25; }.ready-summary__dot { color: var(--mrc-accent); font-size: 17rpx; font-weight: 800; letter-spacing: 1px; }.choice-grid--ready { display: block; }.choice-grid--ready button { display: flex; width: 100%; min-height: 86rpx; align-items: center; justify-content: space-between; padding: 0 24rpx; border: 0; border-radius: 22rpx; background: var(--mrc-primary-grad); box-shadow: 0 10rpx 22rpx rgba(239, 90, 60, .2); color: #fff; font-size: 25rpx; font-weight: 800; }.choice-grid--ready button::after { display: block; margin-left: auto; color: rgba(255,255,255,.84); content: '›'; font-size: 42rpx; font-weight: 400; line-height: 1; }.choice-grid--ready button:active { border-color: transparent; background: var(--mrc-primary-grad); opacity: .86; transform: translateY(1rpx); }
 .cuisine-card { overflow: hidden; padding: 22rpx; border-radius: 22rpx; background: linear-gradient(135deg, var(--mrc-surface-sun), var(--mrc-surface-peach)); }.cuisine-card__head { display: flex; align-items: center; justify-content: space-between; }.cuisine-card__head > view { display: flex; flex-direction: column; gap: 8rpx; }.cuisine-card__head text:first-child { color: var(--mrc-text-deep); font-size: 29rpx; font-weight: 800; }.cuisine-card__head text:last-child { color: var(--mrc-accent); font-size: 19rpx; font-weight: 700; }.cuisine-card__head image { width: 92rpx; height: 92rpx; }.cuisine-card__dishes { display: flex; flex-wrap: wrap; gap: 10rpx; margin: 18rpx 0; }.cuisine-card__dishes text { padding: 10rpx 14rpx; border: 2rpx solid rgba(255, 107, 91, .22); border-radius: 999rpx; background: rgba(255,255,255,.54); color: var(--mrc-text-deep); font-size: 20rpx; }.cuisine-card button { min-height: 80rpx; margin: 0; border-radius: 20rpx; font-size: 23rpx; font-weight: 750; }.cuisine-card button::after { display: none; }.cuisine-card__primary { border: 0; background: var(--mrc-primary-grad); color: #fff; }.cuisine-card__secondary { border: 0; background: transparent; color: var(--mrc-text-sub); }
-.choice-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12rpx; }.choice-grid--people { grid-template-columns: repeat(5, 1fr); }.choice-grid button { display: flex; min-height: 88rpx; flex-direction: column; align-items: center; justify-content: center; margin: 0; padding: 12rpx 6rpx; border: 2rpx solid var(--mrc-border); border-radius: 20rpx; background: var(--mrc-surface); color: var(--mrc-text-deep); font-size: 25rpx; font-weight: 750; line-height: 1.25; }.choice-grid button::after, .choice-confirm::after, .generate-button::after, .restart-button::after, .composer button::after { display: none; }.choice-grid button:active { border-color: var(--mrc-accent); background: var(--mrc-accent-soft); }.choice-grid button text { margin-top: 7rpx; color: var(--mrc-text-sub); font-size: 18rpx; font-weight: 500; }
+.choice-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12rpx; }.choice-grid--people { grid-template-columns: repeat(5, 1fr); }.choice-grid button { display: flex; min-height: 88rpx; flex-direction: column; align-items: center; justify-content: center; margin: 0; padding: 12rpx 6rpx; border: 2rpx solid var(--mrc-border); border-radius: 20rpx; background: var(--mrc-surface); color: var(--mrc-text-deep); font-size: 25rpx; font-weight: 750; line-height: 1.25; }.choice-grid button.choice-option--long { min-height: 104rpx; padding-right: 14rpx; padding-left: 14rpx; font-size: 22rpx; line-height: 1.4; }.choice-grid button::after, .choice-confirm::after, .generate-button::after, .restart-button::after, .composer button::after { display: none; }.choice-grid button:active { border-color: var(--mrc-accent); background: var(--mrc-accent-soft); }.choice-grid button text { margin-top: 7rpx; color: var(--mrc-text-sub); font-size: 18rpx; font-weight: 500; }
 .choice-grid--household { grid-template-columns: repeat(3, 1fr); }.choice-grid--household button { position: relative; min-height: 92rpx; padding: 12rpx 8rpx; transition: border-color .18s ease, background-color .18s ease, color .18s ease; }.choice-grid--household button.selected { border-color: var(--mrc-accent); background: var(--mrc-accent-soft); color: var(--mrc-accent); }.choice-grid--household button .selection-mark { position: absolute; top: 8rpx; right: 10rpx; display: flex; width: 28rpx; height: 28rpx; align-items: center; justify-content: center; border: 2rpx solid var(--mrc-border); border-radius: 50%; color: transparent; font-size: 18rpx; line-height: 1; }.choice-grid--household button.selected .selection-mark { border-color: var(--mrc-accent); background: var(--mrc-accent); color: #fff; }.household-confirm { min-height: 82rpx; margin: 16rpx 0 0; border: 0; border-radius: 20rpx; background: var(--mrc-text-deep); color: #fff; font-size: 24rpx; font-weight: 750; }.household-confirm::after { display: none; }.household-confirm[disabled] { opacity: .38; }.choice-grid--spice { grid-template-columns: repeat(3, 1fr); }
 .weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8rpx; }.weekdays view { display: flex; min-height: 76rpx; align-items: center; justify-content: center; border: 2rpx solid var(--mrc-border); border-radius: 18rpx; color: var(--mrc-text-sub); font-size: 22rpx; }.weekdays view.selected { border-color: var(--mrc-accent); background: var(--mrc-accent-soft); color: var(--mrc-accent); font-weight: 800; }.choice-confirm { min-height: 88rpx; margin: 18rpx 0 0; border: 0; border-radius: 22rpx; background: var(--mrc-text-deep); color: #fff; font-size: 25rpx; font-weight: 750; }
 .plan-confirm__summary { display: flex; justify-content: space-between; padding: 4rpx 4rpx 18rpx; color: var(--mrc-text-deep); font-size: 24rpx; font-weight: 750; }.plan-confirm__summary text:last-child { color: var(--mrc-accent); font-size: 21rpx; }.generate-button { display: flex; min-height: 98rpx; align-items: center; justify-content: space-between; margin: 0; padding: 0 26rpx; border: 0; border-radius: 24rpx; background: var(--mrc-primary-grad); color: #fff; box-shadow: var(--mrc-shadow-coral); line-height: 1.2; }.generate-button:active { transform: scale(.98); }.generate-button { font-size: 28rpx; font-weight: 800; }.generate-button text { font-size: 19rpx; font-weight: 500; opacity: .86; }.restart-button { min-height: 72rpx; margin: 8rpx 0 0; border: 0; background: transparent; color: var(--mrc-text-sub); font-size: 21rpx; }
 .composer { display: flex; align-items: center; gap: 10rpx; min-height: 96rpx; margin-top: 18rpx; padding: 10rpx 12rpx 10rpx 22rpx; border: 2rpx solid var(--mrc-border); border-radius: 28rpx; background: var(--mrc-surface); box-sizing: border-box; }.composer--fixed { position: fixed; z-index: 20; right: 28rpx; bottom: calc(18rpx + env(safe-area-inset-bottom)); left: 28rpx; margin: 0; box-shadow: 0 12rpx 40rpx rgba(69, 37, 24, .16); }.composer input { min-width: 0; flex: 1; color: var(--mrc-text-deep); font-size: 23rpx; }.composer input[disabled] { opacity: .58; }.composer button { display: flex; width: 88rpx; min-height: 70rpx; align-items: center; justify-content: center; margin: 0; padding: 0; border: 0; border-radius: 20rpx; background: var(--mrc-text-deep); color: #fff; font-size: 21rpx; }.composer button[disabled] { opacity: .55; }.archive-link { display: flex; min-height: 82rpx; align-items: center; justify-content: center; color: var(--mrc-text-sub); font-size: 21rpx; }
-.conversation-rating { display: flex; flex-direction: column; gap: 16rpx; margin-top: 18rpx; padding-top: 22rpx; border-top: 2rpx solid var(--mrc-border-light); color: var(--mrc-text-deep); font-size: 25rpx; font-weight: 750; }:deep(.rating-selector) { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12rpx; width: 100%; }:deep(.rating-selector .wd-radio.is-button) { display: flex; width: 100%; min-width: 0; max-width: none; min-height: 76rpx; align-items: center; justify-content: center; margin: 0; border-color: var(--mrc-border); border-radius: 18rpx; background: var(--mrc-surface); box-sizing: border-box; }:deep(.rating-selector .wd-radio__label) { display: flex; min-height: 72rpx; align-items: center; justify-content: center; padding: 0 12rpx; color: var(--mrc-text-sub); font-size: 22rpx; }:deep(.rating-selector .wd-radio.is-checked) { border-color: var(--mrc-accent); background: var(--mrc-accent-soft); }:deep(.rating-selector .wd-radio.is-checked .wd-radio__label) { color: var(--mrc-accent); font-weight: 800; }.open-plan-button { min-height: 88rpx !important; border: 0 !important; background: var(--mrc-primary-grad) !important; color: #fff !important; font-size: 25rpx !important; }
+.conversation-rating { display: flex; flex-direction: column; gap: 16rpx; margin-top: 18rpx; padding-top: 22rpx; border-top: 2rpx solid var(--mrc-border-light); color: var(--mrc-text-deep); font-size: 25rpx; font-weight: 750; }
 .tool-panel { margin-top: 8rpx; padding: 26rpx; }.tool-panel__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24rpx; color: var(--mrc-text-deep); font-size: 28rpx; font-weight: 800; }.tool-panel__head text:last-child { padding: 7rpx 13rpx; border-radius: 999rpx; background: var(--mrc-accent-soft); color: var(--mrc-accent); font-size: 20rpx; }.tool-step { display: flex; align-items: center; gap: 18rpx; min-height: 98rpx; opacity: .46; }.tool-step--active, .tool-step--done { opacity: 1; }.tool-step__state { display: flex; width: 54rpx; height: 54rpx; flex: 0 0 auto; align-items: center; justify-content: center; border: 2rpx solid var(--mrc-border); border-radius: 50%; color: var(--mrc-text-sub); background: var(--mrc-surface); font-size: 20rpx; }.tool-step--done .tool-step__state { border-color: var(--mrc-primary-deep); background: var(--mrc-primary-grad); color: #fff; box-shadow: 0 6rpx 14rpx rgba(239, 90, 60, .2); }.tool-step--active .tool-step__state { border-color: var(--mrc-accent); background: var(--mrc-surface-peach); box-shadow: 0 0 0 6rpx var(--mrc-accent-soft); }.tool-step__pulse { width: 15rpx; height: 15rpx; border-radius: 50%; background: var(--mrc-accent); animation: pulse 1s ease-in-out infinite; }.tool-step > view:last-child { display: flex; min-width: 0; flex-direction: column; gap: 6rpx; }.tool-step__title { color: var(--mrc-text-deep); font-size: 24rpx; font-weight: 750; }.tool-step__copy { color: var(--mrc-text-sub); font-size: 20rpx; }.tool-step + .tool-step { border-top: 2rpx solid var(--mrc-border-light); }
 @keyframes pulse { 50% { opacity: .35; transform: scale(.7); } }
 @keyframes thinking-in { from { opacity: 0; transform: translateY(10rpx); } }

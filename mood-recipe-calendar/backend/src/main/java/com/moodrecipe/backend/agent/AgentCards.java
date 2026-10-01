@@ -10,14 +10,14 @@ import java.util.stream.IntStream;
 /**
  * 卡片目录：动作白名单、候选值白名单、默认卡片。
  *
- * 模型可以决定"此刻出什么卡、怎么写文案、给哪几个选项"，
- * 但选项的 value 必须落在白名单里，否则服务端用默认卡兜底。
+ * 模型可以决定"此刻出什么卡、怎么写文案、给哪几个选项"。
+ * 固定卡片只作为模型不可用或输出异常时的兜底，正常选项不再受预设白名单限制。
  */
 public final class AgentCards {
 
     public static final Set<String> ACTIONS = Set.of(
             "ASK_PEOPLE", "ASK_HOUSEHOLD", "ASK_SPICE", "ASK_DAYS", "ASK_DISHES",
-            "ASK_GOAL", "ASK_BUDGET", "CONFIRM_CUISINE", "READY");
+            "ASK_GOAL", "ASK_BUDGET", "ASK_CLARIFY", "CONFIRM_CUISINE", "READY");
 
     private static final Map<String, List<String>> CUISINE_DISHES = Map.of(
             "赣菜", List.of("宁都三杯鸡", "莲花血鸭", "藜蒿炒腊肉"),
@@ -31,8 +31,8 @@ public final class AgentCards {
     public static List<String> allowedValues(String action) {
         List<String> values = switch (action == null ? "" : action) {
             case "ASK_PEOPLE" -> IntStream.rangeClosed(1, 50).mapToObj(value -> "people=" + value).toList();
-            case "ASK_HOUSEHOLD" -> List.of("elder=yes", "child=yes", "household=elder",
-                    "household=child", "household=elder,child", "household=none");
+            case "ASK_HOUSEHOLD" -> List.of("elder=yes", "child=yes", "pregnant=yes", "household=elder",
+                    "household=child", "household=pregnant", "household=elder,child", "household=none");
             case "ASK_SPICE" -> List.of("spice=不吃辣", "spice=微辣", "spice=能吃辣");
             case "ASK_DAYS" -> List.of("days=0,1,2,3,4,5,6", "days=0,1,2,3,4", "days=5,6");
             case "ASK_DISHES" -> IntStream.rangeClosed(1, 20).mapToObj(value -> "dishes=" + value).toList();
@@ -61,7 +61,7 @@ public final class AgentCards {
 
     private static String prefix(String text) {
         if (text.startsWith("people=")) return "ASK_PEOPLE";
-        if (text.equals("elder=yes") || text.equals("child=yes") || text.startsWith("household=")) {
+        if (text.equals("elder=yes") || text.equals("child=yes") || text.equals("pregnant=yes") || text.startsWith("household=")) {
             return "ASK_HOUSEHOLD";
         }
         if (text.startsWith("spice=")) return "ASK_SPICE";
@@ -77,8 +77,8 @@ public final class AgentCards {
             case "ASK_PEOPLE" -> options("一起吃饭的人数", "也可以直接输入具体人数",
                     "people=1", "1 人", "people=2", "2 人", "people=3", "3 人", "people=4", "4 人",
                     "people=6", "6 人", "people=8", "8 人");
-            case "ASK_HOUSEHOLD" -> options("要照顾谁？", "可多选，会影响口感、盐度和食材处理",
-                    "household=elder", "有老人", "household=child", "有小孩", "household=none", "都是成人");
+            case "ASK_HOUSEHOLD" -> options("家里这顿有谁一起吃？", "可多选，孕妇请直接告诉锅仔，方便避开不合适的食材",
+                    "household=elder", "有老人", "household=child", "有小孩", "household=pregnant", "有孕妇", "household=adult", "都是成人");
             case "ASK_SPICE" -> options("家里平时能吃多辣？", "我会贯穿整周菜单",
                     "spice=不吃辣", "不吃辣", "spice=微辣", "微辣", "spice=能吃辣", "能吃辣");
             case "ASK_DAYS" -> options("哪几天开火？", "可一次选择多个日期",
@@ -88,6 +88,8 @@ public final class AgentCards {
                     "goal=BALANCED", "均衡吃", "goal=FITNESS", "练得好", "goal=LEAN", "轻一点");
             case "ASK_BUDGET" -> options("预算想怎么安排？", "会影响食材和复用方式",
                     "budget=SAVE", "省一点", "budget=DAILY", "日常吃", "budget=TREAT", "丰盛些");
+            case "ASK_CLARIFY" -> new DialogueState.Card("OPTIONS", "我想确认一下", "选最接近的答案，也可以自己说明",
+                    List.of(new DialogueState.Option("自己说明", "other")));
             case "CONFIRM_CUISINE" -> new DialogueState.Card("CUISINE",
                     (state.favoriteCuisine() == null ? "这个" : state.favoriteCuisine()) + "风味要记住吗？",
                     String.join(" · ", CUISINE_DISHES.getOrDefault(state.favoriteCuisine(), List.of())),
@@ -98,7 +100,9 @@ public final class AgentCards {
         };
         if ("READY".equals(action)) return card;
         List<DialogueState.Option> options = new ArrayList<>(card.options());
-        options.add(new DialogueState.Option("其他", "other"));
+        if (options.stream().noneMatch(option -> "other".equals(option.value()))) {
+            options.add(new DialogueState.Option("其他", "other"));
+        }
         return new DialogueState.Card(card.type(), card.title(), card.description(), List.copyOf(options));
     }
 
@@ -107,25 +111,42 @@ public final class AgentCards {
                                                        DialogueState.AgentState state,
                                                        String type, String title, String description,
                                                        List<DialogueState.Option> options) {
-        List<String> allowed = allowedValues(action);
-        if (options == null || options.isEmpty() || allowed.isEmpty()) {
+        if (options == null || options.isEmpty()) {
             return defaultCard(action, state);
         }
         if (type == null || !(type.equals("OPTIONS") || type.equals("CUISINE") || type.equals("READY"))) {
             return defaultCard(action, state);
         }
         for (DialogueState.Option option : options) {
-            if (option == null || option.value() == null || !allowed.contains(option.value())) {
+            if (option == null || !displayable(option.label(), 40) || !displayable(option.value(), 80)) {
                 return defaultCard(action, state);
             }
         }
-        if (title == null || title.isBlank()) return defaultCard(action, state);
+        if (!displayable(title, 60)) return defaultCard(action, state);
         String safeDescription = description == null ? "" : description;
-        List<DialogueState.Option> safeOptions = new ArrayList<>(options.stream().limit(4).toList());
+        if (!safeDescription.isBlank() && !displayable(safeDescription, 160)) return defaultCard(action, state);
+        List<DialogueState.Option> safeOptions = new ArrayList<>();
+        options.stream().limit(6).forEach(option -> {
+            if (safeOptions.stream().noneMatch(existing -> existing.value().equals(option.value()))) {
+                safeOptions.add(option);
+            }
+        });
         if (!"READY".equals(action) && safeOptions.stream().noneMatch(option -> "other".equals(option.value()))) {
             safeOptions.add(new DialogueState.Option("其他", "other"));
         }
         return new DialogueState.Card(type, title, safeDescription, List.copyOf(safeOptions));
+    }
+
+    private static boolean displayable(String value, int maxLength) {
+        if (value == null || value.isBlank() || value.length() > maxLength) return false;
+        for (int offset = 0; offset < value.length();) {
+            int codePoint = value.codePointAt(offset);
+            if (Character.isISOControl(codePoint) || codePoint == 0xfffd) {
+                return false;
+            }
+            offset += Character.charCount(codePoint);
+        }
+        return true;
     }
 
     private static DialogueState.Card options(String title, String description, String... pairs) {

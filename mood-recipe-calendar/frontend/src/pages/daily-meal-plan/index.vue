@@ -50,7 +50,7 @@ async function load() {
 
 function open(id?: number) {
   if (id)
-    router.push({ name: 'recipe', query: { recipeId: String(id) } })
+    router.push({ name: 'recipe', params: { recipeId: String(id) } })
 }
 
 function list(value: string) {

@@ -12,6 +12,7 @@ type _LocationUrl =
   "/pages/cooking/index" |
   "/pages/daily-meal-plan/index" |
   "/pages/feedback/index" |
+  "/pages/fridge/index" |
   "/pages/gallery/index" |
   "/pages/login/index" |
   "/pages/meal-agent/index" |
@@ -21,6 +22,7 @@ type _LocationUrl =
   "/pages/privacy/index" |
   "/pages/profile/index" |
   "/pages/recipe/index" |
+  "/pages/recommendation-history/index" |
   "/pages/record/detail" |
   "/pages/record/index" |
   "/pages/report/index" |

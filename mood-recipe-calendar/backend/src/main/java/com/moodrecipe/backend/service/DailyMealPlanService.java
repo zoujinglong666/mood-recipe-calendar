@@ -68,22 +68,20 @@ public class DailyMealPlanService {
 
         List<NutritionKnowledgePack> knowledge = eligiblePacks();
         List<SeasonalIngredient> inSeason = eligibleSeasonalIngredients();
-        if (knowledge.isEmpty() || inSeason.isEmpty()) return Optional.empty();
 
         UserProfile profile = profile(openid);
         UserFoodPreference preference = validationPreference(openid, profile);
-        List<Recipe> candidates = rankedCandidates(profile, inSeason);
-        for (int first = 0; first < candidates.size(); first++) {
-            for (int second = first + 1; second < candidates.size(); second++) {
-                for (int third = second + 1; third < candidates.size(); third++) {
-                    List<Recipe> meals = List.of(candidates.get(first), candidates.get(second), candidates.get(third));
-                    if (validator.validate(meals, preference, knowledge).valid()) {
-                        return save(openid, date, meals, knowledge.get(0).getVersion());
-                    }
-                }
-            }
+        if (!knowledge.isEmpty() && !inSeason.isEmpty()) {
+            Optional<List<Recipe>> strict = findThree(rankedCandidates(profile, inSeason, true),
+                    meals -> validator.validate(meals, preference, knowledge).valid());
+            if (strict.isPresent()) return save(openid, date, strict.get(), knowledge.get(0).getVersion());
         }
-        return Optional.empty();
+
+        // 季节数据或知识包是软条件；没有严格组合时，仍返回通过安全、忌口和展示校验的三餐。
+        Optional<List<Recipe>> fallback = findThree(rankedCandidates(profile, inSeason, false),
+                meals -> validator.isSafe(meals, preference));
+        return fallback.flatMap(meals -> save(openid, date, meals,
+                knowledge.isEmpty() ? "fallback" : knowledge.get(0).getVersion()));
     }
 
     public Optional<PlanView> replace(String openid, LocalDate date, int mealIndex) {
@@ -100,13 +98,15 @@ public class DailyMealPlanService {
             List<NutritionKnowledgePack> knowledge = eligiblePacks();
             UserProfile profile = profile(openid);
             UserFoodPreference preference = validationPreference(openid, profile);
-            for (Recipe candidate : rankedCandidates(profile, eligibleSeasonalIngredients())) {
+            for (Recipe candidate : rankedCandidates(profile, eligibleSeasonalIngredients(), false)) {
                 if (existingNames.contains(candidate.getName())) continue;
                 meals.set(mealIndex, candidate);
-                if (validator.validate(meals, preference, knowledge).valid()) {
+                if (validator.isSafe(meals, preference)
+                        && (knowledge.isEmpty() || validator.validate(meals, preference, knowledge).valid())) {
                     stored.get().setPlanJson(json.writeValueAsString(meals));
                     plans.save(stored.get());
-                    return Optional.of(new PlanView(date, List.copyOf(meals), knowledge.get(0).getVersion()));
+                    return Optional.of(new PlanView(date, List.copyOf(meals),
+                            knowledge.isEmpty() ? "fallback" : knowledge.get(0).getVersion()));
                 }
             }
         } catch (Exception ignored) {
@@ -121,18 +121,37 @@ public class DailyMealPlanService {
     }
 
     private List<Recipe> rankedCandidates(UserProfile profile, List<SeasonalIngredient> inSeason) {
+        return rankedCandidates(profile, inSeason, true);
+    }
+
+    private List<Recipe> rankedCandidates(UserProfile profile, List<SeasonalIngredient> inSeason,
+                                          boolean requireSeasonalIngredient) {
         Set<String> blocked = new HashSet<>();
         blocked.addAll(profile.rejectedDishes());
         blocked.addAll(profile.avoidDishes());
         Set<String> loved = new HashSet<>(profile.lovedDishes());
         Set<String> recent = new HashSet<>(profile.recentDishes());
         return recipes.findAll().stream()
-                .filter(recipe -> inSeason.stream().anyMatch(item -> text(recipe).contains(item.getName())))
+                .filter(recipe -> !requireSeasonalIngredient
+                        || inSeason.stream().anyMatch(item -> text(recipe).contains(item.getName())))
                 .filter(recipe -> !blocked.contains(recipe.getName()))
                 .sorted(Comparator
                         .comparing((Recipe recipe) -> !loved.contains(recipe.getName()))
                         .thenComparing(recipe -> recent.contains(recipe.getName())))
                 .toList();
+    }
+
+    private Optional<List<Recipe>> findThree(List<Recipe> candidates,
+                                             java.util.function.Predicate<List<Recipe>> valid) {
+        for (int first = 0; first < candidates.size(); first++) {
+            for (int second = first + 1; second < candidates.size(); second++) {
+                for (int third = second + 1; third < candidates.size(); third++) {
+                    List<Recipe> meals = List.of(candidates.get(first), candidates.get(second), candidates.get(third));
+                    if (valid.test(meals)) return Optional.of(meals);
+                }
+            }
+        }
+        return Optional.empty();
     }
 
     private UserFoodPreference validationPreference(String openid, UserProfile profile) {
@@ -165,8 +184,10 @@ public class DailyMealPlanService {
 
     private Optional<PlanView> read(DailyMealPlan row) {
         try {
-            return Optional.of(new PlanView(row.getPlanDate(), json.readValue(row.getPlanJson(),
-                    new TypeReference<List<Recipe>>() { }), "saved"));
+            List<Recipe> meals = json.readValue(row.getPlanJson(), new TypeReference<List<Recipe>>() { });
+            return validator.isDisplayable(meals)
+                    ? Optional.of(new PlanView(row.getPlanDate(), meals, "saved"))
+                    : Optional.empty();
         } catch (Exception ignored) {
             return Optional.empty();
         }

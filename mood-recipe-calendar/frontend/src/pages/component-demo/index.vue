@@ -100,7 +100,7 @@ const CUISINES = ['川菜', '湘菜', '粤菜', '江浙菜', '东北菜', '西�
 
       <text class="demo-section__hint demo-section__hint--gap">两套并排对比</text>
       <view class="demo-row">
-        <GuozaiButton variant="primary" aria-label="原生主按钮">原生按钮</GuozaiButton>
+        <GuozaiButton variant="primary" :block="false" aria-label="原生主按钮">原生按钮</GuozaiButton>
         <GuozaiWotButton size="large" round aria-label="wot 主按钮">wot 按钮</GuozaiWotButton>
       </view>
 
@@ -146,10 +146,9 @@ const CUISINES = ['川菜', '湘菜', '粤菜', '江浙菜', '东北菜', '西�
 .demo-field { margin-top: 22rpx; }
 .demo-field__label { display: block; margin-bottom: 12rpx; color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 700; }
 .demo-divider { height: 2rpx; margin: 26rpx 0; background: var(--mrc-border-light); }
-.demo-row { display: flex; gap: 14rpx; margin-top: 14rpx; }
+/* 非通栏按钮行：按内容宽度排布，不拉伸（通栏按钮自带 width:100%） */
+.demo-row { display: flex; align-items: center; gap: 14rpx; margin-top: 14rpx; }
 .demo-row > .gz-btn,
-.demo-row > .wd-button { flex: 1; min-width: 0; }
+.demo-row > .wd-button { flex: 0 0 auto; }
 .demo-row--wrap { flex-wrap: wrap; }
-.demo-row--wrap > .gz-btn,
-.demo-row--wrap > .wd-button { flex: 0 0 auto; }
 </style>

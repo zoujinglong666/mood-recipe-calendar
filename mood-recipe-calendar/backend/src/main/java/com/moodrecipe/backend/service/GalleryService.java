@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
@@ -31,6 +32,7 @@ public class GalleryService {
     private final ProductRepository productRepository;
     private final ShopOrderRepository shopOrderRepository;
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    private static final ZoneId ZONE = ZoneId.of("Asia/Shanghai");
 
     public GalleryService(CheckinRepository checkinRepository,
                           ProductRepository productRepository,
@@ -45,7 +47,7 @@ public class GalleryService {
      * { checkedIn, streak, exchangeReady, daysToExchange }
      */
     public Map<String, Object> checkin(String openid) {
-        String today = LocalDate.now().format(DATE_FMT);
+        String today = LocalDate.now(ZONE).format(DATE_FMT);
         if (checkinRepository.findByOpenidAndCheckinDate(openid, today).isEmpty()) {
             checkinRepository.save(Checkin.builder()
                 .openid(openid)
@@ -59,7 +61,7 @@ public class GalleryService {
      * 查询签到状态
      */
     public Map<String, Object> checkinStatus(String openid) {
-        String today = LocalDate.now().format(DATE_FMT);
+        String today = LocalDate.now(ZONE).format(DATE_FMT);
         List<Checkin> all = checkinRepository.findByOpenidOrderByCheckinDateAsc(openid);
         Set<String> dateSet = all.stream().map(Checkin::getCheckinDate).collect(Collectors.toSet());
 
@@ -72,6 +74,7 @@ public class GalleryService {
         res.put("exchangeReady", streak >= EXCHANGE_DAYS);
         res.put("daysToExchange", Math.max(0, EXCHANGE_DAYS - streak));
         res.put("totalDays", dateSet.size());
+        res.put("agentConversationGifted", checkedIn);
         return res;
     }
 
@@ -81,7 +84,7 @@ public class GalleryService {
     private int calcStreak(Set<String> dateSet) {
         if (dateSet.isEmpty()) return 0;
         int streak = 0;
-        LocalDate day = LocalDate.now();
+        LocalDate day = LocalDate.now(ZONE);
         while (dateSet.contains(day.format(DATE_FMT))) {
             streak++;
             day = day.minusDays(1);

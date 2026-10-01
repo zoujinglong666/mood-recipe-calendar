@@ -100,6 +100,14 @@ public class RecommendationJobService {
         return job == null || !job.openid.equals(openid) ? Optional.empty() : Optional.of(job.view());
     }
 
+    /** 成功结果首次被客户端读到时才结算配额；用户创建后立即返回不会白扣次数。 */
+    public synchronized void chargeOnSuccess(String jobId, String openid, Runnable charge) {
+        Job job = jobs.get(jobId);
+        if (job == null || !job.openid.equals(openid) || job.status != JobStatus.SUCCEEDED || job.quotaCharged) return;
+        charge.run();
+        job.quotaCharged = true;
+    }
+
     private void cleanup() {
         Instant cutoff = Instant.now().minus(ttl);
         jobs.entrySet().removeIf(entry -> entry.getValue().finishedAt != null
@@ -121,6 +129,7 @@ public class RecommendationJobService {
         private volatile boolean usedFallback;
         private volatile Recipe recipe;
         private volatile Instant finishedAt;
+        private boolean quotaCharged;
 
         private Job(String id, String openid) {
             this.id = id;

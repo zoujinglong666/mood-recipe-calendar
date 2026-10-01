@@ -8,6 +8,8 @@ export interface RecipeItem {
   image: string
   ingredients: string
   steps: string
+  ingredients: string
+  steps: string
   cookingTime: number
   difficulty: string
   moodTags: string
@@ -52,6 +54,17 @@ export interface UsageQuotaView {
   resetsAt: string
 }
 
+export interface RecommendationHistoryItem {
+  id: number
+  name: string
+  description: string
+  image: string
+  cookingTime?: number
+  difficulty?: string
+  source?: string
+  recommendedAt: string
+}
+
 /** 全部菜谱 */
 export function fetchAllRecipes() {
   return get<RecipeItem[]>('/recipes').then(items => items.map(normalizeRecipe))
@@ -72,6 +85,10 @@ export function createRecommendationJob(mood: string) {
 
 export function fetchRecipeQuota() {
   return get<UsageQuotaView>('/recipes/quota')
+}
+
+export function fetchRecommendationHistory() {
+  return get<RecommendationHistoryItem[]>('/recipes/history').then(items => items.map(item => ({ ...item, image: resolveAssetUrl(item.image) })))
 }
 
 /** 查询当前登录用户自己的推荐任务。 */

@@ -26,6 +26,10 @@ const props = withDefaults(defineProps<{
   icon?: string
   /** 微信开放能力，如 getPhoneNumber / chooseAvatar */
   openType?: string
+  /** 点击节流冷却。默认开启，冷却期内忽略连点，防止快速重复点击导致重复提交/入库 */
+  throttle?: boolean
+  /** 冷却时长（毫秒），默认 1200。传 :throttle="false" 可关闭 */
+  throttleCooldown?: number
 }>(), {
   type: 'primary',
   variant: 'base',
@@ -37,6 +41,8 @@ const props = withDefaults(defineProps<{
   loading: false,
   icon: '',
   openType: '',
+  throttle: true,
+  throttleCooldown: 1200,
 })
 
 const emit = defineEmits<{ click: [event: any] }>()
@@ -93,9 +99,18 @@ const customStyle = computed(() => {
 /** openType 取值表过长，这里统一断言后透传 */
 const openTypeValue = computed(() => (props.openType || undefined) as any)
 
+const cooldownUntil = ref(0)
+
 function onClick(event: any) {
   if (props.disabled || props.loading)
     return
+  // 节流冷却：冷却期内静默忽略连点，避免数据重复入库
+  if (props.throttle && props.throttleCooldown > 0) {
+    const now = Date.now()
+    if (now < cooldownUntil.value)
+      return
+    cooldownUntil.value = now + props.throttleCooldown
+  }
   emit('click', event)
 }
 </script>
