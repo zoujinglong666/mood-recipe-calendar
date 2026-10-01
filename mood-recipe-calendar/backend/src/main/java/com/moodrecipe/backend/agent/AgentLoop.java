@@ -104,6 +104,11 @@ public class AgentLoop {
                 System.currentTimeMillis() - start);
     }
 
+    /** 供需要零歧义的事实查询使用：先拿到工具原始结果，再由业务层决定用户可见文案。 */
+    public ToolResult executeTool(String name, String argumentsJson, ToolContext context) {
+        return registry.execute(name, argumentsJson, context);
+    }
+
     private List<Invocation> invocations(LlmResponse response) {
         List<Invocation> calls = new ArrayList<>();
         if (response.hasToolCalls()) {

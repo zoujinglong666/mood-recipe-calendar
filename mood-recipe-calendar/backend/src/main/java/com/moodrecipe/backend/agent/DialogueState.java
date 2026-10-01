@@ -50,58 +50,82 @@ public final class DialogueState {
                              String spiceLevel,
                              String favoriteCuisine,
                              Boolean cuisineConfirmed,
-                             String mealContext) {
+                             String mealContext,
+                             List<String> requestedIngredients) {
 
         public static AgentState empty() {
-            return new AgentState(null, List.of(), null, null, null, null, null, null, null, false, null);
+            return new AgentState(null, List.of(), null, null, null, null, null, null, null, false, null, List.of());
+        }
+
+        public AgentState(Integer people, List<Integer> cookingDays, Integer dishesPerDay,
+                          String healthGoal, String budget, Boolean hasElder, Boolean hasChild,
+                          String spiceLevel, String favoriteCuisine, Boolean cuisineConfirmed,
+                          String mealContext) {
+            this(people, cookingDays, dishesPerDay, healthGoal, budget, hasElder, hasChild,
+                    spiceLevel, favoriteCuisine, cuisineConfirmed, mealContext, List.of());
         }
 
         public AgentState withPeople(Integer value) {
-            return new AgentState(value, cookingDays, dishesPerDay, healthGoal, budget, hasElder, hasChild, spiceLevel, favoriteCuisine, cuisineConfirmed, mealContext);
+            return copy(value, cookingDays, dishesPerDay, healthGoal, budget, hasElder, hasChild, spiceLevel, favoriteCuisine, cuisineConfirmed, mealContext, requestedIngredients);
         }
 
         public AgentState withCookingDays(List<Integer> value) {
-            return new AgentState(people, value, dishesPerDay, healthGoal, budget, hasElder, hasChild, spiceLevel, favoriteCuisine, cuisineConfirmed, mealContext);
+            return copy(people, value, dishesPerDay, healthGoal, budget, hasElder, hasChild, spiceLevel, favoriteCuisine, cuisineConfirmed, mealContext, requestedIngredients);
         }
 
         public AgentState withDishesPerDay(Integer value) {
-            return new AgentState(people, cookingDays, value, healthGoal, budget, hasElder, hasChild, spiceLevel, favoriteCuisine, cuisineConfirmed, mealContext);
+            return copy(people, cookingDays, value, healthGoal, budget, hasElder, hasChild, spiceLevel, favoriteCuisine, cuisineConfirmed, mealContext, requestedIngredients);
         }
 
         public AgentState withHealthGoal(String value) {
-            return new AgentState(people, cookingDays, dishesPerDay, value, budget, hasElder, hasChild, spiceLevel, favoriteCuisine, cuisineConfirmed, mealContext);
+            return copy(people, cookingDays, dishesPerDay, value, budget, hasElder, hasChild, spiceLevel, favoriteCuisine, cuisineConfirmed, mealContext, requestedIngredients);
         }
 
         public AgentState withBudget(String value) {
-            return new AgentState(people, cookingDays, dishesPerDay, healthGoal, value, hasElder, hasChild, spiceLevel, favoriteCuisine, cuisineConfirmed, mealContext);
+            return copy(people, cookingDays, dishesPerDay, healthGoal, value, hasElder, hasChild, spiceLevel, favoriteCuisine, cuisineConfirmed, mealContext, requestedIngredients);
         }
 
         public AgentState withHasElder(Boolean value) {
-            return new AgentState(people, cookingDays, dishesPerDay, healthGoal, budget, value, hasChild, spiceLevel, favoriteCuisine, cuisineConfirmed, mealContext);
+            return copy(people, cookingDays, dishesPerDay, healthGoal, budget, value, hasChild, spiceLevel, favoriteCuisine, cuisineConfirmed, mealContext, requestedIngredients);
         }
 
         public AgentState withHasChild(Boolean value) {
-            return new AgentState(people, cookingDays, dishesPerDay, healthGoal, budget, hasElder, value, spiceLevel, favoriteCuisine, cuisineConfirmed, mealContext);
+            return copy(people, cookingDays, dishesPerDay, healthGoal, budget, hasElder, value, spiceLevel, favoriteCuisine, cuisineConfirmed, mealContext, requestedIngredients);
         }
 
         public AgentState withSpiceLevel(String value) {
-            return new AgentState(people, cookingDays, dishesPerDay, healthGoal, budget, hasElder, hasChild, value, favoriteCuisine, cuisineConfirmed, mealContext);
+            return copy(people, cookingDays, dishesPerDay, healthGoal, budget, hasElder, hasChild, value, favoriteCuisine, cuisineConfirmed, mealContext, requestedIngredients);
         }
 
         public AgentState withFavoriteCuisine(String value) {
-            return new AgentState(people, cookingDays, dishesPerDay, healthGoal, budget, hasElder, hasChild, spiceLevel, value, cuisineConfirmed, mealContext);
+            return copy(people, cookingDays, dishesPerDay, healthGoal, budget, hasElder, hasChild, spiceLevel, value, cuisineConfirmed, mealContext, requestedIngredients);
         }
 
         public AgentState withCuisineConfirmed(Boolean value) {
-            return new AgentState(people, cookingDays, dishesPerDay, healthGoal, budget, hasElder, hasChild, spiceLevel, favoriteCuisine, value, mealContext);
+            return copy(people, cookingDays, dishesPerDay, healthGoal, budget, hasElder, hasChild, spiceLevel, favoriteCuisine, value, mealContext, requestedIngredients);
         }
 
         public AgentState withHousehold(Boolean elder, Boolean child) {
-            return new AgentState(people, cookingDays, dishesPerDay, healthGoal, budget, elder, child, spiceLevel, favoriteCuisine, cuisineConfirmed, mealContext);
+            return copy(people, cookingDays, dishesPerDay, healthGoal, budget, elder, child, spiceLevel, favoriteCuisine, cuisineConfirmed, mealContext, requestedIngredients);
         }
 
         public AgentState withMealContext(String value) {
-            return new AgentState(people, cookingDays, dishesPerDay, healthGoal, budget, hasElder, hasChild, spiceLevel, favoriteCuisine, cuisineConfirmed, value);
+            return copy(people, cookingDays, dishesPerDay, healthGoal, budget, hasElder, hasChild, spiceLevel, favoriteCuisine, cuisineConfirmed, value, requestedIngredients);
+        }
+
+        public AgentState withRequestedIngredients(List<String> value) {
+            return copy(people, cookingDays, dishesPerDay, healthGoal, budget, hasElder, hasChild,
+                    spiceLevel, favoriteCuisine, cuisineConfirmed, mealContext,
+                    value == null ? List.of() : List.copyOf(value));
+        }
+
+        private static AgentState copy(Integer people, List<Integer> cookingDays, Integer dishesPerDay,
+                                       String healthGoal, String budget, Boolean hasElder, Boolean hasChild,
+                                       String spiceLevel, String favoriteCuisine, Boolean cuisineConfirmed,
+                                       String mealContext, List<String> requestedIngredients) {
+            return new AgentState(people, cookingDays, dishesPerDay, healthGoal, budget, hasElder, hasChild,
+                    spiceLevel, favoriteCuisine, cuisineConfirmed, mealContext,
+                    requestedIngredients == null ? List.of() : List.copyOf(requestedIngredients));
         }
     }
 }

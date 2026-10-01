@@ -37,7 +37,7 @@ public class ToolRegistry {
      * 写库类工具（如 remember_fact）刻意排除：重试会重复入库，与按钮防抖节流目标相悖。
      */
     private static final Set<String> READONLY_RETRYABLE = Set.of(
-            "search_recipes", "recall_user_profile", "check_recent_history",
+            "search_recipes", "get_fridge_inventory", "recall_user_profile", "check_recent_history",
             "check_dietary_conflicts", "score_menu_plan", "consolidate_ingredients",
             "web_search");
 

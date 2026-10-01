@@ -112,6 +112,13 @@ const monthRecords = ref<RecordItem[]>([])
 const companion = ref<CompanionMessage>(localCompanion(now.value.getHours()))
 const recipeQuota = ref<UsageQuotaView>()
 const fridgeSummary = ref<FridgeSummary>()
+const fridgeUrgency = computed(() => {
+  const summary = fridgeSummary.value
+  if (!summary) return { count: 0, label: '状态正常', tone: 'ok' }
+  if (summary.expired > 0) return { count: summary.expired, label: '已过期', tone: 'expired' }
+  if (summary.soon > 0) return { count: summary.soon, label: '临期', tone: 'soon' }
+  return { count: 0, label: '状态正常', tone: 'ok' }
+})
 const recipeQuotaText = computed(() => {
   const quota = recipeQuota.value
   if (!quota) return '抽一道今日治愈菜'
@@ -296,8 +303,8 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
       </view>
 
       <view v-if="fridgeSummary" class="home-fridge" role="button" aria-label="打开我的冰箱" @click="openFridge">
-        <view class="home-fridge__copy"><text class="home-fridge__eyebrow">锅仔的新记忆</text><text class="home-fridge__title">冰箱里还有什么？</text><text class="home-fridge__sub">{{ fridgeSummary.soon ? `今天优先消耗 ${fridgeSummary.soon} 项食材` : `已记录 ${fridgeSummary.total} 项食材` }}</text></view>
-        <view class="home-fridge__right"><text>{{ fridgeSummary.soon }}</text><text>临期</text><text class="home-fridge__arrow">›</text></view>
+        <view class="home-fridge__copy"><text class="home-fridge__eyebrow">锅仔的新记忆</text><text class="home-fridge__title">冰箱里还有什么？</text><text class="home-fridge__sub">{{ fridgeSummary.expired ? `有 ${fridgeSummary.expired} 项已过期，请先处理` : fridgeSummary.soon ? `今天优先消耗 ${fridgeSummary.soon} 项食材` : `已记录 ${fridgeSummary.total} 项食材` }}</text></view>
+        <view class="home-fridge__right" :class="`home-fridge__right--${fridgeUrgency.tone}`"><text>{{ fridgeUrgency.count }}</text><text>{{ fridgeUrgency.label }}</text><text class="home-fridge__arrow">›</text></view>
       </view>
 
       <view class="home-lucky" role="button" aria-label="让锅仔随机推荐一道菜" @click="gotoLucky">
@@ -309,14 +316,20 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
       </view>
 
       <view class="home-actions">
-        <view class="home-actions__item home-actions__item--recipe" role="button" aria-label="查看今日三餐" @click="goto('daily-meal-plan')">
-          <view class="home-actions__text"><text class="home-actions__label">一日三餐</text><text class="home-actions__name">今天怎么吃</text></view>
-          <image class="home-actions__guozai" :src="STATIC_BASE_URL + '/static/guozai/action_01_bowl.png'" mode="aspectFit" />
-        </view>
-        <view class="home-actions__item home-actions__item--recipe" role="button" aria-label="再推荐一道菜" @click="gotoLucky">
-          <view class="home-actions__text"><text class="home-actions__label">今日菜单</text><text class="home-actions__name">再来一道</text></view>
-          <image class="home-actions__guozai" :src="STATIC_BASE_URL + '/static/guozai/action_02_soup.png'" mode="aspectFit" />
-        </view>
+        <swiper class="home-actions__feature" vertical circular autoplay :interval="4200" :duration="380" indicator-dots indicator-color="rgba(113, 63, 36, .2)" indicator-active-color="rgba(239, 90, 60, .85)">
+          <swiper-item>
+            <view class="home-actions__item home-actions__item--recipe" role="button" aria-label="查看今日三餐" @click="goto('daily-meal-plan')">
+              <view class="home-actions__text"><text class="home-actions__label">一日三餐</text><text class="home-actions__name">今天怎么吃</text></view>
+              <image class="home-actions__guozai" :src="STATIC_BASE_URL + '/static/guozai/action_01_bowl.png'" mode="aspectFit" />
+            </view>
+          </swiper-item>
+          <swiper-item>
+            <view class="home-actions__item home-actions__item--recipe" role="button" aria-label="再推荐一道菜" @click="gotoLucky">
+              <view class="home-actions__text"><text class="home-actions__label">今日菜单</text><text class="home-actions__name">再来一道</text></view>
+              <image class="home-actions__guozai" :src="STATIC_BASE_URL + '/static/guozai/action_02_soup.png'" mode="aspectFit" />
+            </view>
+          </swiper-item>
+        </swiper>
         <view class="home-actions__item home-actions__item--record" role="button" aria-label="记录一餐" @click="router.pushTab({ name: 'record' })">
           <view class="home-actions__text"><text class="home-actions__label">吃过什么</text><text class="home-actions__name">记录一餐</text></view>
           <image class="home-actions__guozai home-actions__guozai--camera" :src="STATIC_BASE_URL + '/static/guozai/action_03_camera.png'" mode="aspectFit" />
@@ -399,14 +412,14 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
 .home-board__cook-arrow { margin-left: 4rpx; font-size: 30rpx; line-height: 20rpx; }
 .home-board__img { width: 176rpx; height: 176rpx; flex-shrink: 0; border-radius: 24rpx; background: var(--mrc-surface-2); }
 .home-board__img--fallback { background: var(--mrc-surface-peach); }
-.home-fridge { display: flex; align-items: center; justify-content: space-between; gap: 18rpx; margin: 0 0 24rpx; padding: 22rpx 24rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; background: var(--mrc-surface-mint); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }.home-fridge__copy { display: flex; min-width: 0; flex-direction: column; gap: 6rpx; }.home-fridge__eyebrow { color: var(--mrc-mint); font-size: 19rpx; font-weight: 800; letter-spacing: 1px; }.home-fridge__title { color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 800; }.home-fridge__sub { color: var(--mrc-text-sub); font-size: 20rpx; }.home-fridge__right { display: flex; align-items: center; gap: 4rpx; flex: 0 0 auto; color: var(--mrc-mint); }.home-fridge__right text:first-child { font-size: 34rpx; font-weight: 800; }.home-fridge__right text:nth-child(2) { align-self: flex-end; margin-bottom: 8rpx; font-size: 18rpx; }.home-fridge__arrow { margin-left: 8rpx; font-size: 40rpx; line-height: 1; }.home-fridge:active { opacity: .78; transform: scale(.985); }
+.home-fridge { display: flex; align-items: center; justify-content: space-between; gap: 18rpx; margin: 0 0 24rpx; padding: 22rpx 24rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; background: var(--mrc-surface-mint); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }.home-fridge__copy { display: flex; min-width: 0; flex-direction: column; gap: 6rpx; }.home-fridge__eyebrow { color: var(--mrc-mint); font-size: 19rpx; font-weight: 800; letter-spacing: 1px; }.home-fridge__title { color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 800; }.home-fridge__sub { color: var(--mrc-text-sub); font-size: 20rpx; }.home-fridge__right { display: flex; align-items: center; gap: 4rpx; flex: 0 0 auto; color: var(--mrc-mint); }.home-fridge__right--expired { color: var(--mrc-accent); }.home-fridge__right--soon { color: var(--mrc-accent); }.home-fridge__right text:first-child { font-size: 34rpx; font-weight: 800; }.home-fridge__right text:nth-child(2) { align-self: flex-end; margin-bottom: 8rpx; font-size: 18rpx; }.home-fridge__arrow { margin-left: 8rpx; font-size: 40rpx; line-height: 1; }.home-fridge:active { opacity: .78; transform: scale(.985); }
 
 /* 唯一强 CTA，减少一页内互相抢眼的高饱和元素。 */
 .home-lucky { display: flex; align-items: center; justify-content: space-between; min-height: 156rpx; padding: 24rpx 32rpx; border-radius: 32rpx; background: var(--mrc-primary-grad); box-shadow: var(--mrc-shadow-coral), var(--mrc-gloss); box-sizing: border-box; }
 .home-lucky__content { display: flex; align-items: center; gap: 20rpx; }.home-lucky__guozai { width: 88rpx; height: 88rpx; flex-shrink: 0; filter: drop-shadow(0 4rpx 8rpx rgba(0,0,0,0.12)); }
 .home-lucky__eyebrow, .home-lucky__main, .home-lucky__sub { display: block; }.home-lucky__eyebrow { margin-bottom: 4rpx; color: rgba(255, 255, 255, 0.82); font-size: 20rpx; }.home-lucky__main { color: #fff; font-size: 32rpx; font-weight: 700; }.home-lucky__sub { margin-top: 4rpx; color: rgba(255, 255, 255, 0.9); font-size: 24rpx; }.home-lucky__arrow { margin-left: 12rpx; color: rgba(255, 255, 255, 0.95); font-size: 56rpx; font-weight: 300; }
 
-.home-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16rpx; margin: 24rpx 0 32rpx; }.home-actions__item { display: flex; align-items: center; justify-content: space-between; min-width: 0; min-height: 144rpx; padding: 18rpx 18rpx 18rpx 20rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); box-sizing: border-box; }.home-actions__item--recipe { background: var(--mrc-surface-peach); }.home-actions__item--record { overflow: hidden; background: var(--mrc-surface-mint); }.home-actions__text { z-index: 1; display: flex; min-width: 0; flex-direction: column; gap: 8rpx; }.home-actions__label { color: var(--mrc-text-sub); font-size: 21rpx; white-space: nowrap; }.home-actions__name { color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 700; line-height: 1.15; white-space: nowrap; }.home-actions__guozai { width: 96rpx; height: 96rpx; flex: 0 0 96rpx; margin: 0 -10rpx 0 4rpx; object-fit: contain; }
+.home-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16rpx; margin: 24rpx 0 32rpx; }.home-actions__feature { width: 100%; height: 144rpx; overflow: hidden; border-radius: 28rpx; }.home-actions__feature swiper-item { height: 144rpx; }.home-actions__item { display: flex; align-items: center; justify-content: space-between; width: 100%; min-width: 0; min-height: 144rpx; padding: 18rpx 18rpx 18rpx 20rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); box-sizing: border-box; }.home-actions__item--recipe { background: var(--mrc-surface-peach); }.home-actions__item--record { overflow: hidden; background: var(--mrc-surface-mint); }.home-actions__text { z-index: 1; display: flex; min-width: 0; flex-direction: column; gap: 8rpx; }.home-actions__label { color: var(--mrc-text-sub); font-size: 21rpx; white-space: nowrap; }.home-actions__name { color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 700; line-height: 1.15; white-space: nowrap; }.home-actions__guozai { width: 96rpx; height: 96rpx; flex: 0 0 96rpx; margin: 0 -10rpx 0 4rpx; object-fit: contain; }
 
 .home-cal { padding: 28rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 32rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }
 .home-cal__header { display: flex; align-items: center; justify-content: space-between; min-height: 96rpx; margin-bottom: 20rpx; }

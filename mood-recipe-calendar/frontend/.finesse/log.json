@@ -1,0 +1,17 @@
+[
+  {
+    "date": "2026-10-01",
+    "target": "frontend/src/pages/fridge/index.vue",
+    "register": "h5",
+    "morph": "A.1-daily-desk",
+    "axes": {
+      "A": "warm-cream+coral+deep-cocoa",
+      "B": "heavy-800/regular",
+      "C": "counter-panel+drawer-handle+marked-rows",
+      "D": "R1-css-only",
+      "E": "kitchen-counter-woodgrain"
+    },
+    "dials": { "SOUL": 7, "SPECTACLE": 3, "DENSITY": 5 },
+    "note": "首次构建，无历史。刻意避开「每张卡都上渐变 + 圆角白卡堆叠」。锅仔 IP 只出现在 3 个功能位（顶部清点 / 抽屉把手举相机 / 提醒行）。"
+  }
+]

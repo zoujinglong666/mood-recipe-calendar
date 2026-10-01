@@ -62,6 +62,7 @@ public class DialogueAgent {
 
     /** 知识问答可用工具：先查本地菜谱库，库外知识才联网（会员专享，工具内部会校验）。 */
     private static final Set<String> KNOWLEDGE_TOOLS = Set.of("search_recipes", "web_search");
+    private static final Set<String> FRIDGE_TOOLS = Set.of("get_fridge_inventory", "search_recipes");
 
     public DialogueState.Turn turn(String openid, String message, DialogueState.AgentState clientState) {
         return turn(openid, message, clientState, null);
@@ -91,6 +92,13 @@ public class DialogueAgent {
                     + "我们回到日常菜单：" + card.title() + "？";
             return new DialogueState.Turn(reply, action, state, card, "医疗请求使用固定安全边界",
                     List.of(), List.of(), List.of());
+        }
+
+        state = applyFridgeSelection(openid, input, state);
+        FridgeAnswer fridgeAnswer = answerFridgeIfAsked(openid, input, state, degraded);
+        if (fridgeAnswer != null) {
+            return new DialogueState.Turn(fridgeAnswer.reply(), "READY", state, fridgeAnswer.card(),
+                    "用户询问冰箱事实或基于冰箱推荐，已按库存回答", List.of(), List.of(), degraded);
         }
 
         // 知识问答分流：用户问的是库外知识（时令、做法、常识）时，
@@ -208,6 +216,120 @@ public class DialogueAgent {
             return null;
         }
         return sanitizeReply(correctTodayWeekday(outcome.finalAnswer()));
+    }
+
+    private record FridgeAnswer(String reply, DialogueState.Card card) {}
+
+    private FridgeAnswer answerFridgeIfAsked(String openid, String input,
+                                             DialogueState.AgentState state, List<String> degraded) {
+        if (!isFridgeQuestion(input)) return null;
+        ToolContext context = new ToolContext(openid, "fridge-" + System.currentTimeMillis(), json);
+        ToolResult inventory = agentLoop.executeTool("get_fridge_inventory", "{}", context);
+        if (inventory.failed()) {
+            degraded.add("冰箱库存查询失败");
+            return new FridgeAnswer("我暂时没读到你的冰箱库存，请稍后再试。", null);
+        }
+        String inventoryText = inventory.outputJson();
+        List<FridgeFood> foods = fridgeFoods(inventoryText);
+        boolean hasExpired = foods.stream().anyMatch(food -> "EXPIRED".equals(food.status()));
+        String expiryNotice = expiredNotice(foods);
+        if (!isFridgeRecipeQuestion(input)) {
+            return new FridgeAnswer(expiryNotice + formatFridgeInventory(inventoryText), fridgeCard(foods));
+        }
+        if (hasExpired) {
+            return new FridgeAnswer(expiryNotice + "先不要用这些食材做菜，处理完过期食材后我再帮你推荐。", null);
+        }
+        AgentLoop.Outcome outcome = agentLoop.run(new AgentLoop.RunSpec(
+                "agent-fridge-recipe",
+                "用户问：" + AgentPrompts.budget(input, 300)
+                        + "\n只能基于 get_fridge_inventory 返回的库存推荐菜谱；库存没有的食材只能标为需要补买，不能假装已有。"
+                        + "先调用 get_fridge_inventory，再用 search_recipes 检索真实菜谱。回答三句话以内，简体中文。",
+                FRIDGE_TOOLS, 3, 0.2, 900, TimeoutTier.STANDARD, context));
+        if (outcome.completed() && outcome.finalAnswer() != null && !outcome.finalAnswer().isBlank()) {
+            return new FridgeAnswer(sanitizeReply(outcome.finalAnswer()), null);
+        }
+        degraded.add("冰箱菜谱推荐未完成");
+        return new FridgeAnswer(formatFridgeInventory(inventoryText) + "你可以继续问我：这些食材能做什么。", fridgeCard(foods));
+    }
+
+    private DialogueState.AgentState applyFridgeSelection(String openid, String input, DialogueState.AgentState state) {
+        if (!"fridge_priority=soon".equals(input)) return state;
+        ToolResult result = agentLoop.executeTool("get_fridge_inventory", "{}",
+                new ToolContext(openid, "fridge-priority-" + System.currentTimeMillis(), json));
+        if (result.failed()) return state;
+        List<String> soon = fridgeFoods(result.outputJson()).stream()
+                .filter(food -> "SOON".equals(food.status()))
+                .map(FridgeFood::name).distinct().toList();
+        return soon.isEmpty() ? state : state.withRequestedIngredients(soon);
+    }
+
+    private DialogueState.Card fridgeCard(List<FridgeFood> foods) {
+        List<DialogueState.Option> options = foods.stream()
+                .filter(food -> !"EXPIRED".equals(food.status()))
+                .map(food -> new DialogueState.Option(
+                        food.name() + ("SOON".equals(food.status()) ? " · 临期" : ""),
+                        "fridge_item=" + food.name()))
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
+        if (foods.stream().anyMatch(food -> "SOON".equals(food.status()))) {
+            options.add(new DialogueState.Option("不选食材，优先消耗临期", "fridge_priority=soon"));
+        }
+        return options.isEmpty() ? null : new DialogueState.Card("FRIDGE_INVENTORY", "这次想用哪些冰箱食材？",
+                "可以多选；不选具体食材时，锅仔会优先安排临期食材。", options);
+    }
+
+    private record FridgeFood(String name, String status, String quantity, String unit) {}
+
+    private List<FridgeFood> fridgeFoods(String content) {
+        try {
+            JsonNode items = json.readTree(content == null ? "{}" : content).path("items");
+            List<FridgeFood> foods = new ArrayList<>();
+            if (!items.isArray()) return foods;
+            for (JsonNode item : items) {
+                String name = item.path("name").asText("").trim();
+                if (!name.isBlank()) foods.add(new FridgeFood(name, item.path("status").asText("NO_DATE"),
+                        item.path("quantity").asText(""), item.path("unit").asText("")));
+            }
+            return foods;
+        } catch (Exception ignored) {
+            return List.of();
+        }
+    }
+
+    private String expiredNotice(List<FridgeFood> foods) {
+        List<String> expired = foods.stream().filter(food -> "EXPIRED".equals(food.status()))
+                .map(FridgeFood::name).distinct().toList();
+        return expired.isEmpty() ? "" : "这些食材已经过期，请先丢弃：" + String.join("、", expired) + "。";
+    }
+
+    private boolean isFridgeQuestion(String input) {
+        return input != null && input.contains("冰箱")
+                && (input.contains("有什么") || input.contains("有啥") || input.contains("库存")
+                || input.contains("还有什么") || input.contains("还有哪些") || input.contains("冰箱里有")
+                || input.contains("查看冰箱") || input.contains("看看冰箱")
+                || input.contains("能做") || input.contains("推荐"));
+    }
+
+    private boolean isFridgeRecipeQuestion(String input) {
+        return input != null && (input.contains("能做") || input.contains("做什么")
+                || input.contains("推荐") || input.contains("菜谱"));
+    }
+
+    private String formatFridgeInventory(String content) {
+        try {
+            JsonNode root = json.readTree(content == null ? "{}" : content);
+            JsonNode items = root.path("items");
+            if (!items.isArray() || items.isEmpty()) return "你的冰箱里暂时没有已记录的食材。";
+            List<String> names = new ArrayList<>();
+            for (JsonNode item : items) {
+                String name = item.path("name").asText("").trim();
+                String quantity = item.path("quantity").asText("").trim();
+                String unit = item.path("unit").asText("").trim();
+                if (!name.isBlank()) names.add(name + (quantity.isBlank() ? "" : " " + quantity + unit));
+            }
+            return names.isEmpty() ? "你的冰箱里暂时没有已记录的食材。" : "你冰箱里目前有：" + String.join("、", names) + "。";
+        } catch (Exception ignored) {
+            return "我读到了冰箱库存，但暂时没能整理成清单，请稍后再试。";
+        }
     }
 
     private String buildKnowledgeGoal(String input, DialogueState.AgentState state) {
@@ -351,6 +473,9 @@ public class DialogueAgent {
                     }
                 }
                 case "mealContext" -> state = state.withMealContext(AgentPrompts.budget(value, 200));
+                case "requestedIngredients" -> state = state.withRequestedIngredients(
+                        Arrays.stream(value.split("[,，、]"))
+                                .map(String::trim).filter(item -> !item.isBlank()).distinct().toList());
                 default -> {
                     // 未知字段一律忽略，避免污染状态
                 }

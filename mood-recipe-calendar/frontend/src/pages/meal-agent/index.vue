@@ -49,6 +49,7 @@ const agentTurn = ref<MealAgentTurn>()
 const agentQuota = ref<UsageQuotaView>()
 const agentBusy = ref(false)
 const householdSelection = ref<string[]>([])
+const fridgeSelection = ref<string[]>([])
 const otherInput = ref(false)
 const agentCards = computed(() => {
   const cards = agentTurn.value?.cards
@@ -105,6 +106,7 @@ const conversationNotes = computed(() => {
     state.hasChild ? '家有小孩，少刺少骨、口味温和' : '',
     state.spiceLevel ? `吃辣程度：${state.spiceLevel}` : '',
     state.favoriteCuisine ? `偏爱${state.favoriteCuisine}` : '',
+    state.requestedIngredients?.length ? `指定食材：${state.requestedIngredients.join('、')}` : '',
     state.mealContext || '',
   ].filter(Boolean).join('；')
 })
@@ -175,6 +177,7 @@ async function runAgent(message: string, echo = false, echoLabel = message) {
     householdSelection.value = turn.action === 'ASK_HOUSEHOLD'
       ? [turn.state.hasElder ? 'elder' : '', turn.state.hasChild ? 'child' : ''].filter(Boolean)
       : []
+    fridgeSelection.value = []
     people.value = turn.state.people || people.value
     cookingDays.value = turn.state.cookingDays || []
     dishesPerDay.value = turn.state.dishesPerDay || dishesPerDay.value
@@ -243,6 +246,26 @@ async function selectCardOption(value: string, label: string) {
     return
   }
   await runAgent(value, true, label)
+}
+
+function toggleFridgeItem(value: string) {
+  if (value === 'fridge_priority=soon') {
+    fridgeSelection.value = [value]
+    return
+  }
+  fridgeSelection.value = fridgeSelection.value.filter(item => item !== 'fridge_priority=soon')
+  fridgeSelection.value = fridgeSelection.value.includes(value)
+    ? fridgeSelection.value.filter(item => item !== value)
+    : [...fridgeSelection.value, value]
+}
+
+async function confirmFridgeSelection() {
+  const priority = !fridgeSelection.value.length || fridgeSelection.value[0] === 'fridge_priority=soon'
+  const values = priority
+    ? fridgeSelection.value
+    : [`fridge_select=${fridgeSelection.value.map(value => value.replace(/^fridge_item=/, '')).join(',')}`]
+  const label = priority ? '优先消耗临期食材' : `选用：${fridgeSelection.value.map(value => value.replace(/^fridge_item=/, '')).join('、')}`
+  await runAgent(values[0], true, label)
 }
 
 async function submitOther() {
@@ -477,6 +500,16 @@ function openGallery() {
             </button>
             <view v-if="otherInput" class="other-input"><input v-model="composerText" class="other-input__field" :disabled="agentBusy" inputmode="text" confirm-type="send" placeholder="直接告诉锅仔你的情况" @confirm="submitOther"><GuozaiButton class="other-input__send" variant="primary" :block="false" :disabled="agentBusy || !composerText.trim()" :loading="agentBusy" aria-label="发送自定义家庭情况" @click="submitOther">发送</GuozaiButton></view>
           </view>
+          <view v-else-if="card.type === 'FRIDGE_INVENTORY'" class="fridge-picker">
+            <view class="fridge-picker__hint">可多选本次想用的食材，过期食材不会进入推荐。</view>
+            <view class="choice-grid fridge-picker__grid">
+              <button v-for="option in card.options" :key="option.value" :class="{ selected: fridgeSelection.includes(option.value) }" :disabled="agentBusy" @click="toggleFridgeItem(option.value)">
+                <text class="selection-mark" aria-hidden="true">{{ fridgeSelection.includes(option.value) ? '✓' : '' }}</text>
+                <text>{{ option.label }}</text>
+              </button>
+            </view>
+            <button class="household-confirm" :disabled="agentBusy" @click="confirmFridgeSelection">{{ fridgeSelection.length ? '用这些食材安排菜谱' : '按临期优先安排菜谱' }}</button>
+          </view>
           <view v-else class="choice-grid" :class="{ 'choice-grid--cuisine': card.type === 'CUISINE', 'choice-grid--ready': card.type === 'READY' }">
             <button v-for="option in card.options" :key="option.value" :class="{ 'choice-option--long': option.label.length > 8 }" :disabled="agentBusy" @click="option.value === 'generate' ? generate() : selectCardOption(option.value, option.label)">
               {{ option.label }}
@@ -539,6 +572,7 @@ function openGallery() {
 .cuisine-card { overflow: hidden; padding: 22rpx; border-radius: 22rpx; background: linear-gradient(135deg, var(--mrc-surface-sun), var(--mrc-surface-peach)); }.cuisine-card__head { display: flex; align-items: center; justify-content: space-between; }.cuisine-card__head > view { display: flex; flex-direction: column; gap: 8rpx; }.cuisine-card__head text:first-child { color: var(--mrc-text-deep); font-size: 29rpx; font-weight: 800; }.cuisine-card__head text:last-child { color: var(--mrc-accent); font-size: 19rpx; font-weight: 700; }.cuisine-card__head image { width: 92rpx; height: 92rpx; }.cuisine-card__dishes { display: flex; flex-wrap: wrap; gap: 10rpx; margin: 18rpx 0; }.cuisine-card__dishes text { padding: 10rpx 14rpx; border: 2rpx solid rgba(255, 107, 91, .22); border-radius: 999rpx; background: rgba(255,255,255,.54); color: var(--mrc-text-deep); font-size: 20rpx; }.cuisine-card button { min-height: 80rpx; margin: 0; border-radius: 20rpx; font-size: 23rpx; font-weight: 750; }.cuisine-card button::after { display: none; }.cuisine-card__primary { border: 0; background: var(--mrc-primary-grad); color: #fff; }.cuisine-card__secondary { border: 0; background: transparent; color: var(--mrc-text-sub); }
 .choice-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12rpx; }.choice-grid--people { grid-template-columns: repeat(5, 1fr); }.choice-grid button { display: flex; min-height: 88rpx; flex-direction: column; align-items: center; justify-content: center; margin: 0; padding: 12rpx 6rpx; border: 2rpx solid var(--mrc-border); border-radius: 20rpx; background: var(--mrc-surface); color: var(--mrc-text-deep); font-size: 25rpx; font-weight: 750; line-height: 1.25; }.choice-grid button.choice-option--long { min-height: 104rpx; padding-right: 14rpx; padding-left: 14rpx; font-size: 22rpx; line-height: 1.4; }.choice-grid button::after, .choice-confirm::after, .generate-button::after, .restart-button::after, .composer button::after { display: none; }.choice-grid button:active { border-color: var(--mrc-accent); background: var(--mrc-accent-soft); }.choice-grid button text { margin-top: 7rpx; color: var(--mrc-text-sub); font-size: 18rpx; font-weight: 500; }
 .choice-grid--household { grid-template-columns: repeat(3, 1fr); }.choice-grid--household button { position: relative; min-height: 92rpx; padding: 12rpx 8rpx; transition: border-color .18s ease, background-color .18s ease, color .18s ease; }.choice-grid--household button.selected { border-color: var(--mrc-accent); background: var(--mrc-accent-soft); color: var(--mrc-accent); }.choice-grid--household button .selection-mark { position: absolute; top: 8rpx; right: 10rpx; display: flex; width: 28rpx; height: 28rpx; align-items: center; justify-content: center; border: 2rpx solid var(--mrc-border); border-radius: 50%; color: transparent; font-size: 18rpx; line-height: 1; }.choice-grid--household button.selected .selection-mark { border-color: var(--mrc-accent); background: var(--mrc-accent); color: #fff; }.household-confirm { min-height: 82rpx; margin: 16rpx 0 0; border: 0; border-radius: 20rpx; background: var(--mrc-text-deep); color: #fff; font-size: 24rpx; font-weight: 750; }.household-confirm::after { display: none; }.household-confirm[disabled] { opacity: .38; }.choice-grid--spice { grid-template-columns: repeat(3, 1fr); }
+.fridge-picker__hint { margin: -4rpx 2rpx 14rpx; color: var(--mrc-text-sub); font-size: 20rpx; line-height: 1.45; }.fridge-picker__grid { grid-template-columns: repeat(2, 1fr); }.fridge-picker__grid button { position: relative; min-height: 82rpx; padding-right: 34rpx; }.fridge-picker__grid button.selected { border-color: var(--mrc-accent); background: var(--mrc-accent-soft); color: var(--mrc-accent); }.fridge-picker__grid .selection-mark { position: absolute; top: 10rpx; right: 10rpx; display: flex; width: 28rpx; height: 28rpx; align-items: center; justify-content: center; border: 2rpx solid var(--mrc-border); border-radius: 50%; color: transparent; font-size: 18rpx; }.fridge-picker__grid button.selected .selection-mark { border-color: var(--mrc-accent); background: var(--mrc-accent); color: #fff; }
 .weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8rpx; }.weekdays view { display: flex; min-height: 76rpx; align-items: center; justify-content: center; border: 2rpx solid var(--mrc-border); border-radius: 18rpx; color: var(--mrc-text-sub); font-size: 22rpx; }.weekdays view.selected { border-color: var(--mrc-accent); background: var(--mrc-accent-soft); color: var(--mrc-accent); font-weight: 800; }.choice-confirm { min-height: 88rpx; margin: 18rpx 0 0; border: 0; border-radius: 22rpx; background: var(--mrc-text-deep); color: #fff; font-size: 25rpx; font-weight: 750; }
 .plan-confirm__summary { display: flex; justify-content: space-between; padding: 4rpx 4rpx 18rpx; color: var(--mrc-text-deep); font-size: 24rpx; font-weight: 750; }.plan-confirm__summary text:last-child { color: var(--mrc-accent); font-size: 21rpx; }.generate-button { display: flex; min-height: 98rpx; align-items: center; justify-content: space-between; margin: 0; padding: 0 26rpx; border: 0; border-radius: 24rpx; background: var(--mrc-primary-grad); color: #fff; box-shadow: var(--mrc-shadow-coral); line-height: 1.2; }.generate-button:active { transform: scale(.98); }.generate-button { font-size: 28rpx; font-weight: 800; }.generate-button text { font-size: 19rpx; font-weight: 500; opacity: .86; }.restart-button { min-height: 72rpx; margin: 8rpx 0 0; border: 0; background: transparent; color: var(--mrc-text-sub); font-size: 21rpx; }
 .composer { display: flex; align-items: center; gap: 10rpx; min-height: 96rpx; margin-top: 18rpx; padding: 10rpx 12rpx 10rpx 22rpx; border: 2rpx solid var(--mrc-border); border-radius: 28rpx; background: var(--mrc-surface); box-sizing: border-box; }.composer--fixed { position: fixed; z-index: 20; right: 28rpx; bottom: calc(18rpx + env(safe-area-inset-bottom)); left: 28rpx; margin: 0; box-shadow: 0 12rpx 40rpx rgba(69, 37, 24, .16); }.composer input { min-width: 0; flex: 1; color: var(--mrc-text-deep); font-size: 23rpx; }.composer input[disabled] { opacity: .58; }.composer__send { width: 104rpx; min-height: 70rpx; padding: 0 14rpx !important; border-radius: 20rpx !important; font-size: 21rpx !important; }.archive-link { display: flex; min-height: 82rpx; align-items: center; justify-content: center; color: var(--mrc-text-sub); font-size: 21rpx; }

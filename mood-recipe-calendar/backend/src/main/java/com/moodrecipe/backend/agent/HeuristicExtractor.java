@@ -70,6 +70,12 @@ public final class HeuristicExtractor {
                     .filter(day -> day >= 0 && day < 7).distinct().sorted().toList();
             return days.isEmpty() ? state : state.withCookingDays(days);
         }
+        if (value.startsWith("ingredients=")) {
+            return state.withRequestedIngredients(parseIngredients(value.substring("ingredients=".length())));
+        }
+        if (value.startsWith("fridge_select=")) {
+            return state.withRequestedIngredients(parseIngredients(value.substring("fridge_select=".length())));
+        }
         return state;
     }
 
@@ -110,6 +116,11 @@ public final class HeuristicExtractor {
         if (contains(text, "省钱", "便宜", "省一点")) facts.add(AgentFact.explicit("budget", "SAVE", "原话：" + text));
         else if (contains(text, "丰盛")) facts.add(AgentFact.explicit("budget", "TREAT", "原话：" + text));
 
+        List<String> ingredients = requestedIngredients(text);
+        if (!ingredients.isEmpty()) {
+            facts.add(AgentFact.explicit("requestedIngredients", String.join(",", ingredients), "用户明确点名：" + text));
+        }
+
         String cuisine = cuisine(text);
         if (cuisine != null && !mealContext) {
             boolean byCity = CITY_TO_CUISINE.entrySet().stream().anyMatch(entry -> text.contains(entry.getKey()));
@@ -133,6 +144,21 @@ public final class HeuristicExtractor {
 
     public static Set<String> cuisines() {
         return Set.copyOf(CITY_TO_CUISINE.values());
+    }
+
+    private static List<String> requestedIngredients(String text) {
+        List<String> values = new ArrayList<>();
+        if (contains(text, "鱼", "鲈鱼", "鱼肉")) values.add("鱼");
+        if (contains(text, "鸡", "鸡肉", "鸡腿", "鸡翅")) values.add("鸡肉");
+        if (contains(text, "牛肉", "牛腩", "牛排", "牛里脊")) values.add("牛肉");
+        if (contains(text, "猪肉", "猪里脊", "瘦肉", "排骨")) values.add("猪肉");
+        if (contains(text, "虾", "虾仁")) values.add("虾");
+        return values.stream().distinct().toList();
+    }
+
+    private static List<String> parseIngredients(String value) {
+        return Arrays.stream(value.split("[,，、]"))
+                .map(String::trim).filter(item -> !item.isBlank()).distinct().toList();
     }
 
     private static boolean contains(String text, String... words) {

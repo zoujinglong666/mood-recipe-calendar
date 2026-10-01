@@ -163,6 +163,17 @@ class DialogueAgentTest {
     }
 
     @Test
+    void extractsExplicitIngredientRequestsFromNaturalLanguage() {
+        List<AgentFact> facts = HeuristicExtractor.facts("来一条鱼，来一只鸡，再来一盘牛肉");
+
+        assertTrue(facts.stream().anyMatch(fact -> "requestedIngredients".equals(fact.key())
+                && "鱼,鸡肉,牛肉".equals(fact.value())));
+        DialogueState.AgentState state = HeuristicExtractor.applySelection(
+                DialogueState.AgentState.empty(), "ingredients=鱼,鸡肉,牛肉");
+        assertEquals(List.of("鱼", "鸡肉", "牛肉"), state.requestedIngredients());
+    }
+
+    @Test
     void adaptsDishChoicesToPartySizeAndKeepsBothHouseholdNeeds() {
         DialogueState.Card card = AgentCards.defaultCard("ASK_DISHES",
                 DialogueState.AgentState.empty().withPeople(8));

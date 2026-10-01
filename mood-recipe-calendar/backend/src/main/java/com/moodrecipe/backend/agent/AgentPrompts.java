@@ -32,7 +32,7 @@ public final class AgentPrompts {
                 + "\n这位用户的长期档案（带置信度与证据）：\n" + profileText + "\n\n"
                 + """
                         请只输出一个 JSON 对象：
-                        {"reply":"不超过两句的自然回应","facts":[{"key":"people|dishesPerDay|cookingDays|spice|household|healthGoal|budget|favoriteCuisine|mealContext","value":"","confidence":0.0,"explicit":true,"evidence":""}],"conflicts":["互相矛盾的地方"],"unclear":["还拿不准的"]}
+                        {"reply":"不超过两句的自然回应","facts":[{"key":"people|dishesPerDay|cookingDays|spice|household|healthGoal|budget|favoriteCuisine|mealContext|requestedIngredients","value":"","confidence":0.0,"explicit":true,"evidence":""}],"conflicts":["互相矛盾的地方"],"unclear":["还拿不准的"]}
                         要求：
                         - 用户直接说出的信息 explicit=true，confidence 不低于 0.8；
                         - 需要推断的信息 explicit=false，confidence 0.4~0.7，evidence 必须引用用户原话，例如"老家在抚州"可推断偏爱赣菜；
@@ -40,6 +40,7 @@ public final class AgentPrompts {
                         - 宴请、生日、聚餐以及客人的地域口味写进 mealContext；客人来自哪里不等于用户长期喜欢哪个菜系，不能写成 favoriteCuisine；
                         - 用户提到孕妇、孕期或怀孕时，把它作为 household 事实；只记录为菜单避让上下文，不提供医疗或营养治疗建议；
                         - 用户明确说了人数、菜数等信息时必须抽取，不能因为数值超出常见选项就忽略；
+                        - 用户说“来一条鱼、来一只鸡、来一盘牛肉”时，必须把鱼、鸡肉、牛肉抽取为 requestedIngredients，逗号分隔；这是本次菜单的硬约束，不是闲聊。
                         - 拿不准就不要写进 facts，放进 unclear；不要为了凑字段编造。
                         """;
     }

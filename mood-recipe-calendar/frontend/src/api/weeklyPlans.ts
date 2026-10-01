@@ -9,7 +9,7 @@ export interface ShoppingItem { name: string, category: string, quantity: string
 export interface WeeklyPlan { id: number, days: PlanDay[], shopping: ShoppingItem[], favorite: boolean, createdAt: string, agent?: PlanAudit | null }
 export interface PlanOutcomeAck { cuisineAffinity: Record<string, number>, skipQuestions: string[], maxCookingMinutes: number | null, preferSimple: boolean, avoidDishes: string[] }
 export interface WeeklyPlanSummary { id: number, createdAt: string, favorite: boolean, days: PlanDay[] }
-export interface MealAgentState { people?: number, cookingDays?: number[], dishesPerDay?: number, healthGoal?: string, budget?: string, hasElder?: boolean, hasChild?: boolean, spiceLevel?: string, favoriteCuisine?: string, cuisineConfirmed?: boolean, mealContext?: string }
+export interface MealAgentState { people?: number, cookingDays?: number[], dishesPerDay?: number, healthGoal?: string, budget?: string, hasElder?: boolean, hasChild?: boolean, spiceLevel?: string, favoriteCuisine?: string, cuisineConfirmed?: boolean, mealContext?: string, requestedIngredients?: string[] }
 export interface MealAgentOption { label: string, value: string }
 export interface MealAgentTurn {
   reply: string

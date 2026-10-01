@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,7 +22,8 @@ class FridgeInventoryServiceTest {
 
     @Test
     void todayExpiryIsSoonWithZeroDaysLeft() {
-        FridgeItem item = item("番茄", "2026-10-01", "2026-10-01", "3");
+        LocalDate today = today();
+        FridgeItem item = item("番茄", today.toString(), today.toString(), "3");
         when(repository.findByOpenidOrderByExpiresOnAscUpdatedAtDesc("user-1")).thenReturn(List.of(item));
 
         FridgeInventoryService.ItemView view = service.list("user-1").get(0);
@@ -32,7 +34,8 @@ class FridgeInventoryServiceTest {
 
     @Test
     void expiredItemIsMarkedExpired() {
-        FridgeItem item = item("生菜", "2026-09-30", "2026-09-30", "1");
+        LocalDate yesterday = today().minusDays(1);
+        FridgeItem item = item("生菜", yesterday.toString(), yesterday.toString(), "1");
         when(repository.findByOpenidOrderByExpiresOnAscUpdatedAtDesc("user-1")).thenReturn(List.of(item));
 
         assertEquals("EXPIRED", service.list("user-1").get(0).status());
@@ -40,7 +43,8 @@ class FridgeInventoryServiceTest {
 
     @Test
     void itemExpiringWithinThreeDaysIsSoon() {
-        FridgeItem item = item("鸡蛋", "2026-09-28", "2026-10-04", "6");
+        LocalDate expires = today().plusDays(2);
+        FridgeItem item = item("鸡蛋", today().minusDays(4).toString(), expires.toString(), "6");
         when(repository.findByOpenidOrderByExpiresOnAscUpdatedAtDesc("user-1")).thenReturn(List.of(item));
 
         assertEquals("SOON", service.list("user-1").get(0).status());
@@ -73,7 +77,7 @@ class FridgeInventoryServiceTest {
 
     @Test
     void consumingAllQuantityDeletesItem() {
-        FridgeItem item = item("豆腐", "2026-10-01", "2026-10-03", "1");
+        FridgeItem item = item("豆腐", today().toString(), today().plusDays(2).toString(), "1");
         when(repository.findByIdAndOpenid(1L, "user-1")).thenReturn(Optional.of(item));
 
         Optional<FridgeInventoryService.ItemView> result = service.consume("user-1", 1L, BigDecimal.ONE);
@@ -92,5 +96,9 @@ class FridgeInventoryServiceTest {
         item.setPurchasedOn(LocalDate.parse(purchasedOn));
         item.setExpiresOn(expiresOn == null ? null : LocalDate.parse(expiresOn));
         return item;
+    }
+
+    private LocalDate today() {
+        return LocalDate.now(ZoneId.of("Asia/Shanghai"));
     }
 }

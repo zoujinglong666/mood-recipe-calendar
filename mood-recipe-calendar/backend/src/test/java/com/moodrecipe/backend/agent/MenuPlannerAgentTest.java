@@ -46,6 +46,20 @@ class MenuPlannerAgentTest {
                 result.days().stream().map(day -> day.dishes().get(0).name()).toList());
     }
 
+    @Test
+    void localFallbackKeepsExplicitIngredientRequests() {
+        MenuPlannerAgent planner = planner(mock(LlmClient.class), recipes(), List.of());
+
+        MenuPlannerAgent.PlanResult result = planner.plan(new MenuPlannerAgent.PlanRequest(
+                OPENID, List.of(0), 3, "BALANCED", "DAILY", "指定食材：鱼、鸡肉、牛肉"));
+
+        List<String> names = result.days().get(0).dishes().stream()
+                .map(MenuPlannerAgent.PlannedDish::name).toList();
+        assertTrue(names.stream().anyMatch(name -> name.contains("鱼")), names.toString());
+        assertTrue(names.stream().anyMatch(name -> name.contains("鸡")), names.toString());
+        assertTrue(names.stream().anyMatch(name -> name.contains("牛")), names.toString());
+    }
+
     /** 模型第一版排出了过敏食材，智能体必须带着具体问题重排，而不是照单全收。 */
     @Test
     void repairsMenuThatViolatesConstraints() {
@@ -130,7 +144,7 @@ class MenuPlannerAgentTest {
         RecipeRepository recipes = mock(RecipeRepository.class);
         when(recipes.findAiWithImages()).thenReturn(List.of());
         when(recipes.findAll()).thenReturn(List.of(recipe("番茄炒蛋"), recipe("清炒时蔬"), recipe("红烧肉"),
-                recipe("紫菜蛋花汤"), recipe("清蒸鲈鱼"), recipe("香菇青菜")));
+                recipe("紫菜蛋花汤"), recipe("清蒸鲈鱼"), recipe("香菇青菜"), recipe("可乐鸡翅"), recipe("番茄牛腩")));
         return recipes;
     }
 
