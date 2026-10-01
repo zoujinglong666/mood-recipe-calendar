@@ -34,7 +34,12 @@ public class WeeklyMealPlanController {
         if (!contentSafety.allowsText(openid, request.conversationNotes())) return ApiResponse.error(400, "文字未通过安全检查");
         try { quotas.consume(openid, UsageQuotaService.Feature.SIMPLE_WEEKLY_PLAN, null, request.requestId()); }
         catch (IllegalStateException e) { return ApiResponse.error(403, e.getMessage()); }
-        return ApiResponse.ok(plans.generate(openid, request));
+        try {
+            return ApiResponse.ok(plans.generate(openid, request));
+        } catch (RuntimeException e) {
+            quotas.release(openid, UsageQuotaService.Feature.SIMPLE_WEEKLY_PLAN);
+            return ApiResponse.error(500, "菜单生成失败，请稍后重试");
+        }
     }
     @PostMapping("/agent-replies") public ApiResponse<?> agentReply(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @RequestBody AgentReplyRequest request) {
         try { quotas.requireMember(openid); } catch (IllegalStateException e) { return ApiResponse.error(403, e.getMessage()); }

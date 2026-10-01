@@ -14,7 +14,7 @@ import java.util.List;
 @Service
 public class AccountDeletionService {
     private static final List<String> PRIVATE_TABLES = List.of(
-            "agent_memory_facts", "plan_dish_outcomes", "recommendation_exposures",
+            "agent_memory_facts", "agent_conversations", "plan_dish_outcomes", "recommendation_exposures",
             "recipe_interactions", "user_feedback", "operational_events", "checkins",
             "monthly_albums", "weekly_meal_plans", "user_food_preferences", "user_records",
             "user_entitlements");
