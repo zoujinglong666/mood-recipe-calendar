@@ -323,6 +323,7 @@ CREATE TABLE IF NOT EXISTS virtual_products (
   title              VARCHAR(100) NOT NULL,
   description        TEXT,
   price_fen          INT NOT NULL COMMENT '价格，分',
+  benefits           TEXT COMMENT '会员权益清单(JSON 数组)，供会员页直接渲染',
   entitlement_code   VARCHAR(64) NOT NULL COMMENT '发放的权益代码',
   entitlement_amount INT NOT NULL DEFAULT 0 COMMENT '次数型权益数量',
   valid_days         INT NOT NULL DEFAULT 0 COMMENT '有效天数，0 为永久',
@@ -330,6 +331,22 @@ CREATE TABLE IF NOT EXISTS virtual_products (
   sort_order         INT NOT NULL DEFAULT 0,
   created_at         DATETIME
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='虚拟商品目录';
+
+-- 修补已初始化的库：老库没有 benefits 字段时补上（MySQL 8 无 ADD COLUMN IF NOT EXISTS，用存储过程兼容）
+DROP PROCEDURE IF EXISTS add_virtual_products_benefits;
+DELIMITER //
+CREATE PROCEDURE add_virtual_products_benefits()
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'virtual_products' AND COLUMN_NAME = 'benefits'
+  ) THEN
+    ALTER TABLE virtual_products ADD COLUMN benefits TEXT COMMENT '会员权益清单(JSON 数组)，供会员页直接渲染' AFTER price_fen;
+  END IF;
+END //
+DELIMITER ;
+CALL add_virtual_products_benefits();
+DROP PROCEDURE IF EXISTS add_virtual_products_benefits;
 
 CREATE TABLE IF NOT EXISTS virtual_orders (
   id                      BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -628,6 +645,18 @@ VALUES
 -- 修补已初始化库：月度画册道具 ID 曾为空，补全为微信虚拟支付后台同名道具。
 UPDATE virtual_products SET platform_item_id = 'YDHC_1124' WHERE sku = 'ALBUM_HD_EXPORT' AND (platform_item_id IS NULL OR platform_item_id = '');
 UPDATE virtual_products SET platform_item_id = 'GZHY_30D', title = '锅仔会员 30 天', description = '30 天内畅享锅仔管饭、AI 私人菜单与月度画册高清导出。', price_fen = 990 WHERE sku = 'GUOZAI_MEMBER_30D';
+
+-- 会员权益清单（接口驱动）：与后台真实会员闸门一一对应，会员页直接渲染，不再前端硬编码。
+UPDATE virtual_products SET benefits = JSON_ARRAY(
+  JSON_OBJECT('group','MEAL','groupTitle','每天吃什么，锅仔替你想','icon','✦','title','锅仔智能体不限次对话','value','免费用户仅签到送 1 次，会员不限次','detail','想换菜、想调整、想问怎么做，随时开口；结合人数、预算、忌口和不做饭的日期。'),
+  JSON_OBJECT('group','MEAL','groupTitle','每天吃什么，锅仔替你想','icon','▤','title','周菜单不限次生成与重排','value','免费用户每周 1 次，会员不限次','detail','安排整周晚餐、一键生成购物清单；哪天不合适，直接让锅仔换一道。'),
+  JSON_OBJECT('group','MEAL','groupTitle','每天吃什么，锅仔替你想','icon','600','title','首页推荐每天 20 次','value','免费用户每天 3 次','detail','按你的心情、口味和忌口推荐，量足到可以任性挑；额度每天刷新。'),
+  JSON_OBJECT('group','MEAL','groupTitle','每天吃什么，锅仔替你想','icon','◇','title','AI 私人菜单深度定制','value','一次给到贴合你的整份菜单','detail','输入心情和现有食材，生成一份完整可用、带做法的私人菜单，不用逐项凑。'),
+  JSON_OBJECT('group','FRIDGE','groupTitle','冰箱里有什么，拍一张就知道','icon','◉','title','冰箱拍照识别食材','value','拍一张，自动认食材、算保质期','detail','对着冰箱拍一张，锅仔自动认出食材并估算保质期，确认后一键入库，不用一个个手输。'),
+  JSON_OBJECT('group','FRIDGE','groupTitle','冰箱里有什么，拍一张就知道','icon','⏱','title','食材临期提醒','value','快过期时提醒你，别浪费','detail','临期或过期的食材会主动提醒，并告诉你哪些其实不该放冰箱、该怎么存。'),
+  JSON_OBJECT('group','MEMORY','groupTitle','认真吃过的每一餐，都替你收好','icon','▣','title','高清无水印月度画册','value','把这一个月认真收藏下来','detail','将当月真实记录、心情和锅仔寄语整理成无水印收藏图，随时保存、分享。'),
+  JSON_OBJECT('group','MEMORY','groupTitle','认真吃过的每一餐，都替你收好','icon','↗','title','锅仔联网搜索','value','问到库外知识也能答','detail','时令食材、食材挑选、某道菜的多样做法，锅仔可以联网帮你查，并注明来源。')
+) WHERE sku = 'GUOZAI_MEMBER_30D';
 
 -- ---------- 验证 ----------
 CREATE TABLE IF NOT EXISTS pending_asset_deletions (

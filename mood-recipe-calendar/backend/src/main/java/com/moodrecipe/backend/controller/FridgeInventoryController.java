@@ -2,6 +2,7 @@ package com.moodrecipe.backend.controller;
 
 import com.moodrecipe.backend.common.ApiResponse;
 import com.moodrecipe.backend.config.SessionAuthInterceptor;
+import com.moodrecipe.backend.service.FoodShelfLifeCatalog;
 import com.moodrecipe.backend.service.FridgeExpiryNotifier;
 import com.moodrecipe.backend.service.FridgeInventoryService;
 import com.moodrecipe.backend.service.FridgeVisionService;
@@ -19,15 +20,18 @@ public class FridgeInventoryController {
     private final FridgeInventoryService inventory;
     private final FridgeVisionService vision;
     private final FridgeExpiryNotifier expiryNotifier;
+    private final FoodShelfLifeCatalog shelfLifeCatalog;
     private final UsageQuotaService quota;
 
     public FridgeInventoryController(FridgeInventoryService inventory,
                                      FridgeVisionService vision,
                                      FridgeExpiryNotifier expiryNotifier,
+                                     FoodShelfLifeCatalog shelfLifeCatalog,
                                      UsageQuotaService quota) {
         this.inventory = inventory;
         this.vision = vision;
         this.expiryNotifier = expiryNotifier;
+        this.shelfLifeCatalog = shelfLifeCatalog;
         this.quota = quota;
     }
 
@@ -50,6 +54,24 @@ public class FridgeInventoryController {
     }
 
     public record RecognizeRequest(String imageUrl) {}
+
+    /**
+     * 查询某食材的存放提醒（是否不宜冷藏 + 正确存法）。
+     *
+     * 用于手动添加时的实时提示：用户输入「香蕉」即提示别放冰箱。
+     * 这是基于规则库的确定性查询，非会员也可用（属于基础录入辅助，不涉及识别/保质期特权）。
+     */
+    @GetMapping("/storage-advice")
+    public ApiResponse<?> storageAdvice(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
+                                        @RequestParam("name") String name) {
+        FoodShelfLifeCatalog.StorageAdvice advice = shelfLifeCatalog.storageAdvice(name);
+        return ApiResponse.ok(new StorageAdviceView(
+                advice != null,
+                advice == null ? null : advice.level(),
+                advice == null ? null : advice.tip()));
+    }
+
+    public record StorageAdviceView(boolean inFridgeWarned, String level, String tip) {}
 
     /**
      * 发送临期提醒（会员专享）。仅对当前临期/过期食材生成一条订阅消息，

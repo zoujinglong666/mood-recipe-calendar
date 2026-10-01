@@ -1,5 +1,6 @@
 package com.moodrecipe.backend.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moodrecipe.backend.entity.User;
 import com.moodrecipe.backend.entity.UserEntitlement;
 import com.moodrecipe.backend.entity.VirtualOrder;
@@ -12,7 +13,10 @@ import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -27,21 +31,72 @@ public class VirtualCommerceService {
     private final VirtualOrderRepository orderRepository;
     private final UserEntitlementRepository entitlementRepository;
     private final UserRepository userRepository;
+    private final ObjectMapper mapper;
+
+    public VirtualCommerceService(VirtualProductRepository productRepository,
+                                  VirtualOrderRepository orderRepository,
+                                  UserEntitlementRepository entitlementRepository,
+                                  UserRepository userRepository) {
+        this(productRepository, orderRepository, entitlementRepository, userRepository, new ObjectMapper());
+    }
 
     public VirtualCommerceService(
             VirtualProductRepository productRepository,
             VirtualOrderRepository orderRepository,
             UserEntitlementRepository entitlementRepository,
-            UserRepository userRepository
+            UserRepository userRepository,
+            ObjectMapper mapper
     ) {
         this.productRepository = productRepository;
         this.orderRepository = orderRepository;
         this.entitlementRepository = entitlementRepository;
         this.userRepository = userRepository;
+        this.mapper = mapper;
     }
 
     public List<VirtualProduct> listProducts() {
         return productRepository.findByActiveTrueOrderBySortOrderAsc();
+    }
+
+    /** 单条会员权益：分组 + 图标 + 标题 + 与免费的差异 + 说明。 */
+    public record MemberBenefit(String group, String groupTitle, String icon,
+                                String title, String value, String detail) {}
+
+    /** 会员权益分组：会员页按组渲染。 */
+    public record MemberBenefitGroup(String key, String title, List<MemberBenefit> items) {}
+
+    /**
+     * 读取会员 SKU 的权益清单（接口驱动，前端不再硬编码）。
+     *
+     * 数据来自 virtual_products.benefits（JSON 数组），按 group 归并为分组；
+     * 若该字段为空（老库未迁移）则返回空列表，由前端回退内置文案，保证不出现白屏。
+     */
+    public List<MemberBenefitGroup> listMemberBenefits() {
+        VirtualProduct memberProduct = productRepository.findByActiveTrueOrderBySortOrderAsc().stream()
+                .filter(VirtualProduct::isMemberPass)
+                .findFirst()
+                .orElse(null);
+        if (memberProduct == null || memberProduct.getBenefits() == null || memberProduct.getBenefits().isBlank()) {
+            return List.of();
+        }
+        try {
+            List<MemberBenefit> benefits = mapper.readValue(memberProduct.getBenefits(),
+                    mapper.getTypeFactory().constructCollectionType(List.class, MemberBenefit.class));
+            // 按 group 归并，保持 JSON 中的原始顺序
+            Map<String, List<MemberBenefit>> grouped = new LinkedHashMap<>();
+            Map<String, String> titles = new LinkedHashMap<>();
+            for (MemberBenefit benefit : benefits) {
+                String key = benefit.group() == null || benefit.group().isBlank() ? "OTHER" : benefit.group();
+                grouped.computeIfAbsent(key, ignored -> new ArrayList<>()).add(benefit);
+                titles.putIfAbsent(key, benefit.groupTitle());
+            }
+            List<MemberBenefitGroup> result = new ArrayList<>();
+            grouped.forEach((key, items) -> result.add(new MemberBenefitGroup(key, titles.get(key), items)));
+            return result;
+        } catch (Exception error) {
+            // 权益 JSON 损坏时返回空列表，前端回退内置文案，绝不让会员页崩掉
+            return List.of();
+        }
     }
 
     public VirtualOrder createOrder(String openid, String sku) {

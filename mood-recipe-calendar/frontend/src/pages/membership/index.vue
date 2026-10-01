@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import type { VirtualProduct } from '../../api/virtualCommerce'
-import { computed, ref } from 'vue'
+import type { MemberBenefitGroup, VirtualProduct } from '../../api/virtualCommerce'
+import { computed, onMounted, ref } from 'vue'
 import { navBack, useNavBar } from '@/composables/useNavBar'
 import { STATIC_BASE_URL } from '@/utils/assets'
 import {
   createVirtualOrder,
+  fetchMemberBenefits,
   fetchVirtualOrder,
   fetchVirtualProducts,
   getVirtualPaymentParams,
@@ -29,12 +30,77 @@ let paymentSupported = false
 paymentSupported = typeof (uni as any).requestVirtualPayment === 'function'
 // #endif
 
-const benefits = [
-  { icon: '600', title: '每月 600 次首页推荐', value: '比普通用户每月多约 510 次', detail: '每天 20 次，按你的心情、口味和忌口推荐；额度次日刷新。' },
-  { icon: '✦', title: '30 天锅仔专属管饭', value: '一个月都有人替你想吃什么', detail: '结合人数、预算、忌口和不做饭日期，安排周菜单、购物清单并随时重排。' },
-  { icon: '▣', title: '每月不限次高清画册', value: '把这个月认真收藏下来', detail: '将当月真实记录、心情和锅仔寄语整理成无水印收藏图，随时保存分享。' },
-  { icon: '⌁', title: '一次开通，30 天全权益可用', value: '不用为每项服务单独付费', detail: '智能规划、私人菜单和高清画册一次覆盖，生活节奏变化时随时回来调整。' },
+/**
+ * 会员权益：优先由后台接口驱动（/virtual-commerce/member-benefits），
+ * 后台未配置时回退到下方内置文案，保证会员页永远有内容、不白屏。
+ */
+interface BenefitItem { icon: string, title: string, value: string, detail: string }
+
+/** 兜底权益文案：与后台真实会员闸门一一对应（首页额度、锅仔对话、周计划、冰箱、画册）。 */
+const FALLBACK_GROUPS: { key: string, eyebrow: string, title: string, items: BenefitItem[] }[] = [
+  {
+    key: 'MEAL',
+    eyebrow: 'MEAL',
+    title: '每天吃什么，锅仔替你想',
+    items: [
+      { icon: '✦', title: '锅仔智能体不限次对话', value: '免费用户仅签到送 1 次，会员不限次', detail: '想换菜、想调整、想问怎么做，随时开口；结合人数、预算、忌口和不做饭的日期。' },
+      { icon: '▤', title: '周菜单不限次生成与重排', value: '免费用户每周 1 次，会员不限次', detail: '安排整周晚餐、一键生成购物清单；哪天不合适，直接让锅仔换一道。' },
+      { icon: '600', title: '首页推荐每天 20 次', value: '免费用户每天 3 次', detail: '按你的心情、口味和忌口推荐，量足到可以任性挑；额度每天刷新。' },
+      { icon: '◇', title: 'AI 私人菜单深度定制', value: '一次给到贴合你的整份菜单', detail: '输入心情和现有食材，生成一份完整可用、带做法的私人菜单，不用逐项凑。' },
+    ],
+  },
+  {
+    key: 'FRIDGE',
+    eyebrow: 'FRIDGE',
+    title: '冰箱里有什么，拍一张就知道',
+    items: [
+      { icon: '◉', title: '冰箱拍照识别食材', value: '拍一张，自动认食材、算保质期', detail: '对着冰箱拍一张，锅仔自动认出食材并估算保质期，确认后一键入库，不用一个个手输。' },
+      { icon: '⏱', title: '食材临期提醒', value: '快过期时提醒你，别浪费', detail: '临期或过期的食材会主动提醒，并告诉你哪些其实不该放冰箱、该怎么存。' },
+    ],
+  },
+  {
+    key: 'MEMORY',
+    eyebrow: 'MEMORY',
+    title: '认真吃过的每一餐，都替你收好',
+    items: [
+      { icon: '▣', title: '高清无水印月度画册', value: '把这一个月认真收藏下来', detail: '将当月真实记录、心情和锅仔寄语整理成无水印收藏图，随时保存、分享。' },
+      { icon: '↗', title: '锅仔联网搜索', value: '问到库外知识也能答', detail: '时令食材、食材挑选、某道菜的多样做法，锅仔可以联网帮你查，并注明来源。' },
+    ],
+  },
 ]
+
+const remoteBenefits = ref<MemberBenefitGroup[]>([])
+
+/** 合并为页面使用的分组结构；接口为空或字段缺失时回退内置文案。 */
+const benefitGroups = computed(() => {
+  const remote = remoteBenefits.value
+    .filter(group => group.items?.length)
+    .map(group => ({
+      key: group.key,
+      eyebrow: (group.key || '').toUpperCase(),
+      title: group.title || '',
+      items: group.items.map(item => ({
+        icon: item.icon || '·',
+        title: item.title || '',
+        value: item.value || '',
+        detail: item.detail || '',
+      })),
+    }))
+  return remote.length ? remote : FALLBACK_GROUPS
+})
+
+const benefitCount = computed(() => benefitGroups.value.reduce((total, group) => total + group.items.length, 0))
+
+onMounted(async () => {
+  try {
+    const groups = await fetchMemberBenefits()
+    if (Array.isArray(groups) && groups.length)
+      remoteBenefits.value = groups
+  }
+  catch {
+    // 接口失败静默回退内置文案，会员页不因接口异常而残缺
+  }
+})
 
 const active = computed(() => userStore.userInfo?.isMember === 1
   && Boolean(userStore.userInfo?.memberExpire)
@@ -155,9 +221,9 @@ async function waitForDelivery(orderNo: string) {
     </view>
 
     <view class="member-summary">
-      <view><text>4</text><text>项核心权益</text></view>
+      <view><text>{{ benefitCount }}</text><text>项会员权益</text></view>
       <view><text>30</text><text>天持续陪伴</text></view>
-      <view><text>∞</text><text>会员不限次数</text></view>
+      <view><text>∞</text><text>对话不限次数</text></view>
     </view>
 
     <view class="member-section-head">
@@ -169,26 +235,36 @@ async function waitForDelivery(orderNo: string) {
       </text>
     </view>
 
-    <view class="member-benefits">
-      <view v-for="(item, index) in benefits" :key="item.title" class="member-benefit">
-        <view class="member-benefit__icon">
-          <text>{{ item.icon }}</text>
-        </view>
-        <view class="member-benefit__body">
-          <view class="member-benefit__head">
-            <text class="member-benefit__index">
-              0{{ index + 1 }}
+    <view v-for="group in benefitGroups" :key="group.key" class="member-group">
+      <view class="member-group__head">
+        <text class="member-group__eyebrow">
+          {{ group.eyebrow }}
+        </text>
+        <text class="member-group__title">
+          {{ group.title }}
+        </text>
+      </view>
+      <view class="member-benefits">
+        <view v-for="(item, index) in group.items" :key="item.title" class="member-benefit">
+          <view class="member-benefit__icon">
+            <text>{{ item.icon }}</text>
+          </view>
+          <view class="member-benefit__body">
+            <view class="member-benefit__head">
+              <text class="member-benefit__index">
+                {{ String(index + 1).padStart(2, '0') }}
+              </text>
+              <text class="member-benefit__title">
+                {{ item.title }}
+              </text>
+            </view>
+            <text class="member-benefit__value">
+              {{ item.value }}
             </text>
-            <text class="member-benefit__title">
-              {{ item.title }}
+            <text class="member-benefit__detail">
+              {{ item.detail }}
             </text>
           </view>
-          <text class="member-benefit__value">
-            {{ item.value }}
-          </text>
-          <text class="member-benefit__detail">
-            {{ item.detail }}
-          </text>
         </view>
       </view>
     </view>
@@ -240,6 +316,12 @@ async function waitForDelivery(orderNo: string) {
 .member-section-head__eyebrow, .member-section-head__title { display: block; }
 .member-section-head__eyebrow { color: var(--mrc-accent); font-size: 18rpx; font-weight: 850; letter-spacing: 3rpx; }
 .member-section-head__title { margin-top: 7rpx; font-size: 32rpx; font-weight: 900; }
+.member-group { margin-bottom: 36rpx; }
+.member-group:last-of-type { margin-bottom: 0; }
+.member-group__head { margin: 0 8rpx 16rpx; }
+.member-group__eyebrow, .member-group__title { display: block; }
+.member-group__eyebrow { color: var(--mrc-accent); font-size: 17rpx; font-weight: 850; letter-spacing: 3rpx; opacity: .82; }
+.member-group__title { margin-top: 5rpx; color: var(--mrc-text-strong); font-size: 26rpx; font-weight: 850; }
 .member-benefits { display: flex; flex-direction: column; gap: 16rpx; }
 .member-benefit { display: flex; gap: 22rpx; padding: 26rpx; border: 2rpx solid var(--mrc-border); border-radius: 32rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); }
 .member-benefit__icon { display: flex; width: 74rpx; height: 74rpx; flex: 0 0 auto; align-items: center; justify-content: center; border-radius: 24rpx; background: linear-gradient(145deg, var(--mrc-surface-sun), var(--mrc-surface-peach)); color: var(--mrc-accent); font-size: 30rpx; font-weight: 900; }

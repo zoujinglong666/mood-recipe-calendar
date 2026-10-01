@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { createFridgeItem, consumeFridgeItem, deleteFridgeItem, fetchFridgeItems, fetchFridgeSummary, notifyFridgeExpiring, recognizeFridgeImage, updateFridgeItem, type FridgeItem, type FridgeSummary, type RecognizedItem } from '@/api/fridge'
+import { createFridgeItem, consumeFridgeItem, deleteFridgeItem, fetchFridgeItems, fetchFridgeSummary, fetchStorageAdvice, notifyFridgeExpiring, recognizeFridgeImage, updateFridgeItem, type FridgeItem, type FridgeSummary, type RecognizedItem } from '@/api/fridge'
 import GuozaiButton from '@/components/guozai/GuozaiButton.vue'
 import { navBack } from '@/composables/useNavBar'
 import { uploadFile } from '@/api/request'
@@ -22,6 +22,31 @@ const editingId = ref<number>()
 const error = ref('')
 const formError = ref('')
 const form = ref({ name: '', quantity: '1', unit: '份', purchasedOn: today, expiresOn: '', note: '' })
+
+// 手动录入时的实时存放提醒（如输入「香蕉」提示别放冰箱）
+const formAdvice = ref<{ level: 'AVOID' | 'WORSE', tip: string } | null>(null)
+let adviceTimer: ReturnType<typeof setTimeout> | undefined
+
+watch(() => form.value.name, (name) => {
+  if (adviceTimer) clearTimeout(adviceTimer)
+  const trimmed = name?.trim()
+  if (!trimmed) {
+    formAdvice.value = null
+    return
+  }
+  // 防抖，避免每敲一个字都请求
+  adviceTimer = setTimeout(async () => {
+    try {
+      const advice = await fetchStorageAdvice(trimmed)
+      formAdvice.value = advice.inFridgeWarned && advice.level
+        ? { level: advice.level as 'AVOID' | 'WORSE', tip: advice.tip || '' }
+        : null
+    }
+    catch {
+      formAdvice.value = null
+    }
+  }, 350)
+})
 
 const soonItems = computed(() => items.value.filter(item => item.status === 'SOON'))
 const expiredItems = computed(() => items.value.filter(item => item.status === 'EXPIRED'))
@@ -99,6 +124,21 @@ async function confirmRecognize() {
   if (!picked.length) {
     toast('请至少勾选一项食材')
     return
+  }
+  // 入库前拦截：含「会加速变质」的食材时，二次确认让用户知道放冰箱是错的
+  const risky = picked.filter(d => d.storageLevel === 'WORSE')
+  if (risky.length) {
+    const confirmed = await new Promise<boolean>((resolve) => {
+      uni.showModal({
+        title: '这些食材其实不该放冰箱',
+        content: `${risky.map(d => d.name).join('、')} 放冰箱会坏得更快，确定仍要放入吗？`,
+        confirmText: '仍要放入',
+        cancelText: '再看看',
+        success: res => resolve(res.confirm),
+        fail: () => resolve(false),
+      })
+    })
+    if (!confirmed) return
   }
   saving.value = true
   try {
@@ -285,9 +325,9 @@ function statusText(item: FridgeItem) {
     </template>
 
     <!-- 识别结果确认清单：识别只作预填，用户勾选/修改后才入库 -->
-    <view v-if="recognizeOpen" class="form-mask" @click="closeRecognize"><view class="form-sheet" @click.stop><view class="form-sheet__head"><view><text class="eyebrow">AI RECOGNIZED</text><text class="form-sheet__title">确认要放入的食材</text></view><text class="form-sheet__close" @click="closeRecognize">×</text></view><text class="recognize-hint">{{ recognizeNotice || '已自动识别并估算保质期，勾选后放入冰箱' }}</text><view v-if="!drafts.length" class="recognize-empty">没有识别到食材，换个角度再拍一张吧</view><view v-for="(draft, idx) in drafts" :key="idx" class="draft-row"><view class="draft-row__check" :class="{ 'is-on': draft.checked }" @click="draft.checked = !draft.checked">{{ draft.checked ? '✓' : '' }}</view><view class="draft-row__body"><input v-model="draft.name" class="draft-row__name" :maxlength="80"><text class="draft-row__meta">{{ draft.shelfLifeDays }} 天保质期 · {{ draft.expiresOn }} 到期{{ draft.shelfLifeMatched ? '' : '（估算）' }}</text></view></view><GuozaiButton :loading="saving" aria-label="确认放入冰箱" @click="confirmRecognize">放入冰箱（{{ recognizedCount }} 项）</GuozaiButton></view></view>
+    <view v-if="recognizeOpen" class="form-mask" @click="closeRecognize"><view class="form-sheet" @click.stop><view class="form-sheet__head"><view><text class="eyebrow">AI RECOGNIZED</text><text class="form-sheet__title">确认要放入的食材</text></view><text class="form-sheet__close" @click="closeRecognize">×</text></view><text class="recognize-hint">{{ recognizeNotice || '已自动识别并估算保质期，勾选后放入冰箱' }}</text><view v-if="!drafts.length" class="recognize-empty">没有识别到食材，换个角度再拍一张吧</view><view v-for="(draft, idx) in drafts" :key="idx" class="draft-row"><view class="draft-row__check" :class="{ 'is-on': draft.checked }" @click="draft.checked = !draft.checked">{{ draft.checked ? '✓' : '' }}</view><view class="draft-row__body"><input v-model="draft.name" class="draft-row__name" :maxlength="80"><text class="draft-row__meta">{{ draft.shelfLifeDays }} 天保质期 · {{ draft.expiresOn }} 到期{{ draft.shelfLifeMatched ? '' : '（估算）' }}</text><view v-if="draft.storageLevel" class="draft-row__warn" :class="`is-${draft.storageLevel.toLowerCase()}`"><text class="draft-row__warn-title">{{ draft.storageLevel === 'WORSE' ? '⚠ 放冰箱会坏得更快' : '· 其实不用放冰箱' }}</text><text class="draft-row__warn-tip">{{ draft.storageTip }}</text></view></view></view><GuozaiButton :loading="saving" aria-label="确认放入冰箱" @click="confirmRecognize">放入冰箱（{{ recognizedCount }} 项）</GuozaiButton></view></view>
 
-    <view v-if="formOpen" class="form-mask" @click="closeForm"><view class="form-sheet" @click.stop><view class="form-sheet__head"><view><text class="eyebrow">FRIDGE ITEM</text><text class="form-sheet__title">{{ editingId ? '编辑食材' : '放入冰箱' }}</text></view><text class="form-sheet__close" @click="closeForm">×</text></view><view class="form-field"><text>食材名称</text><input v-model="form.name" placeholder="例如：番茄" :maxlength="80"></view><view class="form-line"><view class="form-field"><text>数量</text><input v-model="form.quantity" type="digit" placeholder="1"></view><view class="form-field"><text>单位</text><input v-model="form.unit" placeholder="份" :maxlength="20"></view></view><view class="form-line"><view class="form-field"><text>购买日期</text><picker mode="date" :value="form.purchasedOn" @change="setDate('purchasedOn', $event)"><view class="date-field">{{ form.purchasedOn || '选择日期' }}</view></picker></view><view class="form-field"><text>保质期（可选）</text><picker mode="date" :value="form.expiresOn || today" @change="setDate('expiresOn', $event)"><view class="date-field">{{ form.expiresOn || '未设置' }}</view></picker></view></view><view class="form-field"><text>备注（可选）</text><input v-model="form.note" placeholder="例如：切开了，尽快吃" :maxlength="240"></view><text v-if="formError" class="form-error">{{ formError }}</text><GuozaiButton :loading="saving" aria-label="保存食材" @click="save">保存食材</GuozaiButton></view></view>
+    <view v-if="formOpen" class="form-mask" @click="closeForm"><view class="form-sheet" @click.stop><view class="form-sheet__head"><view><text class="eyebrow">FRIDGE ITEM</text><text class="form-sheet__title">{{ editingId ? '编辑食材' : '放入冰箱' }}</text></view><text class="form-sheet__close" @click="closeForm">×</text></view><view class="form-field"><text>食材名称</text><input v-model="form.name" placeholder="例如：番茄" :maxlength="80"></view><view v-if="formAdvice" class="form-advice" :class="`is-${formAdvice.level.toLowerCase()}`"><text class="form-advice__title">{{ formAdvice.level === 'WORSE' ? '⚠ 这种食材放冰箱会坏得更快' : '· 这种食材其实不用放冰箱' }}</text><text class="form-advice__tip">{{ formAdvice.tip }}</text></view><view class="form-line"><view class="form-field"><text>数量</text><input v-model="form.quantity" type="digit" placeholder="1"></view><view class="form-field"><text>单位</text><input v-model="form.unit" placeholder="份" :maxlength="20"></view></view><view class="form-line"><view class="form-field"><text>购买日期</text><picker mode="date" :value="form.purchasedOn" @change="setDate('purchasedOn', $event)"><view class="date-field">{{ form.purchasedOn || '选择日期' }}</view></picker></view><view class="form-field"><text>保质期（可选）</text><picker mode="date" :value="form.expiresOn || today" @change="setDate('expiresOn', $event)"><view class="date-field">{{ form.expiresOn || '未设置' }}</view></picker></view></view><view class="form-field"><text>备注（可选）</text><input v-model="form.note" placeholder="例如：切开了，尽快吃" :maxlength="240"></view><text v-if="formError" class="form-error">{{ formError }}</text><GuozaiButton :loading="saving" aria-label="保存食材" @click="save">保存食材</GuozaiButton></view></view>
   </view>
 </template>
 
@@ -312,4 +352,10 @@ function statusText(item: FridgeItem) {
 .draft-row__body { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 6rpx; }
 .draft-row__name { width: 100%; min-height: 56rpx; padding: 0 14rpx; border: 2rpx solid var(--mrc-border); border-radius: 14rpx; background: var(--mrc-bg); color: var(--mrc-text-deep); font-size: 24rpx; font-weight: 700; box-sizing: border-box; }
 .draft-row__meta { color: var(--mrc-text-sub); font-size: 19rpx; }
+/* 不宜冷藏提醒（识别清单 + 手动表单共用） */
+.draft-row__warn, .form-advice { display: flex; flex-direction: column; gap: 4rpx; margin-top: 8rpx; padding: 14rpx 16rpx; border-radius: 16rpx; border-left: 6rpx solid var(--mrc-warning, #e0a020); background: var(--mrc-surface-warn, #fdf3e0); }
+.form-advice { margin: -4rpx 0 16rpx; }
+.draft-row__warn.is-worse, .form-advice.is-worse { border-left-color: var(--mrc-color-danger, #d64545); background: var(--mrc-surface-danger, #fdecec); }
+.draft-row__warn-title, .form-advice__title { color: var(--mrc-text-deep); font-size: 21rpx; font-weight: 800; }
+.draft-row__warn-tip, .form-advice__tip { color: var(--mrc-text-sub); font-size: 19rpx; line-height: 1.45; }
 </style>

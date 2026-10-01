@@ -41,6 +41,28 @@ export interface VirtualPaymentParams {
   signature: string
 }
 
+/** 单条会员权益。 */
+export interface MemberBenefit {
+  group: string
+  groupTitle: string
+  icon: string
+  title: string
+  value: string
+  detail: string
+}
+
+/** 会员权益分组（会员页按组渲染）。 */
+export interface MemberBenefitGroup {
+  key: string
+  title: string
+  items: MemberBenefit[]
+}
+
+/** 会员权益清单（接口驱动，后台可配置）。公开接口，未登录也可调用。 */
+export function fetchMemberBenefits() {
+  return get<MemberBenefitGroup[]>('/virtual-commerce/member-benefits')
+}
+
 /** 商品目录只包含数字权益；实物周边仍使用 gallery API。 */
 export function fetchVirtualProducts() {
   return get<VirtualProduct[]>('/virtual-commerce/products')

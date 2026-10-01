@@ -24,6 +24,15 @@ public class VirtualCommerceController {
         this.paymentService = paymentService;
     }
 
+    /**
+     * 会员权益清单（接口驱动）。公开接口，无需登录——会员页在未登录时也要能展示。
+     * 数据为空时前端回退内置文案。
+     */
+    @GetMapping("/member-benefits")
+    public ApiResponse<List<VirtualCommerceService.MemberBenefitGroup>> memberBenefits() {
+        return ApiResponse.ok(commerceService.listMemberBenefits());
+    }
+
     @GetMapping("/products")
     public ApiResponse<List<VirtualProduct>> products() {
         List<VirtualProduct> products = commerceService.listProducts();

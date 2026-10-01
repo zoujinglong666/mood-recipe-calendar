@@ -53,9 +53,15 @@ public class FridgeVisionService {
         return !visionModel.isBlank() && llm.isConfigured();
     }
 
-    /** 单条识别结果：食材名 + 依据常识库算出的保质期，供用户确认。 */
+    /**
+     * 单条识别结果：食材名 + 依据常识库算出的保质期，供用户确认。
+     *
+     * storageLevel / storageTip：若该食材不适合放冰箱则为非空，前端据此做入库前提醒。
+     * storageLevel 取值 AVOID（不建议）/ WORSE（会加速变质），null 表示可正常冷藏。
+     */
     public record RecognizedItem(String name, int shelfLifeDays, String category,
-                                 LocalDate expiresOn, boolean shelfLifeMatched, String confidence) {}
+                                 LocalDate expiresOn, boolean shelfLifeMatched, String confidence,
+                                 String storageLevel, String storageTip) {}
 
     public record RecognizeResult(List<RecognizedItem> items, boolean degraded, String notice) {
         static RecognizeResult empty(String notice) {
@@ -104,11 +110,15 @@ public class FridgeVisionService {
                 String hintCategory = node.path("category").asText("");
                 FoodShelfLifeCatalog.ShelfLife life = shelfLife.lookup(name);
                 int days = life.matched() ? life.days() : shelfLife.defaultDays(hintCategory);
+                // 不宜冷藏提醒（与保质期正交的独立维度），命中则前端会做入库前提示
+                FoodShelfLifeCatalog.StorageAdvice advice = shelfLife.storageAdvice(name);
                 items.add(new RecognizedItem(
                         name, days, life.category(),
                         purchasedOn.plusDays(days),
                         life.matched(),
-                        node.path("confidence").asText("MEDIUM")));
+                        node.path("confidence").asText("MEDIUM"),
+                        advice == null ? null : advice.level(),
+                        advice == null ? null : advice.tip()));
                 if (items.size() >= MAX_ITEMS) break;
             }
         } catch (Exception e) {

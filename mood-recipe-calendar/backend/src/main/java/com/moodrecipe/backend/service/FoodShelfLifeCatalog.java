@@ -103,8 +103,76 @@ public class FoodShelfLifeCatalog {
         TABLE.put(keyword, new Entry(category, days));
     }
 
+    /**
+     * 存放提醒：食材不适合放冰箱时的说明。
+     *
+     * @param level   强度：AVOID=不建议冷藏 / WORSE=放进去会加速变质
+     * @param tip     正确存法建议（放哪、怎么放）
+     */
+    public record StorageAdvice(String level, String tip) {
+        public static final String AVOID = "AVOID";
+        public static final String WORSE = "WORSE";
+        public boolean worse() { return WORSE.equals(level); }
+    }
+
+    /**
+     * 不宜冷藏表：关键词 → 提醒。
+     *
+     * 这是与「保质期天数」正交的独立维度——香蕉在冷藏下确实能撑几天（所以它仍有冷藏天数），
+     * 但冷藏会破坏口感/加速变质，因此额外给出「别放冰箱」的提醒。
+     * WORSE = 放进去明显坏得更快（如香蕉、面包、土豆）；
+     * AVOID = 放不放都行，但没必要（如洋葱、大蒜、蜂蜜）。
+     */
+    private static final Map<String, StorageAdvice> NOT_FRIDGE = new LinkedHashMap<>();
+
+    static {
+        // 会加速变质（强提示）
+        putAdvice("香蕉", StorageAdvice.WORSE, "常温通风处存放，别放冰箱，冷藏会发黑变软");
+        putAdvice("土豆", StorageAdvice.WORSE, "阴凉干燥避光处存放，冷藏会让淀粉变糖、口感发甜");
+        putAdvice("红薯", StorageAdvice.WORSE, "阴凉通风处存放，冷藏易冻伤、变硬发黑");
+        putAdvice("洋葱", StorageAdvice.WORSE, "干燥通风处存放，冰箱潮湿会让它发软发霉");
+        putAdvice("面包", StorageAdvice.WORSE, "常温密封或冷冻保存，冷藏会加速变干变硬");
+        putAdvice("馒头", StorageAdvice.WORSE, "常温密封或冷冻，冷藏会让它变干发硬");
+        putAdvice("蜂蜜", StorageAdvice.WORSE, "常温阴凉处存放，冷藏会结晶析出糖分");
+        putAdvice("咖啡", StorageAdvice.WORSE, "密封常温或冷冻，冷藏容易吸味受潮");
+        putAdvice("西红柿", StorageAdvice.WORSE, "常温阴凉处放熟，冷藏会让果肉变粉、没味道");
+        putAdvice("番茄", StorageAdvice.WORSE, "常温阴凉处放熟，冷藏会让果肉变粉、没味道");
+        putAdvice("芒果", StorageAdvice.WORSE, "常温催熟后再吃，没熟时别冷藏，会发黑");
+        putAdvice("牛油果", StorageAdvice.WORSE, "未熟时常温放置，切开后冷藏并尽快吃完");
+        putAdvice("南瓜", StorageAdvice.WORSE, "整个常温干燥处存放，切开后再冷藏");
+        putAdvice("大蒜", StorageAdvice.WORSE, "干燥通风处挂放，冰箱潮湿易发霉发芽");
+        putAdvice("生姜", StorageAdvice.AVOID, "常温阴凉处或埋沙存放，冷藏易失水发干");
+        // 不建议冷藏（弱提示）
+        putAdvice("橄榄油", StorageAdvice.AVOID, "常温避光存放即可，冷藏会凝固、风味变差");
+        putAdvice("酱油", StorageAdvice.AVOID, "常温阴凉处存放即可，开封后如需可冷藏");
+        putAdvice("青椒", StorageAdvice.AVOID, "短期可冷藏，但低温易变软，建议尽快吃");
+        putAdvice("黄瓜", StorageAdvice.AVOID, "短期可冷藏，低温久放会变软发蔫");
+        putAdvice("茄子", StorageAdvice.AVOID, "短期可冷藏，久放低温会变软发苦");
+    }
+
+    private static void putAdvice(String keyword, String level, String tip) {
+        NOT_FRIDGE.put(keyword, new StorageAdvice(level, tip));
+    }
+
     /** 命中结果：类别 + 基准天数 + 是否精确命中（用于前端提示置信度） */
     public record ShelfLife(String category, int days, boolean matched) {}
+
+    /**
+     * 查询「是否不宜冷藏」提醒。返回 null 表示该食材正常冷藏即可。
+     * 命中策略与保质期一致：取最长命中的关键词，避免短词误匹配。
+     */
+    public StorageAdvice storageAdvice(String name) {
+        String key = name == null ? "" : name.trim().toLowerCase(Locale.ROOT);
+        if (key.isBlank()) return null;
+        String best = null;
+        for (String keyword : NOT_FRIDGE.keySet()) {
+            if (key.contains(keyword.toLowerCase(Locale.ROOT))
+                    && (best == null || keyword.length() > best.length())) {
+                best = keyword;
+            }
+        }
+        return best == null ? null : NOT_FRIDGE.get(best);
+    }
 
     /** 按食材名给出冷藏保质期基准天数。 */
     public ShelfLife lookup(String name) {

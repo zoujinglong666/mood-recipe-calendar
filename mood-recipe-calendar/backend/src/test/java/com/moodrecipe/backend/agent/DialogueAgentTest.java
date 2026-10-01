@@ -246,7 +246,10 @@ class DialogueAgentTest {
         AgentLearningService learning = new AgentLearningService(mock(PlanDishOutcomeRepository.class), store,
                 mock(UserRecordRepository.class), mock(RecipeInteractionRepository.class),
                 mock(RecipeRepository.class));
-        return new DialogueAgent(llm, store, mock(UserFoodPreferenceRepository.class), learning, new ObjectMapper());
+        // 知识问答分流用的工具循环：测试里不注册工具，且 fake 模型不会返回 ASK_KNOWLEDGE，
+        // 因此分流不会触发，不影响既有问卷行为验收。
+        AgentLoop agentLoop = new AgentLoop(llm, new ToolRegistry(List.of()), new ObjectMapper());
+        return new DialogueAgent(llm, store, mock(UserFoodPreferenceRepository.class), learning, agentLoop, new ObjectMapper());
     }
 
     private AgentMemoryFact fact(String key, String value, String source) {

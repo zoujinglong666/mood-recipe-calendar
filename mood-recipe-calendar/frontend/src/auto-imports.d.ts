@@ -87,6 +87,7 @@ declare global {
   const fetchFoodPreference: typeof import('./api/preferences')['fetchFoodPreference']
   const fetchFridgeItems: typeof import('./api/fridge')['fetchFridgeItems']
   const fetchFridgeSummary: typeof import('./api/fridge')['fetchFridgeSummary']
+  const fetchMemberBenefits: typeof import('./api/virtualCommerce')['fetchMemberBenefits']
   const fetchMonthAlbum: typeof import('./api/albums')['fetchMonthAlbum']
   const fetchMyFeedback: typeof import('./api/feedback')['fetchMyFeedback']
   const fetchOrders: typeof import('./api/gallery')['fetchOrders']
@@ -101,6 +102,7 @@ declare global {
   const fetchRecords: typeof import('./api/records')['fetchRecords']
   const fetchRecordsByMonth: typeof import('./api/records')['fetchRecordsByMonth']
   const fetchStats: typeof import('./api/records')['fetchStats']
+  const fetchStorageAdvice: typeof import('./api/fridge')['fetchStorageAdvice']
   const fetchVirtualOrder: typeof import('./api/virtualCommerce')['fetchVirtualOrder']
   const fetchVirtualOrders: typeof import('./api/virtualCommerce')['fetchVirtualOrders']
   const fetchVirtualProducts: typeof import('./api/virtualCommerce')['fetchVirtualProducts']
@@ -560,6 +562,7 @@ declare module 'vue' {
     readonly fetchFoodPreference: UnwrapRef<typeof import('./api/preferences')['fetchFoodPreference']>
     readonly fetchFridgeItems: UnwrapRef<typeof import('./api/fridge')['fetchFridgeItems']>
     readonly fetchFridgeSummary: UnwrapRef<typeof import('./api/fridge')['fetchFridgeSummary']>
+    readonly fetchMemberBenefits: UnwrapRef<typeof import('./api/virtualCommerce')['fetchMemberBenefits']>
     readonly fetchMonthAlbum: UnwrapRef<typeof import('./api/albums')['fetchMonthAlbum']>
     readonly fetchMyFeedback: UnwrapRef<typeof import('./api/feedback')['fetchMyFeedback']>
     readonly fetchOrders: UnwrapRef<typeof import('./api/gallery')['fetchOrders']>
@@ -574,6 +577,7 @@ declare module 'vue' {
     readonly fetchRecords: UnwrapRef<typeof import('./api/records')['fetchRecords']>
     readonly fetchRecordsByMonth: UnwrapRef<typeof import('./api/records')['fetchRecordsByMonth']>
     readonly fetchStats: UnwrapRef<typeof import('./api/records')['fetchStats']>
+    readonly fetchStorageAdvice: UnwrapRef<typeof import('./api/fridge')['fetchStorageAdvice']>
     readonly fetchVirtualOrder: UnwrapRef<typeof import('./api/virtualCommerce')['fetchVirtualOrder']>
     readonly fetchVirtualOrders: UnwrapRef<typeof import('./api/virtualCommerce')['fetchVirtualOrders']>
     readonly fetchVirtualProducts: UnwrapRef<typeof import('./api/virtualCommerce')['fetchVirtualProducts']>

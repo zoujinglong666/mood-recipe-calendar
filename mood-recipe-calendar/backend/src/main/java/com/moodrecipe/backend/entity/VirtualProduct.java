@@ -31,6 +31,17 @@ public class VirtualProduct {
     @Column(name = "price_fen")
     private Integer priceFen;
 
+    /**
+     * 会员权益清单（JSON 数组文本），供会员页直接渲染，避免前端硬编码。
+     *
+     * 结构：[{"group":"MEAL","groupTitle":"每天吃什么，锅仔替你想",
+     *        "icon":"✦","title":"锅仔智能体不限次对话",
+     *        "value":"免费用户仅签到送 1 次，会员不限次","detail":"..."}]
+     * 为空时前端回退到内置文案，保证老库未迁移也能正常显示。
+     */
+    @Column(columnDefinition = "TEXT")
+    private String benefits;
+
     @Column(name = "entitlement_code", length = 64)
     private String entitlementCode;
 

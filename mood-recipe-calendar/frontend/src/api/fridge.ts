@@ -64,6 +64,21 @@ export interface RecognizedItem {
   /** 保质期是否命中常识库（未命中为系统保守估算） */
   shelfLifeMatched: boolean
   confidence: string
+  /** 不宜冷藏提醒：AVOID=不建议 / WORSE=会加速变质；null 表示可正常冷藏 */
+  storageLevel?: 'AVOID' | 'WORSE' | null
+  /** 正确存法建议 */
+  storageTip?: string | null
+}
+
+export interface StorageAdvice {
+  inFridgeWarned: boolean
+  level?: 'AVOID' | 'WORSE' | null
+  tip?: string | null
+}
+
+/** 查询某食材是否不宜放冰箱（手动录入时实时提示）。 */
+export function fetchStorageAdvice(name: string) {
+  return get<StorageAdvice>(`/fridge/storage-advice?name=${encodeURIComponent(name)}`)
 }
 
 export interface RecognizeResult {

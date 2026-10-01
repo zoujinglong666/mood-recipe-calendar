@@ -466,7 +466,7 @@ function openStat(type: 'records' | 'days' | 'streak') {
           </text>
         </view>
       </view>
-      <view class="profile-action" role="button" aria-label="打开推荐记录" @click="goRecommendationHistory">
+      <view class="profile-action profile-action--wide" role="button" aria-label="打开推荐记录" @click="goRecommendationHistory">
         <image :src="`${STATIC_BASE_URL}/static/guozai/action_02_soup.png`" class="profile-action__guozai" mode="aspectFit" />
         <view class="profile-action__copy"><text class="profile-action__text">推荐记录</text><text class="profile-action__sub">找回锅仔推荐过的菜</text></view>
       </view>
@@ -802,18 +802,18 @@ function openStat(type: 'records' | 'days' | 'streak') {
 
 /* 功能按钮 */
 .profile-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16rpx;
   margin-bottom: 24rpx;
 }
 .profile-action {
-  flex: 1 1 calc(50% - 8rpx);
   display: flex;
   flex-direction: row;
   align-items: center;
   gap: 12rpx;
-  min-height: 112rpx;
+  min-width: 0;
+  min-height: 124rpx;
   background: linear-gradient(145deg, var(--mrc-surface) 0%, var(--mrc-surface-peach) 100%);
   border: 2rpx solid var(--mrc-border-light);
   border-radius: 28rpx;
@@ -831,15 +831,12 @@ function openStat(type: 'records' | 'days' | 'streak') {
 }
 .profile-action__sub { display: block; margin-top: 6rpx; color: var(--mrc-text-sub); font-size: 20rpx; line-height: 1.35; }
 .profile-action__guozai {
-  width: 52rpx;
-  height: 52rpx;
+  width: 72rpx;
+  height: 72rpx;
   flex-shrink: 0;
+  object-fit: contain;
 }
-/* 三张锅仔图内容留白不同：端锅锅仔画幅偏小，单独放大以统一视觉大小 */
-.profile-action__guozai--soup {
-  width: 66rpx;
-  height: 66rpx;
-}
+.profile-action--wide { grid-column: 1 / -1; }
 .profile-action:active {
   transform: scale(0.96);
 }
