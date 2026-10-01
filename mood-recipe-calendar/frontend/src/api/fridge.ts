@@ -53,3 +53,38 @@ export function consumeFridgeItem(id: number, amount = 1) {
 export function deleteFridgeItem(id: number) {
   return del<void>(`/fridge/items/${id}`)
 }
+
+// ===== 会员专享：拍照识别 & 临期提醒 =====
+
+export interface RecognizedItem {
+  name: string
+  shelfLifeDays: number
+  category: string
+  expiresOn: string
+  /** 保质期是否命中常识库（未命中为系统保守估算） */
+  shelfLifeMatched: boolean
+  confidence: string
+}
+
+export interface RecognizeResult {
+  items: RecognizedItem[]
+  /** 降级（未识别成功或服务不可用） */
+  degraded: boolean
+  notice?: string | null
+}
+
+/** 拍照识别冰箱食材（会员专享）。传入已上传得到的图片 URL。 */
+export function recognizeFridgeImage(imageUrl: string) {
+  return post<RecognizeResult>('/fridge/recognize', { imageUrl })
+}
+
+export interface ExpiryNoticeResult {
+  sent: boolean
+  count: number
+  names: string
+}
+
+/** 发送食材临期提醒（会员专享）。 */
+export function notifyFridgeExpiring() {
+  return post<ExpiryNoticeResult>('/fridge/notify-expiring', {})
+}

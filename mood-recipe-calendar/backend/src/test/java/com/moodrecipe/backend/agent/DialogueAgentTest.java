@@ -75,7 +75,7 @@ class DialogueAgentTest {
         assertEquals("ASK_CLARIFY", turn.action());
         assertNotNull(turn.card());
         assertEquals("你说的“好”更接近哪种？", turn.card().title());
-        assertTrue(turn.card().options().stream().anyMatch(option -> "其他".equals(option.label())));
+        assertTrue(turn.card().options().stream().anyMatch(option -> "自己输入".equals(option.label())));
     }
 
     /** 自主学习：问了多次都没人答的问题，不再追问，直接用默认值。 */
@@ -196,6 +196,7 @@ class DialogueAgentTest {
         assertEquals(3, card.options().size());
         assertTrue(card.options().stream().anyMatch(option -> "想吃酸甜的".equals(option.value())));
         assertTrue(card.options().stream().anyMatch(option -> "other".equals(option.value())));
+        assertTrue(card.options().stream().anyMatch(option -> "自己输入".equals(option.label())));
     }
 
     @Test
@@ -205,6 +206,16 @@ class DialogueAgentTest {
 
         assertTrue(turn.reply().contains("不能根据疾病给出诊断、治疗或停药建议"));
         assertNotNull(turn.card());
+    }
+
+    @Test
+    void doesNotRepeatSameQuestionWhenUserAnswerDidNotAddInformation() {
+        FakeLlm llm = new FakeLlm();
+        llm.understand = "{\"facts\":[],\"conflicts\":[],\"unclear\":[]}";
+        llm.decide = "{\"action\":\"ASK_PEOPLE\",\"reply\":\"请告诉我人数\",\"card\":{\"type\":\"OPTIONS\",\"title\":\"几个人\",\"description\":\"\",\"options\":[]}}";
+        DialogueState.Turn turn = agent(llm, List.of()).turn(OPENID, "随便安排", DialogueState.AgentState.empty(), "ASK_PEOPLE");
+        assertEquals("ASK_CLARIFY", turn.action());
+        assertNotEquals("请告诉我人数", turn.reply());
     }
 
     @Test

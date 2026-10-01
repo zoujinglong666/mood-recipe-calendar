@@ -27,6 +27,13 @@ public class AgentConversationService {
     }
 
     @Transactional
+    public String lastAction(String openid, String conversationId) {
+        if (conversationId == null || conversationId.isBlank()) return null;
+        return conversations.findByOpenidAndConversationId(openid, conversationId.trim())
+                .map(AgentConversation::getLastAction).orElse(null);
+    }
+
+    @Transactional
     public void save(String openid, String conversationId, DialogueState.Turn turn) {
         if (conversationId == null || conversationId.isBlank() || turn == null) return;
         AgentConversation conversation = conversations.findByOpenidAndConversationId(openid, conversationId.trim())

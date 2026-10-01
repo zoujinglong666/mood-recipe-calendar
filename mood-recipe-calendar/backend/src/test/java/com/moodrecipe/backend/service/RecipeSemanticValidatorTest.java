@@ -17,4 +17,10 @@ class RecipeSemanticValidatorTest {
     void acceptsExecutableSteps() {
         assertTrue(RecipeSemanticValidator.isValid(List.of("鸡蛋 2 个"), List.of("鸡蛋打散。", "锅中加油炒熟。")));
     }
+
+    @Test
+    void rejectsUrlEncodedOrReplacementText() {
+        assertFalse(RecipeSemanticValidator.isDisplayable("%E8%8F%9C%E5%90%8D", 40));
+        assertFalse(RecipeSemanticValidator.isDisplayable("菜名�", 40));
+    }
 }

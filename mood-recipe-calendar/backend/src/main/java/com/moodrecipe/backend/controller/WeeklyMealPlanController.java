@@ -57,9 +57,10 @@ public class WeeklyMealPlanController {
             catch (IllegalStateException e) { return ApiResponse.error(403, e.getMessage()); }
         }
         String conversationId = request == null ? null : request.conversationId();
+        String previousAction = conversations.lastAction(openid, conversationId);
         DialogueState.AgentState serverState = conversations.state(openid, conversationId,
                 request == null ? null : request.state());
-        DialogueState.Turn turn = mealAgent.turn(openid, request == null ? "" : request.message(), serverState);
+        DialogueState.Turn turn = mealAgent.turn(openid, request == null ? "" : request.message(), serverState, previousAction);
         conversations.save(openid, conversationId, turn);
         return ApiResponse.ok(turn);
     }

@@ -8,8 +8,6 @@ export interface RecipeItem {
   image: string
   ingredients: string
   steps: string
-  ingredients: string
-  steps: string
   cookingTime: number
   difficulty: string
   moodTags: string
@@ -59,6 +57,8 @@ export interface RecommendationHistoryItem {
   name: string
   description: string
   image: string
+  ingredients: string
+  steps: string
   cookingTime?: number
   difficulty?: string
   source?: string

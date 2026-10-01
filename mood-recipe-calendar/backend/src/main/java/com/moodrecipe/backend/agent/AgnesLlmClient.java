@@ -158,7 +158,10 @@ public class AgnesLlmClient implements LlmClient {
     private HttpResponse<String> send(LlmRequest request, List<LlmMessage> messages,
                                       boolean useNativeTools, boolean useJsonMode) throws Exception {
         Map<String, Object> body = new LinkedHashMap<>();
-        body.put("model", model);
+        // 视觉识别等场景可用独立模型覆盖默认模型
+        String effectiveModel = request.modelOverride() == null || request.modelOverride().isBlank()
+                ? model : request.modelOverride();
+        body.put("model", effectiveModel);
         body.put("temperature", request.temperature());
         body.put("max_tokens", request.maxTokens());
         body.put("messages", toPayload(messages));
@@ -183,7 +186,19 @@ public class AgnesLlmClient implements LlmClient {
         for (LlmMessage message : messages) {
             Map<String, Object> item = new LinkedHashMap<>();
             item.put("role", message.role());
-            item.put("content", message.content() == null ? "" : message.content());
+            // 有图则组装 OpenAI 兼容的多模态 content 数组，否则保持普通字符串
+            if (message.imageUrl() != null && !message.imageUrl().isBlank()) {
+                List<Map<String, Object>> parts = new ArrayList<>();
+                String text = message.content() == null ? "" : message.content();
+                if (!text.isBlank()) {
+                    parts.add(Map.of("type", "text", "text", text));
+                }
+                parts.add(Map.of("type", "image_url",
+                        "image_url", Map.of("url", message.imageUrl())));
+                item.put("content", parts);
+            } else {
+                item.put("content", message.content() == null ? "" : message.content());
+            }
             if (message.toolCallId() != null) {
                 item.put("tool_call_id", message.toolCallId());
                 item.put("name", message.name() == null ? "" : message.name());

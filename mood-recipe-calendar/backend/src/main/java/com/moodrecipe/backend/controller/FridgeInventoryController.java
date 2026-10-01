@@ -2,7 +2,10 @@ package com.moodrecipe.backend.controller;
 
 import com.moodrecipe.backend.common.ApiResponse;
 import com.moodrecipe.backend.config.SessionAuthInterceptor;
+import com.moodrecipe.backend.service.FridgeExpiryNotifier;
 import com.moodrecipe.backend.service.FridgeInventoryService;
+import com.moodrecipe.backend.service.FridgeVisionService;
+import com.moodrecipe.backend.service.UsageQuotaService;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -14,10 +17,54 @@ import java.util.Optional;
 @RequestMapping("/api/fridge")
 public class FridgeInventoryController {
     private final FridgeInventoryService inventory;
+    private final FridgeVisionService vision;
+    private final FridgeExpiryNotifier expiryNotifier;
+    private final UsageQuotaService quota;
 
-    public FridgeInventoryController(FridgeInventoryService inventory) {
+    public FridgeInventoryController(FridgeInventoryService inventory,
+                                     FridgeVisionService vision,
+                                     FridgeExpiryNotifier expiryNotifier,
+                                     UsageQuotaService quota) {
         this.inventory = inventory;
+        this.vision = vision;
+        this.expiryNotifier = expiryNotifier;
+        this.quota = quota;
     }
+
+    /**
+     * 拍照识别冰箱食材（会员专享）。
+     *
+     * 会员闸门（第一道，先于一切识别逻辑）：非会员直接 403，
+     * 使其无法访问识别、菜名展示、保质期计算等任何下游能力。
+     */
+    @PostMapping("/recognize")
+    public ApiResponse<?> recognize(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
+                                    @RequestBody(required = false) RecognizeRequest request) {
+        if (!quota.member(openid)) {
+            return ApiResponse.error(403, "冰箱拍照识别为会员专享，开通后即可使用");
+        }
+        if (request == null || request.imageUrl() == null || request.imageUrl().isBlank()) {
+            return ApiResponse.error(400, "请先拍摄或选择一张照片");
+        }
+        return ApiResponse.ok(vision.recognize(request.imageUrl()));
+    }
+
+    public record RecognizeRequest(String imageUrl) {}
+
+    /**
+     * 发送临期提醒（会员专享）。仅对当前临期/过期食材生成一条订阅消息，
+     * 由前端在用户授权订阅后调用。
+     */
+    @PostMapping("/notify-expiring")
+    public ApiResponse<?> notifyExpiring(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
+        if (!quota.member(openid)) {
+            return ApiResponse.error(403, "临期提醒为会员专享，开通后即可使用");
+        }
+        return ApiResponse.ok(expiryNotifier.notifyFor(openid));
+    }
+
+    /** 临期提醒结果：发送了多少条、涉及哪些食材。 */
+    public record ExpiryNoticeResult(boolean sent, int count, String names) {}
 
     @GetMapping("/items")
     public ApiResponse<?> list(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {

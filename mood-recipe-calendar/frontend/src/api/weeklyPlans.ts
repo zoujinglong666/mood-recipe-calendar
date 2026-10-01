@@ -16,6 +16,7 @@ export interface MealAgentTurn {
   action: string
   state: MealAgentState
   card?: { type: string, title: string, description: string, options: MealAgentOption[] } | null
+  cards?: { type: string, title: string, description: string, options: MealAgentOption[] }[]
   askReason?: string
   memoryUsed?: string[]
   conflicts?: string[]

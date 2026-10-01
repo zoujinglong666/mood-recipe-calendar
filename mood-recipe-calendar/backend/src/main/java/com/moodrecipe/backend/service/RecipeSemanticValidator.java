@@ -9,6 +9,7 @@ import java.util.regex.Pattern;
 public final class RecipeSemanticValidator {
     private static final Pattern DUPLICATE_ACTION = Pattern.compile(
             "(撒入|撒|加入|放入|放|倒入|调入)([^，。；、\\s]{1,12})和\\2");
+    private static final Pattern URL_ENCODED = Pattern.compile("(?:%[0-9A-Fa-f]{2}){2,}");
 
     private RecipeSemanticValidator() {
     }
@@ -35,5 +36,18 @@ public final class RecipeSemanticValidator {
 
     public static boolean isValid(List<String> ingredients, List<String> steps) {
         return issues(ingredients, steps).isEmpty();
+    }
+
+    public static boolean isDisplayable(String value, int maxLength) {
+        if (value == null || value.isBlank() || value.length() > maxLength || URL_ENCODED.matcher(value).find()) {
+            return false;
+        }
+        for (int offset = 0; offset < value.length();) {
+            int codePoint = value.codePointAt(offset);
+            if (codePoint == '?' || codePoint == '？' || codePoint == 0xfffd || Character.isISOControl(codePoint)
+                    || (codePoint >= 0x80 && codePoint <= 0xff && codePoint != 0x00b7)) return false;
+            offset += Character.charCount(codePoint);
+        }
+        return true;
     }
 }

@@ -41,7 +41,7 @@ const hasElder = ref(false)
 const hasChild = ref(false)
 const spiceLevel = ref('微辣')
 const sessionCuisine = ref('')
-interface ChatMessage { id: number, role: 'agent' | 'user', text: string, tags?: string[] }
+interface ChatMessage { id: number, role: 'agent' | 'user', text: string, tags?: string[], selected?: boolean }
 const composerText = ref('')
 const messages = ref<ChatMessage[]>([])
 const agentState = ref<MealAgentState>({})
@@ -50,6 +50,12 @@ const agentQuota = ref<UsageQuotaView>()
 const agentBusy = ref(false)
 const householdSelection = ref<string[]>([])
 const otherInput = ref(false)
+const agentCards = computed(() => {
+  const cards = agentTurn.value?.cards
+  if (cards?.length)
+    return cards
+  return agentTurn.value?.card ? [agentTurn.value.card] : []
+})
 let messageId = 0
 let progressTimer: ReturnType<typeof setInterval> | undefined
 const agentConversationId = `agent-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
@@ -158,7 +164,7 @@ async function runAgent(message: string, echo = false, echoLabel = message) {
   if (agentBusy.value)
     return
   if (echo && message)
-    messages.value.push({ id: ++messageId, role: 'user', text: echoLabel })
+    messages.value.push({ id: ++messageId, role: 'user', text: echoLabel, selected: true })
   agentBusy.value = true
   await scrollToLatest()
   try {
@@ -421,7 +427,7 @@ function openGallery() {
 
       <view v-else-if="canUseAgent" class="chat-shell">
         <view class="chat-list">
-          <view v-for="message in messages" :key="message.id" class="chat-row" :class="`chat-row--${message.role}`">
+          <view v-for="message in messages" :key="message.id" class="chat-row" :class="[`chat-row--${message.role}`, { 'chat-row--selection': message.selected }]">
             <image v-if="message.role === 'agent'" :src="`${STATIC_BASE_URL}/static/guozai/action_08_peek.png`" mode="aspectFit" aria-hidden="true" />
             <view class="chat-bubble">
               <text>{{ message.text }}</text>
@@ -443,23 +449,23 @@ function openGallery() {
           </view>
         </view>
 
-        <view v-if="agentTurn?.card && !agentBusy" class="choice-card" :class="{ 'choice-card--cuisine': agentTurn.card.type === 'CUISINE', 'choice-card--ready': agentTurn.card.type === 'READY' }" aria-live="polite">
+        <view v-if="agentCards.length && !agentBusy" v-for="(card, cardIndex) in agentCards" :key="`${card.title}-${cardIndex}`" class="choice-card" :class="{ 'choice-card--cuisine': card.type === 'CUISINE', 'choice-card--ready': card.type === 'READY' }" aria-live="polite">
           <view class="agent-card__head">
             <view class="agent-card__copy">
-              <text class="agent-card__eyebrow">{{ agentTurn.card.type === 'READY' ? '准备好了' : '锅仔想确认' }}</text>
-              <text class="agent-card__title">{{ agentTurn.card.title }}</text>
-              <text class="agent-card__description">{{ agentTurn.card.description }}</text>
+              <text class="agent-card__eyebrow">{{ card.type === 'READY' ? '准备好了' : '锅仔想确认' }}</text>
+              <text class="agent-card__title">{{ card.title }}</text>
+              <text class="agent-card__description">{{ card.description }}</text>
             </view>
-            <image v-if="agentTurn.card.type === 'CUISINE' || agentTurn.card.type === 'READY'" :src="`${STATIC_BASE_URL}/static/guozai/action_06_glasses.png`" mode="aspectFit" aria-hidden="true" />
+            <image v-if="card.type === 'CUISINE' || card.type === 'READY'" :src="`${STATIC_BASE_URL}/static/guozai/action_06_glasses.png`" mode="aspectFit" aria-hidden="true" />
           </view>
-          <view v-if="agentTurn.card.type === 'READY'" class="ready-summary" aria-label="将生成的内容">
+          <view v-if="card.type === 'READY'" class="ready-summary" aria-label="将生成的内容">
             <view><text class="ready-summary__dot">01</text><text>一周菜单</text></view>
             <view><text class="ready-summary__dot">02</text><text>买菜清单</text></view>
             <view><text class="ready-summary__dot">03</text><text>详细做法</text></view>
           </view>
-          <view v-if="agentTurn.action === 'ASK_HOUSEHOLD'" class="household-picker">
+          <view v-if="agentTurn?.action === 'ASK_HOUSEHOLD'" class="household-picker">
             <view class="choice-grid choice-grid--household">
-              <button v-for="option in agentTurn.card.options" :key="option.value" :class="{ selected: householdSelection.includes(householdValue(option.value)) }" :aria-pressed="householdSelection.includes(householdValue(option.value))" :disabled="agentBusy" @click="option.value === 'other' ? (otherInput = true) : toggleHousehold(option.value)">
+              <button v-for="option in card.options" :key="option.value" :class="{ selected: householdSelection.includes(householdValue(option.value)) }" :aria-pressed="householdSelection.includes(householdValue(option.value))" :disabled="agentBusy" @click="option.value === 'other' ? (otherInput = true) : toggleHousehold(option.value)">
                 <text class="selection-mark" aria-hidden="true">
                   {{ householdSelection.includes(householdValue(option.value)) ? '✓' : '' }}
                 </text>
@@ -471,12 +477,12 @@ function openGallery() {
             </button>
             <view v-if="otherInput" class="other-input"><input v-model="composerText" class="other-input__field" :disabled="agentBusy" inputmode="text" confirm-type="send" placeholder="直接告诉锅仔你的情况" @confirm="submitOther"><GuozaiButton class="other-input__send" variant="primary" :block="false" :disabled="agentBusy || !composerText.trim()" :loading="agentBusy" aria-label="发送自定义家庭情况" @click="submitOther">发送</GuozaiButton></view>
           </view>
-          <view v-else class="choice-grid" :class="{ 'choice-grid--cuisine': agentTurn.card.type === 'CUISINE', 'choice-grid--ready': agentTurn.card.type === 'READY' }">
-            <button v-for="option in agentTurn.card.options" :key="option.value" :class="{ 'choice-option--long': option.label.length > 8 }" :disabled="agentBusy" @click="option.value === 'generate' ? generate() : selectCardOption(option.value, option.label)">
+          <view v-else class="choice-grid" :class="{ 'choice-grid--cuisine': card.type === 'CUISINE', 'choice-grid--ready': card.type === 'READY' }">
+            <button v-for="option in card.options" :key="option.value" :class="{ 'choice-option--long': option.label.length > 8 }" :disabled="agentBusy" @click="option.value === 'generate' ? generate() : selectCardOption(option.value, option.label)">
               {{ option.label }}
             </button>
           </view>
-          <view v-if="otherInput && agentTurn.action !== 'ASK_HOUSEHOLD'" class="other-input"><input v-model="composerText" class="other-input__field" :disabled="agentBusy" inputmode="text" confirm-type="send" placeholder="直接告诉锅仔你的想法" @confirm="submitOther"><GuozaiButton class="other-input__send" variant="primary" :block="false" :disabled="agentBusy || !composerText.trim()" :loading="agentBusy" aria-label="发送自定义回答" @click="submitOther">发送</GuozaiButton></view>
+          <view v-if="otherInput && agentTurn?.action !== 'ASK_HOUSEHOLD'" class="other-input"><input v-model="composerText" class="other-input__field" :disabled="agentBusy" inputmode="text" confirm-type="send" placeholder="直接告诉锅仔你的想法" @confirm="submitOther"><GuozaiButton class="other-input__send" variant="primary" :block="false" :disabled="agentBusy || !composerText.trim()" :loading="agentBusy" aria-label="发送自定义回答" @click="submitOther">发送</GuozaiButton></view>
         </view>
 
         <view class="composer composer--fixed">
@@ -510,6 +516,7 @@ function openGallery() {
 
 <style lang="scss" scoped>
 .agent-page { min-height: 100vh; padding: 0 28rpx calc(176rpx + env(safe-area-inset-bottom)); color: var(--mrc-text); background: var(--mrc-bg); box-sizing: border-box; }
+.chat-row--selection .chat-bubble { min-width: 180rpx; padding: 18rpx 24rpx; border-radius: 24rpx 24rpx 8rpx 24rpx; background: var(--mrc-accent); color: #fff; box-shadow: 0 10rpx 22rpx rgba(239, 90, 60, .16); font-weight: 700; }
 .agent-hero { position: relative; min-height: 214rpx; overflow: hidden; padding: 22rpx 26rpx; border: 2rpx solid var(--mrc-border); border-radius: 32rpx; background: linear-gradient(145deg, var(--mrc-text-deep), #5b3325); box-shadow: var(--mrc-shadow-lift); box-sizing: border-box; }
 .agent-hero__top { position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; color: rgba(255,255,255,.7); font-size: 19rpx; font-weight: 800; letter-spacing: 2rpx; }
 .agent-online { display: flex; align-items: center; gap: 8rpx; letter-spacing: 0; }.agent-online view { width: 12rpx; height: 12rpx; border-radius: 50%; background: var(--mrc-mint); box-shadow: 0 0 0 6rpx rgba(74,220,171,.13); }

@@ -21,7 +21,13 @@ public final class DialogueState {
                        String askReason,
                        List<String> memoryUsed,
                        List<String> conflicts,
-                       List<String> degraded) {
+                       List<String> degraded,
+                       List<Card> cards) {
+        public Turn(String reply, String action, AgentState state, Card card,
+                    String askReason, List<String> memoryUsed, List<String> conflicts, List<String> degraded) {
+            this(reply, action, state, card, askReason, memoryUsed, conflicts, degraded,
+                    card == null ? List.of() : List.of(card));
+        }
         public Turn(String reply, String action, AgentState state, Card card) {
             this(reply, action, state, card, "", List.of(), List.of(), List.of());
         }

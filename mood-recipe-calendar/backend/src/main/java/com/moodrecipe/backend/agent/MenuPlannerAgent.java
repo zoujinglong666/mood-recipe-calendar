@@ -225,7 +225,8 @@ public class MenuPlannerAgent {
 
     /** 模型 JSON 解析成功不代表能展示：拒绝替换字符、问号污染、控制字符和常见 UTF-8 误解码残留。 */
     public static boolean displayableText(String value, int maxLength) {
-        if (value == null || value.isBlank() || value.length() > maxLength) return false;
+        if (value == null || value.isBlank() || value.length() > maxLength
+                || value.matches(".*(?:%[0-9A-Fa-f]{2}){2,}.*")) return false;
         for (int offset = 0; offset < value.length();) {
             int codePoint = value.codePointAt(offset);
             if (codePoint == '?' || codePoint == '？' || codePoint == 0xfffd || Character.isISOControl(codePoint)

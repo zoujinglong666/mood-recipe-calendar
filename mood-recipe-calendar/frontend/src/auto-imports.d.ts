@@ -152,6 +152,7 @@ declare global {
   const memoryKeyLabel: typeof import('./utils/memoryLabels')['memoryKeyLabel']
   const navBack: typeof import('./composables/useNavBar')['navBack']
   const nextTick: typeof import('vue')['nextTick']
+  const notifyFridgeExpiring: typeof import('./api/fridge')['notifyFridgeExpiring']
   const onActivated: typeof import('vue')['onActivated']
   const onAddToFavorites: typeof import('@dcloudio/uni-app')['onAddToFavorites']
   const onBackPress: typeof import('@dcloudio/uni-app')['onBackPress']
@@ -206,6 +207,7 @@ declare global {
   const reactiveOmit: typeof import('@vueuse/core')['reactiveOmit']
   const reactivePick: typeof import('@vueuse/core')['reactivePick']
   const readonly: typeof import('vue')['readonly']
+  const recognizeFridgeImage: typeof import('./api/fridge')['recognizeFridgeImage']
   const recommendRecipe: typeof import('./api/recipes')['recommendRecipe']
   const ref: typeof import('vue')['ref']
   const refAutoReset: typeof import('@vueuse/core')['refAutoReset']
@@ -623,6 +625,7 @@ declare module 'vue' {
     readonly memoryKeyLabel: UnwrapRef<typeof import('./utils/memoryLabels')['memoryKeyLabel']>
     readonly navBack: UnwrapRef<typeof import('./composables/useNavBar')['navBack']>
     readonly nextTick: UnwrapRef<typeof import('vue')['nextTick']>
+    readonly notifyFridgeExpiring: UnwrapRef<typeof import('./api/fridge')['notifyFridgeExpiring']>
     readonly onActivated: UnwrapRef<typeof import('vue')['onActivated']>
     readonly onAddToFavorites: UnwrapRef<typeof import('@dcloudio/uni-app')['onAddToFavorites']>
     readonly onBackPress: UnwrapRef<typeof import('@dcloudio/uni-app')['onBackPress']>
@@ -677,6 +680,7 @@ declare module 'vue' {
     readonly reactiveOmit: UnwrapRef<typeof import('@vueuse/core')['reactiveOmit']>
     readonly reactivePick: UnwrapRef<typeof import('@vueuse/core')['reactivePick']>
     readonly readonly: UnwrapRef<typeof import('vue')['readonly']>
+    readonly recognizeFridgeImage: UnwrapRef<typeof import('./api/fridge')['recognizeFridgeImage']>
     readonly recommendRecipe: UnwrapRef<typeof import('./api/recipes')['recommendRecipe']>
     readonly ref: UnwrapRef<typeof import('vue')['ref']>
     readonly refAutoReset: UnwrapRef<typeof import('@vueuse/core')['refAutoReset']>

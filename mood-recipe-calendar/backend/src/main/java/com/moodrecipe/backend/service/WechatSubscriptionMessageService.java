@@ -28,6 +28,8 @@ public class WechatSubscriptionMessageService {
     private final String appid;
     private final String secret;
     private final String templateId;
+    /** 冰箱临期提醒专用模板（需在微信后台单独申请后配置）。 */
+    private final String fridgeTemplateId;
     private final String state;
     private volatile String token = "";
     private volatile long tokenExpiresAt;
@@ -36,12 +38,55 @@ public class WechatSubscriptionMessageService {
                                             @Value("${wechat.appid:}") String appid,
                                             @Value("${wechat.secret:}") String secret,
                                             @Value("${wechat.subscription.template-id:}") String templateId,
+                                            @Value("${wechat.subscription.fridge-template-id:}") String fridgeTemplateId,
                                             @Value("${wechat.subscription.miniprogram-state:formal}") String state) {
         this.json = json;
         this.appid = appid;
         this.secret = secret;
         this.templateId = templateId;
+        this.fridgeTemplateId = fridgeTemplateId == null ? "" : fridgeTemplateId.trim();
         this.state = state;
+    }
+
+    /**
+     * 食材临期提醒（会员专享能力，调用方需先校验会员）。
+     *
+     * @param expiringNames 临期/过期食材名（已用「、」拼接）
+     * @param daysLeft      最短剩余天数
+     */
+    public void sendFridgeExpiring(String openid, String expiringNames, int daysLeft) {
+        if (openid == null || openid.isBlank() || fridgeTemplateId.isBlank()) return;
+        try {
+            String accessToken = accessToken();
+            if (accessToken.isBlank()) return;
+            String summary = expiringNames == null || expiringNames.isBlank() ? "有食材快过期了" : expiringNames;
+            // 模板字段需与微信后台申请的字段一致，此处按通用「食材/时间/提示」字段发送
+            Map<String, Object> body = Map.of(
+                    "touser", openid,
+                    "template_id", fridgeTemplateId,
+                    "page", "pages/fridge/index",
+                    "miniprogram_state", state,
+                    "lang", "zh_CN",
+                    "data", Map.of(
+                            "thing1", Map.of("value", truncate(summary, 20)),
+                            "number2", Map.of("value", String.valueOf(Math.max(daysLeft, 0))),
+                            "time3", Map.of("value", TIME.format(LocalDateTime.now()))
+                    )
+            );
+            HttpRequest request = HttpRequest.newBuilder(URI.create("https://api.weixin.qq.com/cgi-bin/message/subscribe/send?access_token=" + accessToken))
+                    .timeout(Duration.ofSeconds(12)).header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(json.writeValueAsString(body))).build();
+            JsonNode response = json.readTree(http.send(request, HttpResponse.BodyHandlers.ofString()).body());
+            if (response.path("errcode").asInt(-1) != 0) log.info("临期提醒未发送: errcode={}", response.path("errcode").asInt());
+        } catch (Exception error) {
+            log.info("临期提醒发送失败: {}", error.getClass().getSimpleName());
+        }
+    }
+
+    /** 微信模板字段有长度限制，超长会被拒。 */
+    private static String truncate(String value, int max) {
+        if (value == null) return "";
+        return value.length() <= max ? value : value.substring(0, max);
     }
 
     public void sendWeeklyPlanCompleted(String openid, Long planId) {

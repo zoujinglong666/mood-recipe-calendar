@@ -115,7 +115,7 @@ public class DailyMealPlanValidator {
     }
 
     private boolean displayable(String value, int maxLength) {
-        if (value.isBlank() || value.length() > maxLength) return false;
+        if (value.isBlank() || value.length() > maxLength || value.matches(".*(?:%[0-9A-Fa-f]{2}){2,}.*")) return false;
         for (int offset = 0; offset < value.length();) {
             int codePoint = value.codePointAt(offset);
             if (codePoint == '?' || codePoint == '？' || codePoint == 0xfffd || Character.isISOControl(codePoint)

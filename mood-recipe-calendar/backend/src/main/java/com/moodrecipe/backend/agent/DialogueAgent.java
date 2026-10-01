@@ -59,6 +59,11 @@ public class DialogueAgent {
     }
 
     public DialogueState.Turn turn(String openid, String message, DialogueState.AgentState clientState) {
+        return turn(openid, message, clientState, null);
+    }
+
+    public DialogueState.Turn turn(String openid, String message, DialogueState.AgentState clientState,
+                                   String previousAction) {
         List<String> degraded = new ArrayList<>();
         UserProfile profile = store.profile(openid, AgentMemoryStore.Scene.DIALOGUE);
         String input = message == null ? "" : message.trim();
@@ -108,17 +113,27 @@ public class DialogueAgent {
 
         Decision decision = decide(input, state, profile, independentMeal, gaps, conflicts, understanding.unclear(), degraded);
         String action = validateAction(decision.action(), state, gaps, conflicts, understanding.unclear());
+        boolean repeatedQuestion = previousAction != null && previousAction.equals(action)
+                && action.startsWith("ASK_") && !input.isBlank()
+                && state.equals(incoming);
+        if (repeatedQuestion) action = "ASK_CLARIFY";
         // 只要当前动作是追问，就把模型生成的动态选择器展示出来；不再要求用户先触发固定关键词。
         boolean needsCard = input.isBlank() || !conflicts.isEmpty() || !understanding.unclear().isEmpty()
                 || action.startsWith("ASK_") || "CONFIRM_CUISINE".equals(action);
         DialogueState.Card card = needsCard ? AgentCards.accept(action, state,
                 decision.cardType(), decision.cardTitle(), decision.cardDescription(), decision.cardOptions()) : null;
+        List<DialogueState.Card> cards = understanding.unclear().size() > 1
+                ? AgentCards.clarificationCards(understanding.unclear())
+                : card == null ? List.of() : List.of(card);
 
+        String selectedAction = action;
         String askReason = decision.askReason().isBlank()
-                ? gaps.stream().filter(gap -> gap.action().equals(action)).map(Gap::reason).findFirst().orElse("")
+                ? gaps.stream().filter(gap -> gap.action().equals(selectedAction)).map(Gap::reason).findFirst().orElse("")
                 : decision.askReason();
-        String reply = decision.reply().isBlank() ? fallbackReply(action, conflicts) : decision.reply();
-        reply = correctTodayWeekday(reply);
+        String reply = repeatedQuestion
+                ? "我还没从刚才的话里确认到新的信息。请直接告诉我具体答案，也可以点“自己输入”。"
+                : (decision.reply().isBlank() ? fallbackReply(action, conflicts) : decision.reply());
+        reply = sanitizeReply(correctTodayWeekday(reply));
 
         List<String> memoryUsed = independentMeal ? List.of() : profile.memory().stream()
                 .map(item -> item.key() + "：" + item.reason()).limit(6).toList();
@@ -131,7 +146,15 @@ public class DialogueAgent {
 
         List<String> conflictTexts = conflicts.stream().map(Conflict::message).toList();
         return new DialogueState.Turn(reply, action, state, card, askReason,
-                memoryUsed, conflictTexts, degraded);
+                memoryUsed, conflictTexts, degraded, cards);
+    }
+
+    private String sanitizeReply(String reply) {
+        if (reply == null) return "";
+        return reply.replaceAll("只吃一人", "只有你一人用餐")
+                .replaceAll("只吃([0-9]+)人", "按$1人用餐")
+                .replace("'other'", "“自己输入”")
+                .replace("\"other\"", "“自己输入”");
     }
 
     // ---------- 理解 ----------

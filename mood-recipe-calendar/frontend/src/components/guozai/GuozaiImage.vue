@@ -43,7 +43,7 @@ const props = withDefaults(defineProps<{
   /** 回退地址链：主图失败依次尝试，仍失败则显示占位块 */
   fallbacks?: string[]
   /** 图片裁剪模式，默认 aspectFill */
-  mode?: string
+  mode?: 'scaleToFill' | 'aspectFit' | 'aspectFill' | 'widthFix' | 'heightFix' | 'top' | 'bottom' | 'center' | 'left' | 'right'
   /** 占位块内 emoji/文字，不依赖任何图片资源，永不错位 */
   placeholderText?: string
   /** 占位块额外样式类（用于继承外部尺寸/圆角） */

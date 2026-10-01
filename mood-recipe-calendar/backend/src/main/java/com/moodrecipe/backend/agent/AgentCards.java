@@ -89,7 +89,7 @@ public final class AgentCards {
             case "ASK_BUDGET" -> options("预算想怎么安排？", "会影响食材和复用方式",
                     "budget=SAVE", "省一点", "budget=DAILY", "日常吃", "budget=TREAT", "丰盛些");
             case "ASK_CLARIFY" -> new DialogueState.Card("OPTIONS", "我想确认一下", "选最接近的答案，也可以自己说明",
-                    List.of(new DialogueState.Option("自己说明", "other")));
+                    List.of(new DialogueState.Option("自己输入", "other")));
             case "CONFIRM_CUISINE" -> new DialogueState.Card("CUISINE",
                     (state.favoriteCuisine() == null ? "这个" : state.favoriteCuisine()) + "风味要记住吗？",
                     String.join(" · ", CUISINE_DISHES.getOrDefault(state.favoriteCuisine(), List.of())),
@@ -101,7 +101,7 @@ public final class AgentCards {
         if ("READY".equals(action)) return card;
         List<DialogueState.Option> options = new ArrayList<>(card.options());
         if (options.stream().noneMatch(option -> "other".equals(option.value()))) {
-            options.add(new DialogueState.Option("其他", "other"));
+            options.add(new DialogueState.Option("自己输入", "other"));
         }
         return new DialogueState.Card(card.type(), card.title(), card.description(), List.copyOf(options));
     }
@@ -133,7 +133,7 @@ public final class AgentCards {
             }
         });
         if (!"READY".equals(action) && safeOptions.stream().noneMatch(option -> "other".equals(option.value()))) {
-            safeOptions.add(new DialogueState.Option("其他", "other"));
+            safeOptions.add(new DialogueState.Option("自己输入", "other"));
         }
         return new DialogueState.Card(type, title, safeDescription, List.copyOf(safeOptions));
     }
@@ -192,5 +192,12 @@ public final class AgentCards {
 
     public static Map<String, List<String>> cuisineDishes() {
         return new LinkedHashMap<>(CUISINE_DISHES);
+    }
+
+    public static List<DialogueState.Card> clarificationCards(List<String> unclear) {
+        if (unclear == null) return List.of();
+        return unclear.stream().map(text -> new DialogueState.Card(
+                "OPTIONS", "锅仔想确认一下", text,
+                List.of(new DialogueState.Option("自己输入", "other")))).toList();
     }
 }

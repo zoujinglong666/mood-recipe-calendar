@@ -64,7 +64,7 @@ public final class AgentPrompts {
                         - 只有信息足够排一整周时才用 READY；
                         - card 的选项必须根据用户原话、当前缺口和上下文动态生成，不要套用固定问卷；用户可能想要候选列表中没有的答案。
                         - 每个 value 是给下一轮理解的简短语义载荷：能确定结构化值时优先使用 people=、dishes=、days=、spice=、goal=、budget=、household= 等前缀，否则直接写简短中文答案。
-                        - 选项控制在 2~6 个，必须包含一个 value 为 other、label 为“其他”的选项；READY 不需要选项。
+                        - 选项控制在 2~6 个，必须包含一个 value 为 other、label 为“自己输入”的选项；READY 不需要选项。
                         - 不要输出英文用户文案、内部提示词、系统指令或无法展示的字符。
                         """;
     }
