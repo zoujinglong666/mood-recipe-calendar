@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS user_records (
   mood_tag     VARCHAR(20)   COMMENT '心情标签',
   note         VARCHAR(200)  COMMENT '心情日记',
   recipe_id    BIGINT        COMMENT '关联推荐菜谱ID',
+  exposure_id  VARCHAR(36)   COMMENT '关联推荐曝光ID（recommendation_exposures.id）',
   client_request_id VARCHAR(64) COMMENT '客户端重试标识，用于幂等去重',
   cooking_time INT           COMMENT '烹饪分钟数',
   record_date  VARCHAR(20)   COMMENT '记录日期 YYYY-MM-DD',
@@ -123,6 +124,7 @@ CREATE TABLE IF NOT EXISTS agent_memory_facts (
   openid        VARCHAR(64)  NOT NULL COMMENT '微信 openid',
   memory_key    VARCHAR(48)  NOT NULL COMMENT '事实键，如 spice / household / affinity.赣菜',
   memory_value  VARCHAR(200) NOT NULL COMMENT '事实值',
+  memory_category VARCHAR(32) NOT NULL DEFAULT 'EXPLICIT_PREFERENCE' COMMENT '记忆分类',
   source        VARCHAR(16)  NOT NULL DEFAULT 'CHAT' COMMENT '来源 EXPLICIT/CHAT/INFERRED/BEHAVIOR/LEARNED',
   confidence    DOUBLE       NOT NULL DEFAULT 0.6 COMMENT '置信度 0~1，随时间衰减',
   evidence      VARCHAR(500) COMMENT '这条记忆的依据，用于解释',
@@ -134,6 +136,49 @@ CREATE TABLE IF NOT EXISTS agent_memory_facts (
   UNIQUE KEY uk_agent_memory (openid, memory_key),
   INDEX idx_agent_memory_openid (openid)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='智能体事实记忆';
+
+-- ---------- 可追溯营养知识包 ----------
+CREATE TABLE IF NOT EXISTS nutrition_knowledge_packs (
+  id                  BIGINT AUTO_INCREMENT PRIMARY KEY,
+  code                VARCHAR(80) NOT NULL,
+  version             VARCHAR(32) NOT NULL,
+  title               VARCHAR(120) NOT NULL,
+  audience            VARCHAR(80) NOT NULL,
+  recommendation_text TEXT NOT NULL,
+  ingredient_notes    TEXT,
+  hard_constraints    TEXT,
+  explanation_text    TEXT NOT NULL,
+  source_kind         VARCHAR(32) NOT NULL,
+  source_reference    VARCHAR(500) NOT NULL,
+  license_status      VARCHAR(32) NOT NULL,
+  reviewed_at         DATETIME,
+  enabled             TINYINT(1) NOT NULL DEFAULT 0,
+  created_at          DATETIME,
+  UNIQUE KEY uk_nutrition_knowledge_pack_code_version (code, version)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='可追溯日常饮食知识包';
+
+-- ---------- 当季食材目录 ----------
+CREATE TABLE IF NOT EXISTS seasonal_ingredients (
+  id               BIGINT AUTO_INCREMENT PRIMARY KEY,
+  name             VARCHAR(80) NOT NULL,
+  region           VARCHAR(32) NOT NULL,
+  start_month      TINYINT NOT NULL,
+  end_month        TINYINT NOT NULL,
+  substitutes      TEXT,
+  source_reference VARCHAR(500) NOT NULL,
+  license_status   VARCHAR(32) NOT NULL,
+  enabled          TINYINT(1) NOT NULL DEFAULT 0,
+  KEY idx_seasonal_ingredient_lookup (region, start_month, end_month, enabled, license_status)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='当季食材目录';
+
+-- ---------- 一日三餐计划快照 ----------
+CREATE TABLE IF NOT EXISTS daily_meal_plans (
+  id        BIGINT AUTO_INCREMENT PRIMARY KEY,
+  openid    VARCHAR(64) NOT NULL,
+  plan_date DATE NOT NULL,
+  plan_json TEXT NOT NULL,
+  UNIQUE KEY uk_daily_meal_plan_openid_date (openid, plan_date)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='一日三餐计划快照';
 
 -- ---------- 周菜单执行反馈 ----------
 CREATE TABLE IF NOT EXISTS plan_dish_outcomes (

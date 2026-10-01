@@ -1,1 +1,1 @@
-"use strict";const e=require("./request.js");exports.doCheckin=function(t){return e.post("/gallery/checkin")},exports.fetchCheckinStatus=function(t){return e.get("/gallery/checkin/status")};
+"use strict";const e=require("./request.js");exports.doCheckin=function(){return e.post("/gallery/checkin")},exports.fetchCheckinStatus=function(){return e.get("/gallery/checkin/status")};

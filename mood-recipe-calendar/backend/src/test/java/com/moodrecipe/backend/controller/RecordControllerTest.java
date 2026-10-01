@@ -19,9 +19,28 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import java.util.Optional;
 import java.util.List;
+import java.util.Map;
 import com.moodrecipe.backend.entity.UserRecord;
 
 class RecordControllerTest {
+    @Test
+    void yearStatsExposeTheSameStreakFieldsAsOverallStats() {
+        UserRecordRepository records = mock(UserRecordRepository.class);
+        UserRecord first = recordOn("2026-09-20");
+        UserRecord second = recordOn("2026-09-21");
+        UserRecord third = recordOn("2026-09-23");
+        when(records.findByOpenidOrderByCreatedAtDesc("user-1"))
+                .thenReturn(List.of(third, second, first));
+        RecordController controller = new RecordController(records,
+                mock(RecordLearningService.class), allowSafety());
+
+        var response = controller.yearStats("user-1", 2026);
+        Map<String, Object> stats = response.getData();
+
+        assertEquals(0, stats.get("currentStreak"));
+        assertEquals(2, stats.get("longestStreak"));
+    }
+
     @Test
     void rejectsImpossibleRecordDateBeforeSaving() {
         UserRecordRepository records = mock(UserRecordRepository.class);
@@ -41,7 +60,7 @@ class RecordControllerTest {
         UserRecordRepository records = mock(UserRecordRepository.class);
         RecordController controller = new RecordController(records,
                 mock(RecordLearningService.class), allowSafety());
-        RecordRequest request = new RecordRequest("", "番茄炒蛋", "平静", "", "1", null,
+        RecordRequest request = new RecordRequest("", "番茄炒蛋", "平静", "", 1L, null,
                 "request-1", 20, "2026-09-22");
 
         var response = controller.save("user-1", request);
@@ -59,7 +78,7 @@ class RecordControllerTest {
         RecordLearningService learning = mock(RecordLearningService.class);
         RecordController controller = new RecordController(records,
                 learning, allowSafety());
-        RecordRequest request = new RecordRequest("https://example.com/a.jpg", "番茄炒蛋", "平静", "", "1", null,
+        RecordRequest request = new RecordRequest("https://example.com/a.jpg", "番茄炒蛋", "平静", "", 1L, null,
                 "request-1", 20, null);
 
         var response = controller.save("user-1", request);
@@ -81,16 +100,16 @@ class RecordControllerTest {
         RecordLearningService learning = mock(RecordLearningService.class);
         LearningReceipt receipt = LearningReceipt.learned(List.of(
                 new LearningReceiptItem("SIMPLE", "下次优先简单菜", "preference.simpleDishes")));
-        when(learning.learn("user-1", "1", "exp-1", true, true, false)).thenReturn(receipt);
+        when(learning.learn("user-1", 1L, "exp-1", true, true, false)).thenReturn(receipt);
         RecordController controller = new RecordController(records, learning, allowSafety());
         RecordRequest request = new RecordRequest("https://example.com/a.jpg", "番茄炒蛋", "平静", "",
-                "1", "exp-1", "request-1", 20, "2026-09-22", List.of(), true, true, false);
+                1L, "exp-1", "request-1", 20, "2026-09-22", List.of(), true, true, false);
 
         var response = controller.save("user-1", request);
 
         assertEquals(15L, response.getData().record().getId());
         assertEquals(receipt, response.getData().learningReceipt());
-        verify(learning).learn("user-1", "1", "exp-1", true, true, false);
+        verify(learning).learn("user-1", 1L, "exp-1", true, true, false);
     }
 
     @Test
@@ -98,11 +117,11 @@ class RecordControllerTest {
         UserRecordRepository records = mock(UserRecordRepository.class);
         when(records.save(org.mockito.ArgumentMatchers.any())).thenAnswer(invocation -> invocation.getArgument(0));
         RecordLearningService learning = mock(RecordLearningService.class);
-        when(learning.learn("user-1", "1", null, false, false, false))
+        when(learning.learn("user-1", 1L, null, false, false, false))
                 .thenThrow(new IllegalStateException("learning unavailable"));
         RecordController controller = new RecordController(records, learning, allowSafety());
         RecordRequest request = new RecordRequest("https://example.com/a.jpg", "番茄炒蛋", "平静", "",
-                "1", null, "request-1", 20, "2026-09-22");
+                1L, null, "request-1", 20, "2026-09-22");
 
         var response = controller.save("user-1", request);
 
@@ -148,5 +167,13 @@ class RecordControllerTest {
 
     private WechatContentSafetyService allowSafety() {
         return new WechatContentSafetyService(new ObjectMapper(), "", "", false, false);
+    }
+
+    private UserRecord recordOn(String date) {
+        UserRecord record = new UserRecord();
+        record.setRecordDate(date);
+        record.setDishName("番茄炒蛋");
+        record.setMoodTag("平静");
+        return record;
     }
 }

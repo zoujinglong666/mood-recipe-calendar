@@ -26,19 +26,18 @@ public class RecordLearningService {
         this.memories = memories;
     }
 
-    public LearningReceipt learn(String openid, String recipeId, String exposureId,
+    public LearningReceipt learn(String openid, Long recipeId, String exposureId,
                                  boolean liked, boolean tooHard, boolean leftover) {
         if (!memories.personalizationEnabled(openid)) return LearningReceipt.savedOnly();
 
         List<LearningReceiptItem> learned = new ArrayList<>();
-        Long persistentRecipeId = parseRecipeId(recipeId);
-        boolean madeWritten = recordAction(openid, persistentRecipeId, "MADE");
+        boolean madeWritten = recordAction(openid, recipeId, "MADE");
         boolean madeExposureWritten = recordExposure(openid, exposureId, "MADE");
         if (madeWritten || madeExposureWritten) {
             learned.add(new LearningReceiptItem("MADE", "记住你做过这道菜", null));
         }
         if (liked) {
-            boolean likedWritten = recordAction(openid, persistentRecipeId, "LIKE");
+            boolean likedWritten = recordAction(openid, recipeId, "LIKE");
             boolean likedExposureWritten = recordExposure(openid, exposureId, "LIKE");
             if (likedWritten || likedExposureWritten) {
                 learned.add(new LearningReceiptItem("LIKED", "以后多推荐你喜欢的味道", null));
@@ -97,11 +96,4 @@ public class RecordLearningService {
         }
     }
 
-    private Long parseRecipeId(String recipeId) {
-        try {
-            return recipeId == null || recipeId.isBlank() ? null : Long.valueOf(recipeId);
-        } catch (NumberFormatException ignored) {
-            return null;
-        }
-    }
 }

@@ -158,4 +158,19 @@ class RecipeControllerTest {
         assertEquals(400, response.getCode());
         verifyNoInteractions(interactions);
     }
+
+    @Test
+    void exposureMadeFeedbackMustComeFromACompletedRecord() {
+        RecommendationExposureService exposures = mock(RecommendationExposureService.class);
+        RecipeController controller = new RecipeController(mock(RecipeRepository.class),
+                mock(RecipeInteractionRepository.class), mock(GuozaiAgent.class),
+                mock(VirtualCommerceService.class), mock(OperationalEventService.class),
+                mock(RecommendationJobService.class), exposures);
+
+        var response = controller.exposureFeedback("exp-1", "user-1",
+                new RecipeController.RecipeFeedbackRequest("MADE"));
+
+        assertEquals(400, response.getCode());
+        verifyNoInteractions(exposures);
+    }
 }

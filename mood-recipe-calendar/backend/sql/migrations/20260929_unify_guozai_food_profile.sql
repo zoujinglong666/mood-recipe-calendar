@@ -1,5 +1,11 @@
-ALTER TABLE agent_memory_facts
-  ADD COLUMN memory_category VARCHAR(32) NOT NULL DEFAULT 'EXPLICIT_PREFERENCE' AFTER memory_value;
+SET @memory_category_exists := (SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'agent_memory_facts' AND COLUMN_NAME = 'memory_category');
+SET @memory_category_sql := IF(@memory_category_exists = 0,
+  'ALTER TABLE agent_memory_facts ADD COLUMN memory_category VARCHAR(32) NOT NULL DEFAULT ''EXPLICIT_PREFERENCE'' AFTER memory_value',
+  'SELECT 1');
+PREPARE memory_category_stmt FROM @memory_category_sql;
+EXECUTE memory_category_stmt;
+DEALLOCATE PREPARE memory_category_stmt;
 
 UPDATE agent_memory_facts SET memory_category = 'SAFETY_CONSTRAINT'
 WHERE memory_key LIKE 'safety.%';

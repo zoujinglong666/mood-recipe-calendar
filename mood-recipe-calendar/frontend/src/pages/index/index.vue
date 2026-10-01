@@ -146,8 +146,8 @@ async function loadData() {
   if (loading.value) return
   loading.value = true
   try {
-    const openid = await ensureLogin()
-    const [records, quota] = await Promise.all([fetchRecordsByMonth(openid, currentMonth.value), fetchRecipeQuota(), loadCompanion(), loadTodayBoard()])
+    await ensureLogin()
+    const [records, quota] = await Promise.all([fetchRecordsByMonth(currentMonth.value), fetchRecipeQuota(), loadCompanion(), loadTodayBoard()])
     monthRecords.value = records
     recipeQuota.value = quota
   } catch (e: any) {

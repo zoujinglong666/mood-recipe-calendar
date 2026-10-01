@@ -8,7 +8,7 @@ export interface RecordItem {
   dishName: string
   moodTag: string
   note?: string
-  recipeId?: string
+  recipeId?: number
   exposureId?: string
   cookingTime?: number
   recordDate: string
@@ -22,7 +22,7 @@ export interface RecordPayload {
   dishName: string
   moodTag: string
   note?: string
-  recipeId?: string
+  recipeId?: number
   exposureId?: string
   clientRequestId?: string
   cookingTime?: number
@@ -93,13 +93,13 @@ export function updateRecord(id: number, payload: RecordPayload) {
 }
 
 /** 获取用户全部记录 */
-export function fetchRecords(openid: string) {
-  return get<RecordItem[]>('/records', { openid }).then(items => items.map(normalizeRecord))
+export function fetchRecords() {
+  return get<RecordItem[]>('/records').then(items => items.map(normalizeRecord))
 }
 
 /** 获取某月记录 */
-export function fetchRecordsByMonth(openid: string, month: string) {
-  return get<RecordItem[]>('/records/month', { openid, month }).then(items => items.map(normalizeRecord))
+export function fetchRecordsByMonth(month: string) {
+  return get<RecordItem[]>('/records/month', { month }).then(items => items.map(normalizeRecord))
 }
 
 function normalizeRecord(record: RecordItem): RecordItem {
@@ -108,18 +108,18 @@ function normalizeRecord(record: RecordItem): RecordItem {
 }
 
 /** 删除记录 */
-export function deleteRecord(id: number, openid: string) {
-  return del(`/records/${id}?openid=${encodeURIComponent(openid)}`)
+export function deleteRecord(id: number) {
+  return del(`/records/${id}`)
 }
 
 /** 综合统计 */
-export function fetchStats(openid: string) {
-  return get<StatsResult>('/records/stats', { openid })
+export function fetchStats() {
+  return get<StatsResult>('/records/stats')
 }
 
 /** 年度统计 */
-export function fetchYearStats(openid: string, year: number) {
-  return get<YearStatsResult>('/records/year-stats', { openid, year })
+export function fetchYearStats(year: number) {
+  return get<YearStatsResult>('/records/year-stats', { year })
 }
 
 /** 锅仔寄语：后端只使用聚合习惯，hour 为用户设备的本地小时。 */

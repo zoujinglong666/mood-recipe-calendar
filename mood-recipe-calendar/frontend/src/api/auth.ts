@@ -44,7 +44,13 @@ export interface AgentMemoryFact {
 }
 
 export interface AgentMemoryView {
+  summary: string
   facts: AgentMemoryFact[]
+  cuisineAffinity: Record<string, number>
+  skipQuestions: string[]
+  maxCookingMinutes: number | null
+  preferSimple: boolean
+  avoidDishes: string[]
   personalizationEnabled: boolean
 }
 

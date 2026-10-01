@@ -56,7 +56,11 @@ public class UserRecord {
 
     /** 关联推荐菜谱ID */
     @Column(name = "recipe_id")
-    private String recipeId;
+    private Long recipeId;
+
+    /** 关联推荐曝光ID（recommendation_exposures.id），保存记录时持久化，供编辑回填与反馈关联。 */
+    @Column(name = "exposure_id", length = 36)
+    private String exposureId;
 
     /** 客户端重试标识；旧记录允许为空。 */
     @Column(name = "client_request_id", length = 64)

@@ -175,18 +175,18 @@ export function get<T = any>(url: string, params?: Record<string, any>, timeout?
 }
 
 /** 通用 POST 请求（默认超时较长，适配 AI 生图/长链路接口） */
-export function post<T = any>(url: string, data?: any, timeout = 60000): Promise<T> {
-  return uniRequest<T>({ url, method: 'POST', data, timeout })
+export function post<T = any>(url: string, data?: any, timeout = 60000, params?: Record<string, any>): Promise<T> {
+  return uniRequest<T>({ url, method: 'POST', data, timeout, params })
 }
 
 /** 通用 PUT 请求 */
-export function put<T = any>(url: string, data?: any, timeout?: number): Promise<T> {
-  return uniRequest<T>({ url, method: 'PUT', data, timeout })
+export function put<T = any>(url: string, data?: any, timeout?: number, params?: Record<string, any>): Promise<T> {
+  return uniRequest<T>({ url, method: 'PUT', data, timeout, params })
 }
 
 /** 通用 DELETE 请求 */
-export function del<T = any>(url: string, data?: any, timeout?: number): Promise<T> {
-  return uniRequest<T>({ url, method: 'DELETE', data, timeout })
+export function del<T = any>(url: string, data?: any, timeout?: number, params?: Record<string, any>): Promise<T> {
+  return uniRequest<T>({ url, method: 'DELETE', data, timeout, params })
 }
 
 /**

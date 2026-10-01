@@ -1,1 +1,1 @@
-"use strict";const e=require("./request.js");exports.fetchDailyMealPlan=function(a){return e.get("/daily-meal-plan",{date:a})},exports.replaceDailyMealPlanMeal=function(a,t){return e.post(`/daily-meal-plan/${a}/replace?date=${encodeURIComponent(t||"")}`)};
+"use strict";const e=require("./request.js");exports.fetchDailyMealPlan=function(a){return e.get("/daily-meal-plan",{date:a})},exports.replaceDailyMealPlanMeal=function(a,l){return e.post(`/daily-meal-plan/${a}/replace`,void 0,void 0,{date:l||""})};

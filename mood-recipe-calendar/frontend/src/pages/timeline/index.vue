@@ -58,7 +58,8 @@ function guozaiSticker(index: number) {
 async function load() {
   loading.value = true
   try {
-    records.value = await fetchRecords(await ensureLogin())
+    await ensureLogin()
+    records.value = await fetchRecords()
     const targetId = Number(uni.getStorageSync('mrc_timeline_record_id'))
     if (targetId) {
       const target = records.value.find(item => item.id === targetId)
@@ -111,7 +112,8 @@ async function removeSelected() {
   if (!selected.value) return
   const choice = await uni.showModal({ title: '删除这条记录？', content: '删除后无法恢复。', confirmColor: '#D94A43' })
   if (!choice.confirm) return
-  await deleteRecord(selected.value.id, await ensureLogin())
+  await ensureLogin()
+  await deleteRecord(selected.value.id)
   records.value = records.value.filter(item => item.id !== selected.value?.id)
   selected.value = null
   toastSuccess('记录已删除')

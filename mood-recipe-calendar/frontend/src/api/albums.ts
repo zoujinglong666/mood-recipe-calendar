@@ -12,6 +12,6 @@ export interface AlbumItem {
 }
 
 /** 获取/生成月度画册 */
-export function fetchMonthAlbum(openid: string, month: string) {
+export function fetchMonthAlbum(month: string) {
   return get<AlbumItem>('/albums/month', { month })
 }

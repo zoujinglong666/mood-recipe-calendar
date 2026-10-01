@@ -37,7 +37,8 @@ async function remove() {
   const confirmation = await uni.showModal({ title: '删除这条记录？', content: '删除后无法恢复。', confirmColor: '#D94A43' })
   if (!confirmation.confirm) return
   try {
-    await deleteRecord(record.value.id, await ensureLogin())
+    await ensureLogin()
+    await deleteRecord(record.value.id)
     toastSuccess('记录已删除')
     router.back()
   }

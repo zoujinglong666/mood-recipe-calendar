@@ -64,7 +64,8 @@ public class RecordController {
         record.setDishName(req.dishName());
         record.setMoodTag(req.moodTag());
         record.setNote(req.note());
-        record.setRecipeId(req.recipeId() != null ? String.valueOf(req.recipeId()) : null);
+        record.setRecipeId(req.recipeId());
+        record.setExposureId(req.exposureId());
         record.setClientRequestId(req.clientRequestId());
         record.setCookingTime(req.cookingTime());
         record.setRecordDate(recordDate);
@@ -92,6 +93,7 @@ public class RecordController {
         if (!contentSafety.allowsText(openid, req.dishName(), req.moodTag(), req.note())) return ApiResponse.error(400, "文字未通过安全检查");
         record.setImageUrls(imageUrls); record.setImageUrl(imageUrls.get(0)); record.setDishName(req.dishName());
         record.setMoodTag(req.moodTag()); record.setNote(req.note()); record.setCookingTime(req.cookingTime());
+        if (req.exposureId() != null && !req.exposureId().isBlank()) record.setExposureId(req.exposureId());
         if (req.recordDate() != null) record.setRecordDate(req.recordDate());
         return ApiResponse.ok(repository.save(record));
     }
@@ -194,7 +196,11 @@ public class RecordController {
 
         Map<String, Object> res = new LinkedHashMap<>();
         res.put("totalRecords", yearRecords.size());
-        res.put("totalDays", yearRecords.stream().map(UserRecord::getRecordDate).distinct().count());
+        Set<String> dateSet = yearRecords.stream()
+            .map(UserRecord::getRecordDate).filter(Objects::nonNull).collect(Collectors.toSet());
+        res.put("totalDays", dateSet.size());
+        res.put("currentStreak", calcCurrentStreak(dateSet));
+        res.put("longestStreak", calcLongestStreak(dateSet));
 
         // 月度热力图
         Map<String, Long> monthly = new LinkedHashMap<>();

@@ -108,8 +108,8 @@ async function loadStats() {
   loading.value = true
   error.value = ''
   try {
-    const openid = await ensureLogin()
-    yearStats.value = await fetchYearStats(openid, currentYear)
+    await ensureLogin()
+    yearStats.value = await fetchYearStats(currentYear)
   } catch (e: any) {
     error.value = e.message || '加载失败'
   } finally {

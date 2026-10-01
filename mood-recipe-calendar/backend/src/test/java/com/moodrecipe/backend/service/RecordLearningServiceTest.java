@@ -31,7 +31,7 @@ class RecordLearningServiceTest {
         });
         RecordLearningService service = new RecordLearningService(interactions, exposures, memories);
 
-        var receipt = service.learn("user-1", "12", "exp-1", true, true, true);
+        var receipt = service.learn("user-1", 12L, "exp-1", true, true, true);
 
         ArgumentCaptor<RecipeInteraction> interaction = ArgumentCaptor.forClass(RecipeInteraction.class);
         verify(interactions, org.mockito.Mockito.times(2)).save(interaction.capture());
@@ -63,7 +63,7 @@ class RecordLearningServiceTest {
         when(interactions.existsByOpenidAndRecipeIdAndAction("user-1", 12L, "MADE")).thenReturn(true);
         RecordLearningService service = new RecordLearningService(interactions, exposures, memories);
 
-        var receipt = service.learn("user-1", "12", null, false, false, false);
+        var receipt = service.learn("user-1", 12L, null, false, false, false);
 
         verify(interactions, never()).save(any());
         assertTrue(receipt.items().isEmpty());
@@ -78,7 +78,7 @@ class RecordLearningServiceTest {
         when(memories.personalizationEnabled("user-1")).thenReturn(false);
         RecordLearningService service = new RecordLearningService(interactions, exposures, memories);
 
-        var receipt = service.learn("user-1", "12", "exp-1", true, true, true);
+        var receipt = service.learn("user-1", 12L, "exp-1", true, true, true);
 
         assertEquals("SAVED_ONLY", receipt.status());
         verifyNoInteractions(interactions, exposures);

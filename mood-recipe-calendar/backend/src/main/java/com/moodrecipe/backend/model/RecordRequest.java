@@ -15,7 +15,7 @@ public record RecordRequest(
         @NotBlank @Size(max = 100) String dishName,
         @NotBlank @Size(max = 20) String moodTag,
         @Size(max = 200) String note,
-        String recipeId,
+        Long recipeId,
         @Size(max = 36) String exposureId,
         @Size(max = 64) String clientRequestId,
         @Min(0) @Max(1440) Integer cookingTime,
@@ -25,13 +25,13 @@ public record RecordRequest(
         Boolean tooHard,
         Boolean leftover
 ) {
-    public RecordRequest(String imageUrl, String dishName, String moodTag, String note, String recipeId,
+    public RecordRequest(String imageUrl, String dishName, String moodTag, String note, Long recipeId,
                          String exposureId, String clientRequestId, Integer cookingTime, String recordDate) {
         this(imageUrl, dishName, moodTag, note, recipeId, exposureId, clientRequestId, cookingTime,
                 recordDate, List.of(), null, null, null);
     }
 
-    public RecordRequest(String imageUrl, String dishName, String moodTag, String note, String recipeId,
+    public RecordRequest(String imageUrl, String dishName, String moodTag, String note, Long recipeId,
                          String exposureId, String clientRequestId, Integer cookingTime, String recordDate,
                          List<String> imageUrls) {
         this(imageUrl, dishName, moodTag, note, recipeId, exposureId, clientRequestId, cookingTime,

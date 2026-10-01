@@ -31,7 +31,7 @@ const note = ref('')
 const cookingTime = ref('30分钟')
 interface RecordPhoto { localUrl: string, remoteUrl: string, uploading: boolean }
 const photos = ref<RecordPhoto[]>([])
-const recipeId = ref<string | undefined>()
+const recipeId = ref<number | undefined>()
 const exposureId = ref<string | undefined>()
 const clientRequestId = ref(createRequestId())
 const savedRecordId = ref<number>()
@@ -67,7 +67,7 @@ onShow(async () => {
       if (d.mood)
         selectedMood.value = d.mood
       if (d.recipeId !== undefined && d.recipeId !== null)
-        recipeId.value = String(d.recipeId)
+        recipeId.value = Number(d.recipeId) || undefined
       if (d.exposureId)
         exposureId.value = String(d.exposureId)
       if (d.cookingTime)

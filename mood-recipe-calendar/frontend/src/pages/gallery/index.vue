@@ -82,8 +82,8 @@ async function loadData() {
   loading.value = true
   error.value = ''
   try {
-    const openid = await ensureLogin()
-    checkin.value = await fetchCheckinStatus(openid)
+    await ensureLogin()
+    checkin.value = await fetchCheckinStatus()
   } catch (e: any) {
     error.value = e.message || '加载失败'
   } finally {
@@ -99,8 +99,8 @@ onShow(() => {
 async function onCheckin() {
   if (checkin.value.checkedIn) return
   try {
-    const openid = await ensureLogin()
-    checkin.value = await doCheckin(openid)
+    await ensureLogin()
+    checkin.value = await doCheckin()
     toast('签到成功，锅仔陪你吃饭！')
   } catch (e: any) {
     toastError(e, '签到失败')

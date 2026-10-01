@@ -79,10 +79,10 @@ async function loadData() {
   loading.value = true
   error.value = ''
   try {
-    const openid = await ensureLogin()
+    await ensureLogin()
     const [monthRecords, statsData] = await Promise.all([
-      fetchRecordsByMonth(openid, monthStr),
-      fetchStats(openid),
+      fetchRecordsByMonth(monthStr),
+      fetchStats(),
     ])
     records.value = monthRecords
     stats.value = { totalDays: statsData.totalDays, currentStreak: statsData.currentStreak }

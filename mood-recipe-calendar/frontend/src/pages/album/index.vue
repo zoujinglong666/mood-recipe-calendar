@@ -115,8 +115,8 @@ async function loadAlbum() {
   try {
     const openid = await ensureLogin()
     const [albumData, recordData] = await Promise.all([
-      fetchMonthAlbum(openid, monthStr),
-      fetchRecordsByMonth(openid, monthStr),
+      fetchMonthAlbum(monthStr),
+      fetchRecordsByMonth(monthStr),
       refreshUserInfo(true),
     ])
     album.value = albumData

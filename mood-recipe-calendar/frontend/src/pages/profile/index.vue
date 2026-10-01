@@ -59,11 +59,10 @@ async function loadData() {
     return
   }
   try {
-    const openid = userStore.openid
     await refreshUserInfo()
     const [statsData, records] = await Promise.all([
-      fetchStats(openid),
-      fetchRecords(openid),
+      fetchStats(),
+      fetchRecords(),
     ])
     stats.value = statsData
     history.value = records.slice(0, 3)
