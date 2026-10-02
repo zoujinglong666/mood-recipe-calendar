@@ -41,7 +41,7 @@ public class WebSearchTool implements AgentTool {
     public String description() {
         return "联网搜索菜谱库之外的实时或通用信息，例如时令食材、食材挑选与保存常识、"
                 + "某道菜的不同做法、地方特色。仅当本地菜谱库无法回答时使用；"
-                + "搜索结果为外部信息，引用时需注明来源链接。";
+                + "搜索结果为外部信息，引用时用（来源：站点名）标注，不要输出完整网址。";
     }
 
     @Override

@@ -193,8 +193,13 @@ function restoreConversation() {
 
 function restoreRemoteConversation(snapshot: MealAgentConversationSnapshot) {
   agentConversationId = snapshot.conversationId
-  messages.value = (snapshot.messages || []).filter(message => message && (message.role === 'agent' || message.role === 'user') && typeof message.text === 'string')
-    .map((message, index) => ({ ...message, id: index + 1 }))
+  const restored = (snapshot.messages || []).filter(message => message && (message.role === 'agent' || message.role === 'user') && typeof message.text === 'string')
+  // 旧会话的 transcript 缺最后一条锅仔回复（历史 bug：只存了 turnJson 没存进 transcript）；补回，避免刷新后最后一句消失
+  const turnReply = (snapshot.turn?.reply || '').trim()
+  const lastAgent = [...restored].reverse().find(message => message.role === 'agent')
+  if (turnReply && (!lastAgent || lastAgent.text !== turnReply))
+    restored.push({ role: 'agent', text: turnReply })
+  messages.value = restored.map((message, index) => ({ ...message, id: index + 1 }))
   messageId = messages.value.length
   agentState.value = snapshot.state || {}
   agentTurn.value = snapshot.turn || undefined
@@ -267,6 +272,7 @@ async function runAgent(message: string, echo = false, echoLabel = message) {
   if (echo && message)
     messages.value.push({ id: ++messageId, role: 'user', text: echoLabel, selected: true })
   agentBusy.value = true
+  quickReplies.value = []
   startThinking()
   await scrollToLatest()
   try {
@@ -290,6 +296,7 @@ async function runAgent(message: string, echo = false, echoLabel = message) {
     spiceLevel.value = turn.state.spiceLevel || spiceLevel.value
     sessionCuisine.value = turn.state.favoriteCuisine || sessionCuisine.value
     await streamAgentReply(turn.reply)
+    quickReplies.value = buildQuickReplies(turn)
     persistConversation()
   }
   catch (error) {
@@ -314,6 +321,12 @@ async function streamAgentReply(reply: string) {
   if (!full)
     return
   agentTyping.value = true
+  // 教学类回复（带来源标注的分步做法）信息密度高，一次性整卡呈现，不逐字打字
+  if (parseTeachingReply(full).steps.length) {
+    messages.value[index].text = full
+    agentTyping.value = false
+    return
+  }
   const chars = Array.from(full)
   const step = Math.max(1, Math.round(chars.length / 90))
   await new Promise<void>((resolve) => {
@@ -329,6 +342,93 @@ async function streamAgentReply(reply: string) {
       }
     }, 28)
   })
+}
+
+// ===== A. 快捷追问：回复结束后按动作给出建议的下一句，点一下就能继续 =====
+const quickReplies = ref<string[]>([])
+
+function buildQuickReplies(turn: MealAgentTurn) {
+  const action = turn.action || ''
+  if (action === 'ASK_PEOPLE') return ['1 个人吃', '2 个人吃', '一家人吃']
+  if (action === 'ASK_SPICE') return ['能吃辣', '微辣就行', '不吃辣']
+  if (action === 'ASK_DAYS') return ['工作日做饭', '周末也做', '每天都做']
+  if (action === 'ASK_DISHES') return ['每天一道', '每天两道', '丰盛一点']
+  // 家庭/菜系确认走结构化卡片，卡片本身就是选项，不再重复给 chips
+  if (action === 'ASK_HOUSEHOLD' || action === 'CONFIRM_CUISINE') return []
+  if (turn.state.requestedIngredients?.length) return ['教我做这道菜', '再换几道别的', '开始排菜单']
+  return ['开始排菜单', '再聊聊我的口味', '想吃点别的']
+}
+
+async function sendQuickReply(text: string) {
+  await runAgent(text, true)
+}
+
+// ===== B. 教学卡：带来源标注的做法回复解析为分步卡片，替代文字墙 =====
+const TEACH_SOURCES: Record<string, string> = {
+  'baike.baidu.com': '百度百科',
+  'xiachufang.com': '下厨房',
+  'meishij.net': '美食杰',
+  'douguo.com': '豆果美食',
+}
+
+interface TeachingReply { intro: string, steps: string[], source: string }
+
+function parseTeachingReply(raw: string): TeachingReply {
+  const text = (raw || '').trim()
+  const result: TeachingReply = { intro: '', steps: [], source: '' }
+  if (!text) return result
+  let body = text
+  const sourceMatch = text.match(/[（(]来源[：:]\s*([^）)]+)[）)]\s*$/)
+  if (sourceMatch) {
+    body = text.slice(0, sourceMatch.index).trim()
+    const rawSource = sourceMatch[1].trim()
+    if (/^https?:\/\//i.test(rawSource)) {
+      // 兼容历史长 URL：映射常见站点名，其余统一显示“网络资料”
+      const host = Object.keys(TEACH_SOURCES).find(key => rawSource.includes(key))
+      result.source = host ? TEACH_SOURCES[host] : '网络资料'
+    }
+    else {
+      result.source = rawSource
+    }
+  }
+  // 显式编号（1. / 1️⃣ / 步骤1 / ①）达到 3 段才按编号拆
+  const numbered = body.split(/(?=(?:[1-9][.、）)]|[1-9]️⃣|步骤\s*[1-9]|①|②|③|④|⑤))/).map(s => s.trim()).filter(Boolean)
+  if (numbered.length >= 3 && body.length > 60) {
+    result.steps = numbered.map(s => s.replace(/^[1-9][.、）)]\s*|^[1-9]️⃣\s*|^步骤\s*[1-9][：:.、]?\s*|^[①②③④⑤]\s*/, ''))
+    return result
+  }
+  // 无编号时按分号/句号分句，3-8 段且每段成句才列表化，避免误伤普通回复
+  const sentences = body.split(/[；;。]/).map(s => s.trim()).filter(s => s.length >= 8)
+  if (sentences.length >= 3 && sentences.length <= 8 && body.length > 50) {
+    result.steps = sentences
+    return result
+  }
+  result.intro = body
+  return result
+}
+
+// ===== C. 记忆可视化：锅仔已记住的要点常驻顶部，点一下就能改 =====
+const GOAL_LABELS: Record<string, string> = { LEAN: '清淡', FITNESS: '均衡', BALANCED: '均衡', DAILY: '日常', TREAT: '丰盛', SAVE: '省钱' }
+
+const memoryChips = computed(() => {
+  const state = agentState.value || {}
+  const chips: { key: string, label: string, intent: string }[] = []
+  if (state.people) chips.push({ key: 'people', label: `${state.people} 人吃`, intent: '人数要调整一下' })
+  if (state.hasElder) chips.push({ key: 'elder', label: '家有老人', intent: '家庭情况要调整一下' })
+  if (state.hasChild) chips.push({ key: 'child', label: '家有小孩', intent: '家庭情况要调整一下' })
+  if (state.spiceLevel) chips.push({ key: 'spice', label: `口味:${state.spiceLevel}`, intent: '口味要改一下，重新说说辣度' })
+  if (state.favoriteCuisine) chips.push({ key: 'cuisine', label: `偏爱${state.favoriteCuisine}`, intent: '想换个菜系' })
+  if (state.healthGoal) chips.push({ key: 'goal', label: `目标:${GOAL_LABELS[state.healthGoal] || state.healthGoal}`, intent: '饮食目标要调整' })
+  if (state.budget) chips.push({ key: 'budget', label: `预算:${GOAL_LABELS[state.budget] || state.budget}`, intent: '预算标准要调整' })
+  if (state.cookingDays?.length) chips.push({ key: 'days', label: `做 ${state.cookingDays.length} 天`, intent: '做饭的天数要调整' })
+  if (state.dishesPerDay) chips.push({ key: 'dishes', label: `每天 ${state.dishesPerDay} 道`, intent: '每天做的菜数要调整' })
+  for (const item of state.requestedIngredients || [])
+    chips.push({ key: `want-${item}`, label: `想吃${item}`, intent: `不想吃${item}了，换点别的` })
+  return chips
+})
+
+async function onMemoryChipTap(intent: string) {
+  await runAgent(intent, true)
 }
 
 function householdValue(value: string) {
@@ -585,6 +685,13 @@ function openGallery() {
         <view v-if="!canUseAgent" class="history-readonly" role="status">
           今日对话次数已用完，历史内容仍保留；次数恢复后可以继续聊。
         </view>
+        <scroll-view v-if="memoryChips.length" class="memory-strip" scroll-x :show-scrollbar="false" aria-label="锅仔记住的信息，点击可修改">
+          <view class="memory-strip__inner">
+            <button v-for="chip in memoryChips" :key="chip.key" class="memory-strip__chip" :disabled="agentBusy || agentTyping" @click="onMemoryChipTap(chip.intent)">
+              {{ chip.label }}
+            </button>
+          </view>
+        </scroll-view>
         <view class="chat-list">
           <view v-for="message in messages" :key="message.id" class="chat-row" :class="[`chat-row--${message.role}`, { 'chat-row--selection': message.selected }]">
             <image v-if="message.role === 'agent'" :src="`${STATIC_BASE_URL}/static/guozai/action_08_peek.png`" mode="aspectFit" aria-hidden="true" />
@@ -593,7 +700,17 @@ function openGallery() {
               <text class="selection-card__value">{{ message.text }}</text>
             </view>
             <view v-else class="agent-reply">
-              <view class="chat-bubble">
+              <view v-if="parseTeachingReply(message.text).steps.length" class="chat-bubble teach-bubble">
+                <text class="teach-bubble__eyebrow">菜谱小课堂</text>
+                <view class="teach-bubble__steps">
+                  <view v-for="(step, stepIdx) in parseTeachingReply(message.text).steps" :key="stepIdx" class="teach-bubble__step">
+                    <text class="teach-bubble__no">{{ stepIdx + 1 }}</text>
+                    <text class="teach-bubble__copy">{{ step }}</text>
+                  </view>
+                </view>
+                <text v-if="parseTeachingReply(message.text).source" class="teach-bubble__source">来源：{{ parseTeachingReply(message.text).source }}</text>
+              </view>
+              <view v-else class="chat-bubble">
                 <text>{{ message.text }}</text>
                 <view v-if="message.tags?.length" class="memory-tags">
                   <text v-for="tag in message.tags" :key="tag">
@@ -617,6 +734,11 @@ function openGallery() {
                 </view>
               </view>
             </view>
+          </view>
+          <view v-if="!agentBusy && !agentTyping && quickReplies.length && !agentCards.length" class="quick-replies" aria-label="你可以继续问">
+            <button v-for="reply in quickReplies" :key="reply" class="quick-replies__chip" @click="sendQuickReply(reply)">
+              {{ reply }}
+            </button>
           </view>
         </view>
 
@@ -726,9 +848,23 @@ function openGallery() {
 .simple-plan__gift { color: var(--mrc-accent); font-size: 21rpx; line-height: 1.5; }
 .simple-plan__checkin { min-height: 74rpx; margin: 0; border: 2rpx solid var(--mrc-accent); border-radius: 20rpx; background: var(--mrc-surface); color: var(--mrc-accent); font-size: 23rpx; font-weight: 800; }
 .chat-list { display: flex; flex-direction: column; gap: 18rpx; padding: 10rpx 4rpx 22rpx; }
-.chat-row { display: flex; align-items: flex-end; gap: 10rpx; }.chat-row > image { width: 62rpx; height: 62rpx; flex: 0 0 auto; }.chat-row--user { justify-content: flex-end; }.chat-bubble { max-width: 78%; padding: 19rpx 22rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 8rpx 25rpx 25rpx 25rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); color: var(--mrc-text-deep); font-size: 25rpx; line-height: 1.55; box-sizing: border-box; }.chat-row--user .chat-bubble { border-color: var(--mrc-accent); border-radius: 25rpx 8rpx 25rpx 25rpx; background: var(--mrc-accent); color: #fff; }.memory-tags { display: flex; flex-wrap: wrap; gap: 8rpx; margin-top: 12rpx; }.memory-tags text { padding: 7rpx 14rpx; border-radius: 999rpx; background: var(--mrc-surface-peach); color: var(--mrc-text-sub); font-size: 19rpx; line-height: 1.3; }
+.chat-row { display: flex; align-items: flex-end; gap: 10rpx; }.chat-row > image { width: 62rpx; height: 62rpx; flex: 0 0 auto; }.chat-row--user { justify-content: flex-end; }.chat-bubble { max-width: 78%; padding: 19rpx 22rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 8rpx 25rpx 25rpx 25rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); color: var(--mrc-text-deep); font-size: 25rpx; line-height: 1.55; box-sizing: border-box; word-break: break-all; overflow-wrap: anywhere; }.chat-row--user .chat-bubble { border-color: var(--mrc-accent); border-radius: 25rpx 8rpx 25rpx 25rpx; background: var(--mrc-accent); color: #fff; }.memory-tags { display: flex; flex-wrap: wrap; gap: 8rpx; margin-top: 12rpx; }.memory-tags text { padding: 7rpx 14rpx; border-radius: 999rpx; background: var(--mrc-surface-peach); color: var(--mrc-text-sub); font-size: 19rpx; line-height: 1.3; }
 .chat-row--thinking { animation: thinking-in .22s ease-out both; }.thinking-bubble { display: flex; align-items: center; gap: 14rpx; color: var(--mrc-text-sub); }.thinking-dots { display: flex; align-items: center; gap: 7rpx; height: 24rpx; }.thinking-dot { width: 11rpx; height: 11rpx; border-radius: 50%; background: var(--mrc-accent); box-shadow: 0 3rpx 8rpx var(--mrc-accent-soft); animation: thinking-dot 1.05s cubic-bezier(.45, 0, .55, 1) infinite; will-change: transform, opacity; }.thinking-dot--2 { animation-delay: .14s; }.thinking-dot--3 { animation-delay: .28s; }
 .agent-reply { display: flex; flex-direction: column; gap: 10rpx; min-width: 0; }
+.memory-strip { margin: 0 0 14rpx; white-space: nowrap; }
+.memory-strip__inner { display: inline-flex; gap: 12rpx; padding: 2rpx 4rpx; }
+.memory-strip__chip { flex: 0 0 auto; min-height: 56rpx; margin: 0; padding: 0 20rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 999rpx; background: var(--mrc-surface); color: var(--mrc-text-sub); font-size: 21rpx; line-height: 52rpx; }
+.memory-strip__chip::after { border: none; }
+.quick-replies { display: flex; flex-wrap: wrap; gap: 12rpx; margin: 2rpx 0 6rpx 72rpx; }
+.quick-replies__chip { min-height: 60rpx; margin: 0; padding: 0 22rpx; border: 2rpx dashed var(--mrc-accent-soft, rgba(232, 101, 43, .35)); border-radius: 999rpx; background: var(--mrc-surface); color: var(--mrc-accent); font-size: 22rpx; line-height: 56rpx; }
+.quick-replies__chip::after { border: none; }
+.teach-bubble { display: flex; flex-direction: column; gap: 12rpx; }
+.teach-bubble__eyebrow { color: var(--mrc-accent); font-size: 19rpx; font-weight: 800; letter-spacing: 1.5rpx; }
+.teach-bubble__steps { display: flex; flex-direction: column; gap: 10rpx; }
+.teach-bubble__step { display: flex; align-items: flex-start; gap: 10rpx; }
+.teach-bubble__no { display: flex; align-items: center; justify-content: center; width: 30rpx; height: 30rpx; margin-top: 3rpx; flex: 0 0 auto; border-radius: 50%; background: var(--mrc-surface-peach); color: var(--mrc-accent); font-size: 18rpx; font-weight: 800; }
+.teach-bubble__copy { flex: 1; color: var(--mrc-text-deep); font-size: 23rpx; line-height: 1.6; }
+.teach-bubble__source { color: var(--mrc-text-sub); font-size: 19rpx; opacity: .8; }
 .thinking-bubble { display: flex; align-items: center; gap: 14rpx; color: var(--mrc-text-sub); }
 .thinking-steps { display: flex; flex-direction: column; gap: 9rpx; }
 .thinking-step { display: flex; align-items: center; gap: 12rpx; color: var(--mrc-text-sub); font-size: 23rpx; transition: color .25s ease; }

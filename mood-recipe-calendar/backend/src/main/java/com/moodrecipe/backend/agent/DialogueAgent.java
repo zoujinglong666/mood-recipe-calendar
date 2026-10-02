@@ -344,7 +344,7 @@ public class DialogueAgent {
                 + "\n请回答这个问题。可先用 search_recipes 查本地菜谱库；"
                 + (state != null && state.favoriteCuisine() != null
                 ? "用户偏爱" + state.favoriteCuisine() + "，可适当结合。" : "")
-                + "需要库外或实时信息时才用 web_search。引用联网结果时注明来源链接。"
+                + "需要库外或实时信息时才用 web_search。引用联网结果时用（来源：站点名）标注，如（来源：百度百科），绝不输出完整网址链接。"
                 + "回答控制在三句话以内，用简体中文，不要暴露工具调用过程。";
     }
 

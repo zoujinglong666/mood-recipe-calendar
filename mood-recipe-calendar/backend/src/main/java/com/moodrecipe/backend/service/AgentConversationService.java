@@ -62,7 +62,12 @@ public class AgentConversationService {
         try {
             conversation.setStateJson(json.writeValueAsString(turn.state()));
             conversation.setTurnJson(json.writeValueAsString(turn));
-            conversation.setTranscriptJson(json.writeValueAsString(safeTranscript(transcript)));
+            // 前端传来的 transcript 是发送时的历史，不含本轮回复；不补上这一条，
+            // 恢复会话时最后一条锅仔回复永远丢失（刷新后"少了"的直接原因）。
+            List<TranscriptMessage> full = new java.util.ArrayList<>(safeTranscript(transcript));
+            if (turn.reply() != null && !turn.reply().isBlank())
+                full.add(new TranscriptMessage("agent", turn.reply(), List.of(), false));
+            conversation.setTranscriptJson(json.writeValueAsString(safeTranscript(full)));
             conversation.setLastAction(turn.action());
             conversation.setTurnCount(conversation.getTurnCount() + 1);
             conversations.save(conversation);
