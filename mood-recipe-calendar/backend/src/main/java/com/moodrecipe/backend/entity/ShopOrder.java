@@ -50,6 +50,7 @@ public class ShopOrder {
     private String payType;
 
     /** 订单状态：pending 待支付 / paid 已支付 / cancelled 已取消 */
+    @Builder.Default
     private String status = "pending";
 
     @Column(name = "created_at")

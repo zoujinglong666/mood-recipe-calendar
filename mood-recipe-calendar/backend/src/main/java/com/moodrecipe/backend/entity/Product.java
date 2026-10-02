@@ -46,14 +46,17 @@ public class Product {
     private String description;
 
     /** 库存 */
+    @Builder.Default
     private Integer stock = 0;
 
     /** 排序权重（小的在前） */
     @Column(name = "sort_order")
+    @Builder.Default
     private Integer sortOrder = 0;
 
     /** 是否上架 */
     @Column(name = "is_active")
+    @Builder.Default
     private Boolean isActive = true;
 
     @Column(name = "created_at")
