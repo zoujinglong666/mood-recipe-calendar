@@ -16,6 +16,7 @@ declare global {
   const MEMBER_PRODUCT_SKU: typeof import('./api/virtualCommerce')['MEMBER_PRODUCT_SKU']
   const MOOD_COLOR: typeof import('./utils/albumLayout')['MOOD_COLOR']
   const MOOD_EMOJI: typeof import('./utils/albumLayout')['MOOD_EMOJI']
+  const MRC_EVENTS: typeof import('./utils/bus')['MRC_EVENTS']
   const RECORD_DRAFT_KEY: typeof import('./utils/cookingDraft')['RECORD_DRAFT_KEY']
   const STATIC_BASE_URL: typeof import('./utils/assets')['STATIC_BASE_URL']
   const acceptHMRUpdate: typeof import('pinia')['acceptHMRUpdate']
@@ -25,6 +26,7 @@ declare global {
   const autoLayout: typeof import('./utils/albumLayout')['autoLayout']
   const autoResetRef: typeof import('@vueuse/core')['autoResetRef']
   const beginAuthRecovery: typeof import('./utils/authRecovery')['beginAuthRecovery']
+  const bus: typeof import('./utils/bus')['bus']
   const cancelAuthRecovery: typeof import('./utils/authRecovery')['cancelAuthRecovery']
   const chooseImageFile: typeof import('./utils/chooseImage')['chooseImageFile']
   const chooseImageFiles: typeof import('./utils/chooseImage')['chooseImageFiles']
@@ -80,6 +82,7 @@ declare global {
   const fetchAllRecipes: typeof import('./api/recipes')['fetchAllRecipes']
   const fetchCheckinStatus: typeof import('./api/gallery')['fetchCheckinStatus']
   const fetchCompanionMessage: typeof import('./api/records')['fetchCompanionMessage']
+  const fetchCurrentAgentConversation: typeof import('./api/weeklyPlans')['fetchCurrentAgentConversation']
   const fetchDailyBoard: typeof import('./api/dailyMenu')['fetchDailyBoard']
   const fetchDailyMealPlan: typeof import('./api/dailyMealPlan')['fetchDailyMealPlan']
   const fetchEntitlements: typeof import('./api/virtualCommerce')['fetchEntitlements']
@@ -491,6 +494,7 @@ declare module 'vue' {
     readonly MEMBER_PRODUCT_SKU: UnwrapRef<typeof import('./api/virtualCommerce')['MEMBER_PRODUCT_SKU']>
     readonly MOOD_COLOR: UnwrapRef<typeof import('./utils/albumLayout')['MOOD_COLOR']>
     readonly MOOD_EMOJI: UnwrapRef<typeof import('./utils/albumLayout')['MOOD_EMOJI']>
+    readonly MRC_EVENTS: UnwrapRef<typeof import('./utils/bus')['MRC_EVENTS']>
     readonly RECORD_DRAFT_KEY: UnwrapRef<typeof import('./utils/cookingDraft')['RECORD_DRAFT_KEY']>
     readonly STATIC_BASE_URL: UnwrapRef<typeof import('./utils/assets')['STATIC_BASE_URL']>
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>
@@ -500,6 +504,7 @@ declare module 'vue' {
     readonly autoLayout: UnwrapRef<typeof import('./utils/albumLayout')['autoLayout']>
     readonly autoResetRef: UnwrapRef<typeof import('@vueuse/core')['autoResetRef']>
     readonly beginAuthRecovery: UnwrapRef<typeof import('./utils/authRecovery')['beginAuthRecovery']>
+    readonly bus: UnwrapRef<typeof import('./utils/bus')['bus']>
     readonly cancelAuthRecovery: UnwrapRef<typeof import('./utils/authRecovery')['cancelAuthRecovery']>
     readonly chooseImageFile: UnwrapRef<typeof import('./utils/chooseImage')['chooseImageFile']>
     readonly chooseImageFiles: UnwrapRef<typeof import('./utils/chooseImage')['chooseImageFiles']>
@@ -555,6 +560,7 @@ declare module 'vue' {
     readonly fetchAllRecipes: UnwrapRef<typeof import('./api/recipes')['fetchAllRecipes']>
     readonly fetchCheckinStatus: UnwrapRef<typeof import('./api/gallery')['fetchCheckinStatus']>
     readonly fetchCompanionMessage: UnwrapRef<typeof import('./api/records')['fetchCompanionMessage']>
+    readonly fetchCurrentAgentConversation: UnwrapRef<typeof import('./api/weeklyPlans')['fetchCurrentAgentConversation']>
     readonly fetchDailyBoard: UnwrapRef<typeof import('./api/dailyMenu')['fetchDailyBoard']>
     readonly fetchDailyMealPlan: UnwrapRef<typeof import('./api/dailyMealPlan')['fetchDailyMealPlan']>
     readonly fetchEntitlements: UnwrapRef<typeof import('./api/virtualCommerce')['fetchEntitlements']>

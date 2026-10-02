@@ -29,6 +29,9 @@ public class WeeklyMealPlanController {
     @GetMapping("/{id}") public ApiResponse<?> get(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @PathVariable Long id) { return plans.get(openid, id).map(ApiResponse::ok).orElseGet(() -> ApiResponse.error(404, "计划不存在")); }
     @GetMapping("/quota") public ApiResponse<UsageQuotaService.View> quota(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) { return ApiResponse.ok(quotas.view(openid, UsageQuotaService.Feature.SIMPLE_WEEKLY_PLAN)); }
     @GetMapping("/agent-quota") public ApiResponse<UsageQuotaService.View> agentQuota(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) { return ApiResponse.ok(quotas.view(openid, UsageQuotaService.Feature.AGENT_CONVERSATION)); }
+    @GetMapping("/agent-conversations/current") public ApiResponse<?> currentAgentConversation(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
+        return ApiResponse.ok(conversations.latest(openid).orElse(null));
+    }
     @PostMapping("/generate") public ApiResponse<?> generate(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @RequestBody WeeklyMealPlanService.GenerateRequest request) {
         if (request == null || request.people() < 1) return ApiResponse.error(400, "请填写用餐人数");
         if (!contentSafety.allowsText(openid, request.conversationNotes())) return ApiResponse.error(400, "文字未通过安全检查");
@@ -50,6 +53,7 @@ public class WeeklyMealPlanController {
     }
     @PostMapping("/agent-turns") public ApiResponse<?> agentTurn(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @RequestBody AgentTurnRequest request) {
         if (request != null && request.message() != null && request.message().length() > 300) return ApiResponse.error(400, "一次最多输入 300 个字");
+        if (request != null && request.history() != null && request.history().size() > 80) return ApiResponse.error(400, "对话记录过长，请重新开始一轮");
         if (request != null && !contentSafety.allowsText(openid, request.message())) return ApiResponse.error(400, "文字未通过安全检查");
         if (!quotas.member(openid)) {
             if (request == null || request.conversationId() == null || request.conversationId().isBlank()) return ApiResponse.error(400, "缺少对话会话标识");
@@ -61,7 +65,7 @@ public class WeeklyMealPlanController {
         DialogueState.AgentState serverState = conversations.state(openid, conversationId,
                 request == null ? null : request.state());
         DialogueState.Turn turn = mealAgent.turn(openid, request == null ? "" : request.message(), serverState, previousAction);
-        conversations.save(openid, conversationId, turn);
+        conversations.save(openid, conversationId, turn, request == null ? null : request.history());
         return ApiResponse.ok(turn);
     }
     @PostMapping("/{id}/favorite") public ApiResponse<?> favorite(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @PathVariable Long id) { return plans.toggleFavorite(openid, id).map(ApiResponse::ok).orElseGet(() -> ApiResponse.error(404, "计划不存在")); }
@@ -71,5 +75,6 @@ public class WeeklyMealPlanController {
     @PostMapping("/{id}/shopping/{name}") public ApiResponse<?> toggle(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @PathVariable Long id, @PathVariable String name) { return plans.toggleShopping(openid, id, name).map(ApiResponse::ok).orElseGet(() -> ApiResponse.error(404, "购物项不存在")); }
     public record AgentReplyRequest(String message, String nextQuestion) {}
     public record AgentReply(String reply) {}
-    public record AgentTurnRequest(String message, DialogueState.AgentState state, String conversationId, String requestId) {}
+    public record AgentTurnRequest(String message, DialogueState.AgentState state, String conversationId,
+                                   String requestId, java.util.List<AgentConversationService.TranscriptMessage> history) {}
 }

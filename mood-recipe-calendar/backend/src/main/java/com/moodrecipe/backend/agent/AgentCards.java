@@ -114,6 +114,13 @@ public final class AgentCards {
         if (options == null || options.isEmpty()) {
             return defaultCard(action, state);
         }
+        // 菜数选项优先使用模型结合上下文生成的结果；模型没有给出可回填的菜数值时才用上下文兜底。
+        if ("ASK_DISHES".equals(action)) {
+            long structuredOptions = options.stream()
+                    .filter(option -> option != null && option.value() != null && option.value().startsWith("dishes="))
+                    .count();
+            if (structuredOptions == 0) return defaultCard(action, state);
+        }
         if (type == null || !(type.equals("OPTIONS") || type.equals("CUISINE") || type.equals("READY"))) {
             return defaultCard(action, state);
         }
@@ -187,7 +194,7 @@ public final class AgentCards {
                     "dishes=4", "4 道", "dishes=6", "6 道", "dishes=8", "8 道");
         }
         return options("每天想吃几道？", "锅仔会按人数搭配主菜和配菜",
-                "dishes=1", "1 道", "dishes=2", "2 道", "dishes=3", "3 道");
+                "dishes=1", "1 道", "dishes=2", "2 道");
     }
 
     public static Map<String, List<String>> cuisineDishes() {

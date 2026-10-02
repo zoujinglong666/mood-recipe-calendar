@@ -1,14 +1,19 @@
 <script setup lang="ts">
 import type { RecordItem } from '../../api/records'
 import { useImagePreview } from '@wot-ui/ui'
-import { computed, ref } from 'vue'
+import { computed, ref, onUnmounted } from 'vue'
 import { navBack } from '@/composables/useNavBar'
 import { STATIC_BASE_URL } from '@/utils/assets'
+import { resolveAssetUrl } from '@/api/request'
 import { fetchRecordsByMonth, fetchStats } from '../../api/records'
 import ErrorState from '../../components/guozai/ErrorState.vue'
 import LoadingState from '../../components/guozai/LoadingState.vue'
 import GuozaiImage from '../../components/guozai/GuozaiImage.vue'
 import { ensureLogin } from '../../utils/login'
+import { bus, MRC_EVENTS } from '@/utils/bus'
+
+/** record 页 onShow 时读取此键，将补记落到指定历史日期。 */
+const RECORD_DATE_KEY = 'mrc_record_date'
 
 definePage({
   name: 'calendar',
@@ -26,16 +31,17 @@ const { previewImage } = useImagePreview()
 
 const weekCN = ['日', '一', '二', '三', '四', '五', '六']
 const now = new Date()
-const year = now.getFullYear()
-const month = now.getMonth() + 1
+const year = ref(now.getFullYear())
+const month = ref(now.getMonth() + 1)
 const today = now.getDate()
-const monthStr = `${year}-${String(month).padStart(2, '0')}`
-const monthNumber = String(month).padStart(2, '0')
+const monthStr = computed(() => `${year.value}-${String(month.value).padStart(2, '0')}`)
+const monthNumber = computed(() => String(month.value).padStart(2, '0'))
 
 const loading = ref(true)
 const error = ref('')
 const records = ref<RecordItem[]>([])
 const stats = ref({ totalDays: 0, currentStreak: 0 })
+const statsError = ref(false)
 
 // 记录日期映射：同一天可能有多条记录，存为数组而非单条（避免互相覆盖）
 const recordMap = computed(() => {
@@ -51,19 +57,19 @@ const recordMap = computed(() => {
   return map
 })
 
-const firstDay = new Date(year, month - 1, 1).getDay()
-const daysInMonth = new Date(year, month, 0).getDate()
+const firstDay = computed(() => new Date(year.value, month.value - 1, 1).getDay())
+const daysInMonth = computed(() => new Date(year.value, month.value, 0).getDate())
 
 const calCells = computed(() => {
   const cells: ({ day: number, hasRecord: boolean, isToday: boolean, dishImg: string, mood: string, count: number } | null)[] = []
-  for (let i = 0; i < firstDay; i++) cells.push(null)
-  for (let d = 1; d <= daysInMonth; d++) {
+  for (let i = 0; i < firstDay.value; i++) cells.push(null)
+  for (let d = 1; d <= daysInMonth.value; d++) {
     const recs = recordMap.value.get(d)
     cells.push({
       day: d,
       hasRecord: !!recs?.length,
-      isToday: d === today,
-      dishImg: recs?.[0]?.imageUrl || '',
+      isToday: d === today && month.value === now.getMonth() + 1 && year.value === now.getFullYear(),
+      dishImg: recs?.[0]?.imageUrl ? resolveAssetUrl(recs[0].imageUrl) : '',
       mood: recs?.[0]?.moodTag || '',
       count: recs?.length || 0,
     })
@@ -88,8 +94,10 @@ async function loadData() {
   try {
     await ensureLogin()
     // 日历记录是核心，独立加载；统计（连续天数等）失败不应清空整月日历
-    records.value = await fetchRecordsByMonth(monthStr)
-    fetchStats().then(s => { stats.value = { totalDays: s.totalDays, currentStreak: s.currentStreak } }).catch(() => {})
+    records.value = await fetchRecordsByMonth(monthStr.value)
+    fetchStats()
+      .then(s => { stats.value = { totalDays: s.totalDays, currentStreak: s.currentStreak }; statsError.value = false })
+      .catch(() => { statsError.value = true })
     if (!initialDayHandled) {
       initialDayHandled = true
       const selectedDay = Number(route.query.day)
@@ -112,6 +120,43 @@ async function loadData() {
 onShow(() => {
   loadData()
 })
+
+// ---------- 月份切换（回看历史 / 预看未来不得超出当前月） ----------
+const canGoNext = computed(() => {
+  const max = new Date()
+  return !(year.value > max.getFullYear() || (year.value === max.getFullYear() && month.value >= max.getMonth() + 1))
+})
+function reloadMonth() {
+  loadData()
+}
+function prevMonth() {
+  if (month.value === 1) {
+    month.value = 12
+    year.value--
+  }
+  else {
+    month.value--
+  }
+  reloadMonth()
+}
+function nextMonth() {
+  if (!canGoNext.value) return
+  if (month.value === 12) {
+    month.value = 1
+    year.value++
+  }
+  else {
+    month.value++
+  }
+  reloadMonth()
+}
+function retryStats() {
+  fetchStats()
+    .then(s => { stats.value = { totalDays: s.totalDays, currentStreak: s.currentStreak }; statsError.value = false })
+    .catch(() => { statsError.value = true })
+}
+bus.on(MRC_EVENTS.RECORDS_CHANGED, reloadMonth)
+onUnmounted(() => bus.off(MRC_EVENTS.RECORDS_CHANGED, reloadMonth))
 
 function goAlbum() {
   router.push({ name: 'album' })
@@ -144,6 +189,8 @@ function onDetailSwipe(e: any) {
 }
 function goRecordFromEmpty() {
   showEmpty.value = false
+  // 把补记落到所点的历史日期：record 页 onShow 读取该键作为默认记录日期
+  uni.setStorageSync(RECORD_DATE_KEY, `${year.value}-${String(month.value).padStart(2, '0')}-${String(emptyDay.value).padStart(2, '0')}`)
   router.pushTab({ name: 'record' })
 }
 
@@ -158,7 +205,7 @@ function previewRecordPhoto(record: RecordItem | null) {
   if (!photos.length)
     return
   previewImage({
-    images: photos.map(item => item.imageUrl),
+    images: photos.map(item => resolveAssetUrl(item.imageUrl)),
     startPosition: Math.max(0, photos.findIndex(item => item.id === record.id)),
     closeOnClick: true,
     loop: photos.length > 1,
@@ -198,9 +245,9 @@ function previewRecordPhoto(record: RecordItem | null) {
                   </text>
                 </text>
               </view>
-              <view>
+              <view role="button" aria-label="连续打卡天数，点击重试" @click="retryStats">
                 <text>连续打卡</text><text>
-                  {{ stats.currentStreak }}<text class="cal-intro__unit">
+                  {{ statsError ? '—' : stats.currentStreak }}<text class="cal-intro__unit">
                     天
                   </text>
                 </text>
@@ -213,12 +260,16 @@ function previewRecordPhoto(record: RecordItem | null) {
 
       <view class="cal-board">
         <view class="cal-board__heading">
-          <view>
-            <text class="cal-board__kicker">
-              MONTHLY TABLE
-            </text><text class="cal-board__title">
-              {{ month }}月食光簿
-            </text>
+          <view class="cal-board__nav">
+            <text class="cal-board__nav-btn" role="button" aria-label="上个月" @click="prevMonth">‹</text>
+            <view class="cal-board__nav-title">
+              <text class="cal-board__kicker">
+                MONTHLY TABLE
+              </text><text class="cal-board__title">
+                {{ month }}月食光簿
+              </text>
+            </view>
+            <text class="cal-board__nav-btn" :class="{ 'cal-board__nav-btn--disabled': !canGoNext }" role="button" aria-label="下个月" @click="nextMonth">›</text>
           </view>
           <view class="cal-board__legend">
             <view /><text>有记录</text>
@@ -320,7 +371,7 @@ function previewRecordPhoto(record: RecordItem | null) {
           <swiper-item v-for="(rec, idx) in detailRecords" :key="rec.id ?? idx">
             <view class="cal-detail__img">
               <GuozaiImage
-                :src="rec.imageUrl"
+                :src="resolveAssetUrl(rec.imageUrl)"
                 placeholder-text="📷"
                 aria-label="查看这张照片的大图"
                 @click="previewRecordPhoto(rec)"
@@ -477,6 +528,37 @@ function previewRecordPhoto(record: RecordItem | null) {
   color: var(--mrc-text-strong);
   font-size: 30rpx;
   font-weight: 850;
+}
+.cal-board__nav {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+}
+.cal-board__nav-title {
+  display: flex;
+  flex-direction: column;
+}
+.cal-board__nav-btn {
+  width: 56rpx;
+  height: 56rpx;
+  line-height: 50rpx;
+  text-align: center;
+  font-size: 40rpx;
+  font-weight: 700;
+  color: var(--mrc-primary);
+  background: var(--mrc-surface);
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 50%;
+  box-shadow: var(--mrc-shadow-soft);
+}
+.cal-board__nav-btn--disabled {
+  color: var(--mrc-text-disabled, #c9c4bd);
+  background: var(--mrc-surface-muted, #f1ece5);
+  box-shadow: none;
+  pointer-events: none;
+}
+.cal-board__nav-btn:active {
+  transform: scale(0.94);
 }
 .cal-board__legend { gap: 8rpx; color: var(--mrc-text-sub); font-size: 19rpx; }
 .cal-board__legend view { width: 14rpx; height: 14rpx; border-radius: 50%; background: var(--mrc-primary); }

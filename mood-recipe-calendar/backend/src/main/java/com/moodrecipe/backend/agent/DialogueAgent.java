@@ -141,14 +141,13 @@ public class DialogueAgent {
                 && action.startsWith("ASK_") && !input.isBlank()
                 && state.equals(incoming);
         if (repeatedQuestion) action = "ASK_CLARIFY";
-        // 只要当前动作是追问，就把模型生成的动态选择器展示出来；不再要求用户先触发固定关键词。
+        // 追问和准备执行都必须返回卡片：前者承载选择，后者承载唯一的生成入口。
         boolean needsCard = input.isBlank() || !conflicts.isEmpty() || !understanding.unclear().isEmpty()
-                || action.startsWith("ASK_") || "CONFIRM_CUISINE".equals(action);
+                || action.startsWith("ASK_") || "CONFIRM_CUISINE".equals(action) || "READY".equals(action);
         DialogueState.Card card = needsCard ? AgentCards.accept(action, state,
                 decision.cardType(), decision.cardTitle(), decision.cardDescription(), decision.cardOptions()) : null;
-        List<DialogueState.Card> cards = understanding.unclear().size() > 1
-                ? AgentCards.clarificationCards(understanding.unclear())
-                : card == null ? List.of() : List.of(card);
+        // 一个轮次只展示一张决策卡；多个 unclear 合并进当前主问题，避免用户看到重复卡片。
+        List<DialogueState.Card> cards = card == null ? List.of() : List.of(card);
 
         String selectedAction = action;
         String askReason = decision.askReason().isBlank()

@@ -1,0 +1,1 @@
+"use strict";const r={},e={on(e,c){r[e]||(r[e]=new Set),r[e].add(c)},off(e,c){var o;null==(o=r[e])||o.delete(c)},emit(e,c){var o;null==(o=r[e])||o.forEach((r=>{try{r(c)}catch(o){console.error("[bus] handler error",e,o)}}))}};exports.MRC_EVENTS={RECORDS_CHANGED:"mrc:records-changed",PLAN_CHANGED:"mrc:plan-changed",ORDERS_CHANGED:"mrc:orders-changed"},exports.bus=e;

@@ -258,7 +258,7 @@ public class WeeklyMealPlanService {
     private PlanDish toDish(Recipe recipe) {
         List<String> ingredients = CookingTextNormalizer.normalizeIngredients(ingredients(recipe.getIngredients()));
         List<String> steps = CookingTextNormalizer.normalizeSteps(steps(recipe.getSteps()));
-        if (steps.isEmpty()) steps = List.of("食材洗净切好。", "锅中少油加热。", "按食材易熟程度依次下锅。", "调味后炒熟即可。");
+        // 步骤缺失时保持为空，由前端提示"暂无做法"，绝不套用通用模板冒充真实步骤。
         return new PlanDish(recipe.getName(), ingredients, steps.stream().limit(5).toList(), recipe.getImage(), null);
     }
 

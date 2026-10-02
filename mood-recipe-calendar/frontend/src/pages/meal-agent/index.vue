@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import type { FoodMemoryView } from '@/api/preferences'
-import type { MealAgentState, MealAgentTurn, WeeklyPlan, UsageQuotaView } from '@/api/weeklyPlans'
+import type { MealAgentConversationSnapshot, MealAgentHistoryMessage, MealAgentState, MealAgentTurn, WeeklyPlan, UsageQuotaView } from '@/api/weeklyPlans'
 import { computed, nextTick, ref } from 'vue'
 import { submitFeedback } from '@/api/feedback'
 import { fetchFoodMemory } from '@/api/preferences'
-import { fetchAgentConversationQuota, generateWeeklyPlan, getCurrentPlan, requestWeeklyPlanCompletionNotice, runMealAgentTurn } from '@/api/weeklyPlans'
+import { fetchAgentConversationQuota, fetchCurrentAgentConversation, generateWeeklyPlan, getCurrentPlan, requestWeeklyPlanCompletionNotice, runMealAgentTurn } from '@/api/weeklyPlans'
 import { navBack } from '@/composables/useNavBar'
 import { STATIC_BASE_URL } from '@/utils/assets'
 import { safeDecodePrompt } from '@/utils/safeDecodePrompt'
@@ -42,24 +42,50 @@ const hasChild = ref(false)
 const spiceLevel = ref('微辣')
 const sessionCuisine = ref('')
 interface ChatMessage { id: number, role: 'agent' | 'user', text: string, tags?: string[], selected?: boolean }
+interface MealAgentDraft { conversationId: string, messages: ChatMessage[], state: MealAgentState, turn?: MealAgentTurn, completed?: boolean, generatedPlanId?: number }
 const composerText = ref('')
 const messages = ref<ChatMessage[]>([])
 const agentState = ref<MealAgentState>({})
 const agentTurn = ref<MealAgentTurn>()
 const agentQuota = ref<UsageQuotaView>()
 const agentBusy = ref(false)
+const agentTyping = ref(false)
+// 对话轮进行中，按锅仔真实会做的子任务分步点亮（读记忆 → 看冰箱 → 组织回答），替代原来的静态三点动画，消除「像卡死」的等待感。
+const thinkingSteps = ['读取你的口味和忌口', '看看冰箱和朋友的情况', '组织这一轮的回答']
+const thinkingStepIndex = ref(-1)
+let thinkingTimer: ReturnType<typeof setInterval> | undefined
+let typingTimer: ReturnType<typeof setInterval> | undefined
+
+function startThinking() {
+  stopThinking()
+  thinkingStepIndex.value = 0
+  thinkingTimer = setInterval(() => {
+    if (thinkingStepIndex.value < thinkingSteps.length - 1)
+      thinkingStepIndex.value += 1
+    else
+      clearInterval(thinkingTimer)
+  }, 800)
+}
+function stopThinking() {
+  if (thinkingTimer) { clearInterval(thinkingTimer); thinkingTimer = undefined }
+  thinkingStepIndex.value = -1
+}
+function stopTyping() {
+  if (typingTimer) { clearInterval(typingTimer); typingTimer = undefined }
+  agentTyping.value = false
+}
 const householdSelection = ref<string[]>([])
 const fridgeSelection = ref<string[]>([])
 const otherInput = ref(false)
 const agentCards = computed(() => {
   const cards = agentTurn.value?.cards
   if (cards?.length)
-    return cards
+    return cards.slice(0, 1)
   return agentTurn.value?.card ? [agentTurn.value.card] : []
 })
 let messageId = 0
 let progressTimer: ReturnType<typeof setInterval> | undefined
-const agentConversationId = `agent-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+let agentConversationId = ''
 
 const agentSteps = [
   { title: '读取锅仔记忆', copy: '口味、忌口和最近做过的菜' },
@@ -73,6 +99,7 @@ const isMember = computed(() => userStore.userInfo?.isMember === 1
   && Boolean(userStore.userInfo?.memberExpire)
   && new Date(userStore.userInfo!.memberExpire!).getTime() > Date.now())
 const canUseAgent = computed(() => isMember.value || (agentQuota.value?.remaining || 0) > 0)
+const hasConversation = computed(() => messages.value.length > 0)
 
 const memoryTags = computed(() => {
   const value = memory.value
@@ -112,7 +139,75 @@ const conversationNotes = computed(() => {
 })
 
 onShow(load)
-onUnmounted(stopProgress)
+onUnmounted(() => {
+  stopProgress()
+  stopThinking()
+  stopTyping()
+})
+
+function conversationDraftKey() {
+  const openid = userStore.openid || userStore.userInfo?.openid || 'guest'
+  return `mrc_meal_agent_draft:${openid}`
+}
+
+function persistConversation() {
+  if (!agentConversationId)
+    return
+  const draft: MealAgentDraft = {
+    conversationId: agentConversationId,
+    messages: messages.value.slice(-80),
+    state: agentState.value,
+    turn: agentTurn.value,
+    completed: completed.value,
+    generatedPlanId: generatedPlanId.value,
+  }
+  uni.setStorageSync(conversationDraftKey(), draft)
+}
+
+function restoreConversation() {
+  const raw = uni.getStorageSync(conversationDraftKey())
+  const draft = typeof raw === 'string' ? (() => {
+    try { return JSON.parse(raw) as MealAgentDraft } catch { return undefined }
+  })() : raw as MealAgentDraft | undefined
+  if (!draft?.conversationId || !Array.isArray(draft.messages)) {
+    agentConversationId = `agent-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+    return
+  }
+  agentConversationId = draft.conversationId
+  messages.value = draft.messages.filter(message => message && (message.role === 'agent' || message.role === 'user') && typeof message.text === 'string')
+  messageId = messages.value.reduce((max, message) => Math.max(max, Number(message.id) || 0), 0)
+  agentState.value = draft.state || {}
+  agentTurn.value = draft.turn
+  completed.value = Boolean(draft.completed)
+  generatedPlanId.value = draft.generatedPlanId
+  people.value = agentState.value.people || people.value
+  cookingDays.value = agentState.value.cookingDays || cookingDays.value
+  dishesPerDay.value = agentState.value.dishesPerDay || dishesPerDay.value
+  healthGoal.value = agentState.value.healthGoal || healthGoal.value
+  budget.value = agentState.value.budget || budget.value
+  hasElder.value = agentState.value.hasElder ?? hasElder.value
+  hasChild.value = agentState.value.hasChild ?? hasChild.value
+  spiceLevel.value = agentState.value.spiceLevel || spiceLevel.value
+  sessionCuisine.value = agentState.value.favoriteCuisine || sessionCuisine.value
+}
+
+function restoreRemoteConversation(snapshot: MealAgentConversationSnapshot) {
+  agentConversationId = snapshot.conversationId
+  messages.value = (snapshot.messages || []).filter(message => message && (message.role === 'agent' || message.role === 'user') && typeof message.text === 'string')
+    .map((message, index) => ({ ...message, id: index + 1 }))
+  messageId = messages.value.length
+  agentState.value = snapshot.state || {}
+  agentTurn.value = snapshot.turn || undefined
+  people.value = agentState.value.people || people.value
+  cookingDays.value = agentState.value.cookingDays || cookingDays.value
+  dishesPerDay.value = agentState.value.dishesPerDay || dishesPerDay.value
+  healthGoal.value = agentState.value.healthGoal || healthGoal.value
+  budget.value = agentState.value.budget || budget.value
+  hasElder.value = agentState.value.hasElder ?? hasElder.value
+  hasChild.value = agentState.value.hasChild ?? hasChild.value
+  spiceLevel.value = agentState.value.spiceLevel || spiceLevel.value
+  sessionCuisine.value = agentState.value.favoriteCuisine || sessionCuisine.value
+}
 
 async function load() {
   loading.value = true
@@ -125,10 +220,14 @@ async function load() {
     loading.value = false
     return
   }
-  const [memoryResult, planResult, quotaResult] = await Promise.allSettled([fetchFoodMemory(), getCurrentPlan(), fetchAgentConversationQuota()])
+  const [memoryResult, planResult, quotaResult, conversationResult] = await Promise.allSettled([fetchFoodMemory(), getCurrentPlan(), fetchAgentConversationQuota(), fetchCurrentAgentConversation()])
   memory.value = memoryResult.status === 'fulfilled' ? memoryResult.value : undefined
   currentPlan.value = planResult.status === 'fulfilled' ? planResult.value : undefined
   agentQuota.value = quotaResult.status === 'fulfilled' ? quotaResult.value : undefined
+  if (conversationResult.status === 'fulfilled' && conversationResult.value?.messages?.length)
+    restoreRemoteConversation(conversationResult.value)
+  else
+    restoreConversation()
   if (memory.value?.explicit.healthGoal)
     healthGoal.value = memory.value.explicit.healthGoal
   if (canUseAgent.value && !messages.value.length) {
@@ -163,14 +262,17 @@ async function scrollToLatest() {
 }
 
 async function runAgent(message: string, echo = false, echoLabel = message) {
-  if (agentBusy.value)
+  if (agentBusy.value || agentTyping.value)
     return
   if (echo && message)
     messages.value.push({ id: ++messageId, role: 'user', text: echoLabel, selected: true })
   agentBusy.value = true
+  startThinking()
   await scrollToLatest()
   try {
-    const turn = await runMealAgentTurn(message, agentState.value, agentConversationId)
+    const history: MealAgentHistoryMessage[] = messages.value.map(({ role, text, tags, selected }) => ({ role, text, tags, selected }))
+    const turn = await runMealAgentTurn(message, agentState.value, agentConversationId, history)
+    stopThinking()
     agentTurn.value = turn
     otherInput.value = false
     agentState.value = turn.state
@@ -187,16 +289,46 @@ async function runAgent(message: string, echo = false, echoLabel = message) {
     hasChild.value = turn.state.hasChild ?? hasChild.value
     spiceLevel.value = turn.state.spiceLevel || spiceLevel.value
     sessionCuisine.value = turn.state.favoriteCuisine || sessionCuisine.value
-    addAgent(turn.reply)
+    await streamAgentReply(turn.reply)
+    persistConversation()
   }
   catch (error) {
+    stopThinking()
+    stopTyping()
     const message = String((error as any)?.message || '')
     toastError(error, message.includes('签到') || message.includes('用完') ? '今日签到赠送的对话已用完，明天再来' : '锅仔刚刚走神了，请再说一次')
   }
   finally {
     agentBusy.value = false
+    stopThinking()
     await scrollToLatest()
   }
+}
+
+// 把锅仔的回复以打字机方式逐字浮现；回复落定后才解除输入锁定。
+async function streamAgentReply(reply: string) {
+  const full = localizeAgentText(reply || '')
+  const index = messages.value.length
+  messages.value.push({ id: ++messageId, role: 'agent', text: '' })
+  await scrollToLatest()
+  if (!full)
+    return
+  agentTyping.value = true
+  const chars = Array.from(full)
+  const step = Math.max(1, Math.round(chars.length / 90))
+  await new Promise<void>((resolve) => {
+    let i = 0
+    typingTimer = setInterval(() => {
+      i = Math.min(chars.length, i + step)
+      messages.value[index].text = chars.slice(0, i).join('')
+      if (i >= chars.length) {
+        clearInterval(typingTimer)
+        typingTimer = undefined
+        agentTyping.value = false
+        resolve()
+      }
+    }, 28)
+  })
 }
 
 function householdValue(value: string) {
@@ -312,6 +444,7 @@ async function generate() {
     activeStep.value = agentSteps.length
     completed.value = true
     generatedPlanId.value = plan.id
+    persistConversation()
   }
   catch (error) {
     stopProgress()
@@ -442,32 +575,47 @@ function openGallery() {
         </GuozaiButton>
       </view>
       <view v-if="canUseAgent && (generating || completed)" class="composer composer--fixed">
-        <input v-model="composerText" :disabled="agentBusy" confirm-type="send" placeholder="还想补充什么？直接告诉锅仔" aria-label="告诉锅仔你的安排" @confirm="submitComposer">
-        <GuozaiButton class="composer__send" variant="primary" :block="false" :disabled="agentBusy || !composerText.trim()" :loading="agentBusy" :aria-label="agentBusy ? '锅仔正在思考' : '发送'" @click="submitComposer">
+        <input v-model="composerText" :disabled="agentBusy || agentTyping" confirm-type="send" placeholder="还想补充什么？直接告诉锅仔" aria-label="告诉锅仔你的安排" @confirm="submitComposer">
+        <GuozaiButton class="composer__send" variant="primary" :block="false" :disabled="agentBusy || agentTyping || !composerText.trim()" :loading="agentBusy || agentTyping" :aria-label="agentBusy || agentTyping ? '锅仔正在思考' : '发送'" @click="submitComposer">
           发送
         </GuozaiButton>
       </view>
 
-      <view v-else-if="canUseAgent" class="chat-shell">
+      <view v-else-if="canUseAgent || hasConversation" class="chat-shell" :class="{ 'chat-shell--readonly': !canUseAgent }">
+        <view v-if="!canUseAgent" class="history-readonly" role="status">
+          今日对话次数已用完，历史内容仍保留；次数恢复后可以继续聊。
+        </view>
         <view class="chat-list">
           <view v-for="message in messages" :key="message.id" class="chat-row" :class="[`chat-row--${message.role}`, { 'chat-row--selection': message.selected }]">
             <image v-if="message.role === 'agent'" :src="`${STATIC_BASE_URL}/static/guozai/action_08_peek.png`" mode="aspectFit" aria-hidden="true" />
-            <view class="chat-bubble">
-              <text>{{ message.text }}</text>
-              <view v-if="message.tags?.length" class="memory-tags">
-                <text v-for="tag in message.tags" :key="tag">
-                  {{ tag }}
-                </text>
+            <view v-if="message.selected" class="selection-card" aria-label="已选择的回答">
+              <text class="selection-card__eyebrow">已选择</text>
+              <text class="selection-card__value">{{ message.text }}</text>
+            </view>
+            <view v-else class="agent-reply">
+              <view class="chat-bubble">
+                <text>{{ message.text }}</text>
+                <view v-if="message.tags?.length" class="memory-tags">
+                  <text v-for="tag in message.tags" :key="tag">
+                    {{ tag }}
+                  </text>
+                </view>
               </view>
             </view>
           </view>
-          <view v-if="agentBusy" class="chat-row chat-row--thinking" role="status" aria-live="polite">
+          <view v-if="agentBusy && thinkingStepIndex >= 0" class="chat-row chat-row--thinking" role="status" aria-live="polite">
             <image :src="`${STATIC_BASE_URL}/static/guozai/action_08_peek.png`" mode="aspectFit" aria-hidden="true" />
             <view class="chat-bubble thinking-bubble">
-              <view class="thinking-dots" aria-hidden="true">
-                <view class="thinking-dot thinking-dot--1" /><view class="thinking-dot thinking-dot--2" /><view class="thinking-dot thinking-dot--3" />
+              <view class="thinking-steps">
+                <view v-for="(step, idx) in thinkingSteps" :key="step" class="thinking-step" :class="{ 'thinking-step--done': idx < thinkingStepIndex, 'thinking-step--active': idx === thinkingStepIndex }">
+                  <view class="thinking-step__state">
+                    <text v-if="idx < thinkingStepIndex">✓</text>
+                    <view v-else-if="idx === thinkingStepIndex" class="thinking-step__spin" />
+                    <text v-else>{{ idx + 1 }}</text>
+                  </view>
+                  <text class="thinking-step__label">{{ step }}</text>
+                </view>
               </view>
-              <text>锅仔正在理解你的话，准备下一步…</text>
             </view>
           </view>
         </view>
@@ -510,7 +658,19 @@ function openGallery() {
             </view>
             <button class="household-confirm" :disabled="agentBusy" @click="confirmFridgeSelection">{{ fridgeSelection.length ? '用这些食材安排菜谱' : '按临期优先安排菜谱' }}</button>
           </view>
-          <view v-else class="choice-grid" :class="{ 'choice-grid--cuisine': card.type === 'CUISINE', 'choice-grid--ready': card.type === 'READY' }">
+          <view v-else-if="card.type === 'READY'" class="choice-grid choice-grid--ready">
+            <GuozaiButton
+              v-for="option in card.options"
+              :key="option.value"
+              variant="primary"
+              aria-label="开始生成本周菜单"
+              :disabled="agentBusy"
+              @click="generate"
+            >
+              {{ option.label }}
+            </GuozaiButton>
+          </view>
+          <view v-else class="choice-grid" :class="{ 'choice-grid--cuisine': card.type === 'CUISINE' }">
             <button v-for="option in card.options" :key="option.value" :class="{ 'choice-option--long': option.label.length > 8 }" :disabled="agentBusy" @click="option.value === 'generate' ? generate() : selectCardOption(option.value, option.label)">
               {{ option.label }}
             </button>
@@ -519,8 +679,8 @@ function openGallery() {
         </view>
 
         <view class="composer composer--fixed">
-          <input v-model="composerText" :disabled="agentBusy" inputmode="text" confirm-type="send" placeholder="也可以直接说：周三不做饭，想减脂" aria-label="告诉锅仔你的安排" @confirm="submitComposer">
-          <GuozaiButton class="composer__send" variant="primary" :block="false" :disabled="agentBusy || !composerText.trim()" :loading="agentBusy" :aria-label="agentBusy ? '锅仔正在思考' : '发送'" @click="submitComposer">
+          <input v-model="composerText" :disabled="agentBusy || agentTyping || !canUseAgent" inputmode="text" confirm-type="send" placeholder="也可以直接说：周三不做饭，想减脂" aria-label="告诉锅仔你的安排" @confirm="submitComposer">
+          <GuozaiButton class="composer__send" variant="primary" :block="false" :disabled="agentBusy || agentTyping || !canUseAgent || !composerText.trim()" :loading="agentBusy || agentTyping" :aria-label="agentBusy || agentTyping ? '锅仔正在思考' : '发送'" @click="submitComposer">
             发送
           </GuozaiButton>
         </view>
@@ -549,7 +709,7 @@ function openGallery() {
 
 <style lang="scss" scoped>
 .agent-page { min-height: 100vh; padding: 0 28rpx calc(176rpx + env(safe-area-inset-bottom)); color: var(--mrc-text); background: var(--mrc-bg); box-sizing: border-box; }
-.chat-row--selection .chat-bubble { min-width: 180rpx; padding: 18rpx 24rpx; border-radius: 24rpx 24rpx 8rpx 24rpx; background: var(--mrc-accent); color: #fff; box-shadow: 0 10rpx 22rpx rgba(239, 90, 60, .16); font-weight: 700; }
+.selection-card { display: flex; min-width: 180rpx; max-width: 78%; flex-direction: column; gap: 6rpx; padding: 16rpx 20rpx 18rpx; border: 2rpx solid rgba(255, 255, 255, .28); border-radius: 24rpx 24rpx 8rpx 24rpx; background: var(--mrc-accent); box-shadow: 0 10rpx 22rpx rgba(239, 90, 60, .16); color: #fff; box-sizing: border-box; }.selection-card__eyebrow { color: rgba(255, 255, 255, .72); font-size: 18rpx; font-weight: 700; letter-spacing: 1.5rpx; }.selection-card__value { color: #fff; font-size: 25rpx; font-weight: 800; line-height: 1.35; }
 .agent-hero { position: relative; min-height: 214rpx; overflow: hidden; padding: 22rpx 26rpx; border: 2rpx solid var(--mrc-border); border-radius: 32rpx; background: linear-gradient(145deg, var(--mrc-text-deep), #5b3325); box-shadow: var(--mrc-shadow-lift); box-sizing: border-box; }
 .agent-hero__top { position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; color: rgba(255,255,255,.7); font-size: 19rpx; font-weight: 800; letter-spacing: 2rpx; }
 .agent-online { display: flex; align-items: center; gap: 8rpx; letter-spacing: 0; }.agent-online view { width: 12rpx; height: 12rpx; border-radius: 50%; background: var(--mrc-mint); box-shadow: 0 0 0 6rpx rgba(74,220,171,.13); }
@@ -560,12 +720,25 @@ function openGallery() {
 .current-plan { display: flex; align-items: center; justify-content: space-between; min-height: 100rpx; margin-bottom: 18rpx; padding: 16rpx 22rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 24rpx; background: var(--mrc-surface-sun); box-sizing: border-box; }.current-plan:active { opacity: .74; }.current-plan > view { display: flex; flex-direction: column; gap: 5rpx; }.current-plan__label { color: var(--mrc-accent); font-size: 19rpx; font-weight: 700; }.current-plan__title { color: var(--mrc-text-deep); font-size: 25rpx; font-weight: 700; }.current-plan__action { color: var(--mrc-accent); font-size: 21rpx; font-weight: 700; }
 .tool-panel { overflow: hidden; border: 2rpx solid var(--mrc-border); border-radius: 32rpx; background: linear-gradient(180deg, var(--mrc-surface) 0%, var(--mrc-surface-sun) 100%); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }
 .chat-shell { padding-bottom: 12rpx; }
+.chat-shell--readonly .choice-card { opacity: .72; pointer-events: none; }
+.history-readonly { margin: 8rpx 4rpx 16rpx; padding: 16rpx 20rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 18rpx; background: var(--mrc-surface-sun); color: var(--mrc-text-sub); font-size: 21rpx; line-height: 1.45; }
 .simple-plan { display: flex; flex-direction: column; gap: 18rpx; margin-top: 10rpx; padding: 30rpx 26rpx; border: 2rpx solid var(--mrc-border); border-radius: 30rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); }.simple-plan__tag { align-self: flex-start; padding: 8rpx 14rpx; border-radius: 999rpx; background: var(--mrc-surface-peach); color: var(--mrc-accent); font-size: 19rpx; font-weight: 800; }.simple-plan__title { color: var(--mrc-text-deep); font-size: 30rpx; font-weight: 800; }.simple-plan__copy, .simple-plan__member-copy { color: var(--mrc-text-sub); font-size: 22rpx; line-height: 1.6; }.simple-plan__section { display: flex; flex-direction: column; gap: 12rpx; color: var(--mrc-text-deep); font-size: 23rpx; font-weight: 750; }.simple-plan__section > view { display: flex; gap: 12rpx; }.simple-plan__section button { min-width: 92rpx; min-height: 64rpx; margin: 0; padding: 0 18rpx; border: 2rpx solid var(--mrc-border); border-radius: 18rpx; background: var(--mrc-surface); color: var(--mrc-text-sub); font-size: 21rpx; }.simple-plan__section button::after, .simple-plan__generate::after, .simple-plan__member::after { display: none; }.simple-plan__section button.selected { border-color: var(--mrc-accent); background: var(--mrc-accent-soft); color: var(--mrc-accent); font-weight: 800; }.simple-plan__generate, .simple-plan__member { min-height: 86rpx; margin: 0; border: 0; border-radius: 22rpx; font-size: 24rpx; font-weight: 800; }.simple-plan__generate { background: var(--mrc-primary-grad); color: #fff; }.simple-plan__generate[disabled] { opacity: .55; }.simple-plan__divider { height: 2rpx; background: var(--mrc-border-light); }.simple-plan__member-title { color: var(--mrc-text-deep); font-size: 25rpx; font-weight: 800; }.simple-plan__member { background: var(--mrc-text-deep); color: #fff; }
 .simple-plan__gift { color: var(--mrc-accent); font-size: 21rpx; line-height: 1.5; }
 .simple-plan__checkin { min-height: 74rpx; margin: 0; border: 2rpx solid var(--mrc-accent); border-radius: 20rpx; background: var(--mrc-surface); color: var(--mrc-accent); font-size: 23rpx; font-weight: 800; }
 .chat-list { display: flex; flex-direction: column; gap: 18rpx; padding: 10rpx 4rpx 22rpx; }
 .chat-row { display: flex; align-items: flex-end; gap: 10rpx; }.chat-row > image { width: 62rpx; height: 62rpx; flex: 0 0 auto; }.chat-row--user { justify-content: flex-end; }.chat-bubble { max-width: 78%; padding: 19rpx 22rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 8rpx 25rpx 25rpx 25rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); color: var(--mrc-text-deep); font-size: 25rpx; line-height: 1.55; box-sizing: border-box; }.chat-row--user .chat-bubble { border-color: var(--mrc-accent); border-radius: 25rpx 8rpx 25rpx 25rpx; background: var(--mrc-accent); color: #fff; }.memory-tags { display: flex; flex-wrap: wrap; gap: 8rpx; margin-top: 12rpx; }.memory-tags text { padding: 7rpx 14rpx; border-radius: 999rpx; background: var(--mrc-surface-peach); color: var(--mrc-text-sub); font-size: 19rpx; line-height: 1.3; }
 .chat-row--thinking { animation: thinking-in .22s ease-out both; }.thinking-bubble { display: flex; align-items: center; gap: 14rpx; color: var(--mrc-text-sub); }.thinking-dots { display: flex; align-items: center; gap: 7rpx; height: 24rpx; }.thinking-dot { width: 11rpx; height: 11rpx; border-radius: 50%; background: var(--mrc-accent); box-shadow: 0 3rpx 8rpx var(--mrc-accent-soft); animation: thinking-dot 1.05s cubic-bezier(.45, 0, .55, 1) infinite; will-change: transform, opacity; }.thinking-dot--2 { animation-delay: .14s; }.thinking-dot--3 { animation-delay: .28s; }
+.agent-reply { display: flex; flex-direction: column; gap: 10rpx; min-width: 0; }
+.thinking-bubble { display: flex; align-items: center; gap: 14rpx; color: var(--mrc-text-sub); }
+.thinking-steps { display: flex; flex-direction: column; gap: 9rpx; }
+.thinking-step { display: flex; align-items: center; gap: 12rpx; color: var(--mrc-text-sub); font-size: 23rpx; transition: color .25s ease; }
+.thinking-step--done { color: var(--mrc-text-deep); }
+.thinking-step--active { color: var(--mrc-accent); font-weight: 700; }
+.thinking-step__state { display: flex; align-items: center; justify-content: center; width: 30rpx; height: 30rpx; flex: 0 0 auto; border-radius: 50%; background: var(--mrc-surface-peach); color: var(--mrc-accent); font-size: 18rpx; font-weight: 800; }
+.thinking-step--active .thinking-step__state { background: var(--mrc-accent-soft); }
+.thinking-step--done .thinking-step__state { background: var(--mrc-mint-soft, rgba(74, 220, 171, .16)); color: var(--mrc-mint, #2bbd8c); }
+.thinking-step__spin { width: 16rpx; height: 16rpx; border: 3rpx solid var(--mrc-accent-soft); border-top-color: var(--mrc-accent); border-radius: 50%; animation: thinking-spin .7s linear infinite; }
+@keyframes thinking-spin { to { transform: rotate(360deg); } }
 .choice-card { position: relative; padding: 22rpx; border: 2rpx solid var(--mrc-border); border-radius: 30rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-lift); }
 .agent-card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18rpx; padding: 4rpx 2rpx 20rpx; }.agent-card__copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 7rpx; }.agent-card__eyebrow { color: var(--mrc-accent); font-size: 19rpx; font-weight: 800; letter-spacing: 1.5rpx; }.agent-card__title { color: var(--mrc-text-deep); font-size: 29rpx; font-weight: 800; line-height: 1.25; }.agent-card__description { color: var(--mrc-text-sub); font-size: 21rpx; line-height: 1.45; }.agent-card__head image { width: 92rpx; height: 92rpx; flex: 0 0 auto; margin-top: -8rpx; }
 .choice-card--ready { padding: 26rpx; border-color: rgba(239, 90, 60, .22); background: linear-gradient(145deg, var(--mrc-surface) 0%, var(--mrc-surface-sun) 100%); box-shadow: 0 14rpx 34rpx rgba(113, 63, 36, .12); }.choice-card--ready .agent-card__eyebrow { display: flex; align-items: center; gap: 8rpx; }.choice-card--ready .agent-card__eyebrow::before { width: 14rpx; height: 14rpx; border-radius: 50%; background: var(--mrc-mint); box-shadow: 0 0 0 6rpx rgba(74, 220, 171, .15); content: ''; }.choice-card--ready .agent-card__title { font-size: 33rpx; letter-spacing: -.3rpx; }.choice-card--ready .agent-card__description { max-width: 88%; }.ready-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10rpx; margin: 2rpx 0 20rpx; padding: 12rpx; border: 2rpx solid rgba(239, 90, 60, .1); border-radius: 20rpx; background: rgba(255, 255, 255, .52); }.ready-summary view { display: flex; min-width: 0; flex-direction: column; gap: 7rpx; color: var(--mrc-text-sub); font-size: 19rpx; line-height: 1.25; }.ready-summary__dot { color: var(--mrc-accent); font-size: 17rpx; font-weight: 800; letter-spacing: 1px; }.choice-grid--ready { display: block; }.choice-grid--ready button { display: flex; width: 100%; min-height: 86rpx; align-items: center; justify-content: space-between; padding: 0 24rpx; border: 0; border-radius: 22rpx; background: var(--mrc-primary-grad); box-shadow: 0 10rpx 22rpx rgba(239, 90, 60, .2); color: #fff; font-size: 25rpx; font-weight: 800; }.choice-grid--ready button::after { display: block; margin-left: auto; color: rgba(255,255,255,.84); content: '›'; font-size: 42rpx; font-weight: 400; line-height: 1; }.choice-grid--ready button:active { border-color: transparent; background: var(--mrc-primary-grad); opacity: .86; transform: translateY(1rpx); }
@@ -582,5 +755,5 @@ function openGallery() {
 @keyframes pulse { 50% { opacity: .35; transform: scale(.7); } }
 @keyframes thinking-in { from { opacity: 0; transform: translateY(10rpx); } }
 @keyframes thinking-dot { 0%, 65%, 100% { opacity: .32; transform: translateY(3rpx) scale(.82); } 32% { opacity: 1; transform: translateY(-7rpx) scale(1.12); } }
-@media (prefers-reduced-motion: reduce) { .chat-row--thinking, .thinking-dots view { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .chat-row--thinking, .thinking-dots view, .thinking-step__spin { animation: none; } }
 </style>

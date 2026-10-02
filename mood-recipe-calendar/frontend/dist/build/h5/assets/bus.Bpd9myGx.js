@@ -1,0 +1,1 @@
+const r={},e={RECORDS_CHANGED:"mrc:records-changed",PLAN_CHANGED:"mrc:plan-changed",ORDERS_CHANGED:"mrc:orders-changed"},a={on(e,a){r[e]||(r[e]=new Set),r[e].add(a)},off(e,a){var c;null==(c=r[e])||c.delete(a)},emit(e,a){var c;null==(c=r[e])||c.forEach((r=>{try{r(a)}catch(c){console.error("[bus] handler error",e,c)}}))}};export{e as M,a as b};

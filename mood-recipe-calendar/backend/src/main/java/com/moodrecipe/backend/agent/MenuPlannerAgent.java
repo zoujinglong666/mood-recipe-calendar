@@ -316,25 +316,25 @@ public class MenuPlannerAgent {
                                                            Set<String> badDishes,
                                                            List<MenuQualityScorer.DishInput> kept,
                                                            int count, int offset) {
-        List<String> pool = localPool();
+        List<Recipe> pool = localRecipes();
         List<MenuQualityScorer.DishInput> chosen = new ArrayList<>();
         for (int i = 0; i < pool.size() && chosen.size() < count; i++) {
-            String candidate = pool.get((i + offset) % pool.size());
-            if (badDishes.contains(candidate) || blocked(candidate, constraints)) continue;
-            if (kept.stream().anyMatch(dish -> same(dish.name(), candidate))) continue;
-            if (constraints.recentDishes().stream().anyMatch(recent -> same(recent, candidate))) continue;
-            chosen.add(new MenuQualityScorer.DishInput(candidate, "MAIN", List.of(candidate), List.of(), 30, "简单"));
+            Recipe recipe = pool.get((i + offset) % pool.size());
+            if (badDishes.contains(recipe.getName()) || blocked(recipe.getName(), constraints)) continue;
+            if (kept.stream().anyMatch(dish -> same(dish.name(), recipe.getName()))) continue;
+            if (constraints.recentDishes().stream().anyMatch(recent -> same(recent, recipe.getName()))) continue;
+            chosen.add(toDishInput(recipe, "MAIN"));
         }
         return chosen;
     }
 
     private List<MenuQualityScorer.DayInput> localFallback(PlanRequest request,
                                                            MenuQualityScorer.Constraints constraints) {
-        List<String> pool = localPool().stream()
-                .filter(name -> !blocked(name, constraints))
-                .filter(name -> constraints.recentDishes().stream().noneMatch(recent -> same(recent, name)))
+        List<Recipe> pool = localRecipes().stream()
+                .filter(recipe -> !blocked(recipe.getName(), constraints))
+                .filter(recipe -> constraints.recentDishes().stream().noneMatch(recent -> same(recent, recipe.getName())))
                 .toList();
-        if (pool.isEmpty()) pool = localPool();
+        if (pool.isEmpty()) pool = localRecipes();
         List<Integer> target = request.cookingDays() == null || request.cookingDays().isEmpty()
                 ? List.of(0, 1, 2) : request.cookingDays();
         List<MenuQualityScorer.DayInput> days = new ArrayList<>();
@@ -342,10 +342,9 @@ public class MenuPlannerAgent {
         for (int weekday : target) {
             List<MenuQualityScorer.DishInput> dishes = new ArrayList<>();
             for (int i = 0; i < Math.max(1, request.dishesPerDay()); i++) {
-                String name = pool.get(cursor % pool.size());
+                Recipe recipe = pool.get(cursor % pool.size());
                 cursor++;
-                dishes.add(new MenuQualityScorer.DishInput(name, i == 0 ? "MAIN" : "SIDE",
-                        List.of(name), List.of(), 30, "简单"));
+                dishes.add(toDishInput(recipe, i == 0 ? "MAIN" : "SIDE"));
             }
             days.add(new MenuQualityScorer.DayInput(weekday, dishes));
         }
@@ -357,7 +356,7 @@ public class MenuPlannerAgent {
                                                                            MenuQualityScorer.Constraints constraints) {
         List<String> requested = requestedIngredients(request.notes());
         if (requested.isEmpty() || days.isEmpty()) return days;
-        List<String> pool = localPool().stream().filter(name -> !blocked(name, constraints)).toList();
+        List<Recipe> pool = localRecipes().stream().filter(recipe -> !blocked(recipe.getName(), constraints)).toList();
         List<MenuQualityScorer.DayInput> result = new ArrayList<>(days);
         Set<String> used = result.stream().flatMap(day -> day.dishes().stream())
                 .map(MenuQualityScorer.DishInput::name).collect(Collectors.toCollection(LinkedHashSet::new));
@@ -366,17 +365,17 @@ public class MenuPlannerAgent {
             boolean covered = result.stream().flatMap(day -> day.dishes().stream())
                     .anyMatch(dish -> containsIngredient(dish.name(), dish.ingredients(), ingredient));
             if (covered) continue;
-            String replacement = pool.stream().filter(name -> !used.contains(name)
-                    && nameContainsIngredient(name, ingredient)).findFirst().orElse(null);
+            Recipe replacement = pool.stream().filter(recipe -> !used.contains(recipe.getName())
+                    && nameContainsIngredient(recipe.getName(), ingredient)).findFirst().orElse(null);
             if (replacement == null) continue;
             int index = requestIndex++ % result.size();
             MenuQualityScorer.DayInput day = result.get(index);
             List<MenuQualityScorer.DishInput> dishes = new ArrayList<>(day.dishes());
-            if (dishes.isEmpty()) dishes.add(new MenuQualityScorer.DishInput(replacement, "MAIN", List.of(replacement), List.of(), 30, "简单"));
+            if (dishes.isEmpty()) dishes.add(toDishInput(replacement, "MAIN"));
             else dishes.set(Math.min((requestIndex - 1) / result.size(), dishes.size() - 1),
-                    new MenuQualityScorer.DishInput(replacement, "MAIN", List.of(replacement), List.of(), 30, "简单"));
+                    toDishInput(replacement, "MAIN"));
             result.set(index, new MenuQualityScorer.DayInput(day.weekday(), dishes));
-            used.add(replacement);
+            used.add(replacement.getName());
         }
         return result;
     }
@@ -424,14 +423,50 @@ public class MenuPlannerAgent {
     }
 
     private List<String> localPool() {
+        return localRecipes().stream().map(Recipe::getName).toList();
+    }
+
+    /**
+     * 本地兜底候选池：返回完整菜谱实体，而不只是菜名。
+     *
+     * 兜底选菜必须带上真实的食材与步骤，否则只能拿菜名冒充食材、套用通用模板步骤，
+     * 让整份周菜单退化成"菜名 + 废话"。
+     */
+    private List<Recipe> localRecipes() {
         Map<String, Recipe> unique = new LinkedHashMap<>();
         List<Recipe> all = new ArrayList<>(recipes.findAiWithImages());
         all.addAll(recipes.findAll());
         for (Recipe recipe : all) {
             if (!displayableText(recipe.getName(), 40)) continue;
+            if (recipe.getSource() != null && "RETIRED".equalsIgnoreCase(recipe.getSource())) continue;
             unique.putIfAbsent(recipe.getName().trim(), recipe);
         }
-        return List.copyOf(unique.keySet());
+        return List.copyOf(unique.values());
+    }
+
+    /** 用菜谱库里的真实食材/步骤构造兜底菜；字段缺失就保持为空，绝不用菜名冒充食材。 */
+    private MenuQualityScorer.DishInput toDishInput(Recipe recipe, String role) {
+        List<String> ingredients = CookingTextNormalizer.normalizeIngredients(parseList(recipe.getIngredients()));
+        List<String> steps = CookingTextNormalizer.normalizeSteps(parseList(recipe.getSteps()));
+        return new MenuQualityScorer.DishInput(recipe.getName(), role,
+                ingredients,
+                steps,
+                recipe.getCookingTime() == null ? 30 : recipe.getCookingTime(),
+                recipe.getDifficulty() == null ? "简单" : recipe.getDifficulty());
+    }
+
+    private List<String> parseList(String value) {
+        try {
+            JsonNode node = json.readTree(value == null ? "[]" : value);
+            if (!node.isArray()) return List.of();
+            List<String> result = new ArrayList<>();
+            for (JsonNode item : node) {
+                if (!item.asText("").isBlank()) result.add(item.asText().trim());
+            }
+            return result;
+        } catch (Exception ignored) {
+            return List.of();
+        }
     }
 
     private List<PlannedDay> toPlannedDays(List<MenuQualityScorer.DayInput> days, PlanRequest request) {
@@ -446,9 +481,8 @@ public class MenuPlannerAgent {
             MenuQualityScorer.DayInput day = days.get(i);
             List<PlannedDish> dishes = day.dishes().stream().map(dish -> new PlannedDish(
                     dish.name(),
-                    dish.ingredients() == null || dish.ingredients().isEmpty()
-                            ? List.of(dish.name()) : dish.ingredients(),
-                    dish.steps() == null || dish.steps().isEmpty() ? defaultSteps(dish.name()) : dish.steps(),
+                    dish.ingredients() == null ? List.of() : dish.ingredients(),
+                    dish.steps() == null ? List.of() : dish.steps(),
                     dish.cookingTime() == null ? 30 : dish.cookingTime(),
                     dish.difficulty() == null ? "简单" : dish.difficulty(),
                     dish.role() == null ? "MAIN" : dish.role(),
@@ -460,13 +494,6 @@ public class MenuPlannerAgent {
             result.add(new PlannedDay(day.weekday(), dishes, reuseHint, healthTip));
         }
         return result;
-    }
-
-    private List<String> defaultSteps(String dishName) {
-        return List.of("把「" + dishName + "」需要的食材洗净切好。",
-                "锅中少油加热，先下不易熟的食材。",
-                "按易熟程度依次下锅翻炒。",
-                "调味后炒熟即可出锅。");
     }
 
     private MenuQualityScorer.Constraints constraints(UserProfile profile, PlanRequest request, boolean independentMeal) {

@@ -15,6 +15,7 @@ import { exportRecipeShare, saveShareImage } from '../../utils/albumShare'
 import { saveCookingDraft, saveRecordDraft } from '../../utils/cookingDraft'
 import { ensureLogin } from '../../utils/login'
 import { toast, toastError, toastSuccess } from '../../utils/toast'
+import { bus, MRC_EVENTS } from '@/utils/bus'
 
 definePage({ name: 'recipe', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '今日推荐' } })
 
@@ -65,6 +66,8 @@ const productsLoaded = ref(false)
 const productsError = ref('')
 const purchasingSku = ref('')
 const aiProducts = ref<VirtualProduct[]>([])
+/** 本次会话内已购买成功的 sku，用于即时显示"已拥有"标识（无需等待后端轮询） */
+const purchasedSkus = ref<Set<string>>(new Set())
 const feedbackLoading = ref<RecipeFeedbackAction | ''>('')
 const feedbackState = ref<RecipeFeedbackState>({ liked: false, disliked: false, made: false })
 const recipeFeedbackOptions = computed(() => [
@@ -547,6 +550,10 @@ async function purchase(product: VirtualProduct) {
     checkingDelivery = true
     uni.showLoading({ title: '锅仔正在确认权益…', mask: true })
     const delivered = await waitForDelivery(order.orderNo)
+    // 购买闭环：即时标记已拥有 + 刷新权益列表 + 通知订单页，让用户"买完看得见"
+    purchasedSkus.value = new Set(purchasedSkus.value).add(product.sku)
+    await loadProducts()
+    bus.emit(MRC_EVENTS.ORDERS_CHANGED)
     toast(delivered ? '权益已到账，可以定制菜单啦' : '支付已完成，权益确认中')
   }
   catch (e: any) {
@@ -916,16 +923,28 @@ async function waitForDelivery(orderNo: string) {
             <view v-else-if="productsLoaded && !aiProducts.length" class="ai-products__state">
               暂时没有可购买权益，请稍后再来。
             </view>
-            <view v-for="product in aiProducts" :key="product.sku" class="ai-product">
+            <view v-for="product in aiProducts" :key="product.sku" class="ai-product" :class="{ 'ai-product--owned': purchasedSkus.has(product.sku) }">
               <view class="ai-product__main">
                 <text class="ai-product__name">
                   {{ product.title }}
+                </text><text v-if="purchasedSkus.has(product.sku)" class="ai-product__owned">
+                  已拥有
                 </text><text class="ai-product__desc">
                   {{ product.description }}
                 </text>
               </view>
-              <view class="ai-product__buy pressable" :class="{ 'is-disabled': Boolean(purchasingSku) }" role="button" :aria-label="`购买${product.title}`" @click="purchase(product)">
+              <view
+                v-if="!purchasedSkus.has(product.sku)"
+                class="ai-product__buy pressable"
+                :class="{ 'is-disabled': Boolean(purchasingSku) }"
+                role="button"
+                :aria-label="`购买${product.title}`"
+                @click="purchase(product)"
+              >
                 {{ purchasingSku === product.sku ? '处理中…' : `¥${(product.priceFen / 100).toFixed(2)}` }}
+              </view>
+              <view v-else class="ai-product__owned-tag">
+                已解锁
               </view>
             </view>
           </view>
@@ -1078,6 +1097,9 @@ async function waitForDelivery(orderNo: string) {
 .ai-product__name { color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 800; }
 .ai-product__desc { color: var(--mrc-text-sub); font-size: 22rpx; line-height: 1.45; }
 .ai-product__buy { display: flex; align-items: center; justify-content: center; min-width: 132rpx; min-height: 88rpx; padding: 0 16rpx; box-sizing: border-box; border-radius: 44rpx; color: var(--mrc-accent); background: var(--mrc-surface-sun); font-size: 25rpx; font-weight: 800; }
+.ai-product--owned { background: var(--mrc-surface-mint, #eef7f0); border-radius: 18rpx; }
+.ai-product__owned { align-self: flex-start; margin-bottom: 2rpx; padding: 2rpx 12rpx; border-radius: 20rpx; color: #1f9d57; background: rgba(31, 157, 87, .12); font-size: 20rpx; font-weight: 800; }
+.ai-product__owned-tag { min-width: 112rpx; min-height: 72rpx; display: flex; align-items: center; justify-content: center; padding: 0 16rpx; border-radius: 44rpx; color: #1f9d57; background: rgba(31, 157, 87, .12); font-size: 24rpx; font-weight: 800; }
 @keyframes thinking-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8rpx); } }
 @keyframes thinking-pulse { 0%, 100% { opacity: .62; transform: scale(.94); } 50% { opacity: .84; transform: scale(1); } }
 @keyframes status-pulse { 0%, 100% { opacity: .72; } 50% { opacity: 1; } }

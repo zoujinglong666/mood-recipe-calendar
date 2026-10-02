@@ -23,6 +23,12 @@ public class AgentConversation {
     @Column(name = "state_json", nullable = false, columnDefinition = "TEXT")
     private String stateJson = "{}";
 
+    @Column(name = "turn_json", nullable = false, columnDefinition = "TEXT")
+    private String turnJson = "{}";
+
+    @Column(name = "transcript_json", nullable = false, columnDefinition = "TEXT")
+    private String transcriptJson = "[]";
+
     @Column(name = "last_action", length = 32)
     private String lastAction;
 

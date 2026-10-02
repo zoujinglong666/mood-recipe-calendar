@@ -1,0 +1,1 @@
+import{g as e,b as r,d as n}from"./request.DmFP7Ecx.js";function s(){return e("/preferences")}function t(){return e("/preferences/summary")}function f(e){return r("/preferences",e)}function u(){return n("/preferences")}export{t as a,u as c,s as f,f as s};

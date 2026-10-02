@@ -110,6 +110,8 @@ CREATE TABLE IF NOT EXISTS agent_conversations (
   openid VARCHAR(64) NOT NULL,
   conversation_id VARCHAR(96) NOT NULL,
   state_json TEXT NOT NULL,
+  turn_json TEXT NOT NULL,
+  transcript_json TEXT NOT NULL,
   last_action VARCHAR(32),
   turn_count INT NOT NULL DEFAULT 0,
   status VARCHAR(16) NOT NULL DEFAULT 'ACTIVE',

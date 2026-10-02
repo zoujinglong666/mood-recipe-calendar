@@ -14,4 +14,6 @@ public interface AgentConversationRepository extends JpaRepository<AgentConversa
     @Query("select c from AgentConversation c where c.openid=:openid and c.conversationId=:conversationId")
     Optional<AgentConversation> findByOpenidAndConversationId(@Param("openid") String openid,
                                                                 @Param("conversationId") String conversationId);
+
+    Optional<AgentConversation> findFirstByOpenidAndStatusOrderByUpdatedAtDesc(String openid, String status);
 }

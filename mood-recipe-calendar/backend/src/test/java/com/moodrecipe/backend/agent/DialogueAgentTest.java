@@ -93,6 +93,26 @@ class DialogueAgentTest {
     }
 
     @Test
+    void readyTurnIncludesGenerateCardAfterUserConfirmsTheLastAnswer() {
+        FakeLlm llm = new FakeLlm();
+        llm.decide = "{\"action\":\"READY\",\"reply\":\"信息够了，开始安排\"}";
+        DialogueState.AgentState complete = DialogueState.AgentState.empty()
+                .withPeople(2)
+                .withHousehold(false, false)
+                .withSpiceLevel("微辣")
+                .withCookingDays(List.of(0, 1, 2))
+                .withDishesPerDay(2)
+                .withHealthGoal("BALANCED")
+                .withBudget("DAILY");
+
+        DialogueState.Turn turn = agent(llm, List.of()).turn(OPENID, "今天就吃两道菜", complete);
+
+        assertEquals("READY", turn.action());
+        assertNotNull(turn.card());
+        assertTrue(turn.card().options().stream().anyMatch(option -> "generate".equals(option.value())));
+    }
+
+    @Test
     void explainsDegradationWhenModelIsUnavailable() {
         FakeLlm llm = new FakeLlm();
         llm.configured = false;
@@ -184,6 +204,18 @@ class DialogueAgentTest {
         assertTrue(card.options().stream().anyMatch(option -> "dishes=9".equals(option.value())));
         assertTrue(facts.stream().anyMatch(fact -> "有老人和小孩".equals(fact.value())));
         assertTrue(Boolean.TRUE.equals(selected.hasElder()) && Boolean.TRUE.equals(selected.hasChild()));
+    }
+
+    @Test
+    void dishConflictKeepsModelGeneratedContextualChoices() {
+        DialogueState.Card card = AgentCards.accept("ASK_DISHES", DialogueState.AgentState.empty().withPeople(2),
+                "OPTIONS", "这周想怎么安排", "按你刚才说的情况来",
+                List.of(new DialogueState.Option("两道家常菜", "dishes=2"),
+                        new DialogueState.Option("四道丰盛一点", "dishes=4"),
+                        new DialogueState.Option("自己说", "other")));
+
+        assertEquals(List.of("dishes=2", "dishes=4", "other"),
+                card.options().stream().map(DialogueState.Option::value).toList());
     }
 
     @Test

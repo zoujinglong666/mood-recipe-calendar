@@ -11,6 +11,7 @@ export interface PlanOutcomeAck { cuisineAffinity: Record<string, number>, skipQ
 export interface WeeklyPlanSummary { id: number, createdAt: string, favorite: boolean, days: PlanDay[] }
 export interface MealAgentState { people?: number, cookingDays?: number[], dishesPerDay?: number, healthGoal?: string, budget?: string, hasElder?: boolean, hasChild?: boolean, spiceLevel?: string, favoriteCuisine?: string, cuisineConfirmed?: boolean, mealContext?: string, requestedIngredients?: string[] }
 export interface MealAgentOption { label: string, value: string }
+export interface MealAgentHistoryMessage { role: 'agent' | 'user', text: string, tags?: string[], selected?: boolean }
 export interface MealAgentTurn {
   reply: string
   action: string
@@ -21,6 +22,13 @@ export interface MealAgentTurn {
   memoryUsed?: string[]
   conflicts?: string[]
   degraded?: string[]
+}
+export interface MealAgentConversationSnapshot {
+  conversationId: string
+  state: MealAgentState
+  lastAction?: string
+  turn?: MealAgentTurn | null
+  messages: MealAgentHistoryMessage[]
 }
 
 function requestId(prefix: string) {
@@ -68,14 +76,17 @@ export function fetchWeeklyPlanQuota() {
 export function fetchAgentConversationQuota() {
   return get<UsageQuotaView>('/weekly-plans/agent-quota')
 }
+export function fetchCurrentAgentConversation() {
+  return get<MealAgentConversationSnapshot | null>('/weekly-plans/agent-conversations/current')
+}
 export function generateWeeklyPlan(data: { people: number, days: number, cookingDays: number[], healthGoal: string, sendNotification: boolean, dishesPerDay: number, budget?: string, conversationNotes?: string, requestId?: string }) {
   return post<WeeklyPlan>('/weekly-plans/generate', { ...data, requestId: data.requestId || requestId('plan') })
 }
 export function askMealAgent(message: string, nextQuestion: string) {
   return post<{ reply: string }>('/weekly-plans/agent-replies', { message, nextQuestion })
 }
-export function runMealAgentTurn(message: string, state: MealAgentState, conversationId?: string) {
-  return post<MealAgentTurn>('/weekly-plans/agent-turns', { message, state, conversationId, requestId: requestId('turn') })
+export function runMealAgentTurn(message: string, state: MealAgentState, conversationId?: string, history?: MealAgentHistoryMessage[]) {
+  return post<MealAgentTurn>('/weekly-plans/agent-turns', { message, state, conversationId, requestId: requestId('turn'), history })
 }
 
 const WEEKLY_PLAN_TEMPLATE_ID = 'h00FlM2Xf_X64sXln5WoYGnbvtJBjasdEraRPjs4NOg'

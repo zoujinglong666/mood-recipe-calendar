@@ -1,18 +1,20 @@
 <script setup lang="ts">
 import type { PlanDay, WeeklyPlan } from '@/api/weeklyPlans'
 import { useImagePreview } from '@wot-ui/ui'
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, ref, onUnmounted } from 'vue'
 import { resolveAssetUrl } from '@/api/request'
 import { generatePlanDishCover, getCurrentPlan, getWeeklyPlan, replacePlanDay, reportPlanDishOutcome, toggleShoppingItem } from '@/api/weeklyPlans'
 import { navBack } from '@/composables/useNavBar'
 import GuozaiButton from '@/components/guozai/GuozaiButton.vue'
 import GuozaiChipGroup from '@/components/guozai/GuozaiChipGroup.vue'
 import GuozaiImage from '@/components/guozai/GuozaiImage.vue'
+import ErrorState from '@/components/guozai/ErrorState.vue'
 import { exportRecipeShare, saveShareImage } from '@/utils/albumShare'
 import { STATIC_BASE_URL } from '@/utils/assets'
 import { toastError, toastSuccess } from '@/utils/toast'
+import { bus, MRC_EVENTS } from '@/utils/bus'
 
-definePage({ name: 'weekly-plan-detail', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '这一周吃什么' } })
+definePage({ name: 'weekly-plan-detail', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '这一周吃什么', enablePullDownRefresh: true } })
 
 const router = useRouter()
 const { previewImage } = useImagePreview()
@@ -29,6 +31,7 @@ const sharingDay = ref(-1)
 let coverQueue = Promise.resolve()
 let loadSequence = 0
 let loadStarted = false
+const error = ref('')
 const weekdayNames = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
 const outcomeOptions = [
   { key: 'DONE', label: '做完了' },
@@ -155,26 +158,32 @@ function onOutcomeChange(dayIndex: number, dishIndex: number, dishName: string, 
     void reportOutcome(dayIndex, dishIndex, dishName, kind)
 }
 
-async function load() {
+async function load(opts: { preserveDay?: boolean } = {}) {
   loadStarted = true
   const sequence = ++loadSequence
   const id = requestedPlanId.value
   loading.value = true
+  error.value = ''
   try {
     const loaded = id ? await getWeeklyPlan(id) : await getCurrentPlan()
     if (sequence !== loadSequence) return
     plan.value = loaded
-    activeDay.value = 0
+    if (!opts.preserveDay) activeDay.value = 0
     queueCovers(0)
   }
-  catch (error) {
+  catch (err) {
     if (sequence !== loadSequence) return
-    toastError(error, '还没有备餐计划')
-    navBack()
+    error.value = (err as any)?.message || '加载失败'
   }
   finally {
     loading.value = false
+    uni.stopPullDownRefresh()
   }
+}
+
+function reloadPlan() {
+  // 换菜 / 反馈等改动后，从其他页面返回时重拉，但不重置当前选中的天
+  void load({ preserveDay: true })
 }
 
 onLoad((query) => {
@@ -187,13 +196,21 @@ onShow(() => {
   if (!loadStarted) void load()
 })
 
+onPullDownRefresh(() => {
+  void load()
+})
+
+// 数据变更（换菜 / 反馈 / 购物清单）后主动重拉，避免回到本页看到旧数据
+bus.on(MRC_EVENTS.PLAN_CHANGED, reloadPlan)
+onUnmounted(() => bus.off(MRC_EVENTS.PLAN_CHANGED, reloadPlan))
+
 function queueCovers(dayIndex: number) {
   coverQueue = coverQueue.then(async () => {
     const day = plan.value?.days[dayIndex]
     if (!day)
       return
-    for (let dishIndex = 0; dishIndex < dishesOf(day).length; dishIndex++)
-      await ensureDishCover(dayIndex, dishIndex)
+    // 并行生成当天各道菜的封面，弱网下少闪动（仍走同一队列，保证顺序不乱）
+    await Promise.all(dishesOf(day).map((_, dishIndex) => ensureDishCover(dayIndex, dishIndex)))
   }).catch(() => undefined)
 }
 
@@ -242,7 +259,8 @@ async function toggle(name: string) {
 }
 
 function record(dish: string) {
-  uni.setStorageSync('mrc_record_draft', { dish, mood: '满足' })
+  // 不写死心情：记录页会按默认心情让用户自行选择，避免把"满足"强加给真实心情
+  uni.setStorageSync('mrc_record_draft', { dish })
   router.pushTab({ name: 'record' })
 }
 
@@ -258,7 +276,8 @@ async function shareDay(day: PlanDay, index: number) {
     await nextTick()
     const path = await exportRecipeShare({
       name: dish.name,
-      mood: '满足',
+      // 周计划没有真实心情字段，留空由分享卡展示品牌标语，避免虚构心情
+      mood: '',
       reason: day.healthTip,
       ingredients: dish.ingredients,
       steps: dish.steps,
@@ -285,6 +304,8 @@ async function shareDay(day: PlanDay, index: number) {
     <view v-if="loading" class="loading" aria-live="polite">
       锅仔正在翻开备餐小本…
     </view>
+
+    <ErrorState v-else-if="error" :message="error" @retry="load" />
 
     <template v-else-if="plan">
       <view class="detail-hero">
@@ -419,18 +440,24 @@ async function shareDay(day: PlanDay, index: number) {
                   <text class="menu-dish__title">
                     {{ dishIndex + 1 }}. {{ dish.name }}
                   </text>
-                  <view class="ingredients">
+                  <view v-if="dish.ingredients?.length" class="ingredients">
                     <text v-for="item in dish.ingredients" :key="item">
                       {{ item }}
                     </text>
                   </view>
-                  <view class="steps">
+                  <view v-else class="dish-detail-empty">
+                    这道菜的食材还在整理中
+                  </view>
+                  <view v-if="dish.steps?.length" class="steps">
                     <view v-for="(step, stepIndex) in dish.steps" :key="step" class="step">
                       <text class="step__number">
                         {{ stepIndex + 1 }}
                       </text>
                       <text>{{ step }}</text>
                     </view>
+                  </view>
+                  <view v-else class="dish-detail-empty">
+                    这道菜的做法还在整理中
                   </view>
                 </view>
               </view>
@@ -596,6 +623,7 @@ async function shareDay(day: PlanDay, index: number) {
 .recipe-details { padding-bottom: 4rpx; }.menu-dish + .menu-dish { margin-top: 28rpx; padding-top: 28rpx; border-top: 2rpx dashed var(--mrc-border); }.menu-dish__title { margin-bottom: 16rpx; color: var(--mrc-text-strong); font-size: 28rpx; font-weight: 800; }
 .ingredients { display: flex; flex-wrap: wrap; gap: 12rpx; }
 .ingredients text { padding: 10rpx 16rpx; border-radius: 16rpx; background: var(--mrc-surface-peach); color: var(--mrc-text); font-size: 22rpx; }
+.dish-detail-empty { margin-top: 12rpx; padding: 16rpx 18rpx; border-radius: 16rpx; background: var(--mrc-surface-sun); color: var(--mrc-text-sub); font-size: 22rpx; line-height: 1.5; }
 .steps { margin-top: 24rpx; }
 .step { align-items: flex-start; gap: 14rpx; margin-top: 14rpx; color: var(--mrc-text); font-size: 24rpx; line-height: 1.6; }
 .step__number { width: 34rpx; height: 34rpx; flex: 0 0 auto; border-radius: 50%; background: var(--mrc-primary); color: var(--mrc-surface); font-size: 20rpx; font-weight: 800; line-height: 34rpx; text-align: center; }

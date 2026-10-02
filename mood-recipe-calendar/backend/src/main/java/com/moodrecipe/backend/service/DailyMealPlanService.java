@@ -37,6 +37,9 @@ public class DailyMealPlanService {
     private final ObjectMapper json;
     private final AgentMemoryStore memory;
 
+    /** 候选集封顶：findThree 是 O(n³) 暴力枚举，菜谱表稍大就会让请求挂死（线上曾因 AI 灌入数百道菜而 60s 超时）。取排序后的前若干道即可把组合数收敛为常数级，且前三道偏好已排序不妨碍质量。 */
+    private static final int MAX_CANDIDATES = 120;
+
     DailyMealPlanService(DailyMealPlanRepository plans, RecipeRepository recipes,
                          UserFoodPreferenceRepository preferences,
                          NutritionKnowledgePackRepository packs,
@@ -72,13 +75,13 @@ public class DailyMealPlanService {
         UserProfile profile = profile(openid);
         UserFoodPreference preference = validationPreference(openid, profile);
         if (!knowledge.isEmpty() && !inSeason.isEmpty()) {
-            Optional<List<Recipe>> strict = findThree(rankedCandidates(profile, inSeason, true),
+            Optional<List<Recipe>> strict = findThree(topCandidates(rankedCandidates(profile, inSeason, true)),
                     meals -> validator.validate(meals, preference, knowledge).valid());
             if (strict.isPresent()) return save(openid, date, strict.get(), knowledge.get(0).getVersion());
         }
 
         // 季节数据或知识包是软条件；没有严格组合时，仍返回通过安全、忌口和展示校验的三餐。
-        Optional<List<Recipe>> fallback = findThree(rankedCandidates(profile, inSeason, false),
+        Optional<List<Recipe>> fallback = findThree(topCandidates(rankedCandidates(profile, inSeason, false)),
                 meals -> validator.isSafe(meals, preference));
         return fallback.flatMap(meals -> save(openid, date, meals,
                 knowledge.isEmpty() ? "fallback" : knowledge.get(0).getVersion()));
@@ -139,6 +142,11 @@ public class DailyMealPlanService {
                         .comparing((Recipe recipe) -> !loved.contains(recipe.getName()))
                         .thenComparing(recipe -> recent.contains(recipe.getName())))
                 .toList();
+    }
+
+    private List<Recipe> topCandidates(List<Recipe> candidates) {
+        if (candidates.size() <= MAX_CANDIDATES) return candidates;
+        return new ArrayList<>(candidates.subList(0, MAX_CANDIDATES));
     }
 
     private Optional<List<Recipe>> findThree(List<Recipe> candidates,

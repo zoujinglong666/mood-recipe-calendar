@@ -12,6 +12,12 @@ import {
   doCheckin,
   type CheckinStatus,
 } from '../../api/gallery'
+import {
+  fetchVirtualProducts,
+  fetchVirtualOrders,
+  type VirtualProduct,
+  type VirtualOrder,
+} from '../../api/virtualCommerce'
 
 definePage({
   name: 'gallery',
@@ -29,11 +35,13 @@ const loading = ref(true)
 const error = ref('')
 // 遗留模板将在下一次整理中删除；不发起任何实物商品或订单请求。
 const products = ref<any[]>([])
-const orders = ref<any[]>([])
+const orders = ref<{ orderNo: string, sku: string, title: string, amountFen: number, status: string }[]>([])
+const productTitleMap = ref<Record<string, string>>({})
 const selectedProduct = ref<any>(null)
 const buyType = ref<'normal' | 'exchange'>('normal')
 const showBuy = ref(false)
 const checkin = ref<CheckinStatus>({ checkedIn: false, streak: 0, exchangeReady: false, daysToExchange: 30, totalDays: 0 })
+const checking = ref(false)
 
 // ---------- 表情包（内容资产区：锅仔透明 PNG 资源库） ----------
 const STICKER_GROUPS = [
@@ -83,7 +91,20 @@ async function loadData() {
   error.value = ''
   try {
     await ensureLogin()
-    checkin.value = await fetchCheckinStatus()
+    const [ck, prods, vOrders] = await Promise.all([
+      fetchCheckinStatus(),
+      fetchVirtualProducts().catch(() => [] as VirtualProduct[]),
+      fetchVirtualOrders().catch(() => [] as VirtualOrder[]),
+    ])
+    checkin.value = ck
+    productTitleMap.value = Object.fromEntries(prods.map(p => [p.sku, p.title]))
+    orders.value = vOrders.map(o => ({
+      orderNo: o.orderNo,
+      sku: o.sku,
+      title: productTitleMap.value[o.sku] || o.sku,
+      amountFen: o.amountFen,
+      status: o.status,
+    }))
   } catch (e: any) {
     error.value = e.message || '加载失败'
   } finally {
@@ -95,15 +116,26 @@ onShow(() => {
   loadData()
 })
 
+const orderStatusText: Record<string, string> = {
+  PENDING: '待支付',
+  PAID: '已支付',
+  DELIVERED: '已发货',
+  REFUNDED: '已退款',
+  CANCELLED: '已取消',
+}
+
 // ---------- 签到 ----------
 async function onCheckin() {
-  if (checkin.value.checkedIn) return
+  if (checkin.value.checkedIn || checking.value) return
+  checking.value = true
   try {
     await ensureLogin()
     checkin.value = await doCheckin()
     toast('签到成功，锅仔陪你吃饭！')
   } catch (e: any) {
     toastError(e, '签到失败')
+  } finally {
+    checking.value = false
   }
 }
 
@@ -113,37 +145,28 @@ function onDownloadSticker(sticker: { name: string; src: string }) {
   toast('请在小程序中体验下载表情包')
   // #endif
   // #ifdef MP-WEIXIN
-  uni.authorize({
-    scope: 'scope.writePhotosAlbum',
-    success: () => {
-      uni.saveImageToPhotosAlbum({
-        filePath: sticker.src,
-        success: () => toastSuccess(`已保存「${sticker.name}」到相册`),
-        fail: () => {
-          // 兜底：先取图片信息再保存
-          uni.getImageInfo({
-            src: sticker.src,
-            success: (info) => {
-              uni.saveImageToPhotosAlbum({
-                filePath: info.path,
-                success: () => toastSuccess(`已保存「${sticker.name}」`),
-                fail: () => toast('保存失败，请检查相册权限'),
-              })
-            },
-            fail: () => toast('保存失败'),
-          })
-        },
-      })
+  // saveImageToPhotosAlbum 只接受本地临时路径，不能直接传网络 URL：
+  // 先 downloadFile 落盘为临时文件，再保存。
+  uni.downloadFile({
+    url: sticker.src,
+    success: (res) => {
+      if (res.statusCode === 200 && res.tempFilePath) {
+        uni.saveImageToPhotosAlbum({
+          filePath: res.tempFilePath,
+          success: () => toastSuccess(`已保存「${sticker.name}」到相册`),
+          fail: () => toast('保存失败，请检查相册权限'),
+        })
+      } else {
+        toast('下载失败，请稍后重试')
+      }
     },
-    fail: () => toast('需要相册权限才能下载'),
+    fail: () => toast('下载失败，请检查网络'),
   })
   // #endif
 }
 
 function openBuy(_: any) {}
 function onBuy() {}
-const orderStatusText: Record<string, string> = {}
-const orderTypeText: Record<string, string> = {}
 
 </script>
 
@@ -238,21 +261,25 @@ const orderTypeText: Record<string, string> = {}
         </view>
       </view>
 
-      <view v-if="false">
+      <!-- ============ 我的订单（数字权益消费闭环，买完看得见） ============ -->
+      <view class="orders-section">
+        <view class="section-title">
+          <text>我的订单</text>
+          <text class="section-title__sub">已购数字权益与发货状态</text>
+        </view>
         <view v-if="orders.length === 0" class="gallery-empty">
           <image class="gallery-empty__img" :src="STATIC_BASE_URL + '/static/guozai/action_07_empty.png'" mode="aspectFit" />
-          <text class="gallery-empty__text">还没有订单，去带一只锅仔回家吧～</text>
+          <text class="gallery-empty__text">还没有订单，去菜谱页解锁锅仔的数字权益吧～</text>
         </view>
-        <view v-for="o in orders" :key="o.id" class="order-card">
-          <image class="order-card__img" :src="o.productImage || STATIC_BASE_URL + '/static/guozai/mood_01_happy.png'" mode="aspectFill" />
+        <view v-for="o in orders" :key="o.orderNo" class="order-card">
+          <image class="order-card__img" :src="STATIC_BASE_URL + '/static/guozai/mood_01_happy.png'" mode="aspectFill" />
           <view class="order-card__main">
-            <text class="order-card__name">{{ o.productName }}</text>
-            <text class="order-card__type">{{ orderTypeText[o.payType] || o.payType }}</text>
+            <text class="order-card__name">{{ o.title }}</text>
             <text class="order-card__no">单号 {{ o.orderNo }}</text>
           </view>
           <view class="order-card__right">
-            <text class="order-card__amount">¥{{ o.amount }}</text>
-            <view class="order-card__status" :class="'order-card__status--' + o.status">
+            <text class="order-card__amount">¥{{ (o.amountFen / 100).toFixed(2) }}</text>
+            <view class="order-card__status" :class="'order-card__status--' + o.status.toLowerCase()">
               {{ orderStatusText[o.status] || o.status }}
             </view>
           </view>
@@ -592,6 +619,25 @@ const orderTypeText: Record<string, string> = {}
 }
 
 /* 我的订单 */
+.orders-section {
+  margin: 16rpx 0 8rpx;
+}
+.section-title {
+  display: flex;
+  align-items: baseline;
+  gap: 16rpx;
+  font-size: 32rpx;
+  font-weight: 700;
+  color: var(--mrc-text-deep);
+  margin-bottom: 20rpx;
+  padding-left: 16rpx;
+  border-left: 8rpx solid var(--mrc-primary);
+}
+.section-title__sub {
+  font-size: 22rpx;
+  font-weight: 400;
+  color: var(--mrc-text-light);
+}
 .order-card {
   display: flex;
   align-items: center;

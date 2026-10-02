@@ -390,7 +390,7 @@ export async function exportRecipeShare(data: RecipeShareData, canvasId = 'recip
   ctx.fillStyle = COLORS.white
   roundRect(ctx, 70, 126, 154, 48, 12)
   ctx.fill()
-  centerText(ctx, 147, 140, `今日 · ${data.mood}`, 20, COLORS.text, 'bold')
+  centerText(ctx, 147, 140, data.mood ? `今日 · ${data.mood}` : 'GUOZAI · 锅仔推荐', 20, COLORS.text, 'bold')
   centerText(ctx, W / 2, 438, `${data.cookingTime || '--'} 分钟  /  ${data.difficulty || '家常难度'}`, 22, COLORS.sub, 'bold')
 
   drawSectionHeading(ctx, isHandwrittenStyle ? '锅仔小记 / 今天也要好好吃饭' : 'GUOZAI’S NOTE', isHandwrittenStyle ? '锅仔写给你的话' : '锅仔为什么推荐它', 492)

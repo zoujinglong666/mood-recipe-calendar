@@ -13,6 +13,10 @@ import { chooseImageFiles } from '../../utils/chooseImage'
 import { createRequestId, RECORD_DRAFT_KEY } from '../../utils/cookingDraft'
 import { ensureLogin } from '../../utils/login'
 import { toast, toastError, toastSuccess } from '../../utils/toast'
+import { bus, MRC_EVENTS } from '@/utils/bus'
+
+/** 与 calendar 页约定：历史补记时由 calendar 写入，record 页 onShow 读取作为记录日期。 */
+const RECORD_DATE_KEY = 'mrc_record_date'
 
 definePage({
   name: 'record',
@@ -75,9 +79,20 @@ onShow(async () => {
       if (d.clientRequestId)
         clientRequestId.value = String(d.clientRequestId)
     }
+    // 历史补记：日历点过去某天时写入指定日期，这里接管为记录日期
+    const backfillDate = uni.getStorageSync(RECORD_DATE_KEY)
+    if (backfillDate)
+      recordDate.value = String(backfillDate)
   }
   catch { /* ignore */ }
 })
+
+/** 是否处于"补记过去某天"模式（用于页面顶部提示，避免误记到今天） */
+function isBackfill() {
+  if (!recordDate.value)
+    return false
+  return recordDate.value < new Date().toISOString().slice(0, 10)
+}
 
 async function addImages() {
   if (uploading.value) {
@@ -223,6 +238,9 @@ async function publish() {
     savedRecordId.value = saved.id
     uni.removeStorageSync(RECORD_DRAFT_KEY)
     uni.removeStorageSync('mrc_companion_message')
+    // 记录已落库，通知日历等页面刷新；并清除历史补记意图（下次默认记今天）
+    bus.emit(MRC_EVENTS.RECORDS_CHANGED)
+    uni.removeStorageSync(RECORD_DATE_KEY)
     showSuccess.value = true
   }
   catch (e: any) {
@@ -284,6 +302,11 @@ function chooseCookingTime() {
         <text class="record-intro__sub">锅仔会记住味道，也记住你今天的心情</text>
       </view>
       <image class="record-intro__guozai" :src="`${STATIC_BASE_URL}/static/guozai/action_03_camera.png`" mode="aspectFit" />
+    </view>
+
+    <view v-if="isBackfill()" class="record-backfill-tip">
+      <Icon name="calendar" :size="30" color="#EF5A3C" />
+      <text>正在补记 <text class="record-backfill-tip__date">{{ recordDate }}</text> 的伙食，提交后会记入那一天</text>
     </view>
 
     <view class="record-photo-section">
@@ -394,6 +417,8 @@ function chooseCookingTime() {
 .record-intro__title { color: var(--mrc-text-strong); font-size: 34rpx; font-weight: var(--mrc-fw-heavy); line-height: 1.3; }
 .record-intro__sub { margin-top: 8rpx; color: var(--mrc-text-sub); font-size: 22rpx; line-height: 1.45; }
 .record-intro__guozai { position: absolute; right: -4rpx; bottom: -12rpx; width: 142rpx; height: 142rpx; }
+.record-backfill-tip { display: flex; align-items: center; gap: 12rpx; margin: 0 0 20rpx; padding: 18rpx 22rpx; border-radius: 24rpx; color: var(--mrc-accent); background: var(--mrc-surface-sun); font-size: 22rpx; line-height: 1.4; }
+.record-backfill-tip__date { font-weight: 800; }
 
 .record-photo-section { margin-bottom: 24rpx; padding: 28rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 32rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }
 .record-photo-section__head { display: flex; justify-content: space-between; margin-bottom: 20rpx; color: var(--mrc-text-strong); font-size: 29rpx; font-weight: 800; }
