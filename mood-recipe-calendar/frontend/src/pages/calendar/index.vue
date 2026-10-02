@@ -7,6 +7,7 @@ import { STATIC_BASE_URL } from '@/utils/assets'
 import { fetchRecordsByMonth, fetchStats } from '../../api/records'
 import ErrorState from '../../components/guozai/ErrorState.vue'
 import LoadingState from '../../components/guozai/LoadingState.vue'
+import GuozaiImage from '../../components/guozai/GuozaiImage.vue'
 import { ensureLogin } from '../../utils/login'
 
 definePage({
@@ -318,7 +319,7 @@ function previewRecordPhoto(record: RecordItem | null) {
         >
           <swiper-item v-for="(rec, idx) in detailRecords" :key="rec.id ?? idx">
             <view class="cal-detail__img">
-              <guozai-image
+              <GuozaiImage
                 :src="rec.imageUrl"
                 placeholder-text="📷"
                 aria-label="查看这张照片的大图"

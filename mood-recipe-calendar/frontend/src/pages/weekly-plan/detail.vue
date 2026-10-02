@@ -7,6 +7,7 @@ import { generatePlanDishCover, getCurrentPlan, getWeeklyPlan, replacePlanDay, r
 import { navBack } from '@/composables/useNavBar'
 import GuozaiButton from '@/components/guozai/GuozaiButton.vue'
 import GuozaiChipGroup from '@/components/guozai/GuozaiChipGroup.vue'
+import GuozaiImage from '@/components/guozai/GuozaiImage.vue'
 import { exportRecipeShare, saveShareImage } from '@/utils/albumShare'
 import { STATIC_BASE_URL } from '@/utils/assets'
 import { toastError, toastSuccess } from '@/utils/toast'
@@ -356,7 +357,7 @@ async function shareDay(day: PlanDay, index: number) {
                 <swiper-item v-for="(dish, dishIndex) in dishesOf(day)" :key="`${dish.name}-${dishIndex}`">
                   <view class="dish-cover" :class="{ 'dish-cover--loading': coverLoading[coverKey(index, dishIndex)] }">
                     <view v-if="coverOf(day, dishIndex)" class="dish-cover__preview" role="button" :aria-label="`预览${dish.name}菜品大图`" @click.stop="previewDishImages(day, dishIndex)">
-                      <guozai-image :src="resolveAssetUrl(coverOf(day, dishIndex))" placeholder-text="🍲" />
+                      <GuozaiImage :src="resolveAssetUrl(coverOf(day, dishIndex))" placeholder-text="🍲" />
                       <text class="dish-cover__preview-hint">
                         查看大图
                       </text>

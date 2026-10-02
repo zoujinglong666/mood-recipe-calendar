@@ -10,6 +10,7 @@ import com.moodrecipe.backend.repository.UserRepository;
 import com.moodrecipe.backend.repository.VirtualOrderRepository;
 import com.moodrecipe.backend.repository.VirtualProductRepository;
 import jakarta.transaction.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -40,6 +41,7 @@ public class VirtualCommerceService {
         this(productRepository, orderRepository, entitlementRepository, userRepository, new ObjectMapper());
     }
 
+    @Autowired
     public VirtualCommerceService(
             VirtualProductRepository productRepository,
             VirtualOrderRepository orderRepository,
