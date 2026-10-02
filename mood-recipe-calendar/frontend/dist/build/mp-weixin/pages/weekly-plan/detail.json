@@ -5,6 +5,7 @@
     "wd-image-preview": "../../node-modules/@wot-ui/ui/components/wd-image-preview/wd-image-preview",
     "wd-navbar": "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar",
     "guozai-button": "../../components/guozai/GuozaiButton",
-    "guozai-chip-group": "../../components/guozai/GuozaiChipGroup"
+    "guozai-chip-group": "../../components/guozai/GuozaiChipGroup",
+    "guozai-image": "../../components/guozai/GuozaiImage"
   }
 }
