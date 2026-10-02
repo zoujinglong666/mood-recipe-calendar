@@ -1,5 +1,6 @@
 package com.moodrecipe.backend.entity;
 
+import com.moodrecipe.backend.config.AppClock;
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -28,5 +29,5 @@ public class RecipeInteraction {
     private LocalDateTime createdAt;
 
     @PrePersist
-    void prePersist() { createdAt = LocalDateTime.now(); }
+    void prePersist() { createdAt = AppClock.now(); }
 }

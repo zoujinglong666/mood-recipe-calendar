@@ -1,5 +1,6 @@
 package com.moodrecipe.backend.service;
 
+import com.moodrecipe.backend.config.AppClock;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -70,7 +71,7 @@ public class WechatSubscriptionMessageService {
                     "data", Map.of(
                             "thing1", Map.of("value", truncate(summary, 20)),
                             "number2", Map.of("value", String.valueOf(Math.max(daysLeft, 0))),
-                            "time3", Map.of("value", TIME.format(LocalDateTime.now()))
+                            "time3", Map.of("value", TIME.format(AppClock.now()))
                     )
             );
             HttpRequest request = HttpRequest.newBuilder(URI.create("https://api.weixin.qq.com/cgi-bin/message/subscribe/send?access_token=" + accessToken))
@@ -101,7 +102,7 @@ public class WechatSubscriptionMessageService {
                     "miniprogram_state", state,
                     "lang", "zh_CN",
                     "data", Map.of(
-                            "time3", Map.of("value", TIME.format(LocalDateTime.now())),
+                            "time3", Map.of("value", TIME.format(AppClock.now())),
                             "thing4", Map.of("value", "本周晚餐已安排好，点此查看")
                     )
             );

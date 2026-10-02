@@ -1,5 +1,6 @@
 package com.moodrecipe.backend.entity;
 
+import com.moodrecipe.backend.config.AppClock;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -64,6 +65,6 @@ public class Product {
 
     @PrePersist
     void prePersist() {
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = AppClock.now();
     }
 }

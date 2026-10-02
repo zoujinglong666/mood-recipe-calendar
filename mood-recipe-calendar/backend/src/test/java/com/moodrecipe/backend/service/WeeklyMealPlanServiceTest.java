@@ -15,6 +15,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
@@ -180,5 +181,60 @@ class WeeklyMealPlanServiceTest {
         recipe.setIngredients("[\"鸡蛋 2个\"]");
         recipe.setSteps("[\"炒熟即可\"]");
         return recipe;
+    }
+
+    /** 采购清单必须聚合真实用量（跨菜求和、单位归一），而不是只显示出现份数。 */
+    @Test
+    void aggregatesRealQuantitiesAcrossDishesAndFixesCategories() {
+        List<WeeklyMealPlanService.PlanDish> dishes = List.of(
+                new WeeklyMealPlanService.PlanDish("糖醋里脊", List.of("里脊肉 500g", "生抽 10ml", "白糖 30g"), List.of(), null, null),
+                new WeeklyMealPlanService.PlanDish("鱼香肉丝", List.of("里脊肉 300g", "生抽 5 毫升", "白胡椒粉 2克"), List.of(), null, null));
+        List<WeeklyMealPlanService.ShoppingItem> items = WeeklyMealPlanService.aggregateShopping(dishes, List.of());
+        assertEquals("800克", quantityOf(items, "里脊肉"));
+        assertEquals("15毫升", quantityOf(items, "生抽"));
+        assertEquals("30克", quantityOf(items, "白糖"));
+        assertEquals("调料", categoryOf(items, "生抽"));
+        assertEquals("调料", categoryOf(items, "白胡椒粉"));
+    }
+
+    /** 没有数量、或部分带量部分不带量时，回退到出现份数，绝不出现"毫升"这类无数量的单位残留。 */
+    @Test
+    void fallsBackToPortionCountWhenQuantityMissingOrMixed() {
+        List<WeeklyMealPlanService.PlanDish> dishes = List.of(
+                new WeeklyMealPlanService.PlanDish("拍黄瓜", List.of("黄瓜 1根", "盐 适量"), List.of(), null, null),
+                new WeeklyMealPlanService.PlanDish("凉拌豆腐", List.of("豆腐 1块", "盐 2克"), List.of(), null, null));
+        List<WeeklyMealPlanService.ShoppingItem> items = WeeklyMealPlanService.aggregateShopping(dishes, List.of());
+        assertEquals("1根", quantityOf(items, "黄瓜"));
+        assertEquals("1块", quantityOf(items, "豆腐"));
+        assertEquals("2 份", quantityOf(items, "盐"));
+    }
+
+    /** 中文数量（半根/一小把）要解析成真实数量；"猪里脊肉"与"猪里脊"必须合并为一条。 */
+    @Test
+    void parsesChineseAmountsAndMergesMeatNameVariants() {
+        List<WeeklyMealPlanService.PlanDish> dishes = List.of(
+                new WeeklyMealPlanService.PlanDish("鱼香肉丝", List.of("猪里脊肉 200克", "胡萝卜 半根", "木耳 一小把", "蒜 3瓣"), List.of(), null, null),
+                new WeeklyMealPlanService.PlanDish("糖醋里脊", List.of("猪里脊 300g"), List.of(), null, null));
+        List<WeeklyMealPlanService.ShoppingItem> items = WeeklyMealPlanService.aggregateShopping(dishes, List.of());
+        assertEquals("500克", quantityOf(items, "猪里脊肉"));
+        assertEquals("0.5根", quantityOf(items, "胡萝卜"));
+        assertEquals("1把", quantityOf(items, "木耳"));
+        assertEquals("3瓣", quantityOf(items, "蒜"));
+        assertTrue(items.stream().noneMatch(item -> item.name.equals("猪里脊")),
+                "不应出现猪里脊/猪里脊肉两条：" + items.stream().map(item -> item.name).toList());
+    }
+
+    private String quantityOf(List<WeeklyMealPlanService.ShoppingItem> items, String name) {
+        for (WeeklyMealPlanService.ShoppingItem item : items) {
+            if (item.name.equals(name)) return item.quantity;
+        }
+        throw new AssertionError("missing item: " + name);
+    }
+
+    private String categoryOf(List<WeeklyMealPlanService.ShoppingItem> items, String name) {
+        for (WeeklyMealPlanService.ShoppingItem item : items) {
+            if (item.name.equals(name)) return item.category;
+        }
+        throw new AssertionError("missing item: " + name);
     }
 }

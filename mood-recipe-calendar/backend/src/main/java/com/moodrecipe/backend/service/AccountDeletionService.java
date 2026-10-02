@@ -1,5 +1,6 @@
 package com.moodrecipe.backend.service;
 
+import com.moodrecipe.backend.config.AppClock;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -36,7 +37,7 @@ public class AccountDeletionService {
                 (rs, row) -> rs.getString(1), openid));
         for (String url : urls) {
             jdbc.update("insert into pending_asset_deletions(object_url,status,attempts,created_at,updated_at) values (?, 'PENDING', 0, ?, ?)",
-                    url, LocalDateTime.now(), LocalDateTime.now());
+                    url, AppClock.now(), AppClock.now());
         }
 
         String anonymous = "deleted_" + sha256(openid).substring(0, 32);
@@ -55,7 +56,7 @@ public class AccountDeletionService {
                     long id = rs.getLong("id");
                     boolean deleted = images.deleteByUrl(rs.getString("object_url"));
                     jdbc.update("update pending_asset_deletions set status = ?, attempts = attempts + 1, updated_at = ? where id = ?",
-                            deleted ? "DELETED" : "PENDING", LocalDateTime.now(), id);
+                            deleted ? "DELETED" : "PENDING", AppClock.now(), id);
                 });
     }
 

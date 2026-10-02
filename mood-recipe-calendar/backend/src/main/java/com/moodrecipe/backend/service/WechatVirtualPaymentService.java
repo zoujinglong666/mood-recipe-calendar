@@ -1,5 +1,6 @@
 package com.moodrecipe.backend.service;
 
+import com.moodrecipe.backend.config.AppClock;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moodrecipe.backend.entity.User;
@@ -157,7 +158,7 @@ public class WechatVirtualPaymentService {
             initialDelayString = "${wechat.virtual-payment.reconcile-initial-delay-ms:60000}")
     public void reconcilePendingOrders() {
         if (!serverApiConfigured()) return;
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = AppClock.now();
         int failures = 0;
         for (VirtualOrder order : orderRepository.findTop100ByStatusAndCreatedAtBetweenOrderByCreatedAtAsc(
                 "PENDING", now.minusDays(7), now.minusMinutes(1))) {

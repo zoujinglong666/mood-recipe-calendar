@@ -1,5 +1,6 @@
 package com.moodrecipe.backend.entity;
 
+import com.moodrecipe.backend.config.AppClock;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDateTime;
@@ -33,6 +34,6 @@ public class MonthlyAlbum {
 
     @PrePersist
     void prePersist() {
-        this.generatedAt = LocalDateTime.now();
+        this.generatedAt = AppClock.now();
     }
 }

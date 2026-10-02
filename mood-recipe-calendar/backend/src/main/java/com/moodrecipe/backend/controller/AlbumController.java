@@ -1,5 +1,6 @@
 package com.moodrecipe.backend.controller;
 
+import com.moodrecipe.backend.config.AppClock;
 import com.moodrecipe.backend.common.ApiResponse;
 import com.moodrecipe.backend.entity.MonthlyAlbum;
 import com.moodrecipe.backend.entity.UserRecord;
@@ -92,7 +93,7 @@ public class AlbumController {
         }
 
         album.setAiSummary(guozaiAgent.monthlyLetter(month, records));
-        album.setGeneratedAt(LocalDateTime.now());
+        album.setGeneratedAt(AppClock.now());
 
         return ApiResponse.ok(albumRepository.save(album));
     }

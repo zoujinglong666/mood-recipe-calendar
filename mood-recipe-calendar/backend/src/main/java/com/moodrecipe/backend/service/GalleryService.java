@@ -1,5 +1,6 @@
 package com.moodrecipe.backend.service;
 
+import com.moodrecipe.backend.config.AppClock;
 import com.moodrecipe.backend.entity.Checkin;
 import com.moodrecipe.backend.entity.Product;
 import com.moodrecipe.backend.entity.ShopOrder;
@@ -32,7 +33,7 @@ public class GalleryService {
     private final ProductRepository productRepository;
     private final ShopOrderRepository shopOrderRepository;
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-    private static final ZoneId ZONE = ZoneId.of("Asia/Shanghai");
+    private static final ZoneId ZONE = AppClock.ZONE;
 
     public GalleryService(CheckinRepository checkinRepository,
                           ProductRepository productRepository,
@@ -47,7 +48,7 @@ public class GalleryService {
      * { checkedIn, streak, exchangeReady, daysToExchange }
      */
     public Map<String, Object> checkin(String openid) {
-        String today = LocalDate.now(ZONE).format(DATE_FMT);
+        String today = AppClock.today().format(DATE_FMT);
         if (checkinRepository.findByOpenidAndCheckinDate(openid, today).isEmpty()) {
             checkinRepository.save(Checkin.builder()
                 .openid(openid)
@@ -61,7 +62,7 @@ public class GalleryService {
      * 查询签到状态
      */
     public Map<String, Object> checkinStatus(String openid) {
-        String today = LocalDate.now(ZONE).format(DATE_FMT);
+        String today = AppClock.today().format(DATE_FMT);
         List<Checkin> all = checkinRepository.findByOpenidOrderByCheckinDateAsc(openid);
         Set<String> dateSet = all.stream().map(Checkin::getCheckinDate).collect(Collectors.toSet());
 
@@ -84,7 +85,7 @@ public class GalleryService {
     private int calcStreak(Set<String> dateSet) {
         if (dateSet.isEmpty()) return 0;
         int streak = 0;
-        LocalDate day = LocalDate.now(ZONE);
+        LocalDate day = AppClock.today();
         while (dateSet.contains(day.format(DATE_FMT))) {
             streak++;
             day = day.minusDays(1);

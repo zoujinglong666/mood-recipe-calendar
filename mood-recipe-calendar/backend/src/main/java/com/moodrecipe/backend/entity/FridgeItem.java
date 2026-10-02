@@ -1,5 +1,6 @@
 package com.moodrecipe.backend.entity;
 
+import com.moodrecipe.backend.config.AppClock;
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -44,13 +45,13 @@ public class FridgeItem {
 
     @PrePersist
     void onCreate() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = AppClock.now();
         createdAt = now;
         updatedAt = now;
     }
 
     @PreUpdate
     void onUpdate() {
-        updatedAt = LocalDateTime.now();
+        updatedAt = AppClock.now();
     }
 }

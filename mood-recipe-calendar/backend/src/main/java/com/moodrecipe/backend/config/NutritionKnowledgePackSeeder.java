@@ -1,5 +1,6 @@
 package com.moodrecipe.backend.config;
 
+import com.moodrecipe.backend.config.AppClock;
 import com.moodrecipe.backend.entity.NutritionKnowledgePack;
 import com.moodrecipe.backend.entity.SeasonalIngredient;
 import com.moodrecipe.backend.repository.NutritionKnowledgePackRepository;
@@ -47,7 +48,7 @@ public class NutritionKnowledgePackSeeder implements ApplicationRunner {
         pack.setSourceKind("PRODUCT_ORIGINAL");
         pack.setSourceReference(PRODUCT_SOURCE);
         pack.setLicenseStatus(NutritionKnowledgePack.COMMERCIALLY_USABLE);
-        pack.setReviewedAt(LocalDateTime.now());
+        pack.setReviewedAt(AppClock.now());
         pack.setEnabled(true);
         return pack;
     }

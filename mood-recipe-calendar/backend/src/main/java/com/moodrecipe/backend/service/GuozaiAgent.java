@@ -1,5 +1,6 @@
 package com.moodrecipe.backend.service;
 
+import com.moodrecipe.backend.config.AppClock;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moodrecipe.backend.entity.Recipe;
@@ -331,7 +332,7 @@ public class GuozaiAgent {
      * 真实数据主动分析后，由 AI 生成的个性化寄语。
      */
     public CompanionMessageService.Message companion(String openid, int hour) {
-        return companion(openid, hour, LocalDate.now(ZoneId.of("Asia/Shanghai")));
+        return companion(openid, hour, LocalDate.now(AppClock.ZONE));
     }
 
     public CompanionMessageService.Message companion(String openid, int hour, LocalDate date) {

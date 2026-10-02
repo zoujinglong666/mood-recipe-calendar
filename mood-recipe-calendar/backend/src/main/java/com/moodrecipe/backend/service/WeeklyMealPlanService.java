@@ -1,5 +1,6 @@
 package com.moodrecipe.backend.service;
 
+import com.moodrecipe.backend.config.AppClock;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moodrecipe.backend.agent.AgentMemoryStore;
@@ -17,7 +18,7 @@ import java.util.*;
 
 @Service
 public class WeeklyMealPlanService {
-    private static final ZoneId CHINA_ZONE = ZoneId.of("Asia/Shanghai");
+    private static final ZoneId CHINA_ZONE = AppClock.ZONE;
     private final WeeklyMealPlanRepository plans;
     private final GuozaiAgent agent;
     private final MenuPlannerAgent planner;
@@ -263,27 +264,130 @@ public class WeeklyMealPlanService {
     }
 
     private List<ShoppingItem> merge(List<PlanDay> days, List<ShoppingItem> old) {
+        List<PlanDish> dishes = new ArrayList<>();
+        days.forEach(day -> dishes.addAll(dishesFor(day)));
+        return aggregateShopping(dishes, old);
+    }
+
+    /** 一条食材串解析出的名称与用量："生抽 10 毫升" → 生抽/10/毫升；"盐 适量" → 盐/0/""。 */
+    record IngredientAmount(String name, double amount, String unit) {}
+
+    static final java.util.regex.Pattern AMOUNT = java.util.regex.Pattern.compile(
+            "([0-9]+(?:\\.[0-9]+)?)\\s*(千克|公斤|毫升|大勺|小勺|茶匙|勺|克|kg|KG|Kg|g|G|ml|ML|Ml|升|个|只|根|片|块|瓣|颗|粒|条|段|朵|包|袋|盒|瓶|杯|罐|把|枚|张|份)?");
+
+    private static String halfWidth(String text) {
+        return java.util.regex.Pattern.compile("[０-９]").matcher(text)
+                .replaceAll(match -> String.valueOf((char) ('0' + (match.group().charAt(0) - '０'))));
+    }
+
+    /** 中文数量：\"半根/一小把/两勺\" —— HowToCook 菜谱大量使用；\"一\"与单位之间的\"大/小\"是修饰不是食材。 */
+    static final java.util.regex.Pattern CN_AMOUNT = java.util.regex.Pattern.compile(
+            "([一两二三四五六七八九十半])\\s*[大小]?(千克|公斤|毫升|大勺|小勺|茶匙|勺|克|升|个|只|根|片|块|瓣|颗|粒|条|段|朵|包|袋|盒|瓶|杯|罐|把|撮|枚|张|份)?");
+
+    static IngredientAmount parseIngredient(String raw) {
+        String text = halfWidth(raw == null ? "" : raw.replaceAll("[，,、].*", "").trim());
+        java.util.regex.Matcher matcher = AMOUNT.matcher(text);
+        boolean arabic = matcher.find();
+        double amount = 0;
+        String unit = "";
+        if (arabic) {
+            try { amount = Double.parseDouble(matcher.group(1)); } catch (NumberFormatException ignored) { }
+            unit = matcher.group(2) == null ? "" : matcher.group(2);
+        } else {
+            java.util.regex.Matcher cn = CN_AMOUNT.matcher(text);
+            if (cn.find()) {
+                amount = cnAmount(cn.group(1));
+                unit = cn.group(2) == null ? "" : cn.group(2);
+            }
+        }
+        String name = (arabic ? AMOUNT : CN_AMOUNT).matcher(text).replaceAll("")
+                .replaceAll("适量|少许|若干|一些|半个?", "")
+                .replaceAll("^[大小]?[块勺把撮段片条根瓣颗粒枚张个]", "")
+                .replaceAll("[（）()\\[\\]【】\\s]", "").trim();
+        return new IngredientAmount(name.isBlank() ? text.trim() : name, amount, normalizeUnit(unit));
+    }
+
+    private static double cnAmount(String text) {
+        return switch (text) {
+            case "半" -> 0.5;
+            case "一" -> 1;
+            case "二", "两" -> 2;
+            case "三" -> 3;
+            case "四" -> 4;
+            case "五" -> 5;
+            case "六" -> 6;
+            case "七" -> 7;
+            case "八" -> 8;
+            case "九" -> 9;
+            default -> 10;
+        };
+    }
+
+    /** g/ml/kg 等拉丁单位归一到中文，保证跨菜谱可求和（10ml + 5 毫升 = 15 毫升）。 */
+    static String normalizeUnit(String unit) {
+        return switch (unit == null ? "" : unit) {
+            case "g", "G" -> "克";
+            case "ml", "ML", "Ml" -> "毫升";
+            case "kg", "KG", "Kg" -> "千克";
+            default -> unit == null ? "" : unit;
+        };
+    }
+
+    /** 采购清单聚合：同名食材若都带同单位用量则求和成真实数量（"生抽 15毫升"），否则回退"出现份数"。 */
+    static List<ShoppingItem> aggregateShopping(List<PlanDish> dishes, List<ShoppingItem> old) {
         Map<String, Boolean> bought = new HashMap<>();
         old.forEach(item -> bought.put(item.name(), item.purchased));
-        Map<String, Integer> counts = new LinkedHashMap<>();
-        days.forEach(day -> dishesFor(day).forEach(dish -> dish.ingredients().forEach(raw -> counts.merge(normalize(raw), 1, Integer::sum))));
-        return counts.entrySet().stream().map(entry -> new ShoppingItem(entry.getKey(), category(entry.getKey()), entry.getValue() + " 份", bought.getOrDefault(entry.getKey(), false))).toList();
+        Map<String, List<IngredientAmount>> grouped = new LinkedHashMap<>();
+        dishes.forEach(dish -> dish.ingredients().forEach(raw -> {
+            if (raw == null || raw.isBlank()) return;
+            IngredientAmount parsed = parseIngredient(raw);
+            if (!parsed.name().isBlank()) {
+                grouped.computeIfAbsent(parsed.name(), key -> new ArrayList<>()).add(parsed);
+            }
+        }));
+        // "猪里脊肉"与"猪里脊"是同一食材的两种写法，合并到长名，避免采购清单出现两条
+        for (String key : new ArrayList<>(grouped.keySet())) {
+            if (key.endsWith("肉")) {
+                List<IngredientAmount> shortForm = grouped.remove(key.substring(0, key.length() - 1));
+                if (shortForm != null) grouped.get(key).addAll(shortForm);
+            }
+        }
+        return grouped.entrySet().stream().map(entry -> {
+            List<IngredientAmount> items = entry.getValue();
+            String unit = null;
+            double total = 0;
+            boolean allQuantified = !items.isEmpty();
+            for (IngredientAmount item : items) {
+                if (item.amount() <= 0) { allQuantified = false; break; }
+                if (unit == null) unit = item.unit();
+                else if (!unit.equals(item.unit())) { allQuantified = false; break; }
+                total += item.amount();
+            }
+            String quantity = allQuantified && unit != null && !unit.isBlank()
+                    ? formatAmount(total) + unit
+                    : items.size() + " 份";
+            return new ShoppingItem(entry.getKey(), category(entry.getKey()), quantity,
+                    bought.getOrDefault(entry.getKey(), false));
+        }).toList();
     }
 
-    private String category(String name) {
-        if (name.matches(".*(鸡|肉|鱼|虾|蛋|豆腐|豆).*$")) return "肉蛋豆";
-        if (name.matches(".*(米|面|粉|馒头|土豆).*$")) return "主食";
-        if (name.matches(".*(盐|油|酱|醋|料酒|糖).*$")) return "调料";
+    private static String formatAmount(double value) {
+        double rounded = Math.round(value * 10) / 10.0;
+        return rounded == Math.floor(rounded) ? String.valueOf((long) rounded) : String.valueOf(rounded);
+    }
+
+    private static String category(String name) {
+        if (name.matches(".*(盐|糖|油|酱|醋|料酒|生抽|老抽|蚝油|味精|鸡精|胡椒粉|小苏打|淀粉|花椒|八角|桂皮|香叶|咖喱).*")) return "调料";
+        if (name.matches(".*(鸡|肉|鱼|虾|蛋|奶|芝士|豆腐|豆干|腐竹|豆浆).*$")) return "肉蛋豆";
+        if (name.matches(".*(米|面|粉|馒头|包子|饺子|面包|土豆|红薯|山药|玉米).*$")) return "主食";
         return "蔬菜";
     }
-
-    private String normalize(String raw) { return raw.replaceAll("[0-9０-９]+(?:g|克|个|根|颗|块|勺|适量|份)?", "").replaceAll("[，,、].*", "").trim(); }
     private List<Integer> cookingDays(GenerateRequest request) {
         String notes = request.conversationNotes() == null ? "" : request.conversationNotes();
         boolean oneOffMeal = List.of("客人", "宾客", "宴请", "聚餐", "家宴", "请客", "招待", "酒席")
                 .stream().anyMatch(notes::contains);
         if (oneOffMeal && notes.contains("今天")) {
-            return List.of(LocalDate.now(CHINA_ZONE).getDayOfWeek().getValue() - 1);
+            return List.of(AppClock.today().getDayOfWeek().getValue() - 1);
         }
         if (request.cookingDays() != null && !request.cookingDays().isEmpty()) {
             List<Integer> selected = request.cookingDays().stream().filter(day -> day >= 0 && day < 7).distinct().sorted().toList();

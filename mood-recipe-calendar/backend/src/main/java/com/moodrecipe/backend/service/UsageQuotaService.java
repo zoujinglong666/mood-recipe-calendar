@@ -28,7 +28,7 @@ public class UsageQuotaService {
         this.users = users;
         this.checkins = checkins;
     }
-    public boolean member(String openid) { return users.findByOpenid(openid).filter(u -> Integer.valueOf(1).equals(u.getIsMember()) && u.getMemberExpire() != null && u.getMemberExpire().isAfter(LocalDateTime.now(ZONE))).isPresent(); }
+    public boolean member(String openid) { return users.findByOpenid(openid).filter(u -> Integer.valueOf(1).equals(u.getIsMember()) && u.getMemberExpire() != null && u.getMemberExpire().isAfter(AppClock.now())).isPresent(); }
     @Transactional public View consume(String openid, Feature feature) {
         return consume(openid, feature, null, null);
     }
@@ -38,7 +38,7 @@ public class UsageQuotaService {
     /** Idempotent consumption: a retried request with the same requestId cannot charge twice. */
     @Transactional public View consume(String openid, Feature feature, String conversationId, String requestId) {
         boolean isMember = member(openid);
-        LocalDate today = LocalDate.now(ZONE);
+        LocalDate today = AppClock.today();
         LocalDate start = periodStart(feature, today);
         int limit = limit(openid, feature, isMember, today);
         UsageQuota quota = quotas.findForUpdate(openid, feature.name(), start).orElseGet(() -> {
@@ -65,7 +65,7 @@ public class UsageQuotaService {
 
     public View view(String openid, Feature feature) {
         boolean isMember = member(openid);
-        LocalDate today = LocalDate.now(ZONE);
+        LocalDate today = AppClock.today();
         LocalDate start = periodStart(feature, today);
         int limit = limit(openid, feature, isMember, today);
         int used = quotas.findByOpenidAndFeatureAndPeriodStart(openid, feature.name(), start).map(UsageQuota::getUsedCount).orElse(0);
@@ -73,7 +73,7 @@ public class UsageQuotaService {
     }
 
     @Transactional public void release(String openid, Feature feature) {
-        LocalDate today = LocalDate.now(ZONE);
+        LocalDate today = AppClock.today();
         LocalDate start = periodStart(feature, today);
         quotas.findForUpdate(openid, feature.name(), start).ifPresent(quota -> {
             if (quota.getUsedCount() > 0) {

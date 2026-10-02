@@ -1,5 +1,6 @@
 package com.moodrecipe.backend.entity;
 
+import com.moodrecipe.backend.config.AppClock;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -69,7 +70,7 @@ public class NutritionKnowledgePack {
 
     @PrePersist
     void prePersist() {
-        createdAt = LocalDateTime.now();
+        createdAt = AppClock.now();
     }
 
     public boolean isEligible() {

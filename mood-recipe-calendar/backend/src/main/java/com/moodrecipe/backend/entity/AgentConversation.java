@@ -1,5 +1,6 @@
 package com.moodrecipe.backend.entity;
 
+import com.moodrecipe.backend.config.AppClock;
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -46,13 +47,13 @@ public class AgentConversation {
 
     @PrePersist
     void create() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = AppClock.now();
         createdAt = now;
         updatedAt = now;
     }
 
     @PreUpdate
     void touch() {
-        updatedAt = LocalDateTime.now();
+        updatedAt = AppClock.now();
     }
 }

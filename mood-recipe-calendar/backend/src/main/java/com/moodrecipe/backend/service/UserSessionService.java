@@ -1,5 +1,6 @@
 package com.moodrecipe.backend.service;
 
+import com.moodrecipe.backend.config.AppClock;
 import com.moodrecipe.backend.entity.User;
 import com.moodrecipe.backend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
@@ -30,14 +31,14 @@ public class UserSessionService {
         RANDOM.nextBytes(bytes);
         String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
         user.setSessionTokenHash(hash(token));
-        user.setSessionTokenExpiresAt(LocalDateTime.now().plusDays(sessionDays));
+        user.setSessionTokenExpiresAt(AppClock.now().plusDays(sessionDays));
         userRepository.save(user);
         return token;
     }
 
     public Optional<User> authenticate(String token) {
         if (token == null || token.isBlank()) return Optional.empty();
-        return userRepository.findBySessionTokenHashAndSessionTokenExpiresAtAfter(hash(token), LocalDateTime.now());
+        return userRepository.findBySessionTokenHashAndSessionTokenExpiresAtAfter(hash(token), AppClock.now());
     }
 
     public void revoke(User user) {

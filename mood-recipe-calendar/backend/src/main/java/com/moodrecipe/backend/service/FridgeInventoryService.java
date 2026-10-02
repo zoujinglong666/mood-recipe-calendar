@@ -1,5 +1,6 @@
 package com.moodrecipe.backend.service;
 
+import com.moodrecipe.backend.config.AppClock;
 import com.moodrecipe.backend.entity.FridgeItem;
 import com.moodrecipe.backend.repository.FridgeItemRepository;
 import jakarta.transaction.Transactional;
@@ -14,7 +15,7 @@ import java.util.Optional;
 
 @Service
 public class FridgeInventoryService {
-    private static final ZoneId ZONE = ZoneId.of("Asia/Shanghai");
+    private static final ZoneId ZONE = AppClock.ZONE;
     private final FridgeItemRepository repository;
 
     public FridgeInventoryService(FridgeItemRepository repository) {
@@ -82,7 +83,7 @@ public class FridgeInventoryService {
     }
 
     private ItemView view(FridgeItem item) {
-        LocalDate today = LocalDate.now(ZONE);
+        LocalDate today = AppClock.today();
         Integer daysLeft = item.getExpiresOn() == null ? null : (int) (item.getExpiresOn().toEpochDay() - today.toEpochDay());
         String status = status(daysLeft);
         return new ItemView(item.getId(), item.getName(), item.getQuantity(), item.getUnit(), item.getPurchasedOn(),

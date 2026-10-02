@@ -78,6 +78,22 @@ class DialogueAgentTest {
         assertTrue(turn.card().options().stream().anyMatch(option -> "自己输入".equals(option.label())));
     }
 
+    /** 模型没给确认卡时，卡片描述必须写明真实待确认点，不能出现"选最接近的答案"配空选项。 */
+    @Test
+    void clarifyingCardWithoutOptionsStatesWhatIsUnclear() {
+        FakeLlm llm = new FakeLlm();
+        llm.understand = "{\"facts\":[],\"unclear\":[\"用户说想吃点好的，但没有说明是丰盛还是清淡\"]}";
+        llm.decide = "{\"action\":\"ASK_CLARIFY\",\"reply\":\"我先确认一下\"}";
+
+        DialogueState.Turn turn = agent(llm, List.of()).turn(OPENID, "我想吃点好的", null);
+
+        assertEquals("ASK_CLARIFY", turn.action());
+        assertNotNull(turn.card());
+        assertEquals("用户说想吃点好的，但没有说明是丰盛还是清淡", turn.card().description());
+        assertFalse(turn.card().description().contains("选最接近的答案"));
+        assertTrue(turn.card().options().stream().anyMatch(option -> "自己输入".equals(option.label())));
+    }
+
     /** 自主学习：问了多次都没人答的问题，不再追问，直接用默认值。 */
     @Test
     void stopsAskingQuestionsUserAlwaysIgnores() {

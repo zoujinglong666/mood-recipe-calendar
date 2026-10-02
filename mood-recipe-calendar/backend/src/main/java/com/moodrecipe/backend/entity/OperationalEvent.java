@@ -1,5 +1,6 @@
 package com.moodrecipe.backend.entity;
 
+import com.moodrecipe.backend.config.AppClock;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDateTime;
@@ -14,5 +15,5 @@ public class OperationalEvent {
   @Column(length = 64) private String orderNo;
   @Column(length = 200) private String detail;
   @Column(name = "created_at") private LocalDateTime createdAt;
-  @PrePersist void prePersist() { createdAt = LocalDateTime.now(); }
+  @PrePersist void prePersist() { createdAt = AppClock.now(); }
 }

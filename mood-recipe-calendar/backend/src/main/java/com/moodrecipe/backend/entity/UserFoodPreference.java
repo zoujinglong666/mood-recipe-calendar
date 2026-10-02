@@ -1,5 +1,6 @@
 package com.moodrecipe.backend.entity;
 
+import com.moodrecipe.backend.config.AppClock;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
@@ -56,5 +57,5 @@ public class UserFoodPreference {
     private LocalDateTime updatedAt;
 
     @PrePersist @PreUpdate
-    void touch() { updatedAt = LocalDateTime.now(); }
+    void touch() { updatedAt = AppClock.now(); }
 }

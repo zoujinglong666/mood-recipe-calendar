@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moodrecipe.backend.entity.Recipe;
 import com.moodrecipe.backend.repository.RecipeRepository;
 import com.moodrecipe.backend.service.CookingTextNormalizer;
+import com.moodrecipe.backend.service.search.SearchClient;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -43,12 +44,16 @@ public class MenuPlannerAgent {
     private final AgentMemoryStore store;
     private final RecipeRepository recipes;
     private final ObjectMapper json;
+    /** 联网搜索：点名菜补齐时搜真实做法作为生成依据；未配置 key 时 available()=false，自动纯生成。 */
+    private final SearchClient search;
 
-    public MenuPlannerAgent(LlmClient llm, AgentMemoryStore store, RecipeRepository recipes, ObjectMapper json) {
+    public MenuPlannerAgent(LlmClient llm, AgentMemoryStore store, RecipeRepository recipes,
+                            ObjectMapper json, SearchClient search) {
         this.llm = llm;
         this.store = store;
         this.recipes = recipes;
         this.json = json;
+        this.search = search;
     }
 
     public PlanResult plan(PlanRequest request) {
@@ -86,7 +91,8 @@ public class MenuPlannerAgent {
                 if (!result.ok()) {
                     degradeReasons.add("第 " + (round + 1) + " 版菜单生成失败：" + result.reason());
                     trace.record("plan", "generate", System.currentTimeMillis() - start, result.reason(), false);
-                    break;
+                    // 限流/瞬时失败不应直接放弃 AI 路径：下一轮用更高温度+更长超时再试
+                    continue;
                 }
                 List<MenuQualityScorer.DayInput> parsed = parseDays(result.text(), request.cookingDays());
                 if (parsed == null) {
@@ -112,13 +118,13 @@ public class MenuPlannerAgent {
             }
         } else {
             degradeReasons.add("模型未配置，改用本地菜谱库排菜");
-            candidate = localFallback(request, constraints);
+            candidate = localFallback(request, constraints, degradeReasons);
             quality = scorer.evaluate(candidate, constraints);
             trace.record("plan", "local-fallback", 0L, "本地排菜完成", !quality.hasHard());
         }
 
         if (candidate == null) {
-            candidate = localFallback(request, constraints);
+            candidate = localFallback(request, constraints, degradeReasons);
             quality = scorer.evaluate(candidate, constraints);
             degradeReasons.add("已回退到本地菜谱库排菜");
             trace.record("plan", "local-fallback", 0L, "最终回退", true);
@@ -131,8 +137,8 @@ public class MenuPlannerAgent {
                     "补全为每天 " + request.dishesPerDay() + " 道", hasRequestedShape(candidate, request));
         }
         if (!hasRequestedIngredients(candidate, request)) {
-            degradeReasons.add("菜单未覆盖用户点名食材，已按指定食材重新补齐");
-            candidate = addRequestedIngredientDishes(candidate, request, constraints);
+            degradeReasons.add("菜单未覆盖用户点名食材，已尝试按指定食材补齐");
+            candidate = addRequestedIngredientDishes(candidate, request, constraints, degradeReasons);
             quality = scorer.evaluate(candidate, constraints);
         }
         if (quality.hasHard()) {
@@ -143,8 +149,14 @@ public class MenuPlannerAgent {
         }
         // 本地修复也必须尊重用户点名的食材，避免修复过程把硬约束覆盖掉。
         if (!hasRequestedIngredients(candidate, request)) {
-            candidate = addRequestedIngredientDishes(candidate, request, constraints);
+            candidate = addRequestedIngredientDishes(candidate, request, constraints, degradeReasons);
             quality = scorer.evaluate(candidate, constraints);
+        }
+        // 补齐结束仍未覆盖的点名食材，必须如实告知，不能谎报"已补齐"。
+        for (String ingredient : requestedIngredients(request.notes())) {
+            if (!containsIngredientInDays(candidate, ingredient)) {
+                degradeReasons.add("点名食材「" + ingredient + "」暂无法满足：菜谱库没有这道菜，且现场生成未成功");
+            }
         }
 
         if (!independentMeal) store.reinforce(request.openid(), profile.memory().stream().map(MemoryItem::key).toList());
@@ -329,7 +341,8 @@ public class MenuPlannerAgent {
     }
 
     private List<MenuQualityScorer.DayInput> localFallback(PlanRequest request,
-                                                           MenuQualityScorer.Constraints constraints) {
+                                                           MenuQualityScorer.Constraints constraints,
+                                                           List<String> degradeReasons) {
         List<Recipe> pool = localRecipes().stream()
                 .filter(recipe -> !blocked(recipe.getName(), constraints))
                 .filter(recipe -> constraints.recentDishes().stream().noneMatch(recent -> same(recent, recipe.getName())))
@@ -348,12 +361,13 @@ public class MenuPlannerAgent {
             }
             days.add(new MenuQualityScorer.DayInput(weekday, dishes));
         }
-        return addRequestedIngredientDishes(days, request, constraints);
+        return addRequestedIngredientDishes(days, request, constraints, degradeReasons);
     }
 
     private List<MenuQualityScorer.DayInput> addRequestedIngredientDishes(List<MenuQualityScorer.DayInput> days,
                                                                            PlanRequest request,
-                                                                           MenuQualityScorer.Constraints constraints) {
+                                                                           MenuQualityScorer.Constraints constraints,
+                                                                           List<String> degradeReasons) {
         List<String> requested = requestedIngredients(request.notes());
         if (requested.isEmpty() || days.isEmpty()) return days;
         List<Recipe> pool = localRecipes().stream().filter(recipe -> !blocked(recipe.getName(), constraints)).toList();
@@ -367,24 +381,85 @@ public class MenuPlannerAgent {
             if (covered) continue;
             Recipe replacement = pool.stream().filter(recipe -> !used.contains(recipe.getName())
                     && nameContainsIngredient(recipe.getName(), ingredient)).findFirst().orElse(null);
-            if (replacement == null) continue;
+            MenuQualityScorer.DishInput dish = replacement == null ? null : toDishInput(replacement, "MAIN");
+            if (dish == null && llm.isConfigured()) {
+                // 库内没有这道菜（地方特色菜等）：现场生成可执行菜谱补进菜单，而不是静默丢弃用户的点名。
+                dish = generateRequestedDish(ingredient);
+                if (dish != null) {
+                    degradeReasons.add("点名食材「" + ingredient + "」菜谱库没有，已现场生成菜谱补进菜单");
+                }
+            }
+            if (dish == null) continue;
             int index = requestIndex++ % result.size();
             MenuQualityScorer.DayInput day = result.get(index);
             List<MenuQualityScorer.DishInput> dishes = new ArrayList<>(day.dishes());
-            if (dishes.isEmpty()) dishes.add(toDishInput(replacement, "MAIN"));
-            else dishes.set(Math.min((requestIndex - 1) / result.size(), dishes.size() - 1),
-                    toDishInput(replacement, "MAIN"));
+            if (dishes.isEmpty()) dishes.add(dish);
+            else dishes.set(Math.min((requestIndex - 1) / result.size(), dishes.size() - 1), dish);
             result.set(index, new MenuQualityScorer.DayInput(day.weekday(), dishes));
-            used.add(replacement.getName());
+            used.add(dish.name());
         }
         return result;
     }
 
+    /** 为菜谱库里没有的点名菜现场生成一份可执行菜谱；失败返回 null，由调用方如实降级。 */
+    private MenuQualityScorer.DishInput generateRequestedDish(String dishName) {
+        // 先联网搜这道菜的真实做法作为生成依据：有依据的生成比凭模型记忆更可信（真实用量/步骤）。
+        // 搜索未配置、失败或无结果时返回空串，退化为纯生成——搜索只是增强，绝不是依赖。
+        String evidence = searchEvidence(dishName);
+        LlmResult result = llm.complete(LlmRequest.json("agent-requested-dish", AgentPrompts.system(),
+                "用户点名想吃「" + dishName + "」。请为这道菜生成一份可直接执行的家常做法。"
+                        + (evidence.isEmpty() ? ""
+                                : "以下是联网搜到的真实做法参考，优先采用其中的食材、用量与步骤，忽略广告与无关内容：\n" + evidence)
+                        + "只输出 JSON："
+                        + "{\"name\":\"" + dishName + "\",\"ingredients\":[\"食材 用量，如：米粉 200g\"],"
+                        + "\"steps\":[\"具体步骤\"],\"cookingTime\":20,\"difficulty\":\"简单\"}。"
+                        + "要求：食材必须带用量；步骤 3-6 步、具体可执行；全部使用简体中文。",
+                0.4, 1600, TimeoutTier.LONG));
+        if (!result.ok()) return null;
+        try {
+            JsonNode root = json.readTree(stripFence(result.text()));
+            String name = root.path("name").asText("").trim();
+            if (!displayableText(name, 40)) return null;
+            if (!stringArray(root.path("ingredients"), 80) || !stringArray(root.path("steps"), 240)) return null;
+            List<String> ingredients = new ArrayList<>();
+            root.path("ingredients").forEach(node -> {
+                if (!node.asText("").isBlank()) ingredients.add(node.asText().trim());
+            });
+            List<String> steps = new ArrayList<>();
+            root.path("steps").forEach(node -> {
+                if (!node.asText("").isBlank()) steps.add(node.asText().trim());
+            });
+            if (ingredients.isEmpty() || steps.size() < 2) return null;
+            return new MenuQualityScorer.DishInput(name, "MAIN", ingredients, steps,
+                    root.path("cookingTime").asInt(20), root.path("difficulty").asText("简单"));
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    /** 联网搜索点名菜的真实做法摘要；未配置、失败或无结果时返回空串（绝不抛异常，绝不做安全依赖）。 */
+    private String searchEvidence(String dishName) {
+        if (search == null || !search.available()) return "";
+        List<SearchClient.SearchResult> hits = search.search(dishName + " 的家常做法 食材用量 步骤", 3);
+        if (hits == null || hits.isEmpty()) return "";
+        StringBuilder evidence = new StringBuilder();
+        for (SearchClient.SearchResult hit : hits) {
+            String snippet = hit.snippet() == null ? "" : hit.snippet().trim();
+            if (snippet.isBlank()) continue;
+            evidence.append("- ").append(hit.title() == null ? "" : hit.title().trim())
+                    .append("：").append(snippet).append('\n');
+        }
+        return evidence.toString();
+    }
+
     private boolean hasRequestedIngredients(List<MenuQualityScorer.DayInput> days, PlanRequest request) {
         List<String> requested = requestedIngredients(request.notes());
-        return requested.isEmpty() || requested.stream().allMatch(ingredient -> days.stream()
-                .flatMap(day -> day.dishes().stream())
-                .anyMatch(dish -> containsIngredient(dish.name(), dish.ingredients(), ingredient)));
+        return requested.isEmpty() || requested.stream().allMatch(ingredient -> containsIngredientInDays(days, ingredient));
+    }
+
+    private boolean containsIngredientInDays(List<MenuQualityScorer.DayInput> days, String ingredient) {
+        return days.stream().flatMap(day -> day.dishes().stream())
+                .anyMatch(dish -> containsIngredient(dish.name(), dish.ingredients(), ingredient));
     }
 
     private boolean containsIngredient(String name, List<String> ingredients, String requested) {

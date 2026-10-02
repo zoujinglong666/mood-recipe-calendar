@@ -1,5 +1,6 @@
 package com.moodrecipe.backend.service;
 
+import com.moodrecipe.backend.config.AppClock;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moodrecipe.backend.agent.LlmClient;
@@ -90,7 +91,7 @@ public class FridgeVisionService {
             log.warn("冰箱识别失败 failure={}", result.failure());
             return RecognizeResult.empty("暂时没看清照片里的食材，请换个角度再拍一张");
         }
-        List<RecognizedItem> items = parse(result.response().content(), LocalDate.now());
+        List<RecognizedItem> items = parse(result.response().content(), AppClock.today());
         if (items.isEmpty()) {
             return RecognizeResult.empty("没认出可存放的食材，可以靠近一点再拍一张");
         }

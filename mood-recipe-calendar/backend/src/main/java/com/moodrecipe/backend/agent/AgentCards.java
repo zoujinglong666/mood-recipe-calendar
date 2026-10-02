@@ -88,7 +88,7 @@ public final class AgentCards {
                     "goal=BALANCED", "均衡吃", "goal=FITNESS", "练得好", "goal=LEAN", "轻一点");
             case "ASK_BUDGET" -> options("预算想怎么安排？", "会影响食材和复用方式",
                     "budget=SAVE", "省一点", "budget=DAILY", "日常吃", "budget=TREAT", "丰盛些");
-            case "ASK_CLARIFY" -> new DialogueState.Card("OPTIONS", "我想确认一下", "选最接近的答案，也可以自己说明",
+            case "ASK_CLARIFY" -> new DialogueState.Card("OPTIONS", "我想确认一下", "直接告诉锅仔你的想法",
                     List.of(new DialogueState.Option("自己输入", "other")));
             case "CONFIRM_CUISINE" -> new DialogueState.Card("CUISINE",
                     (state.favoriteCuisine() == null ? "这个" : state.favoriteCuisine()) + "风味要记住吗？",
@@ -112,6 +112,11 @@ public final class AgentCards {
                                                        String type, String title, String description,
                                                        List<DialogueState.Option> options) {
         if (options == null || options.isEmpty()) {
+            // 确认卡没有候选选项时，至少把"要确认什么"写进卡里，而不是空泛文案配单个"自己输入"。
+            if ("ASK_CLARIFY".equals(action) && description != null && !description.isBlank()) {
+                return new DialogueState.Card("OPTIONS", "我想确认一下", description,
+                        List.of(new DialogueState.Option("自己输入", "other")));
+            }
             return defaultCard(action, state);
         }
         // 菜数选项优先使用模型结合上下文生成的结果；模型没有给出可回填的菜数值时才用上下文兜底。

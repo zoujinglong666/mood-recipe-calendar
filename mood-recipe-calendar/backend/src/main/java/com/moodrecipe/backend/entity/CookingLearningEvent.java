@@ -1,5 +1,6 @@
 package com.moodrecipe.backend.entity;
 
+import com.moodrecipe.backend.config.AppClock;
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -17,5 +18,5 @@ public class CookingLearningEvent {
     @Column(name = "step_type", length = 48) private String stepType;
     @Column(name = "event_type", nullable = false, length = 24) private String eventType;
     @Column(name = "created_at", nullable = false) private LocalDateTime createdAt;
-    @PrePersist void create() { if (createdAt == null) createdAt = LocalDateTime.now(); }
+    @PrePersist void create() { if (createdAt == null) createdAt = AppClock.now(); }
 }

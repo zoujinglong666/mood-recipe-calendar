@@ -1,5 +1,6 @@
 package com.moodrecipe.backend.entity;
 
+import com.moodrecipe.backend.config.AppClock;
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -25,7 +26,7 @@ public class CookingKnowledgeChunk {
 
     @PrePersist @PreUpdate
     void touch() {
-        if (createdAt == null) createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
+        if (createdAt == null) createdAt = AppClock.now();
+        updatedAt = AppClock.now();
     }
 }

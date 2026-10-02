@@ -1,5 +1,6 @@
 package com.moodrecipe.backend.entity;
 
+import com.moodrecipe.backend.config.AppClock;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDate;
@@ -55,15 +56,15 @@ public class User {
 
     @PrePersist
     void prePersist() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
+        this.createdAt = AppClock.now();
+        this.updatedAt = AppClock.now();
         if (this.firstUseDate == null) {
-            this.firstUseDate = LocalDate.now();
+            this.firstUseDate = AppClock.today();
         }
     }
 
     @PreUpdate
     void preUpdate() {
-        this.updatedAt = LocalDateTime.now();
+        this.updatedAt = AppClock.now();
     }
 }

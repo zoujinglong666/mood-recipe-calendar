@@ -1,5 +1,6 @@
 package com.moodrecipe.backend.service;
 
+import com.moodrecipe.backend.config.AppClock;
 import com.moodrecipe.backend.entity.DailyMenu;
 import com.moodrecipe.backend.entity.Recipe;
 import com.moodrecipe.backend.entity.RecipeInteraction;
@@ -35,7 +36,7 @@ import java.util.stream.Collectors;
 @Service
 public class DailyMenuService {
 
-    private static final ZoneId CHINA_ZONE = ZoneId.of("Asia/Shanghai");
+    private static final ZoneId CHINA_ZONE = AppClock.ZONE;
 
     private static final int RECENT_DISH_DEDUPE_DAYS = 3;
 
@@ -60,7 +61,7 @@ public class DailyMenuService {
 
     /** 今日菜单：命中当日缓存直接返回；未命中挑选并落缓存。挑选失败返回 empty。 */
     public Optional<Board> today(String openid) {
-        LocalDate today = LocalDate.now(CHINA_ZONE);
+        LocalDate today = AppClock.today();
         Optional<DailyMenu> cached = dailyMenus.findByOpenidAndMenuDate(openid, today);
         if (cached.isPresent()) {
             return toBoard(cached.get()).or(() -> create(openid, today, Set.of()));
@@ -70,7 +71,7 @@ public class DailyMenuService {
 
     /** 换一道：重新挑选并排除当前这道；没有别的可换时返回 empty，当前缓存保持不动。 */
     public Optional<Board> refresh(String openid) {
-        LocalDate today = LocalDate.now(CHINA_ZONE);
+        LocalDate today = AppClock.today();
         Set<Long> exclude = dailyMenus.findByOpenidAndMenuDate(openid, today)
                 .map(row -> Set.of(row.getRecipeId()))
                 .orElseGet(Set::of);
@@ -155,7 +156,7 @@ public class DailyMenuService {
     }
 
     private Set<String> recentDishNames(String openid) {
-        String since = LocalDate.now(CHINA_ZONE).minusDays(RECENT_DISH_DEDUPE_DAYS).toString();
+        String since = AppClock.today().minusDays(RECENT_DISH_DEDUPE_DAYS).toString();
         return records.findTop30ByOpenidOrderByCreatedAtDesc(openid).stream()
                 .filter(record -> record.getRecordDate() != null
                         && record.getRecordDate().compareTo(since) >= 0)

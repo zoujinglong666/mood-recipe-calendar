@@ -1,5 +1,6 @@
 package com.moodrecipe.backend.service;
 
+import com.moodrecipe.backend.config.AppClock;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moodrecipe.backend.entity.User;
@@ -124,7 +125,7 @@ public class WechatService {
 
         // first_use_date 兜底：该字段后补，历史用户可能为 NULL；缺失会让 7 日留存 cohort 无法归因
         if (user.getFirstUseDate() == null) {
-            user.setFirstUseDate(java.time.LocalDate.now());
+            user.setFirstUseDate(AppClock.today());
             user = userRepository.save(user);
         }
 
@@ -139,7 +140,7 @@ public class WechatService {
         result.put("sessionToken", userSessionService.issue(user));
         result.put("user", user);
         result.put("isNew", user.getCreatedAt() != null &&
-            user.getCreatedAt().plusSeconds(5).isAfter(java.time.LocalDateTime.now()));
+            user.getCreatedAt().plusSeconds(5).isAfter(AppClock.now()));
         return result;
     }
 

@@ -1,5 +1,6 @@
 package com.moodrecipe.backend.service;
 
+import com.moodrecipe.backend.config.AppClock;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moodrecipe.backend.entity.User;
 import com.moodrecipe.backend.entity.UserEntitlement;
@@ -104,19 +105,19 @@ public class VirtualCommerceService {
         order.setSku(product.getSku());
         order.setAmountFen(product.getPriceFen());
         order.setStatus("PENDING");
-        order.setCreatedAt(LocalDateTime.now());
+        order.setCreatedAt(AppClock.now());
         return orderRepository.save(order);
     }
 
     public List<UserEntitlement> listActiveEntitlements(String openid) {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = AppClock.now();
         return entitlementRepository.findByOpenidAndStatus(openid, "ACTIVE").stream()
                 .filter(item -> item.getExpiresAt() == null || item.getExpiresAt().isAfter(now))
                 .toList();
     }
 
     public boolean isActiveMember(String openid) {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = AppClock.now();
         return userRepository.findByOpenid(openid)
                 .filter(user -> Integer.valueOf(1).equals(user.getIsMember()))
                 .filter(user -> user.getMemberExpire() != null && user.getMemberExpire().isAfter(now))
@@ -134,7 +135,7 @@ public class VirtualCommerceService {
     /** 预扣一次权益。调用方在模型生成失败时必须调用 restoreEntitlement。 */
     @Transactional
     public Optional<UserEntitlement> consumeEntitlement(String openid, String code) {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = AppClock.now();
         Optional<UserEntitlement> entitlement = entitlementRepository.findByOpenidAndStatusForUpdate(openid, "ACTIVE").stream()
                 .filter(item -> code.equals(item.getCode()))
                 .filter(item -> item.getExpiresAt() == null || item.getExpiresAt().isAfter(now))
@@ -167,7 +168,7 @@ public class VirtualCommerceService {
 
         VirtualProduct product = productRepository.findById(order.getSku())
                 .orElseThrow(() -> new IllegalStateException("订单商品不存在"));
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = AppClock.now();
         order.setStatus("PAID");
         order.setPaidAt(now);
         order.setPlatformTransactionId(platformTransactionId);

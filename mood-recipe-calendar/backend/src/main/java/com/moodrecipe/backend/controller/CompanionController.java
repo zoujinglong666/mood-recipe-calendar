@@ -1,5 +1,6 @@
 package com.moodrecipe.backend.controller;
 
+import com.moodrecipe.backend.config.AppClock;
 import com.moodrecipe.backend.common.ApiResponse;
 import com.moodrecipe.backend.config.SessionAuthInterceptor;
 import com.moodrecipe.backend.service.CompanionMessageService;
@@ -26,9 +27,9 @@ public class CompanionController {
         LocalDate localDate;
         try {
             localDate = date == null || date.isBlank()
-                    ? LocalDate.now(ZoneId.of("Asia/Shanghai")) : LocalDate.parse(date);
+                    ? LocalDate.now(AppClock.ZONE) : LocalDate.parse(date);
         } catch (RuntimeException ignored) {
-            localDate = LocalDate.now(ZoneId.of("Asia/Shanghai"));
+            localDate = LocalDate.now(AppClock.ZONE);
         }
         return ApiResponse.ok(guozaiAgent.companion(openid, hour, localDate));
     }

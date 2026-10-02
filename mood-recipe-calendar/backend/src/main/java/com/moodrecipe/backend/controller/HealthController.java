@@ -1,5 +1,6 @@
 package com.moodrecipe.backend.controller;
 
+import com.moodrecipe.backend.config.AppClock;
 import java.time.LocalDateTime;
 import java.util.Map;
 
@@ -16,7 +17,7 @@ public class HealthController {
         return Map.of(
                 "status", "UP",
                 "service", "mood-recipe-backend",
-                "time", LocalDateTime.now().toString()
+                "time", AppClock.now().toString()
         );
     }
 }

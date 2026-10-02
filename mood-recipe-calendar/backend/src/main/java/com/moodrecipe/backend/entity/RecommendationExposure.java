@@ -1,5 +1,6 @@
 package com.moodrecipe.backend.entity;
 
+import com.moodrecipe.backend.config.AppClock;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
@@ -47,12 +48,12 @@ public class RecommendationExposure {
 
     @PrePersist
     void create() {
-        createdAt = LocalDateTime.now();
+        createdAt = AppClock.now();
         updatedAt = createdAt;
     }
 
     @PreUpdate
     void update() {
-        updatedAt = LocalDateTime.now();
+        updatedAt = AppClock.now();
     }
 }

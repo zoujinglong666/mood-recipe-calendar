@@ -1,5 +1,6 @@
 package com.moodrecipe.backend.agent;
 
+import com.moodrecipe.backend.config.AppClock;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moodrecipe.backend.entity.UserFoodPreference;
@@ -33,7 +34,7 @@ import java.time.ZoneId;
 @Service
 public class DialogueAgent {
 
-    private static final ZoneId CHINA_ZONE = ZoneId.of("Asia/Shanghai");
+    private static final ZoneId CHINA_ZONE = AppClock.ZONE;
 
     private static final Set<String> SPICE_VALUES = Set.of("不吃辣", "微辣", "能吃辣");
     private static final Set<String> GOAL_VALUES = Set.of("FITNESS", "LEAN", "BALANCED");
@@ -119,7 +120,7 @@ public class DialogueAgent {
             facts = facts.stream().filter(fact -> !"favoriteCuisine".equals(fact.key())).toList();
         }
         state = applyFacts(state, facts);
-        if (!independentMeal) persistFacts(openid, facts);
+        if (!independentMeal) persistFacts(openid, facts, input);
 
         List<String> skipQuestions = independentMeal ? List.of() : profile.skipQuestions();
         state = applySkippedDefaults(state, skipQuestions);
@@ -144,8 +145,15 @@ public class DialogueAgent {
         // 追问和准备执行都必须返回卡片：前者承载选择，后者承载唯一的生成入口。
         boolean needsCard = input.isBlank() || !conflicts.isEmpty() || !understanding.unclear().isEmpty()
                 || action.startsWith("ASK_") || "CONFIRM_CUISINE".equals(action) || "READY".equals(action);
+        // ASK_CLARIFY 且模型没写卡片描述时，把真实待确认点（例句/冲突）写进卡片，
+        // 避免"选最接近的答案"配一个只有"自己输入"的空卡。
+        String cardDescription = decision.cardDescription();
+        if ("ASK_CLARIFY".equals(action) && cardDescription.isBlank()) {
+            if (!understanding.unclear().isEmpty()) cardDescription = understanding.unclear().get(0);
+            else if (!conflicts.isEmpty()) cardDescription = conflicts.get(0).message();
+        }
         DialogueState.Card card = needsCard ? AgentCards.accept(action, state,
-                decision.cardType(), decision.cardTitle(), decision.cardDescription(), decision.cardOptions()) : null;
+                decision.cardType(), decision.cardTitle(), cardDescription, decision.cardOptions()) : null;
         // 一个轮次只展示一张决策卡；多个 unclear 合并进当前主问题，避免用户看到重复卡片。
         List<DialogueState.Card> cards = card == null ? List.of() : List.of(card);
 
@@ -656,7 +664,14 @@ public class DialogueAgent {
 
     // ---------- 记忆 ----------
 
-    private void persistFacts(String openid, List<AgentFact> facts) {
+    /** 本次性表达的标记词：命中说明用户在说"这一次/这一周"，而不是改长期口味。 */
+    private static final List<String> SESSION_MARKERS = List.of(
+            "这次", "这回", "今天", "今晚", "这顿", "本次", "这周", "这一周", "这几天", "暂时");
+    /** 会与长期偏好冲突的字段才需要分层；人数/天数等天然是场景值。 */
+    private static final Set<String> SESSION_KEYS = Set.of("spice", "budget", "healthGoal");
+
+    private void persistFacts(String openid, List<AgentFact> facts, String input) {
+        String text = input == null ? "" : input.trim();
         for (AgentFact fact : facts) {
             if (!fact.worthRemembering()) continue;
             if ("mealContext".equals(fact.key())) continue;
@@ -665,6 +680,16 @@ public class DialogueAgent {
                     && !AgentCards.cuisineDishes().containsKey(fact.value())) {
                 continue;
             }
+            // 优先级：安全 > 本次明确要求 > 长期偏好。"这次不要辣"不能永久覆盖"能吃辣"——
+            // 本次约束由 agent_conversations.state_json 承载（跨轮持久、会话结束自然失效），
+            // 长期记忆只存长期表达，避免单 key 记忆被临时值顶掉后无法回退。
+            if (SESSION_KEYS.contains(fact.key()) && SESSION_MARKERS.stream().anyMatch(text::contains)) {
+                continue;
+            }
+            // 枚举字段落库前必须校验，否则"丰盛"这类自由文本会经长期记忆绕过 applyFacts 的校验回流 state
+            if ("spice".equals(fact.key()) && !SPICE_VALUES.contains(fact.value())) continue;
+            if ("healthGoal".equals(fact.key()) && !GOAL_VALUES.contains(fact.value())) continue;
+            if ("budget".equals(fact.key()) && !BUDGET_VALUES.contains(fact.value())) continue;
             store.remember(new AgentMemoryStore.RememberCommand(openid, fact.key(), fact.value(),
                     fact.confidence(),
                     fact.explicit() ? AgentMemoryStore.SRC_CHAT : AgentMemoryStore.SRC_INFERRED,
@@ -762,7 +787,7 @@ public class DialogueAgent {
     /** 模型不能自行猜今天周几；所有“今天（周X）”统一以中国时区服务端日期为准。 */
     private String correctTodayWeekday(String reply) {
         if (reply == null || reply.isBlank()) return reply;
-        String weekday = weekday(LocalDate.now(CHINA_ZONE).getDayOfWeek());
+        String weekday = weekday(AppClock.today().getDayOfWeek());
         return reply.replaceAll("今天\\s*[（(]周[一二三四五六日][）)]", "今天（" + weekday + "）")
                 .replaceAll("今天是周[一二三四五六日]", "今天是" + weekday);
     }

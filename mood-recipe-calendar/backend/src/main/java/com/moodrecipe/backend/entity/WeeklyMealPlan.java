@@ -1,5 +1,6 @@
 package com.moodrecipe.backend.entity;
 
+import com.moodrecipe.backend.config.AppClock;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
@@ -19,5 +20,5 @@ public class WeeklyMealPlan {
     @Column(nullable = false) private boolean favorite;
     @Column(name = "created_at") private LocalDateTime createdAt;
     @Column(name = "updated_at") private LocalDateTime updatedAt;
-    @PrePersist @PreUpdate void touch() { updatedAt = LocalDateTime.now(); if (createdAt == null) createdAt = updatedAt; }
+    @PrePersist @PreUpdate void touch() { updatedAt = AppClock.now(); if (createdAt == null) createdAt = updatedAt; }
 }

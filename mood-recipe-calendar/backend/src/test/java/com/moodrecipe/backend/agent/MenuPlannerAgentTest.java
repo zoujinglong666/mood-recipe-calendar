@@ -10,17 +10,20 @@ import com.moodrecipe.backend.repository.RecipeInteractionRepository;
 import com.moodrecipe.backend.repository.RecipeRepository;
 import com.moodrecipe.backend.repository.UserFoodPreferenceRepository;
 import com.moodrecipe.backend.repository.UserRecordRepository;
+import com.moodrecipe.backend.service.search.SearchClient;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -121,8 +124,90 @@ class MenuPlannerAgentTest {
                 result.degradeReasons().toString());
     }
 
+    /** 模型限流回退本地排菜时，用户点名但库里没有的菜（如地方特色菜）必须现场生成补进菜单。 */
+    @Test
+    void generatesRequestedDishWhenPoolCannotCoverIt() {
+        LlmClient llm = mock(LlmClient.class);
+        when(llm.isConfigured()).thenReturn(true);
+        when(llm.complete(any())).thenAnswer(invocation -> {
+            LlmRequest request = invocation.getArgument(0);
+            if ("agent-requested-dish".equals(request.purpose())) {
+                return LlmResult.ok(new LlmResponse(
+                        "{\"name\":\"南昌拌粉\",\"ingredients\":[\"米粉 200g\",\"花生米 30g\",\"葱花 10g\"],"
+                                + "\"steps\":[\"米粉煮熟捞出\",\"拌入调料与花生米\",\"撒葱花拌匀即可\"],"
+                                + "\"cookingTime\":15,\"difficulty\":\"简单\"}",
+                        List.of(), "stop", new LlmUsage(0, 0, 0), "test"), 1, 0);
+            }
+            return LlmResult.failed(LlmResult.Failure.RATE_LIMITED, 2, 500);
+        });
+        MenuPlannerAgent planner = planner(llm, recipes(), List.of());
+
+        MenuPlannerAgent.PlanResult result = planner.plan(new MenuPlannerAgent.PlanRequest(
+                OPENID, List.of(0), 2, "BALANCED", "DAILY", "指定食材：南昌拌粉"));
+
+        List<String> names = result.days().stream().flatMap(day -> day.dishes().stream())
+                .map(MenuPlannerAgent.PlannedDish::name).toList();
+        assertTrue(names.stream().anyMatch(name -> name.contains("南昌拌粉")),
+                "点名的菜必须出现在菜单里：" + names);
+        assertTrue(result.degradeReasons().stream().anyMatch(reason -> reason.contains("现场生成")),
+                result.degradeReasons().toString());
+    }
+
+    /** 现场生成也失败时，必须如实报告点名食材无法满足，不能谎报"已补齐"。 */
+    @Test
+    void reportsHonestlyWhenRequestedDishCannotBeHonored() {
+        LlmClient llm = mock(LlmClient.class);
+        when(llm.isConfigured()).thenReturn(true);
+        when(llm.complete(any())).thenReturn(LlmResult.failed(LlmResult.Failure.RATE_LIMITED, 2, 500));
+        MenuPlannerAgent planner = planner(llm, recipes(), List.of());
+
+        MenuPlannerAgent.PlanResult result = planner.plan(new MenuPlannerAgent.PlanRequest(
+                OPENID, List.of(0), 2, "BALANCED", "DAILY", "指定食材：南昌拌粉"));
+
+        assertFalse(result.degradeReasons().stream().anyMatch(reason -> reason.contains("已按指定食材重新补齐")));
+        assertTrue(result.degradeReasons().stream().anyMatch(reason ->
+                        reason.contains("南昌拌粉") && reason.contains("暂无法满足")),
+                result.degradeReasons().toString());
+    }
+
+    /** 点名菜生成时联网搜索真实做法：搜索摘要必须进入生成提示词，作为生成依据。 */
+    @Test
+    void usesWebSearchEvidenceWhenGeneratingRequestedDish() {
+        SearchClient search = mock(SearchClient.class);
+        when(search.available()).thenReturn(true);
+        when(search.search(anyString(), anyInt())).thenReturn(List.of(
+                new SearchClient.SearchResult("南昌拌粉的做法",
+                        "主料：米粉 200g、花生米 30g；步骤：米粉煮熟后拌入调料、撒葱花", "https://example.com")));
+        AtomicReference<String> capturedPrompt = new AtomicReference<>();
+        LlmClient llm = mock(LlmClient.class);
+        when(llm.isConfigured()).thenReturn(true);
+        when(llm.complete(any())).thenAnswer(invocation -> {
+            LlmRequest request = invocation.getArgument(0);
+            if ("agent-requested-dish".equals(request.purpose())) {
+                capturedPrompt.set(request.messages().get(0).content());
+                return LlmResult.ok(new LlmResponse(
+                        "{\"name\":\"南昌拌粉\",\"ingredients\":[\"米粉 200g\",\"花生米 30g\"],"
+                                + "\"steps\":[\"米粉煮熟捞出\",\"拌入调料与花生米\"],\"cookingTime\":15,\"difficulty\":\"简单\"}",
+                        List.of(), "stop", new LlmUsage(0, 0, 0), "test"), 1, 0);
+            }
+            return LlmResult.failed(LlmResult.Failure.RATE_LIMITED, 2, 500);
+        });
+        MenuPlannerAgent planner = planner(llm, recipes(), List.of(), search);
+
+        planner.plan(new MenuPlannerAgent.PlanRequest(
+                OPENID, List.of(0), 2, "BALANCED", "DAILY", "指定食材：南昌拌粉"));
+
+        assertTrue(capturedPrompt.get() != null && capturedPrompt.get().contains("米粉 200g"),
+                "生成提示词必须包含联网搜到的真实做法：" + capturedPrompt.get());
+    }
+
     private MenuPlannerAgent planner(LlmClient llm, RecipeRepository recipes,
                                      List<AgentMemoryFact> memory) {
+        return planner(llm, recipes, memory, noSearch());
+    }
+
+    private MenuPlannerAgent planner(LlmClient llm, RecipeRepository recipes,
+                                     List<AgentMemoryFact> memory, SearchClient search) {
         AgentMemoryFactRepository facts = mock(AgentMemoryFactRepository.class);
         when(facts.findByOpenidAndStatusOrderByUpdatedAtDesc(anyString(), anyString()))
                 .thenReturn(new ArrayList<>(memory));
@@ -137,7 +222,15 @@ class MenuPlannerAgentTest {
         AgentMemoryStore store = new AgentMemoryStore(facts, preferences, mock(UserRecordRepository.class),
                 mock(RecipeInteractionRepository.class), recipes, mock(PlanDishOutcomeRepository.class));
 
-        return new MenuPlannerAgent(llm, store, recipes, new ObjectMapper());
+        return new MenuPlannerAgent(llm, store, recipes, new ObjectMapper(), search);
+    }
+
+    /** 空搜索实现：未接入搜索的既有测试用，generateRequestedDish 直接走纯生成路径。 */
+    private SearchClient noSearch() {
+        return new SearchClient() {
+            @Override public boolean available() { return false; }
+            @Override public List<SearchClient.SearchResult> search(String query, int maxResults) { return List.of(); }
+        };
     }
 
     private RecipeRepository recipes() {

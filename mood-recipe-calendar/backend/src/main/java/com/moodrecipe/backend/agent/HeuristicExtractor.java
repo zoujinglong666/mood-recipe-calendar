@@ -1,5 +1,6 @@
 package com.moodrecipe.backend.agent;
 
+import com.moodrecipe.backend.config.AppClock;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -18,7 +19,7 @@ import java.util.regex.Pattern;
  */
 public final class HeuristicExtractor {
 
-    private static final ZoneId CHINA_ZONE = ZoneId.of("Asia/Shanghai");
+    private static final ZoneId CHINA_ZONE = AppClock.ZONE;
 
     private static final Map<String, String> REGIONS = Map.of(
             "江西", "赣菜", "四川", "川菜", "湖南", "湘菜", "广东", "粤菜",
@@ -95,7 +96,7 @@ public final class HeuristicExtractor {
             facts.add(AgentFact.explicit("mealContext", text.substring(0, Math.min(text.length(), 200)), "原话：" + text));
             if (text.contains("今天")) {
                 facts.add(AgentFact.explicit("cookingDays",
-                        String.valueOf(LocalDate.now(CHINA_ZONE).getDayOfWeek().getValue() - 1), "用户明确说今天"));
+                        String.valueOf(AppClock.today().getDayOfWeek().getValue() - 1), "用户明确说今天"));
             }
         }
 

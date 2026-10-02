@@ -1,5 +1,6 @@
 package com.moodrecipe.backend.entity;
 
+import com.moodrecipe.backend.config.AppClock;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.moodrecipe.backend.model.RecommendationInsight;
 import jakarta.persistence.*;
@@ -58,6 +59,6 @@ public class Recipe {
 
     @PrePersist
     void prePersist() {
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = AppClock.now();
     }
 }

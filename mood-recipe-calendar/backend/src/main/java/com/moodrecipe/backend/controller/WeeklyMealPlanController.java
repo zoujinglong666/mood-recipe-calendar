@@ -55,18 +55,25 @@ public class WeeklyMealPlanController {
         if (request != null && request.message() != null && request.message().length() > 300) return ApiResponse.error(400, "一次最多输入 300 个字");
         if (request != null && request.history() != null && request.history().size() > 80) return ApiResponse.error(400, "对话记录过长，请重新开始一轮");
         if (request != null && !contentSafety.allowsText(openid, request.message())) return ApiResponse.error(400, "文字未通过安全检查");
+        boolean consumed = false;
         if (!quotas.member(openid)) {
             if (request == null || request.conversationId() == null || request.conversationId().isBlank()) return ApiResponse.error(400, "缺少对话会话标识");
-            try { quotas.consume(openid, UsageQuotaService.Feature.AGENT_CONVERSATION, request.conversationId().trim(), request.requestId()); }
+            try { quotas.consume(openid, UsageQuotaService.Feature.AGENT_CONVERSATION, request.conversationId().trim(), request.requestId()); consumed = true; }
             catch (IllegalStateException e) { return ApiResponse.error(403, e.getMessage()); }
         }
-        String conversationId = request == null ? null : request.conversationId();
-        String previousAction = conversations.lastAction(openid, conversationId);
-        DialogueState.AgentState serverState = conversations.state(openid, conversationId,
-                request == null ? null : request.state());
-        DialogueState.Turn turn = mealAgent.turn(openid, request == null ? "" : request.message(), serverState, previousAction);
-        conversations.save(openid, conversationId, turn, request == null ? null : request.history());
-        return ApiResponse.ok(turn);
+        try {
+            String conversationId = request == null ? null : request.conversationId();
+            String previousAction = conversations.lastAction(openid, conversationId);
+            DialogueState.AgentState serverState = conversations.state(openid, conversationId,
+                    request == null ? null : request.state());
+            DialogueState.Turn turn = mealAgent.turn(openid, request == null ? "" : request.message(), serverState, previousAction);
+            conversations.save(openid, conversationId, turn, request == null ? null : request.history());
+            return ApiResponse.ok(turn);
+        } catch (RuntimeException e) {
+            // 与 /generate 对齐：智能体执行失败立即释放预占额度，避免"模型挂了还白扣当天唯一一次"
+            if (consumed) quotas.release(openid, UsageQuotaService.Feature.AGENT_CONVERSATION);
+            return ApiResponse.error(500, "锅仔刚刚走神了，请稍后再试");
+        }
     }
     @PostMapping("/{id}/favorite") public ApiResponse<?> favorite(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @PathVariable Long id) { return plans.toggleFavorite(openid, id).map(ApiResponse::ok).orElseGet(() -> ApiResponse.error(404, "计划不存在")); }
     @PostMapping("/{id}/days/{index}/cover") public ApiResponse<?> cover(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @PathVariable Long id, @PathVariable int index) { return plans.ensureCover(openid, id, index).map(ApiResponse::ok).orElseGet(() -> ApiResponse.error(404, "计划不存在")); }
