@@ -7,6 +7,7 @@ import com.moodrecipe.backend.repository.UserEntitlementRepository;
 import com.moodrecipe.backend.repository.UserRepository;
 import com.moodrecipe.backend.repository.VirtualOrderRepository;
 import com.moodrecipe.backend.repository.VirtualProductRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
@@ -32,7 +33,8 @@ class VirtualCommerceServiceTest {
         when(products.findById(product.getSku())).thenReturn(Optional.of(product));
         when(orders.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        VirtualCommerceService service = new VirtualCommerceService(products, orders, entitlements, mock(UserRepository.class));
+        VirtualCommerceService service = new VirtualCommerceService(products, orders, entitlements,
+                mock(UserRepository.class), new ObjectMapper());
         VirtualOrder order = service.createOrder("user-1", product.getSku());
         assertEquals(990, order.getAmountFen());
 
