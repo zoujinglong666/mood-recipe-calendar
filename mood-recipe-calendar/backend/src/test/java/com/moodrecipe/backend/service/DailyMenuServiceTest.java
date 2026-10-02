@@ -42,7 +42,7 @@ class DailyMenuServiceTest {
         DailyMenuService service = new DailyMenuService(dailyMenus, recipes,
                 mock(RecipeInteractionRepository.class), mock(UserRecordRepository.class),
                 mock(UserFoodPreferenceRepository.class),
-                new AllergenNormalizationService(null, new ObjectMapper()));
+                new AllergenNormalizationService(null, new ObjectMapper()), new RecipePool(recipes));
 
         assertTrue(service.today("user-1").isEmpty());
     }

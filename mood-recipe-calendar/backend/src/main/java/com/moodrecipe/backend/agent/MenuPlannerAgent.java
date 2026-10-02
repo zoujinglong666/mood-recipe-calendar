@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moodrecipe.backend.entity.Recipe;
 import com.moodrecipe.backend.repository.RecipeRepository;
 import com.moodrecipe.backend.service.CookingTextNormalizer;
+import com.moodrecipe.backend.service.RecipePool;
 import com.moodrecipe.backend.service.search.SearchClient;
 import org.springframework.stereotype.Service;
 
@@ -46,14 +47,17 @@ public class MenuPlannerAgent {
     private final ObjectMapper json;
     /** 联网搜索：点名菜补齐时搜真实做法作为生成依据；未配置 key 时 available()=false，自动纯生成。 */
     private final SearchClient search;
+    /** 菜谱池缓存：避免规划时反复全表扫描含大 TEXT 的菜谱表。 */
+    private final RecipePool recipePool;
 
     public MenuPlannerAgent(LlmClient llm, AgentMemoryStore store, RecipeRepository recipes,
-                            ObjectMapper json, SearchClient search) {
+                            ObjectMapper json, SearchClient search, RecipePool recipePool) {
         this.llm = llm;
         this.store = store;
         this.recipes = recipes;
         this.json = json;
         this.search = search;
+        this.recipePool = recipePool;
     }
 
     public PlanResult plan(PlanRequest request) {
@@ -509,8 +513,8 @@ public class MenuPlannerAgent {
      */
     private List<Recipe> localRecipes() {
         Map<String, Recipe> unique = new LinkedHashMap<>();
-        List<Recipe> all = new ArrayList<>(recipes.findAiWithImages());
-        all.addAll(recipes.findAll());
+        List<Recipe> all = new ArrayList<>(recipePool.aiWithImages());
+        all.addAll(recipePool.all());
         for (Recipe recipe : all) {
             if (!displayableText(recipe.getName(), 40)) continue;
             if (recipe.getSource() != null && "RETIRED".equalsIgnoreCase(recipe.getSource())) continue;
@@ -546,7 +550,7 @@ public class MenuPlannerAgent {
 
     private List<PlannedDay> toPlannedDays(List<MenuQualityScorer.DayInput> days, PlanRequest request) {
         Map<String, String> images = new LinkedHashMap<>();
-        for (Recipe recipe : recipes.findAll()) {
+        for (Recipe recipe : recipePool.all()) {
             if (recipe.getName() != null && recipe.getImage() != null && !recipe.getImage().isBlank()) {
                 images.put(recipe.getName().trim(), recipe.getImage());
             }

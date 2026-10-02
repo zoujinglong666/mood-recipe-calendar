@@ -15,11 +15,16 @@ import org.springframework.web.multipart.support.MissingServletRequestPartExcept
 import jakarta.validation.ConstraintViolationException;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * 全局异常处理器：统一错误响应格式，避免堆栈信息泄露给前端。
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     /** 参数校验失败（@Valid / @Validated） */
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -79,10 +84,11 @@ public class GlobalExceptionHandler {
             .body(ApiResponse.error(400, "文件上传格式错误，请重新选择图片后上传"));
     }
 
-    /** 非法参数（业务层主动抛出） */
+    /** 非法参数（业务层主动抛出）；详情仅落日志，不回显给客户端，避免「用户/订单不存在」被枚举探测。 */
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiResponse<Void>> handleIllegalArg(IllegalArgumentException e) {
-        return ResponseEntity.badRequest().body(ApiResponse.error(400, e.getMessage()));
+        log.warn("IllegalArgumentException: {}", e.getMessage());
+        return ResponseEntity.badRequest().body(ApiResponse.error(400, "请求参数不合法，请检查输入"));
     }
 
     /** 兜底：所有未捕获异常 */

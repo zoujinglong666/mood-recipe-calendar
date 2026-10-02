@@ -10,6 +10,7 @@ import com.moodrecipe.backend.repository.RecipeInteractionRepository;
 import com.moodrecipe.backend.repository.RecipeRepository;
 import com.moodrecipe.backend.repository.UserFoodPreferenceRepository;
 import com.moodrecipe.backend.repository.UserRecordRepository;
+import com.moodrecipe.backend.service.RecipePool;
 import com.moodrecipe.backend.service.search.SearchClient;
 import org.junit.jupiter.api.Test;
 
@@ -222,7 +223,7 @@ class MenuPlannerAgentTest {
         AgentMemoryStore store = new AgentMemoryStore(facts, preferences, mock(UserRecordRepository.class),
                 mock(RecipeInteractionRepository.class), recipes, mock(PlanDishOutcomeRepository.class));
 
-        return new MenuPlannerAgent(llm, store, recipes, new ObjectMapper(), search);
+        return new MenuPlannerAgent(llm, store, recipes, new ObjectMapper(), search, new RecipePool(recipes));
     }
 
     /** 空搜索实现：未接入搜索的既有测试用，generateRequestedDish 直接走纯生成路径。 */

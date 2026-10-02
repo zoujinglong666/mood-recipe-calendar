@@ -14,6 +14,8 @@ import com.moodrecipe.backend.repository.UserFoodPreferenceRepository;
 import com.moodrecipe.backend.repository.UserRecordRepository;
 import org.springframework.stereotype.Service;
 
+import com.moodrecipe.backend.service.RecipePool;
+
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -46,17 +48,19 @@ public class DailyMenuService {
     private final UserRecordRepository records;
     private final UserFoodPreferenceRepository preferences;
     private final AllergenNormalizationService allergenNormalization;
+    private final RecipePool recipePool;
 
     public DailyMenuService(DailyMenuRepository dailyMenus, RecipeRepository recipes,
                             RecipeInteractionRepository interactions, UserRecordRepository records,
                             UserFoodPreferenceRepository preferences,
-                            AllergenNormalizationService allergenNormalization) {
+                            AllergenNormalizationService allergenNormalization, RecipePool recipePool) {
         this.dailyMenus = dailyMenus;
         this.recipes = recipes;
         this.interactions = interactions;
         this.records = records;
         this.preferences = preferences;
         this.allergenNormalization = allergenNormalization;
+        this.recipePool = recipePool;
     }
 
     /** 今日菜单：命中当日缓存直接返回；未命中挑选并落缓存。挑选失败返回 empty。 */
@@ -121,8 +125,8 @@ public class DailyMenuService {
                     default -> 0;
                 }, Integer::sum));
 
-        List<Recipe> pool = new ArrayList<>(recipes.findAiWithImages());
-        if (pool.isEmpty()) pool = recipes.findAll();
+        List<Recipe> pool = new ArrayList<>(recipePool.aiWithImages());
+        if (pool.isEmpty()) pool = recipePool.all();
 
         List<Recipe> candidates = pool.stream()
                 .filter(this::isDisplayableRecipe)

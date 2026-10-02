@@ -36,6 +36,7 @@ public class DailyMealPlanService {
     private final DailyMealPlanValidator validator;
     private final ObjectMapper json;
     private final AgentMemoryStore memory;
+    private final RecipePool recipePool;
 
     /** 候选集封顶：findThree 是 O(n³) 暴力枚举，菜谱表稍大就会让请求挂死（线上曾因 AI 灌入数百道菜而 60s 超时）。取排序后的前若干道即可把组合数收敛为常数级，且前三道偏好已排序不妨碍质量。 */
     private static final int MAX_CANDIDATES = 120;
@@ -45,7 +46,7 @@ public class DailyMealPlanService {
                          NutritionKnowledgePackRepository packs,
                          SeasonalIngredientRepository seasonal,
                          DailyMealPlanValidator validator, ObjectMapper json) {
-        this(plans, recipes, preferences, packs, seasonal, validator, json, null);
+        this(plans, recipes, preferences, packs, seasonal, validator, json, null, null);
     }
 
     @Autowired
@@ -54,7 +55,7 @@ public class DailyMealPlanService {
                                 NutritionKnowledgePackRepository packs,
                                 SeasonalIngredientRepository seasonal,
                                 DailyMealPlanValidator validator, ObjectMapper json,
-                                AgentMemoryStore memory) {
+                                AgentMemoryStore memory, RecipePool recipePool) {
         this.plans = plans;
         this.recipes = recipes;
         this.preferences = preferences;
@@ -63,6 +64,7 @@ public class DailyMealPlanService {
         this.validator = validator;
         this.json = json;
         this.memory = memory;
+        this.recipePool = recipePool;
     }
 
     public Optional<PlanView> plan(String openid, LocalDate date) {
@@ -134,7 +136,7 @@ public class DailyMealPlanService {
         blocked.addAll(profile.avoidDishes());
         Set<String> loved = new HashSet<>(profile.lovedDishes());
         Set<String> recent = new HashSet<>(profile.recentDishes());
-        return recipes.findAll().stream()
+        return recipePool.all().stream()
                 .filter(recipe -> !requireSeasonalIngredient
                         || inSeason.stream().anyMatch(item -> text(recipe).contains(item.getName())))
                 .filter(recipe -> !blocked.contains(recipe.getName()))

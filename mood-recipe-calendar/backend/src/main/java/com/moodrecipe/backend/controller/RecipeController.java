@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/recipes")
@@ -104,11 +105,20 @@ public class RecipeController {
 
     @GetMapping("/history")
     public ApiResponse<List<RecipeHistoryItem>> history(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
-        List<RecipeHistoryItem> items = interactions.findTop30ByOpenidAndActionOrderByCreatedAtDesc(openid, "SHOWN").stream()
-                .map(item -> repository.findById(item.getRecipeId()).map(recipe -> new RecipeHistoryItem(
-                        recipe.getId(), recipe.getName(), recipe.getDescription(), recipe.getImage(), recipe.getIngredients(), recipe.getSteps(),
-                        recipe.getCookingTime(), recipe.getDifficulty(), recipe.getSource(), item.getCreatedAt())))
-                .flatMap(Optional::stream)
+        List<RecipeInteraction> recent = interactions.findTop30ByOpenidAndActionOrderByCreatedAtDesc(openid, "SHOWN");
+        // 批量取菜谱，避免循环 findById 触发 N+1
+        List<Long> ids = recent.stream().map(RecipeInteraction::getRecipeId).filter(Objects::nonNull).toList();
+        Map<Long, Recipe> byId = repository.findAllById(ids).stream()
+                .collect(Collectors.toMap(Recipe::getId, r -> r));
+        List<RecipeHistoryItem> items = recent.stream()
+                .map(item -> {
+                    Recipe recipe = byId.get(item.getRecipeId());
+                    if (recipe == null) return null;
+                    return new RecipeHistoryItem(recipe.getId(), recipe.getName(), recipe.getDescription(),
+                            recipe.getImage(), recipe.getIngredients(), recipe.getSteps(),
+                            recipe.getCookingTime(), recipe.getDifficulty(), recipe.getSource(), item.getCreatedAt());
+                })
+                .filter(Objects::nonNull)
                 .toList();
         return ApiResponse.ok(items);
     }

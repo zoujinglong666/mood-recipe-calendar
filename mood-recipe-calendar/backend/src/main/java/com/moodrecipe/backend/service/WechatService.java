@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
@@ -23,7 +24,15 @@ public class WechatService {
     private final WxPusherNotifier wxPusherNotifier;
     private static final Logger log = LoggerFactory.getLogger(WechatService.class);
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    /** 登录热路径同步调微信 code2session；不设超时则微信抖动会拖死 Servlet 线程导致全站登录挂起。 */
+    private final RestTemplate restTemplate = createTimeoutRestTemplate();
+
+    private static RestTemplate createTimeoutRestTemplate() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(3000);
+        factory.setReadTimeout(5000);
+        return new RestTemplate(factory);
+    }
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Value("${wechat.appid:}")

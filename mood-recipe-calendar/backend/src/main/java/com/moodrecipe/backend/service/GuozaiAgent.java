@@ -11,6 +11,7 @@ import com.moodrecipe.backend.model.RecommendationInsight;
 import com.moodrecipe.backend.repository.RecipeInteractionRepository;
 import com.moodrecipe.backend.repository.RecipeRepository;
 import com.moodrecipe.backend.repository.UserFoodPreferenceRepository;
+import com.moodrecipe.backend.service.RecipePool;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -55,11 +56,13 @@ public class GuozaiAgent {
     private final OperationalEventService operationalEvents;
     private final RecommendationExposureService exposures;
     private final WechatContentSafetyService contentSafety;
+    private final RecipePool recipePool;
 
     public GuozaiAgent(AiRecipeService aiRecipeService, GuozaiMemory memory, GuozaiPersona persona,
                        RecipeRepository recipeRepository, RecipeInteractionRepository interactions,
                        UserFoodPreferenceRepository preferences, OperationalEventService operationalEvents,
-                       RecommendationExposureService exposures, WechatContentSafetyService contentSafety) {
+                       RecommendationExposureService exposures, WechatContentSafetyService contentSafety,
+                       RecipePool recipePool) {
         this.aiRecipeService = aiRecipeService;
         this.memory = memory;
         this.persona = persona;
@@ -69,6 +72,7 @@ public class GuozaiAgent {
         this.operationalEvents = operationalEvents;
         this.exposures = exposures;
         this.contentSafety = contentSafety;
+        this.recipePool = recipePool;
     }
 
     // ==================== 能力一：菜谱推荐 ====================
@@ -214,8 +218,8 @@ public class GuozaiAgent {
             feedback.merge(interaction.getRecipeId(), value, Integer::sum);
         });
         Map<String, Recipe> uniqueCandidates = new LinkedHashMap<>();
-        List<Recipe> sourcePool = new ArrayList<>(recipeRepository.findAiWithImages());
-        sourcePool.addAll(recipeRepository.findAll());
+        List<Recipe> sourcePool = new ArrayList<>(recipePool.aiWithImages());
+        sourcePool.addAll(recipePool.all());
         sourcePool.stream()
                 .filter(recipe -> recipe.getName() != null && !recipe.getName().isBlank())
                 .filter(recipe -> !rejected.contains(recipe.getId()))
@@ -267,7 +271,7 @@ public class GuozaiAgent {
         }, Integer::sum));
 
         // 只从锅仔 AI 生成且带真实图片的菜谱池挑选（旧的无图种子数据不再进入推荐）
-        List<Recipe> aiPool = recipeRepository.findAiWithImages().stream()
+        List<Recipe> aiPool = recipePool.aiWithImages().stream()
                 .filter(r -> !rejected.contains(r.getId()) && !exposures.isRejected(openid, r))
                 .filter(r -> allowedByPreference(r, preference)).toList();
         List<Recipe> candidates = aiPool.stream()

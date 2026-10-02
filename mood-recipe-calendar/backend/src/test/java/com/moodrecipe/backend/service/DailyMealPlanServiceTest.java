@@ -34,7 +34,7 @@ class DailyMealPlanServiceTest {
         when(plans.save(any())).thenAnswer(i -> i.getArgument(0));
         LlmClient llm = mock(LlmClient.class); when(llm.isConfigured()).thenReturn(false);
         DailyMealPlanService service = new DailyMealPlanService(plans, recipes, mock(UserFoodPreferenceRepository.class), packs, seasonal,
-                new DailyMealPlanValidator(new AllergenNormalizationService(llm, new ObjectMapper())), new ObjectMapper());
+                new DailyMealPlanValidator(new AllergenNormalizationService(llm, new ObjectMapper())), new ObjectMapper(), null, new RecipePool(recipes));
         var result = service.plan("u", LocalDate.of(2026, 9, 28));
         assertTrue(result.isPresent()); assertEquals(3, result.get().meals().size()); verify(plans).save(any());
     }
@@ -52,7 +52,7 @@ class DailyMealPlanServiceTest {
         when(recipes.findAll()).thenReturn(List.of(recipe("西兰花鸡胸肉", "西兰花,鸡胸肉"), recipe("番茄牛腩", "番茄,牛腩"), recipe("西兰花豆腐汤", "西兰花,豆腐"), recipe("番茄炒蛋", "番茄,鸡蛋")));
         when(plans.save(any())).thenAnswer(i -> i.getArgument(0));
         LlmClient llm = mock(LlmClient.class); when(llm.isConfigured()).thenReturn(false);
-        DailyMealPlanService service = new DailyMealPlanService(plans, recipes, mock(UserFoodPreferenceRepository.class), packs, seasonal, new DailyMealPlanValidator(new AllergenNormalizationService(llm, new ObjectMapper())), new ObjectMapper());
+        DailyMealPlanService service = new DailyMealPlanService(plans, recipes, mock(UserFoodPreferenceRepository.class), packs, seasonal, new DailyMealPlanValidator(new AllergenNormalizationService(llm, new ObjectMapper())), new ObjectMapper(), null, new RecipePool(recipes));
         var result = service.replace("u", date, 2);
         assertTrue(result.isPresent()); assertEquals("番茄炒蛋", result.get().meals().get(2).getName());
     }
@@ -70,7 +70,7 @@ class DailyMealPlanServiceTest {
         when(plans.save(any())).thenAnswer(i -> i.getArgument(0));
         LlmClient llm = mock(LlmClient.class); when(llm.isConfigured()).thenReturn(false);
         DailyMealPlanService service = new DailyMealPlanService(plans, recipes, mock(UserFoodPreferenceRepository.class), packs,
-                seasonal, new DailyMealPlanValidator(new AllergenNormalizationService(llm, new ObjectMapper())), new ObjectMapper());
+                seasonal, new DailyMealPlanValidator(new AllergenNormalizationService(llm, new ObjectMapper())), new ObjectMapper(), null, new RecipePool(recipes));
 
         var result = service.plan("u", date);
 
@@ -87,7 +87,7 @@ class DailyMealPlanServiceTest {
         LlmClient llm = mock(LlmClient.class); when(llm.isConfigured()).thenReturn(false);
         DailyMealPlanService service = new DailyMealPlanService(plans, mock(RecipeRepository.class), mock(UserFoodPreferenceRepository.class),
                 mock(NutritionKnowledgePackRepository.class), mock(SeasonalIngredientRepository.class),
-                new DailyMealPlanValidator(new AllergenNormalizationService(llm, new ObjectMapper())), new ObjectMapper());
+                new DailyMealPlanValidator(new AllergenNormalizationService(llm, new ObjectMapper())), new ObjectMapper(), null, new RecipePool(mock(RecipeRepository.class)));
 
         assertTrue(service.plan("u", date).isEmpty());
     }
@@ -117,7 +117,7 @@ class DailyMealPlanServiceTest {
         DailyMealPlanService service = new DailyMealPlanService(plans, recipes,
                 mock(UserFoodPreferenceRepository.class), packs, seasonal,
                 new DailyMealPlanValidator(new AllergenNormalizationService(llm, new ObjectMapper())),
-                new ObjectMapper(), memory);
+                new ObjectMapper(), memory, new RecipePool(recipes));
 
         var result = service.plan("u", date);
 

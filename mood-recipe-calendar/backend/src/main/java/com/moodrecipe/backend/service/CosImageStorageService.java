@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayInputStream;
+import java.net.InetAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -52,13 +53,40 @@ public class CosImageStorageService {
 
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(java.time.Duration.ofSeconds(15))
-            .followRedirects(HttpClient.Redirect.NORMAL)
+            .followRedirects(HttpClient.Redirect.NEVER)
             .build();
 
     /** 是否具备 COS 上传条件 */
     public boolean available() {
         return cosEnabled && !cosSecretId.isBlank() && !cosSecretKey.isBlank()
                 && !cosRegion.isBlank() && !cosBucket.isBlank();
+    }
+
+    /**
+     * SSRF 防护：仅放行 https 链接，且解析后的 IP 不能是回环/私有/链路本地地址。
+     * 不跟随重定向（HttpClient 已设为 NEVER），因此初始 URL 校验通过即安全。
+     */
+    private boolean isSafeSourceUrl(String url) {
+        if (url == null || url.isBlank()) return false;
+        URI uri;
+        try {
+            uri = URI.create(url);
+        } catch (Exception ignored) {
+            return false;
+        }
+        if (!"https".equalsIgnoreCase(uri.getScheme())) return false;
+        String host = uri.getHost();
+        if (host == null || host.isBlank()) return false;
+        String lower = host.toLowerCase();
+        if (lower.equals("localhost") || lower.endsWith(".localhost")
+                || lower.endsWith(".internal") || lower.endsWith(".local")) return false;
+        try {
+            InetAddress addr = InetAddress.getByName(host);
+            if (addr.isLoopbackAddress() || addr.isSiteLocalAddress() || addr.isLinkLocalAddress()) return false;
+        } catch (Exception ignored) {
+            return false;
+        }
+        return true;
     }
 
     /**
@@ -69,6 +97,12 @@ public class CosImageStorageService {
         if (!available()) {
             // COS 未配置时保留原 URL（可能为短期临时图），避免整张封面丢失
             log.info("COS 未配置，保留原始图片 URL: {}", sourceUrl);
+            return Optional.of(sourceUrl);
+        }
+        // SSRF 防护：仅允许 https、拒绝 localhost/内网/链路本地地址。
+        // sourceUrl 来自 AI 图片服务、间接受用户 prompt 影响（prompt-injection 投毒风险），必须拦截。
+        if (!isSafeSourceUrl(sourceUrl)) {
+            log.warn("拒绝转存非安全图片 URL（SSRF 防护）: {}", sourceUrl);
             return Optional.of(sourceUrl);
         }
         try {

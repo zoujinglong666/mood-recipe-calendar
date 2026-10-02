@@ -8,6 +8,7 @@ import com.moodrecipe.backend.agent.ToolResult;
 import com.moodrecipe.backend.entity.Recipe;
 import com.moodrecipe.backend.repository.RecipeRepository;
 import com.moodrecipe.backend.service.IngredientSynonymService;
+import com.moodrecipe.backend.service.RecipePool;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -21,10 +22,12 @@ public class SearchRecipeTool implements AgentTool {
 
     private final RecipeRepository recipes;
     private final IngredientSynonymService synonyms;
+    private final RecipePool recipePool;
 
-    public SearchRecipeTool(RecipeRepository recipes, IngredientSynonymService synonyms) {
+    public SearchRecipeTool(RecipeRepository recipes, IngredientSynonymService synonyms, RecipePool recipePool) {
         this.recipes = recipes;
         this.synonyms = synonyms;
+        this.recipePool = recipePool;
     }
 
     @Override
@@ -56,8 +59,8 @@ public class SearchRecipeTool implements AgentTool {
         int limit = Math.max(1, Math.min(args.path("limit").asInt(8), 20));
         int maxMinutes = args.path("maxMinutes").asInt(0);
 
-        List<Recipe> pool = new ArrayList<>(recipes.findAiWithImages());
-        pool.addAll(recipes.findAll());
+        List<Recipe> pool = new ArrayList<>(recipePool.aiWithImages());
+        pool.addAll(recipePool.all());
         Map<String, Recipe> unique = new LinkedHashMap<>();
         for (Recipe recipe : pool) {
             if (recipe.getName() == null || recipe.getName().isBlank()) continue;
