@@ -246,7 +246,12 @@ onShow(() => {
 })
 const MOODS = ['开心', '平静', '疲惫', '焦虑', '难过', '嘴馋', '低落', '想家', '期待', '满足', '得意', '害羞']
 function gotoLucky() { router.push({ name: 'recipe', params: { mood: MOODS[Math.floor(Math.random() * MOODS.length)], random: '1' } }) }
-function goto(name: string, q?: Record<string, string>) { router.push({ name, query: q || {} }) }
+const TABBAR_NAMES = ['home', 'record', 'profile']
+function goto(name: string, q?: Record<string, string>) {
+  // tabBar 页必须用 switchTab(pushTab)，用 navigateTo(push) 会报 can not navigate to a tab bar page
+  if (TABBAR_NAMES.includes(name)) router.pushTab({ name })
+  else router.push({ name, query: q || {} })
+}
 function openFridge() { router.push({ name: 'fridge' }) }
 function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
   if (cell.records.length) router.push({ name: 'calendar', params: { day: String(cell.d) } })

@@ -91,7 +91,7 @@ public class UsageQuotaService {
     private int limit(String openid, Feature feature, boolean isMember, LocalDate today) {
         if (feature == Feature.AGENT_CONVERSATION) {
             if (isMember) return Integer.MAX_VALUE;
-            return checkins != null && checkins.findByOpenidAndCheckinDate(openid, today.toString()).isPresent() ? 1 : 0;
+            return checkins != null && checkins.findByOpenidAndCheckinDate(openid, today.toString()).isPresent() ? 3 : 0;
         }
         return isMember ? (feature == Feature.HOME_RECOMMEND ? 20 : Integer.MAX_VALUE)
             : (feature == Feature.HOME_RECOMMEND ? 3 : 1);
@@ -99,7 +99,7 @@ public class UsageQuotaService {
 
     private String message(Feature feature) {
         if (feature == Feature.HOME_RECOMMEND) return "今日免费推荐次数已用完，开通会员可享每日20次";
-        if (feature == Feature.AGENT_CONVERSATION) return "每日签到可获得1次锅仔智能体对话，今天的赠送次数已用完";
+        if (feature == Feature.AGENT_CONVERSATION) return "每日签到可获得3次锅仔智能体对话，今天的赠送次数已用完";
         return "本周简单周菜单已使用，开通会员可不限次使用锅仔智能体";
     }
 

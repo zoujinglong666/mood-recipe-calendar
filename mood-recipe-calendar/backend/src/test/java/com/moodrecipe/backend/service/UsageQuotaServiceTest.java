@@ -85,25 +85,38 @@ class UsageQuotaServiceTest {
     }
 
     @Test
-    void checkinGrantsOneIdempotentMultiTurnConversation() {
+    void checkinGrantsThreeIdempotentMultiTurnConversations() {
         UsageQuotaService agentService = new UsageQuotaService(quotas, users, checkins);
         when(checkins.findByOpenidAndCheckinDate(anyString(), anyString())).thenReturn(Optional.of(new com.moodrecipe.backend.entity.Checkin()));
         UsageQuota quota = quota(0);
         when(quotas.findForUpdate(anyString(), anyString(), any())).thenReturn(Optional.of(quota));
 
-        UsageQuotaService.View first = agentService.consume("user-1", UsageQuotaService.Feature.AGENT_CONVERSATION, "conversation-1");
-        UsageQuotaService.View second = agentService.consume("user-1", UsageQuotaService.Feature.AGENT_CONVERSATION, "conversation-1");
-
-        assertEquals(0, first.remaining());
-        assertEquals(0, second.remaining());
+        UsageQuotaService.View c1 = agentService.consume("user-1", UsageQuotaService.Feature.AGENT_CONVERSATION, "conversation-1");
+        assertEquals(3, c1.limit());
+        assertEquals(2, c1.remaining());
         assertEquals(1, quota.getUsedCount());
+
+        // 同一会话多轮发言幂等，不重复消耗
+        UsageQuotaService.View c1again = agentService.consume("user-1", UsageQuotaService.Feature.AGENT_CONVERSATION, "conversation-1");
+        assertEquals(2, c1again.remaining());
+        assertEquals(1, quota.getUsedCount());
+
+        // 第 2、3 个不同会话各消耗一次
+        agentService.consume("user-1", UsageQuotaService.Feature.AGENT_CONVERSATION, "conversation-2");
+        UsageQuotaService.View c3 = agentService.consume("user-1", UsageQuotaService.Feature.AGENT_CONVERSATION, "conversation-3");
+        assertEquals(0, c3.remaining());
+        assertEquals(3, quota.getUsedCount());
+
+        // 超出 3 次后拒绝
+        assertThrows(IllegalStateException.class,
+                () -> agentService.consume("user-1", UsageQuotaService.Feature.AGENT_CONVERSATION, "conversation-4"));
     }
 
     @Test
-    void secondConversationIsBlockedAfterDailyGiftIsUsed() {
+    void fourthConversationIsBlockedAfterDailyGiftExhausted() {
         UsageQuotaService agentService = new UsageQuotaService(quotas, users, checkins);
         when(checkins.findByOpenidAndCheckinDate(anyString(), anyString())).thenReturn(Optional.of(new com.moodrecipe.backend.entity.Checkin()));
-        UsageQuota quota = quota(1);
+        UsageQuota quota = quota(3); // 3 次已用尽
         quota.setLastConversationId("conversation-1");
         when(quotas.findForUpdate(anyString(), anyString(), any())).thenReturn(Optional.of(quota));
 

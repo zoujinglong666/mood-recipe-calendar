@@ -150,11 +150,23 @@ function conversationDraftKey() {
   return `mrc_meal_agent_draft:${openid}`
 }
 
+/** 生成会话标识；非会员的额度是按 conversationId 计一次，必须稳定且非空。 */
+function newConversationId() {
+  return `agent-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+}
+
+/** 所有请求前统一取会话标识，兜底自愈，避免非会员命中「缺少对话会话标识」。 */
+function currentConversationId() {
+  if (!agentConversationId)
+    agentConversationId = newConversationId()
+  return agentConversationId
+}
+
 function persistConversation() {
   if (!agentConversationId)
     return
   const draft: MealAgentDraft = {
-    conversationId: agentConversationId,
+    conversationId: currentConversationId(),
     messages: messages.value.slice(-80),
     state: agentState.value,
     turn: agentTurn.value,
@@ -170,7 +182,7 @@ function restoreConversation() {
     try { return JSON.parse(raw) as MealAgentDraft } catch { return undefined }
   })() : raw as MealAgentDraft | undefined
   if (!draft?.conversationId || !Array.isArray(draft.messages)) {
-    agentConversationId = `agent-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+    agentConversationId = newConversationId()
     return
   }
   agentConversationId = draft.conversationId
@@ -192,7 +204,8 @@ function restoreConversation() {
 }
 
 function restoreRemoteConversation(snapshot: MealAgentConversationSnapshot) {
-  agentConversationId = snapshot.conversationId
+  // 远端快照可能来自早期脏数据（conversationId 为空），此时不要覆盖成本地已生成的标识
+  agentConversationId = snapshot.conversationId || currentConversationId()
   const restored = (snapshot.messages || []).filter(message => message && (message.role === 'agent' || message.role === 'user') && typeof message.text === 'string')
   // 旧会话的 transcript 缺最后一条锅仔回复（历史 bug：只存了 turnJson 没存进 transcript）；补回，避免刷新后最后一句消失
   const turnReply = (snapshot.turn?.reply || '').trim()
@@ -277,7 +290,7 @@ async function runAgent(message: string, echo = false, echoLabel = message) {
   await scrollToLatest()
   try {
     const history: MealAgentHistoryMessage[] = messages.value.map(({ role, text, tags, selected }) => ({ role, text, tags, selected }))
-    const turn = await runMealAgentTurn(message, agentState.value, agentConversationId, history)
+    const turn = await runMealAgentTurn(message, agentState.value, currentConversationId(), history)
     stopThinking()
     agentTurn.value = turn
     otherInput.value = false
@@ -812,10 +825,10 @@ function openGallery() {
       </view>
 
       <view v-else class="simple-plan">
-        <view class="simple-plan__tag">每日签到 · 送 1 次锅仔对话</view>
+        <view class="simple-plan__tag">每日签到 · 送 3 次锅仔对话</view>
         <text class="simple-plan__title">手动选好，生成简单周菜单</text>
         <text class="simple-plan__copy">锅仔会按人数、做饭天数和菜数，避开你的忌口，整理出一份基础菜单和买菜清单。</text>
-        <text class="simple-plan__gift">去「锅仔形象馆」签到，今天就能和锅仔聊一轮；一次签到对应一个多轮对话。</text>
+        <text class="simple-plan__gift">去「锅仔形象馆」签到，今天就能和锅仔聊 3 轮；一次签到对应 3 个多轮对话。</text>
         <button class="simple-plan__checkin" @click="openGallery">去签到领锅仔对话</button>
         <view class="simple-plan__section"><text>几个人吃</text><view><button v-for="value in [1, 2, 3, 4]" :key="value" :class="{ selected: people === value }" @click="people = value">{{ value }} 人</button></view></view>
         <view class="simple-plan__section"><text>每天几道菜</text><view><button v-for="value in [1, 2, 3]" :key="value" :class="{ selected: dishesPerDay === value }" @click="dishesPerDay = value">{{ value }} 道</button></view></view>
