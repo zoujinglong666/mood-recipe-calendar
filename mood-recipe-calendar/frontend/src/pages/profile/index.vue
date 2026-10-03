@@ -6,8 +6,10 @@ import {useNavBar} from '@/composables/useNavBar'
 import {STATIC_BASE_URL} from '@/utils/assets'
 import Icon from '../../components/common/Icon.vue'
 import {useUserStore} from '../../stores/user'
-import {refreshUserInfo} from '../../utils/login'
+import {refreshUserInfo, navigateToLogin} from '../../utils/login'
 import {toast, toastError, toastSuccess} from '../../utils/toast'
+import {fetchShareStatus, type ShareStatus} from '@/api/share'
+import {fetchCheckinStatus, doCheckin, type CheckinStatus} from '@/api/gallery'
 import {uploadFile} from '@/api/request'
 import {updateUserInfo} from '@/api/auth'
 import {chooseImageFile} from '@/utils/chooseImage'
@@ -33,6 +35,9 @@ const editNickname = ref('')
 const nicknameSaving = ref(false)
 const stats = ref({ totalRecords: 0, totalDays: 0, currentStreak: 0, topDishes: [] as { name: string, count: number }[] })
 const history = ref<RecordItem[]>([])
+const shareStatus = ref<ShareStatus>({ isSharer: false, sharedToday: false })
+const checkinStatus = ref<CheckinStatus | null>(null)
+const checkingIn = ref(false)
 const activeMembership = computed(() => userStore.userInfo?.isMember === 1
   && Boolean(userStore.userInfo?.memberExpire)
   && new Date(userStore.userInfo!.memberExpire!).getTime() > Date.now())
@@ -63,6 +68,9 @@ async function loadData() {
     // 记录是「我的」页核心内容，独立加载；统计接口失败不应清空历史列表
     history.value = (await fetchRecords()).slice(0, 3)
     fetchStats().then(s => { stats.value = s }).catch(() => {})
+    // 分享家徽章与签到状态：失败静默，不阻塞主流程
+    fetchShareStatus().then(s => { shareStatus.value = s }).catch(() => {})
+    fetchCheckinStatus().then(s => { checkinStatus.value = s }).catch(() => {})
   }
   catch (e: any) {
     stats.value = { totalRecords: 0, totalDays: 0, currentStreak: 0, topDishes: [] }
@@ -83,7 +91,7 @@ async function handleIdentityCard() {
     goSettings()
     return
   }
-  router.push({ name: 'login' })
+  navigateToLogin()
 }
 
 function goReport() {
@@ -99,7 +107,7 @@ function goSettings() {
 /** 更换头像：选择图片 → 上传 COS → 更新用户信息 */
 async function updateAvatar(filePath: string) {
   if (!userStore.isLoggedIn) {
-    router.push({ name: 'login' })
+    navigateToLogin()
     return
   }
   if (!filePath || avatarUpdating.value)
@@ -121,7 +129,7 @@ async function updateAvatar(filePath: string) {
 
 function onChooseAvatar() {
   if (!userStore.isLoggedIn) {
-    router.push({ name: 'login' })
+    navigateToLogin()
     return
   }
   if (avatarUpdating.value) {
@@ -138,7 +146,7 @@ function onChooseAvatar() {
 function openEdit() {
   if (!userStore.isLoggedIn) {
     // 未登录时昵称位展示的文字就是「微信登录」，点击必须去登录页，不能死拦
-    router.push({ name: 'login' })
+    navigateToLogin()
     return
   }
   editNickname.value = userStore.userInfo?.nickname || ''
@@ -230,9 +238,31 @@ function goFeedback() {
   router.push({ name: 'feedback' })
 }
 
+/** 「我的」页内联签到：非会员签到领今日 3 次锅仔对话，避免跳转形象馆再操作。 */
+async function quickCheckin() {
+  if (!userStore.isLoggedIn) {
+    navigateToLogin()
+    return
+  }
+  if (checkingIn.value || checkinStatus.value?.checkedIn)
+    return
+  checkingIn.value = true
+  try {
+    await doCheckin()
+    toastSuccess('签到成功 · 今日锅仔对话 +3 次')
+    checkinStatus.value = await fetchCheckinStatus()
+  }
+  catch (e: any) {
+    toastError(e, '签到失败，请稍后再试')
+  }
+  finally {
+    checkingIn.value = false
+  }
+}
+
 function openStat(type: 'records' | 'days' | 'streak') {
   if (!userStore.isLoggedIn) {
-    router.push({name: 'login'})
+    navigateToLogin()
     return
   }
   // #ifdef MP-WEIXIN
@@ -434,12 +464,40 @@ function openStat(type: 'records' | 'days' | 'streak') {
           表情包 · 主题素材 · 每日收藏
         </text>
       </view>
-      <view class="profile-gallery__badge">
-        每日签到
+      <view class="profile-gallery__badges">
+        <view class="profile-gallery__badge">
+          每日签到
+        </view>
+        <view v-if="shareStatus.isSharer" class="profile-gallery__badge profile-gallery__badge--sharer">
+          分享家
+        </view>
       </view>
       <text class="profile-gallery__arrow">
         ›
       </text>
+    </view>
+
+    <!-- 内联签到：非会员今日签到领 3 次锅仔对话，留在「我的」页一步完成 -->
+    <view
+      class="profile-checkin"
+      role="button"
+      :aria-label="checkinStatus?.checkedIn ? '今日已签到' : '签到领取今日锅仔对话'"
+      @click="quickCheckin"
+    >
+      <view class="profile-checkin__main">
+        <text class="profile-checkin__title">
+          {{ checkinStatus?.checkedIn ? '今日已签到' : '每日签到 · 领 3 次对话' }}
+        </text>
+        <text class="profile-checkin__sub">
+          {{ checkinStatus?.checkedIn ? `已连续 ${checkinStatus.streak} 天，明天再来` : '签到后今天可和锅仔聊 3 轮' }}
+        </text>
+      </view>
+      <view
+        class="profile-checkin__btn"
+        :class="{ 'profile-checkin__btn--done': checkinStatus?.checkedIn }"
+      >
+        {{ checkinStatus?.checkedIn ? '已签' : (checkingIn ? '签到中' : '签到') }}
+      </view>
     </view>
 
     <!-- 功能按钮 -->
@@ -795,6 +853,17 @@ function openStat(type: 'records' | 'days' | 'streak') {
   border-radius: 24rpx;
   font-weight: 600;
 }
+.profile-gallery__badges { display: flex; flex-direction: column; align-items: flex-end; gap: 8rpx; }
+.profile-gallery__badge--sharer { background: rgba(26, 173, 25, .12); color: #1AAD19; }
+
+/* 内联签到卡 */
+.profile-checkin { display: flex; align-items: center; gap: 18rpx; margin-bottom: 16rpx; padding: 22rpx 26rpx; box-sizing: border-box; border: 2rpx solid var(--mrc-border); border-radius: 30rpx; background: linear-gradient(135deg, var(--mrc-surface-sun), var(--mrc-surface-peach)); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }
+.profile-checkin:active { transform: scale(.98); }
+.profile-checkin__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6rpx; }
+.profile-checkin__title { color: var(--mrc-text-deep); font-size: 30rpx; font-weight: var(--mrc-fw-heavy); }
+.profile-checkin__sub { color: var(--mrc-text-sub); font-size: 22rpx; line-height: 1.4; }
+.profile-checkin__btn { flex-shrink: 0; padding: 16rpx 34rpx; border-radius: 999rpx; background: var(--mrc-accent); color: #fff; font-size: 26rpx; font-weight: 800; box-shadow: var(--mrc-shadow-sm); }
+.profile-checkin__btn--done { background: rgba(148, 91, 56, .16); color: var(--mrc-text-sub); box-shadow: none; }
 .profile-gallery__arrow {
   font-size: 40rpx;
   color: var(--mrc-text-light);

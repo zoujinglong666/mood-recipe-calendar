@@ -4,6 +4,7 @@
   "usingComponents": {
     "wd-navbar": "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar",
     "guozai-chip-group": "../../components/guozai/GuozaiChipGroup",
-    "guozai-button": "../../components/guozai/GuozaiButton"
+    "guozai-button": "../../components/guozai/GuozaiButton",
+    "icon": "../../components/common/Icon"
   }
 }

@@ -23,6 +23,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -138,7 +139,10 @@ public class WechatVirtualPaymentService {
             signDataObject.put("attach", order.getOrderNo());
             String signData = objectMapper.writeValueAsString(signDataObject);
             String paySig = hmacSha256(appKey, "requestVirtualPayment&" + signData);
-            String signature = hmacSha256(sessionKeyCipher.decrypt(user.getSessionKeyEncrypted()), signData);
+            String sessionKey = sessionKeyCipher.decrypt(user.getSessionKeyEncrypted());
+            String signature = hmacSha256(sessionKey, signData);
+            log.info("虚拟支付签名已生成 orderNo={}, env={}, signDataHash={}, sessionKeyHash={}",
+                    order.getOrderNo(), environment, fingerprint(signData), fingerprint(sessionKey));
             return new VirtualPaymentParams("short_series_goods", signData, paySig, signature);
         } catch (Exception exception) {
             if (exception instanceof IllegalStateException stateException) throw stateException;
@@ -150,6 +154,16 @@ public class WechatVirtualPaymentService {
         Mac mac = Mac.getInstance("HmacSHA256");
         mac.init(new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
         return java.util.HexFormat.of().formatHex(mac.doFinal(source.getBytes(StandardCharsets.UTF_8)));
+    }
+
+    /** 仅用于定位签名来源是否已刷新，绝不记录 session_key 或签名正文。 */
+    private String fingerprint(String value) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(digest, 0, 6);
+        } catch (Exception ignored) {
+            return "unavailable";
+        }
     }
 
     /** 发货推送丢失时主动向微信查单；只补最近七天、已等待至少一分钟的订单。 */

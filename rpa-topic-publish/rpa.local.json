@@ -1,0 +1,28 @@
+{
+  "entry": "src/local-rpa.js",
+  "minimum_local_protocol": 3,
+  "name": "topic-publish-daily",
+  "required_capabilities": [
+    "workspace_lease_v2",
+    "popup_adoption",
+    "workspace_cleanup",
+    "local_debug_v2",
+    "deep_selectors",
+    "debug_events",
+    "downloads_uploads",
+    "human_in_loop",
+    "background_handoff",
+    "runtime_self_heal",
+    "background_audio_suppression",
+    "background_focus_isolation_v1",
+    "multi_workspace_v1",
+    "trusted_input_v1",
+    "trusted_input_v2",
+    "trusted_keyboard_v1",
+    "trusted_form_submit_v1",
+    "semantic_locator_v1",
+    "dev_probe_v1",
+    "trace_dom_v1"
+  ],
+  "schema": 1
+}

@@ -13,13 +13,16 @@ import GuozaiChoiceChips from '../../components/guozai/GuozaiChoiceChips.vue'
 import GuozaiInsightCard from '../../components/guozai/GuozaiInsightCard.vue'
 import { exportRecipeShare, saveShareImage } from '../../utils/albumShare'
 import { saveCookingDraft, saveRecordDraft } from '../../utils/cookingDraft'
-import { ensureLogin } from '../../utils/login'
+import { ensureLogin, refreshWechatLoginForPayment } from '../../utils/login'
 import { toast, toastError, toastSuccess } from '../../utils/toast'
+import { recordShare } from '@/api/share'
+import { useUserStore } from '@/stores/user'
 import { bus, MRC_EVENTS } from '@/utils/bus'
 
 definePage({ name: 'recipe', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '今日推荐' } })
 
 const router = useRouter()
+const userStore = useUserStore()
 const { previewImage } = useImagePreview()
 const mood = ref('开心')
 /** 兼容跳转链接中经 encodeURIComponent 编码的 mood（如 %E5%BC%80%E5%BF%83），避免页面显示编码串 */
@@ -231,10 +234,16 @@ onShow(() => {
 })
 onUnload(stopPolling)
 
-onShareAppMessage(() => ({
-  title: recipe.value ? `锅仔推荐：${recipe.value.name}，适合${mood.value}的今天` : '让锅仔按心情推荐今天吃什么',
-  path: `/pages/recipe/index?mood=${encodeURIComponent(mood.value)}`,
-}))
+onShareAppMessage(() => {
+  const sharer = userStore.openid
+  const path = `/pages/recipe/index?mood=${encodeURIComponent(mood.value)}${sharer ? `&sharer=${encodeURIComponent(sharer)}` : ''}`
+  // 记录分享：发放「分享家」徽章 + 非会员当日 +1 次对话激励（失败静默，不影响转发）
+  void recordShare('recipe').catch(() => {})
+  return {
+    title: recipe.value ? `锅仔推荐：${recipe.value.name}，适合${mood.value}的今天` : '让锅仔按心情推荐今天吃什么',
+    path,
+  }
+})
 
 onShareTimeline(() => ({
   title: recipe.value ? `今天吃${recipe.value.name}，锅仔说很适合${mood.value}的我` : '让锅仔按心情推荐今天吃什么',
@@ -543,7 +552,7 @@ async function purchase(product: VirtualProduct) {
   purchasingSku.value = product.sku
   let checkingDelivery = false
   try {
-    const openid = await ensureLogin()
+    const openid = await refreshWechatLoginForPayment()
     const order = await createVirtualOrder(openid, product.sku)
     const params = await getVirtualPaymentParams(openid, order.orderNo)
     await requestWechatVirtualPayment(params)
@@ -879,6 +888,9 @@ async function waitForDelivery(orderNo: string) {
           <view class="share-sheet__link pressable" role="button" @click="shareRecipeLink">
             <Icon name="share" :size="30" color="#EF5A3C" /><text>分享菜谱链接给朋友</text>
           </view>
+          <button class="share-sheet__link share-sheet__link--wechat" open-type="share">
+            <Icon name="share" :size="30" color="#1AAD19" /><text>转发给微信好友</text>
+          </button>
         </view>
       </view>
 
@@ -1075,6 +1087,8 @@ async function waitForDelivery(orderNo: string) {
 .share-sheet__action--secondary { border: 2rpx solid var(--mrc-border); color: var(--mrc-text-deep); background: var(--mrc-surface); }
 .share-sheet__action--primary { color: #fff; background: var(--mrc-primary-grad); box-shadow: var(--mrc-shadow-coral); }
 .share-sheet__link { display: flex; align-items: center; justify-content: center; gap: 10rpx; min-height: 84rpx; margin-top: 12rpx; color: var(--mrc-accent); font-size: 25rpx; font-weight: 800; }
+.share-sheet__link--wechat { padding: 0; margin-top: 12rpx; background: transparent; line-height: normal; color: #1AAD19; font-weight: 800; }
+.share-sheet__link--wechat::after { border: none; }
 .ai-mask { position: fixed; inset: 0; z-index: 60; display: flex; align-items: flex-end; background: rgba(24, 15, 10, .58); }
 .ai-sheet { width: 100%; max-height: 88vh; max-height: 88dvh; overflow-y: auto; box-sizing: border-box; padding: 32rpx 32rpx calc(32rpx + env(safe-area-inset-bottom)); border-radius: 40rpx 40rpx 0 0; background: var(--mrc-surface); }
 .ai-sheet__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20rpx; margin-bottom: 28rpx; }

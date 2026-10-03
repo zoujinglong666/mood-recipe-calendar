@@ -1,0 +1,94 @@
+{
+  "steps": [
+    {
+      "deviceScaleFactor": 2,
+      "hasTouch": false,
+      "height": 654,
+      "isLandscape": true,
+      "isMobile": false,
+      "type": "setViewport",
+      "width": 1280
+    },
+    {
+      "type": "navigate",
+      "url": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003\u0026lang=zh_CN"
+    },
+    {
+      "selectors": [
+        "[data-doubao-translate-traverse-mark=\"\\31 \"]",
+        "input.weui-desktop-form__input",
+        "input"
+      ],
+      "type": "change",
+      "value": "今天也要好好吃饭"
+    },
+    {
+      "offsetX": 43,
+      "offsetY": 59,
+      "selectors": [
+        "label"
+      ],
+      "type": "click"
+    },
+    {
+      "offsetX": 0,
+      "offsetY": 0,
+      "selectors": [
+        "input[name=\"file\"]",
+        "input.webuploader-element-invisible",
+        "input"
+      ],
+      "type": "click"
+    },
+    {
+      "selectors": [
+        "input[name=\"file\"]",
+        "input.webuploader-element-invisible",
+        "input"
+      ],
+      "type": "change",
+      "value": "C:\\fakepath\\topic-bg-4x3.png"
+    },
+    {
+      "selectors": [
+        "[data-doubao-translate-traverse-mark=\"\\31 \"]",
+        "textarea.weui-desktop-form__textarea",
+        "textarea"
+      ],
+      "type": "change",
+      "value": "选一个心情，跟锅仔做道菜，拍下今日一餐。坚持记录，月底自动生成你的专属画册！"
+    },
+    {
+      "selectors": [
+        "input.weui-desktop-form__input",
+        "input"
+      ],
+      "type": "change",
+      "value": "记录今日伙食"
+    },
+    {
+      "offsetX": 48,
+      "offsetY": 17.5,
+      "selectors": [
+        "[data-doubao-translate-traverse-mark=\"\\31 \"]",
+        "button.weui-desktop-btn.weui-desktop-btn_primary",
+        "text/发布",
+        "button"
+      ],
+      "type": "click"
+    },
+    {
+      "offsetX": 48,
+      "offsetY": 17.5,
+      "selectors": [
+        "[data-doubao-translate-traverse-mark=\"\\31 \"]",
+        "button.weui-desktop-btn.weui-desktop-btn_primary",
+        "text/发布",
+        "button"
+      ],
+      "type": "click"
+    }
+  ],
+  "timeout": 5000,
+  "title": "微信话题每日发布"
+}

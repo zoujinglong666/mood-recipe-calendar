@@ -22,14 +22,18 @@ public final class DialogueState {
                        List<String> memoryUsed,
                        List<String> conflicts,
                        List<String> degraded,
-                       List<Card> cards) {
+                       List<Card> cards,
+                       List<String> followups) {
         public Turn(String reply, String action, AgentState state, Card card,
                     String askReason, List<String> memoryUsed, List<String> conflicts, List<String> degraded) {
             this(reply, action, state, card, askReason, memoryUsed, conflicts, degraded,
-                    card == null ? List.of() : List.of(card));
+                    card == null ? List.of() : List.of(card), List.of());
         }
-        public Turn(String reply, String action, AgentState state, Card card) {
-            this(reply, action, state, card, "", List.of(), List.of(), List.of());
+        public Turn(String reply, String action, AgentState state, Card card,
+                    String askReason, List<String> memoryUsed, List<String> conflicts, List<String> degraded,
+                    List<Card> cards) {
+            this(reply, action, state, card, askReason, memoryUsed, conflicts, degraded,
+                    cards, List.of());
         }
     }
 

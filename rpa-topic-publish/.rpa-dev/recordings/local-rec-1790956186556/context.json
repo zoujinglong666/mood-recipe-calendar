@@ -1,0 +1,53 @@
+{
+  "assertions": [],
+  "intent_analysis": {
+    "auth_evidence": {
+      "auth_urls": [],
+      "credential_event_count": 0,
+      "observed": false,
+      "policy": "runtime_auth_only_never_replay_credentials"
+    },
+    "auth_observed": false,
+    "clicked_text_evidence": [
+      "发布",
+      "发布"
+    ],
+    "requires_clarification": false,
+    "suggested_parameters": {
+      "input_text_1": "今天也要好好吃饭",
+      "input_text_2": "C:\\fakepath\\topic-bg-4x3.png",
+      "input_text_3": "选一个心情，跟锅仔做道菜，拍下今日一餐。坚持记录，月底自动生成你的专属画册！",
+      "input_text_4": "记录今日伙食"
+    },
+    "uncertainties": []
+  },
+  "outputs": [],
+  "project_runtime": "local_chrome",
+  "recording_id": "local-rec-1790956186556",
+  "summary": {
+    "event_count": 11,
+    "evidence_gaps": [],
+    "gaps": [],
+    "recoveries": [
+      {
+        "attempt": 1,
+        "kind": "debugger_recovered",
+        "reason": "recording_document_updated",
+        "tab_id": 197126857,
+        "ts": 1790956237154,
+        "url": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003\u0026lang=zh_CN"
+      },
+      {
+        "attempt": 2,
+        "kind": "debugger_recovered",
+        "reason": "recording_document_updated",
+        "tab_id": 197126857,
+        "ts": 1790956237156,
+        "url": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003\u0026lang=zh_CN"
+      }
+    ],
+    "step_count": 9,
+    "tab_count": 1
+  },
+  "title": "微信话题每日发布"
+}

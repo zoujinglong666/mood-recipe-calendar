@@ -1,0 +1,584 @@
+{
+  "blocked_steps": [],
+  "counts": {
+    "BLOCKED": 0,
+    "CONDITIONAL": 3,
+    "FRAGILE": 0,
+    "NOT_APPLICABLE": 1,
+    "STABLE": 5
+  },
+  "fragile_steps": [],
+  "implementation_ready": true,
+  "limitations": [
+    "This report validates evidence captured at each recorded action state; dynamic pages are revalidated step-by-step by the runtime.",
+    "It never replays the full workflow or repeats terminal side effects merely to inspect selectors."
+  ],
+  "method": "recording_evidence_preflight",
+  "results": [
+    {
+      "action": "navigate",
+      "grade": "NOT_APPLICABLE",
+      "implementation_ready": true,
+      "intent": "打开页面 `https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003\u0026lang=zh_CN`",
+      "reason": "This action does not require a recorded element locator.",
+      "step_index": 0
+    },
+    {
+      "action": "change",
+      "alternatives": [
+        {
+          "relation": "actionable_target",
+          "risks": [
+            "non_unique"
+          ],
+          "score": 50.0,
+          "selector": "input.weui-desktop-form__input",
+          "stability": "semantic_classes",
+          "unique": false
+        },
+        {
+          "relation": "ancestor",
+          "risks": [],
+          "score": 45.0,
+          "selector": "div.topic-form",
+          "stability": "semantic_classes",
+          "unique": true
+        },
+        {
+          "relation": "recorded_target",
+          "risks": [
+            "unproven_data_attribute_lifetime",
+            "non_unique"
+          ],
+          "score": 42.0,
+          "selector": "[data-doubao-translate-traverse-mark=\"\\31 \"]",
+          "stability": "data_attribute",
+          "unique": false
+        },
+        {
+          "relation": "ancestor",
+          "risks": [
+            "non_unique"
+          ],
+          "score": 42.0,
+          "selector": "span.weui-desktop-form__input-wrp.weui-desktop-form__input_append-in.weui-desktop-form__input_counter",
+          "stability": "semantic_classes",
+          "unique": false
+        },
+        {
+          "relation": "actionable_target",
+          "risks": [
+            "unproven_data_attribute_lifetime",
+            "non_unique"
+          ],
+          "score": 38.0,
+          "selector": "[data-doubao-translate-traverse-mark=\"\\31 \"]",
+          "stability": "data_attribute",
+          "unique": false
+        }
+      ],
+      "context_boundary": null,
+      "grade": "CONDITIONAL",
+      "implementation_ready": true,
+      "intent": "在 `今天也要好好吃饭` 中输入录制文本（input）",
+      "match_count_at_recording": 3,
+      "reason": "Recorded evidence supports this selector plan.",
+      "risks": [
+        "scoped_disambiguation_required",
+        "semantic_identity_required"
+      ],
+      "scope": "div.topic-form",
+      "scope_reason": "recorded_disambiguation",
+      "scope_required": true,
+      "score": 89.0,
+      "selected_relation": "recorded_target",
+      "selector": "input.weui-desktop-form__input",
+      "semantic_identity": "今天也要好好吃饭",
+      "stability": "semantic_classes",
+      "step_index": 1,
+      "unique_at_recording": false
+    },
+    {
+      "action": "click",
+      "alternatives": [
+        {
+          "relation": "ancestor",
+          "risks": [
+            "non_actionable_target"
+          ],
+          "score": 41.0,
+          "selector": "a.weui-desktop-upload__img__btn",
+          "stability": "semantic_classes",
+          "unique": true
+        },
+        {
+          "relation": "ancestor",
+          "risks": [
+            "non_actionable_target"
+          ],
+          "score": 33.0,
+          "selector": "div.weui-desktop-upload__imgs__wrp",
+          "stability": "semantic_classes",
+          "unique": true
+        },
+        {
+          "relation": "recorded_target",
+          "risks": [],
+          "score": 29.0,
+          "selector": "label",
+          "stability": "positional_fallback",
+          "unique": true
+        },
+        {
+          "relation": "actionable_target",
+          "risks": [],
+          "score": 25.0,
+          "selector": "label",
+          "stability": "positional_fallback",
+          "unique": true
+        },
+        {
+          "relation": "ancestor",
+          "risks": [
+            "non_actionable_target"
+          ],
+          "score": 25.0,
+          "selector": "div.weui-desktop-upload",
+          "stability": "semantic_classes",
+          "unique": true
+        }
+      ],
+      "context_boundary": null,
+      "grade": "CONDITIONAL",
+      "implementation_ready": true,
+      "intent": "点击 `录制目标控件`",
+      "match_count_at_recording": 1,
+      "reason": "Recorded evidence supports this selector plan.",
+      "risks": [
+        "non_actionable_target"
+      ],
+      "scope": "#rt_rt_1k3ukus3f1ck630kthf1nerngp1",
+      "scope_reason": "recorded_disambiguation",
+      "scope_required": false,
+      "score": 87.0,
+      "selected_relation": "ancestor",
+      "selector": "#rt_rt_1k3ukus3f1ck630kthf1nerngp1",
+      "semantic_identity": null,
+      "stability": "id",
+      "step_index": 2,
+      "unique_at_recording": true
+    },
+    {
+      "action": "click",
+      "alternatives": [
+        {
+          "relation": "actionable_target",
+          "risks": [],
+          "score": 97.0,
+          "selector": "input[name=\"file\"]",
+          "stability": "name_attribute",
+          "unique": true
+        },
+        {
+          "relation": "recorded_target",
+          "risks": [],
+          "score": 89.0,
+          "selector": "input.webuploader-element-invisible",
+          "stability": "semantic_classes",
+          "unique": true
+        },
+        {
+          "relation": "ancestor",
+          "risks": [
+            "non_actionable_target"
+          ],
+          "score": 87.0,
+          "selector": "#rt_rt_1k3ukus3f1ck630kthf1nerngp1",
+          "stability": "id",
+          "unique": true
+        },
+        {
+          "relation": "actionable_target",
+          "risks": [],
+          "score": 85.0,
+          "selector": "input.webuploader-element-invisible",
+          "stability": "semantic_classes",
+          "unique": true
+        },
+        {
+          "relation": "ancestor",
+          "risks": [
+            "non_actionable_target"
+          ],
+          "score": 41.0,
+          "selector": "a.weui-desktop-upload__img__btn",
+          "stability": "semantic_classes",
+          "unique": true
+        }
+      ],
+      "context_boundary": null,
+      "grade": "STABLE",
+      "implementation_ready": true,
+      "intent": "点击 `file`",
+      "match_count_at_recording": 1,
+      "reason": "Recorded evidence supports this selector plan.",
+      "risks": [],
+      "scope": "#rt_rt_1k3ukus3f1ck630kthf1nerngp1",
+      "scope_reason": "recorded_disambiguation",
+      "scope_required": false,
+      "score": 101.0,
+      "selected_relation": "recorded_target",
+      "selector": "input[name=\"file\"]",
+      "semantic_identity": "file",
+      "stability": "name_attribute",
+      "step_index": 3,
+      "unique_at_recording": true
+    },
+    {
+      "action": "change",
+      "alternatives": [
+        {
+          "relation": "recorded_target",
+          "risks": [],
+          "score": 101.0,
+          "selector": "input[name=\"file\"]",
+          "stability": "name_attribute",
+          "unique": true
+        },
+        {
+          "relation": "actionable_target",
+          "risks": [],
+          "score": 97.0,
+          "selector": "input[name=\"file\"]",
+          "stability": "name_attribute",
+          "unique": true
+        },
+        {
+          "relation": "recorded_target",
+          "risks": [],
+          "score": 89.0,
+          "selector": "input.webuploader-element-invisible",
+          "stability": "semantic_classes",
+          "unique": true
+        },
+        {
+          "relation": "actionable_target",
+          "risks": [],
+          "score": 85.0,
+          "selector": "input.webuploader-element-invisible",
+          "stability": "semantic_classes",
+          "unique": true
+        },
+        {
+          "relation": "ancestor",
+          "risks": [],
+          "score": 61.0,
+          "selector": "a.weui-desktop-upload__img__btn",
+          "stability": "semantic_classes",
+          "unique": true
+        }
+      ],
+      "context_boundary": null,
+      "grade": "STABLE",
+      "implementation_ready": true,
+      "intent": "在 `file` 中输入录制文本（input）",
+      "match_count_at_recording": 1,
+      "reason": "Recorded evidence supports this selector plan.",
+      "risks": [],
+      "scope": "#rt_rt_1k3ukus3f1ck630kthf1nerngp1",
+      "scope_reason": "recorded_disambiguation",
+      "scope_required": false,
+      "score": 107.0,
+      "selected_relation": "ancestor",
+      "selector": "#rt_rt_1k3ukus3f1ck630kthf1nerngp1",
+      "semantic_identity": "file",
+      "stability": "id",
+      "step_index": 4,
+      "unique_at_recording": true
+    },
+    {
+      "action": "change",
+      "alternatives": [
+        {
+          "relation": "actionable_target",
+          "risks": [],
+          "score": 85.0,
+          "selector": "textarea.weui-desktop-form__textarea",
+          "stability": "semantic_classes",
+          "unique": true
+        },
+        {
+          "relation": "ancestor",
+          "risks": [],
+          "score": 77.0,
+          "selector": "span.weui-desktop-form__input-wrp.weui-desktop-form__input_append-in.weui-desktop-form__input_textarea.weui-desktop-form__input_counter",
+          "stability": "semantic_classes",
+          "unique": true
+        },
+        {
+          "relation": "ancestor",
+          "risks": [],
+          "score": 69.0,
+          "selector": "div.topic-form__input.topic-form__input--desc.weui-desktop-form__input-area",
+          "stability": "semantic_classes",
+          "unique": true
+        },
+        {
+          "relation": "ancestor",
+          "risks": [],
+          "score": 45.0,
+          "selector": "div.topic-form",
+          "stability": "semantic_classes",
+          "unique": true
+        },
+        {
+          "relation": "recorded_target",
+          "risks": [
+            "unproven_data_attribute_lifetime",
+            "non_unique"
+          ],
+          "score": 42.0,
+          "selector": "[data-doubao-translate-traverse-mark=\"\\31 \"]",
+          "stability": "data_attribute",
+          "unique": false
+        }
+      ],
+      "context_boundary": null,
+      "grade": "STABLE",
+      "implementation_ready": true,
+      "intent": "在 `选一个心情，跟锅仔做道菜，拍下今日一餐。坚持记录，月底自动生成你的专属画册！` 中输入录制文本（textarea）",
+      "match_count_at_recording": 1,
+      "reason": "Recorded evidence supports this selector plan.",
+      "risks": [],
+      "scope": "span.weui-desktop-form__input-wrp.weui-desktop-form__input_append-in.weui-desktop-form__input_textarea.weui-desktop-form__input_counter",
+      "scope_reason": "recorded_disambiguation",
+      "scope_required": false,
+      "score": 89.0,
+      "selected_relation": "recorded_target",
+      "selector": "textarea.weui-desktop-form__textarea",
+      "semantic_identity": "选一个心情，跟锅仔做道菜，拍下今日一餐。坚持记录，月底自动生成你的专属画册！",
+      "stability": "semantic_classes",
+      "step_index": 5,
+      "unique_at_recording": true
+    },
+    {
+      "action": "change",
+      "alternatives": [
+        {
+          "relation": "actionable_target",
+          "risks": [
+            "non_unique"
+          ],
+          "score": 50.0,
+          "selector": "input.weui-desktop-form__input",
+          "stability": "semantic_classes",
+          "unique": false
+        },
+        {
+          "relation": "ancestor",
+          "risks": [],
+          "score": 45.0,
+          "selector": "div.topic-form",
+          "stability": "semantic_classes",
+          "unique": true
+        },
+        {
+          "relation": "ancestor",
+          "risks": [
+            "non_unique"
+          ],
+          "score": 42.0,
+          "selector": "span.weui-desktop-form__input-wrp",
+          "stability": "semantic_classes",
+          "unique": false
+        },
+        {
+          "relation": "ancestor",
+          "risks": [
+            "non_unique"
+          ],
+          "score": 34.0,
+          "selector": "div.topic-form__input.weui-desktop-form__input-area",
+          "stability": "semantic_classes",
+          "unique": false
+        },
+        {
+          "relation": "ancestor",
+          "risks": [
+            "non_unique"
+          ],
+          "score": 26.0,
+          "selector": "div.topic-form__control",
+          "stability": "semantic_classes",
+          "unique": false
+        }
+      ],
+      "context_boundary": null,
+      "grade": "CONDITIONAL",
+      "implementation_ready": true,
+      "intent": "在 `记录今日伙食` 中输入录制文本（input）",
+      "match_count_at_recording": 3,
+      "reason": "Recorded evidence supports this selector plan.",
+      "risks": [
+        "scoped_disambiguation_required",
+        "semantic_identity_required"
+      ],
+      "scope": "div.topic-form",
+      "scope_reason": "recorded_disambiguation",
+      "scope_required": true,
+      "score": 89.0,
+      "selected_relation": "recorded_target",
+      "selector": "input.weui-desktop-form__input",
+      "semantic_identity": "记录今日伙食",
+      "stability": "semantic_classes",
+      "step_index": 6,
+      "unique_at_recording": false
+    },
+    {
+      "action": "click",
+      "alternatives": [
+        {
+          "relation": "actionable_target",
+          "risks": [],
+          "score": 85.0,
+          "selector": "button.weui-desktop-btn.weui-desktop-btn_primary",
+          "stability": "semantic_classes",
+          "unique": true
+        },
+        {
+          "relation": "ancestor",
+          "risks": [
+            "non_actionable_target"
+          ],
+          "score": 57.0,
+          "selector": "div.weui-desktop-btn_wrp",
+          "stability": "semantic_classes",
+          "unique": true
+        },
+        {
+          "relation": "ancestor",
+          "risks": [
+            "non_actionable_target"
+          ],
+          "score": 49.0,
+          "selector": "div.topic-create-page__actions",
+          "stability": "semantic_classes",
+          "unique": true
+        },
+        {
+          "relation": "ancestor",
+          "risks": [
+            "unproven_data_attribute_lifetime",
+            "non_actionable_target"
+          ],
+          "score": 45.0,
+          "selector": "[data-component=\"mp-button\"]",
+          "stability": "data_attribute",
+          "unique": true
+        },
+        {
+          "relation": "recorded_target",
+          "risks": [
+            "unproven_data_attribute_lifetime",
+            "non_unique"
+          ],
+          "score": 42.0,
+          "selector": "[data-doubao-translate-traverse-mark=\"\\31 \"]",
+          "stability": "data_attribute",
+          "unique": false
+        }
+      ],
+      "context_boundary": null,
+      "grade": "STABLE",
+      "implementation_ready": true,
+      "intent": "点击 `发布`",
+      "match_count_at_recording": 1,
+      "reason": "Recorded evidence supports this selector plan.",
+      "risks": [],
+      "scope": "[data-component=\"mp-button\"]",
+      "scope_reason": "recorded_disambiguation",
+      "scope_required": false,
+      "score": 89.0,
+      "selected_relation": "recorded_target",
+      "selector": "button.weui-desktop-btn.weui-desktop-btn_primary",
+      "semantic_identity": "发布",
+      "stability": "semantic_classes",
+      "step_index": 7,
+      "unique_at_recording": true
+    },
+    {
+      "action": "click",
+      "alternatives": [
+        {
+          "relation": "actionable_target",
+          "risks": [],
+          "score": 85.0,
+          "selector": "button.weui-desktop-btn.weui-desktop-btn_primary",
+          "stability": "semantic_classes",
+          "unique": true
+        },
+        {
+          "relation": "ancestor",
+          "risks": [
+            "non_actionable_target"
+          ],
+          "score": 57.0,
+          "selector": "div.weui-desktop-btn_wrp",
+          "stability": "semantic_classes",
+          "unique": true
+        },
+        {
+          "relation": "ancestor",
+          "risks": [
+            "non_actionable_target"
+          ],
+          "score": 49.0,
+          "selector": "div.topic-create-page__actions",
+          "stability": "semantic_classes",
+          "unique": true
+        },
+        {
+          "relation": "ancestor",
+          "risks": [
+            "unproven_data_attribute_lifetime",
+            "non_actionable_target"
+          ],
+          "score": 45.0,
+          "selector": "[data-component=\"mp-button\"]",
+          "stability": "data_attribute",
+          "unique": true
+        },
+        {
+          "relation": "recorded_target",
+          "risks": [
+            "unproven_data_attribute_lifetime",
+            "non_unique"
+          ],
+          "score": 42.0,
+          "selector": "[data-doubao-translate-traverse-mark=\"\\31 \"]",
+          "stability": "data_attribute",
+          "unique": false
+        }
+      ],
+      "context_boundary": null,
+      "grade": "STABLE",
+      "implementation_ready": true,
+      "intent": "点击 `发布`",
+      "match_count_at_recording": 1,
+      "reason": "Recorded evidence supports this selector plan.",
+      "risks": [],
+      "scope": "[data-component=\"mp-button\"]",
+      "scope_reason": "recorded_disambiguation",
+      "scope_required": false,
+      "score": 89.0,
+      "selected_relation": "recorded_target",
+      "selector": "button.weui-desktop-btn.weui-desktop-btn_primary",
+      "semantic_identity": "发布",
+      "stability": "semantic_classes",
+      "step_index": 8,
+      "unique_at_recording": true
+    }
+  ],
+  "schema": 1,
+  "sha256": "f3035352a053032c59fa6978ef00ba223c3f786f86f0c342c06af863502b194e"
+}

@@ -7,7 +7,7 @@ import { STATIC_BASE_URL } from '@/utils/assets'
 import { uploadFile } from '@/api/request'
 import { chooseImageFile } from '@/utils/chooseImage'
 import { ensureLogin } from '@/utils/login'
-import { useUserStore } from '@/stores/user'
+import { requireMember } from '@/utils/memberGate'
 import { toast, toastError } from '@/utils/toast'
 
 /** 锅仔 IP 姿态（全部复用 COS 现有资源，不新增素材） */
@@ -110,13 +110,6 @@ onUnmounted(() => {
 })
 
 // ===== 会员专享：拍照识别 =====
-const userStore = useUserStore()
-/** 会员判定：isMember=1 且会员未过期 */
-const isMember = computed(() => {
-  const info = userStore.userInfo
-  if (!info || info.isMember !== 1 || !info.memberExpire) return false
-  return new Date(info.memberExpire).getTime() > Date.now()
-})
 
 /** 识别确认清单：每条可勾选/改名，确认后才入库 */
 interface DraftItem extends RecognizedItem { checked: boolean }
@@ -126,22 +119,9 @@ const recognizeNotice = ref('')
 const drafts = ref<DraftItem[]>([])
 const recognizedCount = computed(() => drafts.value.filter(d => d.checked).length)
 
-/** 非会员：拦截并引导开通，绝不发起识别请求 */
-function requireMember(): boolean {
-  if (isMember.value) return true
-  uni.showModal({
-    title: '会员专享功能',
-    content: '冰箱拍照识别（自动认食材、算保质期、临期提醒）为会员功能，开通后即可使用。',
-    confirmText: '去开通',
-    cancelText: '暂不',
-    success: (res) => { if (res.confirm) uni.navigateTo({ url: '/pages/membership/index' }) },
-  })
-  return false
-}
-
 /** 拍照/选图 → 上传 → 识别 → 弹确认清单 */
 function startRecognize() {
-  if (!requireMember()) return
+  if (!requireMember('fridge_recognize')) return
   // 复用项目统一的选图工具：已处理相册权限被拒、隐私协议未同意等失败场景
   chooseImageFile({ onSelected: path => void runRecognize(path) })
 }
@@ -223,7 +203,7 @@ async function confirmRecognize() {
 
 /** 发送临期提醒（会员专享） */
 async function sendExpiryNotice() {
-  if (!requireMember()) return
+  if (!requireMember('fridge_expiry')) return
   try {
     const result = await notifyFridgeExpiring()
     if (result.sent) toast(`已提醒你 ${result.count} 项临期食材：${result.names}`)
@@ -418,9 +398,9 @@ function statusText(item: FridgeItem) {
             <text class="rake__title">这些要不要提醒你一下</text>
             <text class="rake__sub">{{ soonItems.map(i => i.name).join('、') }}</text>
           </view>
-          <view class="rake__go" role="button" aria-label="发送临期提醒" @click="sendExpiryNotice">
+          <view class="rake__go" role="button" aria-label="发送临期提醒（会员专享）" @click="sendExpiryNotice">
             <image class="rake__gz" :src="GZ_BELL" mode="aspectFit" aria-label="锅仔提醒你" />
-            <text class="rake__go-text">提醒我</text>
+            <text class="rake__go-text">提醒我</text><text class="rake__go-badge">会员</text>
           </view>
         </view>
       </template>
@@ -599,6 +579,7 @@ function statusText(item: FridgeItem) {
 .rake__go:active { transform: scale(.97); }
 .rake__gz { width: 56rpx; height: 56rpx; }
 .rake__go-text { color: var(--mrc-accent); font-size: 21rpx; font-weight: 800; }
+.rake__go-badge { padding: 2rpx 10rpx; border-radius: 20rpx; background: var(--mrc-accent-soft); color: var(--mrc-accent); font-size: 16rpx; font-weight: 800; letter-spacing: 1rpx; }
 
 /* ===== 抽屉式表单 ===== */
 .form-mask { position: fixed; z-index: 50; inset: 0; display: flex; align-items: flex-end; background: rgba(61, 37, 25, .42); animation: mask-in 240ms ease-out both; }

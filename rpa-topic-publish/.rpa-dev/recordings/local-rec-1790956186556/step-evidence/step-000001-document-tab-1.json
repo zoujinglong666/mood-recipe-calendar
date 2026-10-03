@@ -1,0 +1,53 @@
+{
+  "raw_event_id": 1,
+  "event_id": "page-1790956186580-8208d67d11637:1",
+  "event_type": "document",
+  "logical_tab_id": "tab-1",
+  "captured_at": 1790956186943,
+  "body_text": "",
+  "loading_state": {
+    "has_busy_element": false,
+    "has_progress_indicator": false,
+    "ready_state": "complete"
+  },
+  "ready_state": "complete",
+  "scroll": {
+    "at_document_end": true,
+    "document_height": 654,
+    "viewport_height": 654,
+    "x": 0,
+    "y": 0
+  },
+  "title": "",
+  "url": "about:blank",
+  "viewport": {
+    "height": 654,
+    "width": 1280
+  },
+  "url_source": "captured",
+  "capture_state": {
+    "mutation_count": 0,
+    "settled": true,
+    "waited_ms": 301
+  },
+  "structure_snapshot_path": "structure-snapshots/snapshot-ad82ed7c2f21c00e35df255a3d146d5a1742f63993ba9bfced1638e4e06ee9f4.json",
+  "screenshot": "screenshots/step-000001-document-tab-1.jpg",
+  "screenshot_status": {
+    "status": "captured",
+    "tab_id": 197126857,
+    "logical_tab_id": "tab-1",
+    "seq": 1,
+    "captured_at": 1790956186936,
+    "platform_os": "mac",
+    "active_at_request": true,
+    "url": "about:blank",
+    "active_at_completion": true,
+    "url_at_completion": "about:blank"
+  },
+  "last_active_screenshot": {
+    "path": "screenshots/step-000001-document-tab-1.jpg",
+    "captured_at": 1790956186936,
+    "url": "about:blank",
+    "seq": 1
+  }
+}

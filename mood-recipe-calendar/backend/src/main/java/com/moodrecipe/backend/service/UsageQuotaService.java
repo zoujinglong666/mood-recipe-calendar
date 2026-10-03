@@ -5,7 +5,9 @@ import com.moodrecipe.backend.config.AppClock;
 import com.moodrecipe.backend.repository.UsageQuotaRepository;
 import com.moodrecipe.backend.repository.UserRepository;
 import com.moodrecipe.backend.repository.CheckinRepository;
+import com.moodrecipe.backend.repository.ShareRecordRepository;
 import jakarta.transaction.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.time.*;
 
@@ -17,16 +19,22 @@ public class UsageQuotaService {
     private final UsageQuotaRepository quotas;
     private final UserRepository users;
     private final CheckinRepository checkins;
+    private final ShareRecordRepository shareRecords;
 
     public UsageQuotaService(UsageQuotaRepository quotas, UserRepository users) {
-        this(quotas, users, null);
+        this(quotas, users, null, null);
     }
 
-    @org.springframework.beans.factory.annotation.Autowired
     public UsageQuotaService(UsageQuotaRepository quotas, UserRepository users, CheckinRepository checkins) {
+        this(quotas, users, checkins, null);
+    }
+
+    @Autowired
+    public UsageQuotaService(UsageQuotaRepository quotas, UserRepository users, CheckinRepository checkins, ShareRecordRepository shareRecords) {
         this.quotas = quotas;
         this.users = users;
         this.checkins = checkins;
+        this.shareRecords = shareRecords;
     }
     public boolean member(String openid) { return users.findByOpenid(openid).filter(u -> Integer.valueOf(1).equals(u.getIsMember()) && u.getMemberExpire() != null && u.getMemberExpire().isAfter(AppClock.now())).isPresent(); }
     @Transactional public View consume(String openid, Feature feature) {
@@ -91,7 +99,10 @@ public class UsageQuotaService {
     private int limit(String openid, Feature feature, boolean isMember, LocalDate today) {
         if (feature == Feature.AGENT_CONVERSATION) {
             if (isMember) return Integer.MAX_VALUE;
-            return checkins != null && checkins.findByOpenidAndCheckinDate(openid, today.toString()).isPresent() ? 3 : 0;
+            int base = checkins != null && checkins.findByOpenidAndCheckinDate(openid, today.toString()).isPresent() ? 3 : 0;
+            // 分享裂变激励：非会员当日分享任意高光时刻，额外 +1 次锅仔对话
+            if (base > 0 && shareRecords != null && shareRecords.existsByOpenidAndShareDate(openid, today)) base += 1;
+            return base;
         }
         return isMember ? (feature == Feature.HOME_RECOMMEND ? 20 : Integer.MAX_VALUE)
             : (feature == Feature.HOME_RECOMMEND ? 3 : 1);
@@ -110,4 +121,14 @@ public class UsageQuotaService {
             next.atStartOfDay(ZONE).toOffsetDateTime().toString());
     }
     public void requireMember(String openid) { if (!member(openid)) throw new IllegalStateException("锅仔智能体为会员专享功能"); }
+
+    /** 当日是否已分享（享当日 +1 次对话激励） */
+    public boolean hasSharedToday(String openid) {
+        return shareRecords != null && shareRecords.existsByOpenidAndShareDate(openid, AppClock.today());
+    }
+
+    /** 是否分享过（决定「分享家」徽章） */
+    public boolean isSharer(String openid) {
+        return shareRecords != null && shareRecords.existsByOpenid(openid);
+    }
 }

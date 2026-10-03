@@ -10,7 +10,8 @@ import { navBack } from '@/composables/useNavBar'
 import { useUserStore } from '@/stores/user'
 import { STATIC_BASE_URL } from '@/utils/assets'
 import { chooseImageFile } from '@/utils/chooseImage'
-import { refreshUserInfo } from '@/utils/login'
+import { refreshUserInfo, navigateToLogin } from '@/utils/login'
+import { manualCheckUpdate } from '@/utils/update'
 import { toast, toastError, toastSuccess } from '@/utils/toast'
 
 definePage({
@@ -37,6 +38,11 @@ const deleteLoading = ref(false)
 
 const avatar = computed(() => userStore.userInfo?.avatarUrl || `${STATIC_BASE_URL}/static/guozai/mood_01_happy.png`)
 const themeChoice = computed<ThemeChoice>(() => followSystem.value ? 'system' : isDark.value ? 'dark' : 'light')
+
+/** 检查更新（逻辑在 utils/update，微信原生分发，零维护） */
+function checkForUpdate() {
+  manualCheckUpdate()
+}
 
 /** 后端服务切换 */
 const currentBackendUrl = ref(getApiBaseUrl())
@@ -83,7 +89,7 @@ onShow(async () => {
 
 async function updateAvatar(filePath: string) {
   if (!userStore.isLoggedIn) {
-    router.push({ name: 'login' })
+    navigateToLogin()
     return
   }
   if (!filePath || avatarUpdating.value)
@@ -109,7 +115,7 @@ function onChooseAvatar(event: any) {
 
 function chooseH5Avatar() {
   if (!userStore.isLoggedIn) {
-    router.push({ name: 'login' })
+    navigateToLogin()
     return
   }
   chooseImageFile({
@@ -121,7 +127,7 @@ function chooseH5Avatar() {
 async function saveNickname() {
   const value = nickname.value.trim()
   if (!userStore.isLoggedIn) {
-    router.push({ name: 'login' })
+    navigateToLogin()
     return
   }
   if (!value) {
@@ -396,6 +402,30 @@ function askDeleteAccount() {
         </view>
       </view>
 
+      <view class="settings-section">
+        <view class="settings-heading">
+          <text class="settings-heading__title">
+            关于锅仔
+          </text><text class="settings-heading__hint">
+            新版本由微信自动推送，也可手动检查
+          </text>
+        </view>
+        <view class="about-card">
+          <view class="about-row about-check pressable" role="button" aria-label="检查更新" @click="checkForUpdate">
+            <Icon name="info" :size="30" color="#EF5A3C" />
+            <view class="about-row__text">
+              <text class="about-row__name">
+                检查更新
+              </text>
+              <text class="about-row__desc">
+                点击检查是否有新版本
+              </text>
+            </view>
+            <text class="about-row__arrow">›</text>
+          </view>
+        </view>
+      </view>
+
       <view v-if="userStore.isLoggedIn" class="logout-button pressable" :class="{ 'is-disabled': logoutLoading }" role="button" aria-label="退出登录" @click="askForLogout">
         {{ logoutLoading ? '正在退出…' : '退出登录' }}
       </view>
@@ -477,6 +507,14 @@ function askDeleteAccount() {
 .backend-option__desc { color: var(--mrc-text-sub); font-size: 21rpx; }
 .backend-option__check { color: var(--mrc-accent); font-size: 30rpx; font-weight: 800; }
 .backend-note { display: block; padding-top: 16rpx; border-top: 2rpx solid var(--mrc-border-light); color: var(--mrc-text-light); font-size: 20rpx; line-height: 1.5; }
+.about-card { padding: 8rpx 26rpx 6rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 30rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); }
+.about-row { display: flex; min-height: 100rpx; align-items: center; gap: 16rpx; border-bottom: 2rpx solid var(--mrc-border-light); }
+.about-row:last-child { border-bottom: 0; }
+.about-row__text { display: flex; min-width: 0; flex-direction: column; gap: 4rpx; }
+.about-row__name { color: var(--mrc-text-strong); font-size: 27rpx; font-weight: 800; }
+.about-row__desc { color: var(--mrc-text-sub); font-size: 21rpx; }
+.about-check { justify-content: space-between; }
+.about-row__arrow { margin-left: auto; color: var(--mrc-text-light); font-size: 32rpx; font-weight: 800; }
 .logout-button { display: flex; min-height: 96rpx; align-items: center; justify-content: center; margin-top: 44rpx; border: 2rpx solid rgba(217, 72, 65, .42); border-radius: 48rpx; color: #D94841; background: var(--mrc-surface); font-size: 28rpx; font-weight: 700; }
 .delete-account { display: flex; min-height: 78rpx; align-items: center; justify-content: center; margin-top: 16rpx; color: var(--mrc-text-light); font-size: 23rpx; text-decoration: underline; }
 .settings-footnote { display: block; padding: 18rpx 28rpx 0; color: var(--mrc-text-light); font-size: 21rpx; line-height: 1.55; text-align: center; }

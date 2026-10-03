@@ -1,0 +1,53 @@
+{
+  "raw_event_id": 10,
+  "event_id": "15e447c5-d1a3-484e-a530-201450c03a3e:9",
+  "event_type": "click",
+  "logical_tab_id": "tab-1",
+  "captured_at": 1790956313054,
+  "body_text": "微信学堂 交流专区 官方文档 We 分析 23 # 今天也要好好吃饭 参与话题 选一个心情，跟锅仔做道菜，拍下今日一餐。坚持记录，月底自动生成你的专属画册！ 话题名称 8/16 背景图 背景图展示尺寸宽高比最大为 4:3 话题描述 38/40 推荐链接路径 推荐链接标题 自动添加位置 用户参与话题时将自动添加小程序绑定的位置 发布 关于腾讯 文档中心 规则中心 客服中心 侵权投诉 Copyright © 2012-2026 Tencent. All Rights Reserved.",
+  "loading_state": {
+    "has_busy_element": false,
+    "has_progress_indicator": true,
+    "ready_state": "complete"
+  },
+  "ready_state": "complete",
+  "scroll": {
+    "at_document_end": false,
+    "document_height": 1159,
+    "viewport_height": 654,
+    "x": 0,
+    "y": 15.5
+  },
+  "title": "小程序",
+  "url": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&lang=zh_CN",
+  "viewport": {
+    "height": 654,
+    "width": 1280
+  },
+  "url_source": "captured",
+  "capture_state": {
+    "mutation_count": 0,
+    "settled": true,
+    "waited_ms": 302
+  },
+  "structure_snapshot_path": "structure-snapshots/snapshot-cb6185bd82039ef120c063e78d8dcea36289a542685f73cf6055162525f696b2.json",
+  "screenshot": "screenshots/step-000010-click-tab-1.jpg",
+  "screenshot_status": {
+    "status": "captured",
+    "tab_id": 197126857,
+    "logical_tab_id": "tab-1",
+    "seq": 10,
+    "captured_at": 1790956313032,
+    "platform_os": "mac",
+    "active_at_request": true,
+    "url": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&lang=zh_CN",
+    "active_at_completion": true,
+    "url_at_completion": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&lang=zh_CN"
+  },
+  "last_active_screenshot": {
+    "path": "screenshots/step-000010-click-tab-1.jpg",
+    "captured_at": 1790956313032,
+    "url": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&lang=zh_CN",
+    "seq": 10
+  }
+}

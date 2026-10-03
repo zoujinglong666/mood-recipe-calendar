@@ -1,0 +1,99 @@
+{
+  "schema_version": 3,
+  "recording_id": "local-rec-1790956186556",
+  "title": "微信话题每日发布",
+  "state": "recorded",
+  "started_at": 1790956186556,
+  "stopped_at": 1790956415404,
+  "event_count": 11,
+  "redaction_count": 0,
+  "root_logical_tab_id": "tab-1",
+  "tabs": [
+    {
+      "logical_tab_id": "tab-1",
+      "opener_logical_tab_id": null,
+      "window_id": 197126842,
+      "url": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&lang=zh_CN",
+      "title": "小程序",
+      "state": "recording",
+      "included": true,
+      "last_active_screenshot": {
+        "path": "screenshots/checkpoint-final-tab-1.jpg",
+        "captured_at": 1790956415482,
+        "url": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&lang=zh_CN",
+        "seq": null
+      }
+    }
+  ],
+  "gaps": [],
+  "evidence_gaps": [],
+  "recoveries": [
+    {
+      "kind": "debugger_recovered",
+      "tab_id": 197126857,
+      "reason": "recording_document_updated",
+      "attempt": 1,
+      "ts": 1790956237154,
+      "url": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&lang=zh_CN"
+    },
+    {
+      "kind": "debugger_recovered",
+      "tab_id": 197126857,
+      "reason": "recording_document_updated",
+      "attempt": 2,
+      "ts": 1790956237156,
+      "url": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&lang=zh_CN"
+    }
+  ],
+  "final_checkpoint": {
+    "reason": "final",
+    "ts": 1790956415406,
+    "tabs": [
+      {
+        "logical_tab_id": "tab-1",
+        "tab_id": 197126857,
+        "url": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&lang=zh_CN",
+        "url_source": "checkpoint",
+        "screenshot": "screenshots/checkpoint-final-tab-1.jpg",
+        "structure_snapshot_path": "structure-snapshots/snapshot-9f73ad567a6e5d6b037f2393663a35e3e4b875510d96c087ed6c84649593a37c.json",
+        "body_text": "微信学堂 交流专区 官方文档 We 分析 23 # 今天也要好好吃饭 参与话题 选一个心情，跟锅仔做道菜，拍下今日一餐。坚持记录，月底自动生成你的专属画册！ 话题名称 8/16 背景图 背景图展示尺寸宽高比最大为 4:3 话题描述 38/40 推荐链接路径 推荐链接标题 自动添加位置 用户参与话题时将自动添加小程序绑定的位置 发布 关于腾讯 文档中心 规则中心 客服中心 侵权投诉 Copyright © 2012-2026 Tencent. All Rights Reserved.",
+        "loading_state": {
+          "has_busy_element": false,
+          "has_progress_indicator": true,
+          "ready_state": "complete"
+        },
+        "ready_state": "complete",
+        "scroll": {
+          "at_document_end": false,
+          "document_height": 1159,
+          "viewport_height": 654,
+          "x": 0,
+          "y": 309.5
+        },
+        "title": "小程序",
+        "viewport": {
+          "height": 654,
+          "width": 1280
+        },
+        "screenshot_status": {
+          "status": "captured",
+          "tab_id": 197126857,
+          "logical_tab_id": "tab-1",
+          "seq": null,
+          "captured_at": 1790956415482,
+          "platform_os": "mac",
+          "active_at_request": true,
+          "url": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&lang=zh_CN",
+          "active_at_completion": true,
+          "url_at_completion": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&lang=zh_CN"
+        },
+        "last_active_screenshot": {
+          "path": "screenshots/checkpoint-final-tab-1.jpg",
+          "captured_at": 1790956415482,
+          "url": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&lang=zh_CN",
+          "seq": null
+        }
+      }
+    ]
+  }
+}

@@ -13,7 +13,7 @@ import {
   requestWechatVirtualPayment,
 } from '../../api/virtualCommerce'
 import { useUserStore } from '../../stores/user'
-import { ensureLogin, refreshUserInfo } from '../../utils/login'
+import { ensureLogin, navigateToLogin, refreshUserInfo, refreshWechatLoginForPayment } from '../../utils/login'
 import { toast, toastError, toastSuccess } from '../../utils/toast'
 
 definePage({ name: 'membership', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '锅仔会员' } })
@@ -102,9 +102,7 @@ onMounted(async () => {
   }
 })
 
-const active = computed(() => userStore.userInfo?.isMember === 1
-  && Boolean(userStore.userInfo?.memberExpire)
-  && new Date(userStore.userInfo!.memberExpire!).getTime() > Date.now())
+const active = computed(() => userStore.isActiveMember)
 const expireText = computed(() => userStore.userInfo?.memberExpire?.slice(0, 10) || '')
 const price = computed(() => ((product.value?.priceFen || 990) / 100).toFixed(2))
 const purchasable = computed(() => paymentSupported && Boolean(product.value?.paymentAvailable))
@@ -143,7 +141,7 @@ async function purchase() {
   if (active.value || paying.value)
     return
   if (!userStore.isLoggedIn) {
-    router.push({ name: 'login' })
+    navigateToLogin()
     return
   }
   if (!product.value || !purchasable.value) {
@@ -155,7 +153,7 @@ async function purchase() {
   paying.value = true
   let checking = false
   try {
-    const openid = await ensureLogin()
+    const openid = await refreshWechatLoginForPayment()
     const order = await createVirtualOrder(openid, product.value.sku)
     const params = await getVirtualPaymentParams(openid, order.orderNo)
     await requestWechatVirtualPayment(params)

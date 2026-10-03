@@ -12,6 +12,7 @@ export interface RecordItem {
   exposureId?: string
   cookingTime?: number
   recordDate: string
+  posterUrl?: string
   createdAt?: string
 }
 

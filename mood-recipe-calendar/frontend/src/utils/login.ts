@@ -24,6 +24,35 @@ function normalizeLoginError(e: unknown): string {
  */
 let loginInFlight: Promise<string> | null = null
 
+function startWechatLogin(): Promise<string> {
+  if (loginInFlight)
+    return loginInFlight
+
+  loginInFlight = new Promise<string>((resolve, reject) => {
+    uni.login({
+      provider: 'weixin',
+      success: async (res) => {
+        if (res.code) {
+          try {
+            const result = await apiLogin(res.code)
+            useUserStore().setLogin(result.openid, result.sessionToken, result.user)
+            resolve(result.openid)
+          }
+          catch (e) {
+            reject(new Error(normalizeLoginError(e)))
+          }
+        }
+        else {
+          reject(new Error('微信登录失败：未获取到 code'))
+        }
+      },
+      fail: () => reject(new Error('微信登录失败')),
+    })
+  }).finally(() => { loginInFlight = null })
+
+  return loginInFlight
+}
+
 export function ensureLogin(): Promise<string> {
   const userStore = useUserStore()
 
@@ -43,34 +72,19 @@ export function ensureLogin(): Promise<string> {
     return Promise.resolve(userStore.openid)
   }
 
-  // 已有登录请求在飞行中，复用同一个 Promise，避免并发重复登录互相顶掉 token
-  if (loginInFlight) {
-    return loginInFlight
-  }
+  return startWechatLogin()
+}
 
-  loginInFlight = new Promise<string>((resolve, reject) => {
-    uni.login({
-      provider: 'weixin',
-      success: async (res) => {
-        if (res.code) {
-          try {
-            const result = await apiLogin(res.code)
-            userStore.setLogin(result.openid, result.sessionToken, result.user)
-            resolve(result.openid)
-          } catch (e) {
-            reject(new Error(normalizeLoginError(e)))
-          }
-        } else {
-          reject(new Error('微信登录失败：未获取到 code'))
-        }
-      },
-      fail: () => reject(new Error('微信登录失败')),
-    })
-  }).finally(() => {
-    loginInFlight = null
-  })
-
-  return loginInFlight
+/**
+ * 虚拟支付必须使用当前设备最新的微信 session_key 生成用户态签名。
+ * 不能复用普通会话的 sessionToken：同一账号在另一设备登录后，旧 session_key
+ * 仍能访问业务接口，却会在 requestVirtualPayment 时被微信拒绝为 SIGNATURE_INVALID。
+ */
+export function refreshWechatLoginForPayment(): Promise<string> {
+  const userStore = useUserStore()
+  if (userStore.userInitiatedLogout)
+    return Promise.reject(new Error('NOT_LOGGED_IN'))
+  return startWechatLogin()
 }
 
 /**
@@ -95,4 +109,24 @@ export async function refreshUserInfo(force = false): Promise<void> {
   } catch {
     // 静默失败，保留本地缓存
   }
+}
+
+/**
+ * 跳转到登录页，并对「未登录用户反复点击多个需登录入口」做去重：
+ * 同一时刻只会产生一个 login 页面实例，避免把 login 页在导航栈里叠加 20 层
+ * （对应 We 分析里「login 页 1 人打开 20 次」的体验问题）。
+ * 已处于 login 页或正在跳转中则直接忽略本次调用。
+ */
+let loginNavigating = false
+export function navigateToLogin(): void {
+  const pages = getCurrentPages() as Array<{ route?: string }>
+  const top = pages[pages.length - 1]
+  if (top && typeof top.route === 'string' && top.route.endsWith('/login'))
+    return
+  if (loginNavigating)
+    return
+  loginNavigating = true
+  // uni.navigateTo 在运行时返回 Promise，但当前类型声明为 void，这里做安全断言
+  ;(uni.navigateTo({ url: '/pages/login/index' }) as unknown as Promise<void>)
+    .finally(() => { loginNavigating = false })
 }

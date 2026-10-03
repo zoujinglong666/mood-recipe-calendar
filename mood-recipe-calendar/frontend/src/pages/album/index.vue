@@ -24,8 +24,9 @@ import LoadingState from '../../components/guozai/LoadingState.vue'
 import { useUserStore } from '../../stores/user'
 import { autoLayout, chunkPages, MOOD_COLOR, MOOD_EMOJI } from '../../utils/albumLayout'
 import { exportAlbumShare } from '../../utils/albumShare'
-import { ensureLogin, refreshUserInfo } from '../../utils/login'
+import { ensureLogin, refreshUserInfo, refreshWechatLoginForPayment } from '../../utils/login'
 import { toast, toastError, toastSuccess } from '../../utils/toast'
+import { recordShare } from '@/api/share'
 
 definePage({
   name: 'album',
@@ -154,9 +155,7 @@ const nav = useNavBar()
 const shareTop = computed(() => `${nav.statusBarHeight + nav.navBarHeight + 8}px`)
 /** 已到账且可用的画册权益次数；null 表示尚未查询或无权益。 */
 const entitlementRemaining = ref<number | null>(null)
-const isMember = computed(() => userStore.userInfo?.isMember === 1
-  && Boolean(userStore.userInfo?.memberExpire)
-  && new Date(userStore.userInfo!.memberExpire!).getTime() > Date.now())
+const isMember = computed(() => userStore.isActiveMember)
 
 const hasAlbumEntitlement = computed(() => isMember.value || (entitlementRemaining.value !== null && entitlementRemaining.value > 0))
 
@@ -187,7 +186,7 @@ async function onShare() {
 
   // 没有可用权益时先走购买流程；未成功获得权益则不消耗本次导出。
   if (!hasAlbumEntitlement.value) {
-    const purchased = await purchaseAlbum(openid)
+    const purchased = await purchaseAlbum()
     if (!purchased)
       return
   }
@@ -229,14 +228,15 @@ async function onShare() {
 }
 
 /** 画册收藏版购买流程：下单 → 服务端签名 → 微信虚拟支付 → 等待异步发货到账。 */
-async function purchaseAlbum(openid: string): Promise<boolean> {
+async function purchaseAlbum(): Promise<boolean> {
   if (purchasing.value)
     return false
   purchasing.value = true
   let checkingDelivery = false
   try {
-    const order = await createVirtualOrder(openid, ALBUM_PRODUCT_SKU)
-    const params = await getVirtualPaymentParams(openid, order.orderNo)
+    const paymentOpenid = await refreshWechatLoginForPayment()
+    const order = await createVirtualOrder(paymentOpenid, ALBUM_PRODUCT_SKU)
+    const params = await getVirtualPaymentParams(paymentOpenid, order.orderNo)
     await requestWechatVirtualPayment(params)
     checkingDelivery = true
     uni.showLoading({ title: '锅仔正在确认权益…', mask: true })
@@ -311,6 +311,17 @@ function previewRecordPhoto(record: RecordItem) {
     loop: photos.length > 1,
   })
 }
+
+onShareAppMessage(() => {
+  const sharer = userStore.openid
+  const path = `/pages/album/index${sharer ? `?sharer=${encodeURIComponent(sharer)}` : ''}`
+  // 记录分享：发放「分享家」徽章 + 非会员当日 +1 次对话激励（失败静默，不影响转发）
+  void recordShare('album').catch(() => {})
+  return {
+    title: `${yearNum}年${monthNum}月，我和锅仔一起吃了${stats.value.totalDays || 0}天的饭`,
+    path,
+  }
+})
 </script>
 
 <template>
@@ -615,6 +626,10 @@ function previewRecordPhoto(record: RecordItem) {
             <view v-else class="album-share__hint">
               收藏版为虚拟付费内容，解锁后可导出高清无水印分享图
             </view>
+            <button class="album-share__wechat" open-type="share">
+              <Icon name="share" :size="30" color="#fff" />
+              <text>转发给微信好友</text>
+            </button>
           </view>
         </swiper-item>
       </swiper>
@@ -961,6 +976,24 @@ function previewRecordPhoto(record: RecordItem) {
   line-height: 1.5;
   text-align: center;
 }
+
+.album-share__wechat {
+  width: 100%;
+  margin-top: 28rpx;
+  padding: 26rpx 0;
+  background: #1AAD19;
+  border-radius: 48rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14rpx;
+  color: #fff;
+  font-size: 32rpx;
+  font-weight: 700;
+  line-height: normal;
+  box-shadow: 0 8rpx 24rpx rgba(26, 173, 25, 0.3);
+}
+.album-share__wechat::after { border: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .album-page__share, .album-nav__btn { transition: none; }

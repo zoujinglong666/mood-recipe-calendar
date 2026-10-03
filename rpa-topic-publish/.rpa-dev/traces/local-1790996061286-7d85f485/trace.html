@@ -1,0 +1,1584 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>本次执行记录</title><style>
+body{font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;margin:24px;background:#f6f8fa;color:#1f2328}section,table{background:#fff;border:1px solid #d0d7de;border-radius:6px;margin:16px 0;padding:16px}table{width:100%;border-collapse:collapse;padding:0}th,td{border:1px solid #d0d7de;padding:8px;vertical-align:top;font-size:13px}th{background:#f0f3f6}pre{white-space:pre-wrap;word-break:break-word;margin:0}.failed{background:#ffebe9}.status{font-weight:700}.shot{display:inline-block;vertical-align:top;width:calc(50% - 36px)}img{display:block;width:100%;border:1px solid #d0d7de}code{word-break:break-all}@media(max-width:800px){.shot{width:auto;display:block}}
+</style></head><body><h1>本次执行记录</h1><section><p><b>状态：</b><span class="status">失败</span></p><p><b>开始：</b>2026-10-03T02:54:21.707Z</p><p><b>结束：</b>2026-10-03T02:54:48.322Z</p><p><b>处理步骤：</b>11</p><p>报告与截图只保存在本机。</p></section><section><h2>最终结果</h2><pre>{
+  &quot;code&quot;: &quot;RECORDED_POSTCONDITION_FAILED&quot;,
+  &quot;message&quot;: &quot;背景图上传未生效，请检查文件路径或图片格式&quot;,
+  &quot;details&quot;: {
+    &quot;file&quot;: &quot;/Users/zou/WebstormProjects/mood-recipe-calendar/rpa-topic-publish/assets/topic-bg-20261003-0855-record.png&quot;
+  },
+  &quot;failed_business_step&quot;: 3,
+  &quot;resume_from_step&quot;: 3,
+  &quot;diagnosis&quot;: &quot;目标选择器未命中；对照本步 DOM 摘要和 implementation starter 中的录制候选重新验证。&quot;,
+  &quot;repeated_failure_count&quot;: 1,
+  &quot;stop_blind_retry&quot;: false,
+  &quot;retry_guidance&quot;: &quot;优先按结构化诊断修复当前步骤，再重试一次。&quot;
+}</pre></section><h2>步骤截图</h2>
+    <section class="shot">
+      <h3>步骤 1: step:打开创建话题页面</h3>
+      <p>success · 5608 ms</p>
+      <a href="screenshots/step-0001.jpg"><img src="screenshots/step-0001.jpg" alt="步骤 1 截图"></a>
+    </section>
+    <section class="shot">
+      <h3>步骤 5: step:填写话题名称</h3>
+      <p>success · 667 ms</p>
+      <a href="screenshots/step-0005.jpg"><img src="screenshots/step-0005.jpg" alt="步骤 5 截图"></a>
+    </section>
+    <section class="shot">
+      <h3>步骤 8: step:上传话题背景图</h3>
+      <p>failed · 20320 ms</p>
+      <a href="screenshots/step-0008.jpg"><img src="screenshots/step-0008.jpg" alt="步骤 8 截图"></a>
+    </section><h2>处理记录</h2><table><thead><tr><th>#</th><th>时间</th><th>操作</th><th>结果</th><th>用时（毫秒）</th><th>页面</th><th>处理详情</th></tr></thead><tbody>
+    <tr class="">
+      <td>1</td><td>2026-10-03T02:54:21.716Z</td>
+      <td>step:打开创建话题页面</td><td>success</td>
+      <td>5608</td>
+      <td><code></code><br>→<br><code>https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&amp;lang=zh_CN</code></td>
+      <td><pre>{
+  &quot;input&quot;: {
+    &quot;step_name&quot;: &quot;打开创建话题页面&quot;
+  },
+  &quot;dom_after&quot;: {
+    &quot;elements&quot;: [
+      {
+        &quot;classes&quot;: [
+          &quot;header_logo&quot;
+        ],
+        &quot;href&quot;: &quot;https://mp.weixin.qq.com/&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 0,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 40,
+          &quot;width&quot;: 120,
+          &quot;x&quot;: 32,
+          &quot;y&quot;: 18
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;header_nav&quot;
+        ],
+        &quot;href&quot;: &quot;https://developers.weixin.qq.com/community/business&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 1,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 25.59375,
+          &quot;width&quot;: 64,
+          &quot;x&quot;: 738.90625,
+          &quot;y&quot;: 25.203125
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;微信学堂&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;header_nav&quot;
+        ],
+        &quot;href&quot;: &quot;https://developers.weixin.qq.com/community/develop/mixflow&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 2,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 25.59375,
+          &quot;width&quot;: 64,
+          &quot;x&quot;: 842.90625,
+          &quot;y&quot;: 25.203125
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;交流专区&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;header_nav&quot;
+        ],
+        &quot;href&quot;: &quot;https://developers.weixin.qq.com/miniprogram/dev/framework/&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 3,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 25.59375,
+          &quot;width&quot;: 64,
+          &quot;x&quot;: 946.90625,
+          &quot;y&quot;: 25.203125
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;官方文档&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;header_nav&quot;
+        ],
+        &quot;href&quot;: &quot;https://mp.weixin.qq.com/wxamp/wedata/login?token=766765003&amp;lang=zh_CN&amp;source=2&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 4,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 25.59375,
+          &quot;width&quot;: 61.09375,
+          &quot;x&quot;: 1050.90625,
+          &quot;y&quot;: 25.203125
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;We 分析&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;header_notify&quot;
+        ],
+        &quot;href&quot;: &quot;https://mp.weixin.qq.com/wxamp/tools/wasysnotify?token=766765003&amp;lang=zh_CN&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 5,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 24,
+          &quot;width&quot;: 24,
+          &quot;x&quot;: 1152,
+          &quot;y&quot;: 26
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;23&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;hover_block&quot;
+        ],
+        &quot;href&quot;: &quot;javascript:0&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 6,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 0,
+          &quot;width&quot;: 0,
+          &quot;x&quot;: 0,
+          &quot;y&quot;: 0
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;切换账号&quot;,
+        &quot;visible&quot;: false
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;hover_block&quot;
+        ],
+        &quot;href&quot;: &quot;https://mp.weixin.qq.com/wxopen/walogout?token=766765003&amp;lang=zh_CN&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 7,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 0,
+          &quot;width&quot;: 0,
+          &quot;x&quot;: 0,
+          &quot;y&quot;: 0
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;退出登录&quot;,
+        &quot;visible&quot;: false
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;weui-desktop-form__input&quot;
+        ],
+        &quot;href&quot;: &quot;&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 8,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 36,
+          &quot;width&quot;: 508,
+          &quot;x&quot;: 643,
+          &quot;y&quot;: 204
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;input&quot;,
+        &quot;text&quot;: &quot;&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;weui-desktop-upload__img__btn&quot;
+        ],
+        &quot;href&quot;: &quot;&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 9,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 112,
+          &quot;width&quot;: 112,
+          &quot;x&quot;: 643,
+          &quot;y&quot;: 302
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;上传&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;webuploader-element-invisible&quot;
+        ],
+        &quot;href&quot;: &quot;&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 10,
+        &quot;name&quot;: &quot;file&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 0,
+          &quot;width&quot;: 0,
+          &quot;x&quot;: 0,
+          &quot;y&quot;: 0
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;input&quot;,
+        &quot;text&quot;: &quot;&quot;,
+        &quot;visible&quot;: false
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;weui-desktop-form__textarea&quot;
+        ],
+        &quot;href&quot;: &quot;&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 11,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 80,
+          &quot;width&quot;: 508,
+          &quot;x&quot;: 643,
+          &quot;y&quot;: 446
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;textarea&quot;,
+        &quot;text&quot;: &quot;&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;recommend-path-tip__link&quot;
+        ],
+        &quot;href&quot;: &quot;http://kf.qq.com/faq/180725biaAn2180725VnQjYF.html&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 12,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 0,
+          &quot;width&quot;: 0,
+          &quot;x&quot;: 0,
+          &quot;y&quot;: 0
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;查看操作指引&quot;,
+        &quot;visible&quot;: false
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;recommend-path-tip__input&quot;
+        ],
+        &quot;href&quot;: &quot;&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 13,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 0,
+          &quot;width&quot;: 0,
+          &quot;x&quot;: 0,
+          &quot;y&quot;: 0
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;input&quot;,
+        &quot;text&quot;: &quot;&quot;,
+        &quot;visible&quot;: false
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;recommend-path-tip__enable-btn&quot;,
+          &quot;is-disabled&quot;
+        ],
+        &quot;href&quot;: &quot;&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 14,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 0,
+          &quot;width&quot;: 0,
+          &quot;x&quot;: 0,
+          &quot;y&quot;: 0
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;开启&quot;,
+        &quot;visible&quot;: false
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;weui-desktop-form__input&quot;
+        ],
+        &quot;href&quot;: &quot;&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 15,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 36,
+          &quot;width&quot;: 492,
+          &quot;x&quot;: 659,
+          &quot;y&quot;: 558
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;input&quot;,
+        &quot;text&quot;: &quot;&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;weui-desktop-form__input&quot;
+        ],
+        &quot;href&quot;: &quot;&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 16,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 36,
+          &quot;width&quot;: 492,
+          &quot;x&quot;: 659,
+          &quot;y&quot;: 626
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;input&quot;,
+        &quot;text&quot;: &quot;&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [],
+        &quot;href&quot;: &quot;https://developers.weixin.qq.com/miniprogram/dev/platform-capabilities/industry/wxpoi/&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 17,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 0,
+          &quot;width&quot;: 0,
+          &quot;x&quot;: 0,
+          &quot;y&quot;: 0
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;小程序如何绑定地理位置&quot;,
+        &quot;visible&quot;: false
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;weui-desktop-btn&quot;,
+          &quot;weui-desktop-btn_primary&quot;,
+          &quot;weui-desktop-btn_disabled&quot;
+        ],
+        &quot;href&quot;: &quot;&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 18,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 36,
+          &quot;width&quot;: 96,
+          &quot;x&quot;: 799,
+          &quot;y&quot;: 932
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;button&quot;,
+        &quot;text&quot;: &quot;发布&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [],
+        &quot;href&quot;: &quot;http://www.tencent.com/zh-cn/index.shtml&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 19,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 14,
+          &quot;width&quot;: 76,
+          &quot;x&quot;: 56,
+          &quot;y&quot;: 1121
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;关于腾讯&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [],
+        &quot;href&quot;: &quot;https://mp.weixin.qq.com/wxopen/wawiki?action=dir_list&amp;path=introduction/index&amp;token=766765003&amp;lang=zh_CN&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 20,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 14,
+          &quot;width&quot;: 77,
+          &quot;x&quot;: 173,
+          &quot;y&quot;: 1121
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;文档中心&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [],
+        &quot;href&quot;: &quot;https://mp.weixin.qq.com/webpoc/ruleCenter?type=mp&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 21,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 14,
+          &quot;width&quot;: 77,
+          &quot;x&quot;: 291,
+          &quot;y&quot;: 1121
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;规则中心&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [],
+        &quot;href&quot;: &quot;http://kf.qq.com/product/wx_xcx.html&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 22,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 14,
+          &quot;width&quot;: 77,
+          &quot;x&quot;: 409,
+          &quot;y&quot;: 1121
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;客服中心&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;weui-desktop-link&quot;
+        ],
+        &quot;href&quot;: &quot;https://mp.weixin.qq.com/acct/infringement?action=getmanual&amp;t=infringement/manual&amp;type=1&amp;token=766765003&amp;lang=zh_CN&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 23,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 14,
+          &quot;width&quot;: 77,
+          &quot;x&quot;: 532,
+          &quot;y&quot;: 1121
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;侵权投诉&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;weui-desktop-icon-btn&quot;,
+          &quot;weui-desktop-dialog__close-btn&quot;
+        ],
+        &quot;href&quot;: &quot;&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 24,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 0,
+          &quot;width&quot;: 0,
+          &quot;x&quot;: 0,
+          &quot;y&quot;: 0
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;button&quot;,
+        &quot;text&quot;: &quot;&quot;,
+        &quot;visible&quot;: false
+      }
+    ],
+    &quot;text_excerpt&quot;: &quot;微信学堂\n交流专区\n官方文档\nWe 分析\n23\n#\n话题名称\n参与话题\n话题简介\n话题名称\n0/16\n背景图\n背景图展示尺寸宽高比最大为 4:3\n上传\n话题描述\n0/40\n推荐链接路径\n推荐链接标题\n自动添加位置\n用户参与话题时将自动添加小程序绑定的位置\n发布\n关于腾讯\n文档中心\n规则中心\n客服中心\n侵权投诉\n\nCopyright © 2012-2026 Tencent. All Rights Reserved.&quot;,
+    &quot;title&quot;: &quot;小程序&quot;,
+    &quot;url&quot;: &quot;https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&amp;lang=zh_CN&quot;
+  }
+}</pre></td>
+    </tr>
+    <tr class="">
+      <td>2</td><td>2026-10-03T02:54:21.911Z</td>
+      <td>navigate</td><td>success</td>
+      <td>5217</td>
+      <td><code></code><br>→<br><code></code></td>
+      <td><pre>{
+  &quot;input&quot;: {
+    &quot;url&quot;: &quot;https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&amp;lang=zh_CN&quot;,
+    &quot;timeout_ms&quot;: 30000
+  },
+  &quot;dom_after&quot;: null
+}</pre></td>
+    </tr>
+    <tr class="">
+      <td>3</td><td>2026-10-03T02:54:27.130Z</td>
+      <td>wait_for_selector</td><td>success</td>
+      <td>39</td>
+      <td><code></code><br>→<br><code></code></td>
+      <td><pre>{
+  &quot;input&quot;: {
+    &quot;selector&quot;: &quot;div.topic-form&quot;,
+    &quot;timeout_ms&quot;: 20000,
+    &quot;visible&quot;: false
+  },
+  &quot;dom_after&quot;: null
+}</pre></td>
+    </tr>
+    <tr class="">
+      <td>4</td><td>2026-10-03T02:54:27.170Z</td>
+      <td>snapshot</td><td>success</td>
+      <td>30</td>
+      <td><code></code><br>→<br><code></code></td>
+      <td><pre>{
+  &quot;input&quot;: {},
+  &quot;dom_after&quot;: null
+}</pre></td>
+    </tr>
+    <tr class="">
+      <td>5</td><td>2026-10-03T02:54:27.331Z</td>
+      <td>step:填写话题名称</td><td>success</td>
+      <td>667</td>
+      <td><code>https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&amp;lang=zh_CN</code><br>→<br><code>https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&amp;lang=zh_CN</code></td>
+      <td><pre>{
+  &quot;input&quot;: {
+    &quot;step_name&quot;: &quot;填写话题名称&quot;
+  },
+  &quot;dom_after&quot;: {
+    &quot;elements&quot;: [
+      {
+        &quot;classes&quot;: [
+          &quot;header_logo&quot;
+        ],
+        &quot;href&quot;: &quot;https://mp.weixin.qq.com/&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 0,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 40,
+          &quot;width&quot;: 120,
+          &quot;x&quot;: 32,
+          &quot;y&quot;: 18
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;header_nav&quot;
+        ],
+        &quot;href&quot;: &quot;https://developers.weixin.qq.com/community/business&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 1,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 25.59375,
+          &quot;width&quot;: 64,
+          &quot;x&quot;: 738.90625,
+          &quot;y&quot;: 25.203125
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;微信学堂&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;header_nav&quot;
+        ],
+        &quot;href&quot;: &quot;https://developers.weixin.qq.com/community/develop/mixflow&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 2,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 25.59375,
+          &quot;width&quot;: 64,
+          &quot;x&quot;: 842.90625,
+          &quot;y&quot;: 25.203125
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;交流专区&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;header_nav&quot;
+        ],
+        &quot;href&quot;: &quot;https://developers.weixin.qq.com/miniprogram/dev/framework/&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 3,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 25.59375,
+          &quot;width&quot;: 64,
+          &quot;x&quot;: 946.90625,
+          &quot;y&quot;: 25.203125
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;官方文档&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;header_nav&quot;
+        ],
+        &quot;href&quot;: &quot;https://mp.weixin.qq.com/wxamp/wedata/login?token=766765003&amp;lang=zh_CN&amp;source=2&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 4,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 25.59375,
+          &quot;width&quot;: 61.09375,
+          &quot;x&quot;: 1050.90625,
+          &quot;y&quot;: 25.203125
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;We 分析&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;header_notify&quot;
+        ],
+        &quot;href&quot;: &quot;https://mp.weixin.qq.com/wxamp/tools/wasysnotify?token=766765003&amp;lang=zh_CN&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 5,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 24,
+          &quot;width&quot;: 24,
+          &quot;x&quot;: 1152,
+          &quot;y&quot;: 26
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;23&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;hover_block&quot;
+        ],
+        &quot;href&quot;: &quot;javascript:0&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 6,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 0,
+          &quot;width&quot;: 0,
+          &quot;x&quot;: 0,
+          &quot;y&quot;: 0
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;切换账号&quot;,
+        &quot;visible&quot;: false
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;hover_block&quot;
+        ],
+        &quot;href&quot;: &quot;https://mp.weixin.qq.com/wxopen/walogout?token=766765003&amp;lang=zh_CN&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 7,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 0,
+          &quot;width&quot;: 0,
+          &quot;x&quot;: 0,
+          &quot;y&quot;: 0
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;退出登录&quot;,
+        &quot;visible&quot;: false
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;weui-desktop-form__input&quot;
+        ],
+        &quot;href&quot;: &quot;&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 8,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 36,
+          &quot;width&quot;: 508,
+          &quot;x&quot;: 643,
+          &quot;y&quot;: 204
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;input&quot;,
+        &quot;text&quot;: &quot;随手一拍，月底收获专属美食画册&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;weui-desktop-upload__img__btn&quot;
+        ],
+        &quot;href&quot;: &quot;&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 9,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 112,
+          &quot;width&quot;: 112,
+          &quot;x&quot;: 643,
+          &quot;y&quot;: 302
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;上传&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;webuploader-element-invisible&quot;
+        ],
+        &quot;href&quot;: &quot;&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 10,
+        &quot;name&quot;: &quot;file&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 0,
+          &quot;width&quot;: 0,
+          &quot;x&quot;: 0,
+          &quot;y&quot;: 0
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;input&quot;,
+        &quot;text&quot;: &quot;&quot;,
+        &quot;visible&quot;: false
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;weui-desktop-form__textarea&quot;
+        ],
+        &quot;href&quot;: &quot;&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 11,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 80,
+          &quot;width&quot;: 508,
+          &quot;x&quot;: 643,
+          &quot;y&quot;: 446
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;textarea&quot;,
+        &quot;text&quot;: &quot;&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;recommend-path-tip__link&quot;
+        ],
+        &quot;href&quot;: &quot;http://kf.qq.com/faq/180725biaAn2180725VnQjYF.html&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 12,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 0,
+          &quot;width&quot;: 0,
+          &quot;x&quot;: 0,
+          &quot;y&quot;: 0
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;查看操作指引&quot;,
+        &quot;visible&quot;: false
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;recommend-path-tip__input&quot;
+        ],
+        &quot;href&quot;: &quot;&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 13,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 0,
+          &quot;width&quot;: 0,
+          &quot;x&quot;: 0,
+          &quot;y&quot;: 0
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;input&quot;,
+        &quot;text&quot;: &quot;&quot;,
+        &quot;visible&quot;: false
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;recommend-path-tip__enable-btn&quot;,
+          &quot;is-disabled&quot;
+        ],
+        &quot;href&quot;: &quot;&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 14,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 0,
+          &quot;width&quot;: 0,
+          &quot;x&quot;: 0,
+          &quot;y&quot;: 0
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;开启&quot;,
+        &quot;visible&quot;: false
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;weui-desktop-form__input&quot;
+        ],
+        &quot;href&quot;: &quot;&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 15,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 36,
+          &quot;width&quot;: 492,
+          &quot;x&quot;: 659,
+          &quot;y&quot;: 558
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;input&quot;,
+        &quot;text&quot;: &quot;&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;weui-desktop-form__input&quot;
+        ],
+        &quot;href&quot;: &quot;&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 16,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 36,
+          &quot;width&quot;: 492,
+          &quot;x&quot;: 659,
+          &quot;y&quot;: 626
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;input&quot;,
+        &quot;text&quot;: &quot;&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [],
+        &quot;href&quot;: &quot;https://developers.weixin.qq.com/miniprogram/dev/platform-capabilities/industry/wxpoi/&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 17,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 0,
+          &quot;width&quot;: 0,
+          &quot;x&quot;: 0,
+          &quot;y&quot;: 0
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;小程序如何绑定地理位置&quot;,
+        &quot;visible&quot;: false
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;weui-desktop-btn&quot;,
+          &quot;weui-desktop-btn_primary&quot;,
+          &quot;weui-desktop-btn_disabled&quot;
+        ],
+        &quot;href&quot;: &quot;&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 18,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 36,
+          &quot;width&quot;: 96,
+          &quot;x&quot;: 799,
+          &quot;y&quot;: 932
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;button&quot;,
+        &quot;text&quot;: &quot;发布&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [],
+        &quot;href&quot;: &quot;http://www.tencent.com/zh-cn/index.shtml&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 19,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 14,
+          &quot;width&quot;: 76,
+          &quot;x&quot;: 56,
+          &quot;y&quot;: 1121
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;关于腾讯&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [],
+        &quot;href&quot;: &quot;https://mp.weixin.qq.com/wxopen/wawiki?action=dir_list&amp;path=introduction/index&amp;token=766765003&amp;lang=zh_CN&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 20,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 14,
+          &quot;width&quot;: 77,
+          &quot;x&quot;: 173,
+          &quot;y&quot;: 1121
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;文档中心&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [],
+        &quot;href&quot;: &quot;https://mp.weixin.qq.com/webpoc/ruleCenter?type=mp&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 21,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 14,
+          &quot;width&quot;: 77,
+          &quot;x&quot;: 291,
+          &quot;y&quot;: 1121
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;规则中心&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [],
+        &quot;href&quot;: &quot;http://kf.qq.com/product/wx_xcx.html&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 22,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 14,
+          &quot;width&quot;: 77,
+          &quot;x&quot;: 409,
+          &quot;y&quot;: 1121
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;客服中心&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;weui-desktop-link&quot;
+        ],
+        &quot;href&quot;: &quot;https://mp.weixin.qq.com/acct/infringement?action=getmanual&amp;t=infringement/manual&amp;type=1&amp;token=766765003&amp;lang=zh_CN&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 23,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 14,
+          &quot;width&quot;: 77,
+          &quot;x&quot;: 532,
+          &quot;y&quot;: 1121
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;侵权投诉&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;weui-desktop-icon-btn&quot;,
+          &quot;weui-desktop-dialog__close-btn&quot;
+        ],
+        &quot;href&quot;: &quot;&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 24,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 0,
+          &quot;width&quot;: 0,
+          &quot;x&quot;: 0,
+          &quot;y&quot;: 0
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;button&quot;,
+        &quot;text&quot;: &quot;&quot;,
+        &quot;visible&quot;: false
+      }
+    ],
+    &quot;text_excerpt&quot;: &quot;微信学堂\n交流专区\n官方文档\nWe 分析\n23\n#\n随手一拍，月底收获专属美食画册\n参与话题\n话题简介\n话题名称\n15/16\n背景图\n背景图展示尺寸宽高比最大为 4:3\n上传\n话题描述\n0/40\n推荐链接路径\n推荐链接标题\n自动添加位置\n用户参与话题时将自动添加小程序绑定的位置\n发布\n关于腾讯\n文档中心\n规则中心\n客服中心\n侵权投诉\n\nCopyright © 2012-2026 Tencent. All Rights Reserved.&quot;,
+    &quot;title&quot;: &quot;小程序&quot;,
+    &quot;url&quot;: &quot;https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&amp;lang=zh_CN&quot;
+  }
+}</pre></td>
+    </tr>
+    <tr class="">
+      <td>6</td><td>2026-10-03T02:54:27.331Z</td>
+      <td>fill</td><td>success</td>
+      <td>560</td>
+      <td><code></code><br>→<br><code></code></td>
+      <td><pre>{
+  &quot;input&quot;: {
+    &quot;selector&quot;: {
+      &quot;css&quot;: &quot;input.weui-desktop-form__input[placeholder=\&quot;输入话题名称，发布后不可修改\&quot;]&quot;,
+      &quot;visible&quot;: true,
+      &quot;requireUnique&quot;: true,
+      &quot;scope&quot;: &quot;div.topic-form&quot;
+    },
+    &quot;value&quot;: &quot;[REDACTED]&quot;,
+    &quot;value_length&quot;: 15,
+    &quot;strategy&quot;: &quot;fast&quot;,
+    &quot;delay_ms&quot;: 25
+  },
+  &quot;dom_after&quot;: null
+}</pre></td>
+    </tr>
+    <tr class="">
+      <td>7</td><td>2026-10-03T02:54:27.893Z</td>
+      <td>evaluate</td><td>success</td>
+      <td>40</td>
+      <td><code></code><br>→<br><code></code></td>
+      <td><pre>{
+  &quot;input&quot;: {
+    &quot;expression_length&quot;: 624
+  },
+  &quot;dom_after&quot;: null
+}</pre></td>
+    </tr>
+    <tr class="failed">
+      <td>8</td><td>2026-10-03T02:54:28.000Z</td>
+      <td>step:上传话题背景图</td><td>failed</td>
+      <td>20320</td>
+      <td><code>https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&amp;lang=zh_CN</code><br>→<br><code>https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&amp;lang=zh_CN</code></td>
+      <td><pre>{
+  &quot;input&quot;: {
+    &quot;step_name&quot;: &quot;上传话题背景图&quot;
+  },
+  &quot;error&quot;: {
+    &quot;code&quot;: &quot;RECORDED_POSTCONDITION_FAILED&quot;,
+    &quot;message&quot;: &quot;背景图上传未生效，请检查文件路径或图片格式&quot;,
+    &quot;details&quot;: {
+      &quot;file&quot;: &quot;/Users/zou/WebstormProjects/mood-recipe-calendar/rpa-topic-publish/assets/topic-bg-20261003-0855-record.png&quot;
+    }
+  },
+  &quot;diagnosis&quot;: &quot;失败时页面仍存在弹窗/面板；检查上一点击是否生效以及面板关闭这一后置条件。&quot;,
+  &quot;dom_after&quot;: {
+    &quot;elements&quot;: [
+      {
+        &quot;classes&quot;: [
+          &quot;header_logo&quot;
+        ],
+        &quot;href&quot;: &quot;https://mp.weixin.qq.com/&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 0,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 40,
+          &quot;width&quot;: 120,
+          &quot;x&quot;: 32,
+          &quot;y&quot;: 18
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;header_nav&quot;
+        ],
+        &quot;href&quot;: &quot;https://developers.weixin.qq.com/community/business&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 1,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 25.59375,
+          &quot;width&quot;: 64,
+          &quot;x&quot;: 738.90625,
+          &quot;y&quot;: 25.203125
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;微信学堂&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;header_nav&quot;
+        ],
+        &quot;href&quot;: &quot;https://developers.weixin.qq.com/community/develop/mixflow&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 2,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 25.59375,
+          &quot;width&quot;: 64,
+          &quot;x&quot;: 842.90625,
+          &quot;y&quot;: 25.203125
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;交流专区&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;header_nav&quot;
+        ],
+        &quot;href&quot;: &quot;https://developers.weixin.qq.com/miniprogram/dev/framework/&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 3,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 25.59375,
+          &quot;width&quot;: 64,
+          &quot;x&quot;: 946.90625,
+          &quot;y&quot;: 25.203125
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;官方文档&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;header_nav&quot;
+        ],
+        &quot;href&quot;: &quot;https://mp.weixin.qq.com/wxamp/wedata/login?token=766765003&amp;lang=zh_CN&amp;source=2&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 4,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 25.59375,
+          &quot;width&quot;: 61.09375,
+          &quot;x&quot;: 1050.90625,
+          &quot;y&quot;: 25.203125
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;We 分析&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;header_notify&quot;
+        ],
+        &quot;href&quot;: &quot;https://mp.weixin.qq.com/wxamp/tools/wasysnotify?token=766765003&amp;lang=zh_CN&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 5,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 24,
+          &quot;width&quot;: 24,
+          &quot;x&quot;: 1152,
+          &quot;y&quot;: 26
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;23&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;hover_block&quot;
+        ],
+        &quot;href&quot;: &quot;javascript:0&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 6,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 0,
+          &quot;width&quot;: 0,
+          &quot;x&quot;: 0,
+          &quot;y&quot;: 0
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;切换账号&quot;,
+        &quot;visible&quot;: false
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;hover_block&quot;
+        ],
+        &quot;href&quot;: &quot;https://mp.weixin.qq.com/wxopen/walogout?token=766765003&amp;lang=zh_CN&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 7,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 0,
+          &quot;width&quot;: 0,
+          &quot;x&quot;: 0,
+          &quot;y&quot;: 0
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;退出登录&quot;,
+        &quot;visible&quot;: false
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;weui-desktop-form__input&quot;
+        ],
+        &quot;href&quot;: &quot;&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 8,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 36,
+          &quot;width&quot;: 508,
+          &quot;x&quot;: 643,
+          &quot;y&quot;: 204
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;input&quot;,
+        &quot;text&quot;: &quot;随手一拍，月底收获专属美食画册&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;weui-desktop-form__textarea&quot;
+        ],
+        &quot;href&quot;: &quot;&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 9,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 80,
+          &quot;width&quot;: 508,
+          &quot;x&quot;: 643,
+          &quot;y&quot;: 453.3984375
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;textarea&quot;,
+        &quot;text&quot;: &quot;&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;recommend-path-tip__link&quot;
+        ],
+        &quot;href&quot;: &quot;http://kf.qq.com/faq/180725biaAn2180725VnQjYF.html&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 10,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 0,
+          &quot;width&quot;: 0,
+          &quot;x&quot;: 0,
+          &quot;y&quot;: 0
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;查看操作指引&quot;,
+        &quot;visible&quot;: false
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;recommend-path-tip__input&quot;
+        ],
+        &quot;href&quot;: &quot;&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 11,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 0,
+          &quot;width&quot;: 0,
+          &quot;x&quot;: 0,
+          &quot;y&quot;: 0
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;input&quot;,
+        &quot;text&quot;: &quot;&quot;,
+        &quot;visible&quot;: false
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;recommend-path-tip__enable-btn&quot;,
+          &quot;is-disabled&quot;
+        ],
+        &quot;href&quot;: &quot;&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 12,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 0,
+          &quot;width&quot;: 0,
+          &quot;x&quot;: 0,
+          &quot;y&quot;: 0
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;开启&quot;,
+        &quot;visible&quot;: false
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;weui-desktop-form__input&quot;
+        ],
+        &quot;href&quot;: &quot;&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 13,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 36,
+          &quot;width&quot;: 492,
+          &quot;x&quot;: 659,
+          &quot;y&quot;: 565.3984375
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;input&quot;,
+        &quot;text&quot;: &quot;&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;weui-desktop-form__input&quot;
+        ],
+        &quot;href&quot;: &quot;&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 14,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 36,
+          &quot;width&quot;: 492,
+          &quot;x&quot;: 659,
+          &quot;y&quot;: 633.3984375
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;input&quot;,
+        &quot;text&quot;: &quot;&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [],
+        &quot;href&quot;: &quot;https://developers.weixin.qq.com/miniprogram/dev/platform-capabilities/industry/wxpoi/&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 15,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 0,
+          &quot;width&quot;: 0,
+          &quot;x&quot;: 0,
+          &quot;y&quot;: 0
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;小程序如何绑定地理位置&quot;,
+        &quot;visible&quot;: false
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;weui-desktop-btn&quot;,
+          &quot;weui-desktop-btn_primary&quot;
+        ],
+        &quot;href&quot;: &quot;&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 16,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 36,
+          &quot;width&quot;: 96,
+          &quot;x&quot;: 799,
+          &quot;y&quot;: 932
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;button&quot;,
+        &quot;text&quot;: &quot;发布&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [],
+        &quot;href&quot;: &quot;http://www.tencent.com/zh-cn/index.shtml&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 17,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 14,
+          &quot;width&quot;: 76,
+          &quot;x&quot;: 56,
+          &quot;y&quot;: 1121
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;关于腾讯&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [],
+        &quot;href&quot;: &quot;https://mp.weixin.qq.com/wxopen/wawiki?action=dir_list&amp;path=introduction/index&amp;token=766765003&amp;lang=zh_CN&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 18,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 14,
+          &quot;width&quot;: 77,
+          &quot;x&quot;: 173,
+          &quot;y&quot;: 1121
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;文档中心&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [],
+        &quot;href&quot;: &quot;https://mp.weixin.qq.com/webpoc/ruleCenter?type=mp&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 19,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 14,
+          &quot;width&quot;: 77,
+          &quot;x&quot;: 291,
+          &quot;y&quot;: 1121
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;规则中心&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [],
+        &quot;href&quot;: &quot;http://kf.qq.com/product/wx_xcx.html&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 20,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 14,
+          &quot;width&quot;: 77,
+          &quot;x&quot;: 409,
+          &quot;y&quot;: 1121
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;客服中心&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;weui-desktop-link&quot;
+        ],
+        &quot;href&quot;: &quot;https://mp.weixin.qq.com/acct/infringement?action=getmanual&amp;t=infringement/manual&amp;type=1&amp;token=766765003&amp;lang=zh_CN&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 21,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 14,
+          &quot;width&quot;: 77,
+          &quot;x&quot;: 532,
+          &quot;y&quot;: 1121
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;a&quot;,
+        &quot;text&quot;: &quot;侵权投诉&quot;,
+        &quot;visible&quot;: true
+      },
+      {
+        &quot;classes&quot;: [
+          &quot;weui-desktop-icon-btn&quot;,
+          &quot;weui-desktop-dialog__close-btn&quot;
+        ],
+        &quot;href&quot;: &quot;&quot;,
+        &quot;id&quot;: &quot;&quot;,
+        &quot;index&quot;: 22,
+        &quot;name&quot;: &quot;&quot;,
+        &quot;rect&quot;: {
+          &quot;height&quot;: 0,
+          &quot;width&quot;: 0,
+          &quot;x&quot;: 0,
+          &quot;y&quot;: 0
+        },
+        &quot;role&quot;: &quot;&quot;,
+        &quot;tag&quot;: &quot;button&quot;,
+        &quot;text&quot;: &quot;&quot;,
+        &quot;visible&quot;: false
+      }
+    ],
+    &quot;text_excerpt&quot;: &quot;微信学堂\n交流专区\n官方文档\nWe 分析\n23\n#\n随手一拍，月底收获专属美食画册\n参与话题\n话题简介\n话题名称\n15/16\n背景图\n背景图展示尺寸宽高比最大为 4:3\n话题描述\n0/40\n推荐链接路径\n推荐链接标题\n自动添加位置\n用户参与话题时将自动添加小程序绑定的位置\n发布\n关于腾讯\n文档中心\n规则中心\n客服中心\n侵权投诉\n\nCopyright © 2012-2026 Tencent. All Rights Reserved.&quot;,
+    &quot;title&quot;: &quot;小程序&quot;,
+    &quot;url&quot;: &quot;https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&amp;lang=zh_CN&quot;
+  }
+}</pre></td>
+    </tr>
+    <tr class="">
+      <td>9</td><td>2026-10-03T02:54:28.000Z</td>
+      <td>upload_files</td><td>success</td>
+      <td>35</td>
+      <td><code></code><br>→<br><code></code></td>
+      <td><pre>{
+  &quot;input&quot;: {
+    &quot;selector&quot;: &quot;input[name=\&quot;file\&quot;]&quot;,
+    &quot;file_count&quot;: 1
+  },
+  &quot;dom_after&quot;: null
+}</pre></td>
+    </tr>
+    <tr class="failed">
+      <td>10</td><td>2026-10-03T02:54:28.037Z</td>
+      <td>wait_for_selector</td><td>failed</td>
+      <td>20132</td>
+      <td><code></code><br>→<br><code></code></td>
+      <td><pre>{
+  &quot;input&quot;: {
+    &quot;selector&quot;: &quot;div.weui-desktop-upload__imgs__wrp img&quot;,
+    &quot;timeout_ms&quot;: 20000,
+    &quot;visible&quot;: true
+  },
+  &quot;error&quot;: {
+    &quot;code&quot;: &quot;LOCAL_SELECTOR_NOT_FOUND&quot;,
+    &quot;message&quot;: &quot;LOCAL_SELECTOR_NOT_FOUND: Selector was not ready: div.weui-desktop-upload__imgs__wrp img&quot;,
+    &quot;details&quot;: {
+      &quot;last&quot;: {
+        &quot;error_code&quot;: &quot;LOCAL_SELECTOR_NOT_FOUND&quot;,
+        &quot;error_message&quot;: &quot;LOCAL_SELECTOR_NOT_FOUND: Selector did not match: div.weui-desktop-upload__imgs__wrp img&quot;
+      },
+      &quot;selector&quot;: &quot;div.weui-desktop-upload__imgs__wrp img&quot;,
+      &quot;timeout_ms&quot;: 20000,
+      &quot;visible&quot;: true,
+      &quot;workspace_id&quot;: &quot;dev:19d8713cfa486079&quot;
+    }
+  },
+  &quot;diagnosis&quot;: &quot;目标选择器未命中；对照本步 DOM 摘要和 implementation starter 中的录制候选重新验证。&quot;,
+  &quot;dom_after&quot;: null
+}</pre></td>
+    </tr>
+    <tr class="">
+      <td>11</td><td>2026-10-03T02:54:48.180Z</td>
+      <td>evaluate</td><td>success</td>
+      <td>44</td>
+      <td><code></code><br>→<br><code></code></td>
+      <td><pre>{
+  &quot;input&quot;: {
+    &quot;expression_length&quot;: 624
+  },
+  &quot;dom_after&quot;: null
+}</pre></td>
+    </tr></tbody></table></body></html>

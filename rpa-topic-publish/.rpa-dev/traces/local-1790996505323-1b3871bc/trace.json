@@ -1,0 +1,6764 @@
+{
+  "schema_version": 2,
+  "started_at": 1790996505749,
+  "project": "/Users/zou/WebstormProjects/mood-recipe-calendar/rpa-topic-publish",
+  "from_step": 1,
+  "steps": [
+    {
+      "step": 1,
+      "method": "step:打开创建话题页面",
+      "input": {
+        "step_name": "打开创建话题页面"
+      },
+      "started_at": 1790996505758,
+      "url_before": "https://mp.weixin.qq.com/wxamp/appmsgtopic/get_topic_page?token=766765003&lang=zh_CN",
+      "result": "success",
+      "business_step": 1,
+      "duration_ms": 3540,
+      "url_after": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&lang=zh_CN",
+      "screenshot": "screenshots/step-0001.jpg",
+      "dom_after": {
+        "elements": [
+          {
+            "classes": [
+              "header_logo"
+            ],
+            "href": "https://mp.weixin.qq.com/",
+            "id": "",
+            "index": 0,
+            "name": "",
+            "rect": {
+              "height": 40,
+              "width": 120,
+              "x": 32,
+              "y": 18
+            },
+            "role": "",
+            "tag": "a",
+            "text": "",
+            "visible": true
+          },
+          {
+            "classes": [
+              "header_nav"
+            ],
+            "href": "https://developers.weixin.qq.com/community/business",
+            "id": "",
+            "index": 1,
+            "name": "",
+            "rect": {
+              "height": 25.59375,
+              "width": 64,
+              "x": 738.90625,
+              "y": 25.203125
+            },
+            "role": "",
+            "tag": "a",
+            "text": "微信学堂",
+            "visible": true
+          },
+          {
+            "classes": [
+              "header_nav"
+            ],
+            "href": "https://developers.weixin.qq.com/community/develop/mixflow",
+            "id": "",
+            "index": 2,
+            "name": "",
+            "rect": {
+              "height": 25.59375,
+              "width": 64,
+              "x": 842.90625,
+              "y": 25.203125
+            },
+            "role": "",
+            "tag": "a",
+            "text": "交流专区",
+            "visible": true
+          },
+          {
+            "classes": [
+              "header_nav"
+            ],
+            "href": "https://developers.weixin.qq.com/miniprogram/dev/framework/",
+            "id": "",
+            "index": 3,
+            "name": "",
+            "rect": {
+              "height": 25.59375,
+              "width": 64,
+              "x": 946.90625,
+              "y": 25.203125
+            },
+            "role": "",
+            "tag": "a",
+            "text": "官方文档",
+            "visible": true
+          },
+          {
+            "classes": [
+              "header_nav"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/wedata/login?token=766765003&lang=zh_CN&source=2",
+            "id": "",
+            "index": 4,
+            "name": "",
+            "rect": {
+              "height": 25.59375,
+              "width": 61.09375,
+              "x": 1050.90625,
+              "y": 25.203125
+            },
+            "role": "",
+            "tag": "a",
+            "text": "We 分析",
+            "visible": true
+          },
+          {
+            "classes": [
+              "header_notify"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/tools/wasysnotify?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 5,
+            "name": "",
+            "rect": {
+              "height": 24,
+              "width": 24,
+              "x": 1152,
+              "y": 26
+            },
+            "role": "",
+            "tag": "a",
+            "text": "23",
+            "visible": true
+          },
+          {
+            "classes": [
+              "hover_block"
+            ],
+            "href": "javascript:0",
+            "id": "",
+            "index": 6,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "切换账号",
+            "visible": false
+          },
+          {
+            "classes": [
+              "hover_block"
+            ],
+            "href": "https://mp.weixin.qq.com/wxopen/walogout?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 7,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "退出登录",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-form__input"
+            ],
+            "href": "",
+            "id": "",
+            "index": 8,
+            "name": "",
+            "rect": {
+              "height": 36,
+              "width": 508,
+              "x": 643,
+              "y": 204
+            },
+            "role": "",
+            "tag": "input",
+            "text": "",
+            "visible": true
+          },
+          {
+            "classes": [
+              "weui-desktop-upload__img__btn"
+            ],
+            "href": "",
+            "id": "",
+            "index": 9,
+            "name": "",
+            "rect": {
+              "height": 112,
+              "width": 112,
+              "x": 643,
+              "y": 302
+            },
+            "role": "",
+            "tag": "a",
+            "text": "上传",
+            "visible": true
+          },
+          {
+            "classes": [
+              "webuploader-element-invisible"
+            ],
+            "href": "",
+            "id": "",
+            "index": 10,
+            "name": "file",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "input",
+            "text": "",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-form__textarea"
+            ],
+            "href": "",
+            "id": "",
+            "index": 11,
+            "name": "",
+            "rect": {
+              "height": 80,
+              "width": 508,
+              "x": 643,
+              "y": 446
+            },
+            "role": "",
+            "tag": "textarea",
+            "text": "",
+            "visible": true
+          },
+          {
+            "classes": [
+              "recommend-path-tip__link"
+            ],
+            "href": "http://kf.qq.com/faq/180725biaAn2180725VnQjYF.html",
+            "id": "",
+            "index": 12,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "查看操作指引",
+            "visible": false
+          },
+          {
+            "classes": [
+              "recommend-path-tip__input"
+            ],
+            "href": "",
+            "id": "",
+            "index": 13,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "input",
+            "text": "",
+            "visible": false
+          },
+          {
+            "classes": [
+              "recommend-path-tip__enable-btn",
+              "is-disabled"
+            ],
+            "href": "",
+            "id": "",
+            "index": 14,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "开启",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-form__input"
+            ],
+            "href": "",
+            "id": "",
+            "index": 15,
+            "name": "",
+            "rect": {
+              "height": 36,
+              "width": 492,
+              "x": 659,
+              "y": 558
+            },
+            "role": "",
+            "tag": "input",
+            "text": "",
+            "visible": true
+          },
+          {
+            "classes": [
+              "weui-desktop-form__input"
+            ],
+            "href": "",
+            "id": "",
+            "index": 16,
+            "name": "",
+            "rect": {
+              "height": 36,
+              "width": 492,
+              "x": 659,
+              "y": 626
+            },
+            "role": "",
+            "tag": "input",
+            "text": "",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "https://developers.weixin.qq.com/miniprogram/dev/platform-capabilities/industry/wxpoi/",
+            "id": "",
+            "index": 17,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "小程序如何绑定地理位置",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-btn",
+              "weui-desktop-btn_primary",
+              "weui-desktop-btn_disabled"
+            ],
+            "href": "",
+            "id": "",
+            "index": 18,
+            "name": "",
+            "rect": {
+              "height": 36,
+              "width": 96,
+              "x": 799,
+              "y": 932
+            },
+            "role": "",
+            "tag": "button",
+            "text": "发布",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "http://www.tencent.com/zh-cn/index.shtml",
+            "id": "",
+            "index": 19,
+            "name": "",
+            "rect": {
+              "height": 14,
+              "width": 76,
+              "x": 56,
+              "y": 1121
+            },
+            "role": "",
+            "tag": "a",
+            "text": "关于腾讯",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "https://mp.weixin.qq.com/wxopen/wawiki?action=dir_list&path=introduction/index&token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 20,
+            "name": "",
+            "rect": {
+              "height": 14,
+              "width": 77,
+              "x": 173,
+              "y": 1121
+            },
+            "role": "",
+            "tag": "a",
+            "text": "文档中心",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "https://mp.weixin.qq.com/webpoc/ruleCenter?type=mp",
+            "id": "",
+            "index": 21,
+            "name": "",
+            "rect": {
+              "height": 14,
+              "width": 77,
+              "x": 291,
+              "y": 1121
+            },
+            "role": "",
+            "tag": "a",
+            "text": "规则中心",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "http://kf.qq.com/product/wx_xcx.html",
+            "id": "",
+            "index": 22,
+            "name": "",
+            "rect": {
+              "height": 14,
+              "width": 77,
+              "x": 409,
+              "y": 1121
+            },
+            "role": "",
+            "tag": "a",
+            "text": "客服中心",
+            "visible": true
+          },
+          {
+            "classes": [
+              "weui-desktop-link"
+            ],
+            "href": "https://mp.weixin.qq.com/acct/infringement?action=getmanual&t=infringement/manual&type=1&token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 23,
+            "name": "",
+            "rect": {
+              "height": 14,
+              "width": 77,
+              "x": 532,
+              "y": 1121
+            },
+            "role": "",
+            "tag": "a",
+            "text": "侵权投诉",
+            "visible": true
+          },
+          {
+            "classes": [
+              "weui-desktop-icon-btn",
+              "weui-desktop-dialog__close-btn"
+            ],
+            "href": "",
+            "id": "",
+            "index": 24,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "button",
+            "text": "",
+            "visible": false
+          }
+        ],
+        "text_excerpt": "微信学堂\n交流专区\n官方文档\nWe 分析\n23\n#\n话题名称\n参与话题\n话题简介\n话题名称\n0/16\n背景图\n背景图展示尺寸宽高比最大为 4:3\n上传\n话题描述\n0/40\n推荐链接路径\n推荐链接标题\n自动添加位置\n用户参与话题时将自动添加小程序绑定的位置\n发布\n关于腾讯\n文档中心\n规则中心\n客服中心\n侵权投诉\n\nCopyright © 2012-2026 Tencent. All Rights Reserved.",
+        "title": "小程序",
+        "url": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&lang=zh_CN"
+      },
+      "result_details": null
+    },
+    {
+      "step": 2,
+      "method": "navigate",
+      "input": {
+        "url": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&lang=zh_CN",
+        "timeout_ms": 30000
+      },
+      "started_at": 1790996505791,
+      "url_before": null,
+      "result": "success",
+      "business_step": 1,
+      "duration_ms": 3330,
+      "url_after": null,
+      "screenshot": null,
+      "dom_after": null,
+      "result_details": null
+    },
+    {
+      "step": 3,
+      "method": "wait_for_selector",
+      "input": {
+        "selector": "div.topic-form",
+        "timeout_ms": 20000,
+        "visible": false
+      },
+      "started_at": 1790996509123,
+      "url_before": null,
+      "result": "success",
+      "business_step": 1,
+      "duration_ms": 35,
+      "url_after": null,
+      "screenshot": null,
+      "dom_after": null,
+      "result_details": null
+    },
+    {
+      "step": 4,
+      "method": "snapshot",
+      "input": {},
+      "started_at": 1790996509158,
+      "url_before": null,
+      "result": "success",
+      "business_step": 1,
+      "duration_ms": 24,
+      "url_after": null,
+      "screenshot": null,
+      "dom_after": null,
+      "result_details": null
+    },
+    {
+      "step": 5,
+      "method": "step:填写话题名称",
+      "input": {
+        "step_name": "填写话题名称"
+      },
+      "started_at": 1790996509303,
+      "url_before": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&lang=zh_CN",
+      "result": "success",
+      "business_step": 2,
+      "duration_ms": 621,
+      "url_after": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&lang=zh_CN",
+      "screenshot": "screenshots/step-0005.jpg",
+      "dom_after": {
+        "elements": [
+          {
+            "classes": [
+              "header_logo"
+            ],
+            "href": "https://mp.weixin.qq.com/",
+            "id": "",
+            "index": 0,
+            "name": "",
+            "rect": {
+              "height": 40,
+              "width": 120,
+              "x": 32,
+              "y": 18
+            },
+            "role": "",
+            "tag": "a",
+            "text": "",
+            "visible": true
+          },
+          {
+            "classes": [
+              "header_nav"
+            ],
+            "href": "https://developers.weixin.qq.com/community/business",
+            "id": "",
+            "index": 1,
+            "name": "",
+            "rect": {
+              "height": 25.59375,
+              "width": 64,
+              "x": 738.90625,
+              "y": 25.203125
+            },
+            "role": "",
+            "tag": "a",
+            "text": "微信学堂",
+            "visible": true
+          },
+          {
+            "classes": [
+              "header_nav"
+            ],
+            "href": "https://developers.weixin.qq.com/community/develop/mixflow",
+            "id": "",
+            "index": 2,
+            "name": "",
+            "rect": {
+              "height": 25.59375,
+              "width": 64,
+              "x": 842.90625,
+              "y": 25.203125
+            },
+            "role": "",
+            "tag": "a",
+            "text": "交流专区",
+            "visible": true
+          },
+          {
+            "classes": [
+              "header_nav"
+            ],
+            "href": "https://developers.weixin.qq.com/miniprogram/dev/framework/",
+            "id": "",
+            "index": 3,
+            "name": "",
+            "rect": {
+              "height": 25.59375,
+              "width": 64,
+              "x": 946.90625,
+              "y": 25.203125
+            },
+            "role": "",
+            "tag": "a",
+            "text": "官方文档",
+            "visible": true
+          },
+          {
+            "classes": [
+              "header_nav"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/wedata/login?token=766765003&lang=zh_CN&source=2",
+            "id": "",
+            "index": 4,
+            "name": "",
+            "rect": {
+              "height": 25.59375,
+              "width": 61.09375,
+              "x": 1050.90625,
+              "y": 25.203125
+            },
+            "role": "",
+            "tag": "a",
+            "text": "We 分析",
+            "visible": true
+          },
+          {
+            "classes": [
+              "header_notify"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/tools/wasysnotify?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 5,
+            "name": "",
+            "rect": {
+              "height": 24,
+              "width": 24,
+              "x": 1152,
+              "y": 26
+            },
+            "role": "",
+            "tag": "a",
+            "text": "23",
+            "visible": true
+          },
+          {
+            "classes": [
+              "hover_block"
+            ],
+            "href": "javascript:0",
+            "id": "",
+            "index": 6,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "切换账号",
+            "visible": false
+          },
+          {
+            "classes": [
+              "hover_block"
+            ],
+            "href": "https://mp.weixin.qq.com/wxopen/walogout?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 7,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "退出登录",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-form__input"
+            ],
+            "href": "",
+            "id": "",
+            "index": 8,
+            "name": "",
+            "rect": {
+              "height": 36,
+              "width": 508,
+              "x": 643,
+              "y": 204
+            },
+            "role": "",
+            "tag": "input",
+            "text": "心情决定吃啥？锅仔帮你选",
+            "visible": true
+          },
+          {
+            "classes": [
+              "weui-desktop-upload__img__btn"
+            ],
+            "href": "",
+            "id": "",
+            "index": 9,
+            "name": "",
+            "rect": {
+              "height": 112,
+              "width": 112,
+              "x": 643,
+              "y": 302
+            },
+            "role": "",
+            "tag": "a",
+            "text": "上传",
+            "visible": true
+          },
+          {
+            "classes": [
+              "webuploader-element-invisible"
+            ],
+            "href": "",
+            "id": "",
+            "index": 10,
+            "name": "file",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "input",
+            "text": "",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-form__textarea"
+            ],
+            "href": "",
+            "id": "",
+            "index": 11,
+            "name": "",
+            "rect": {
+              "height": 80,
+              "width": 508,
+              "x": 643,
+              "y": 446
+            },
+            "role": "",
+            "tag": "textarea",
+            "text": "",
+            "visible": true
+          },
+          {
+            "classes": [
+              "recommend-path-tip__link"
+            ],
+            "href": "http://kf.qq.com/faq/180725biaAn2180725VnQjYF.html",
+            "id": "",
+            "index": 12,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "查看操作指引",
+            "visible": false
+          },
+          {
+            "classes": [
+              "recommend-path-tip__input"
+            ],
+            "href": "",
+            "id": "",
+            "index": 13,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "input",
+            "text": "",
+            "visible": false
+          },
+          {
+            "classes": [
+              "recommend-path-tip__enable-btn",
+              "is-disabled"
+            ],
+            "href": "",
+            "id": "",
+            "index": 14,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "开启",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-form__input"
+            ],
+            "href": "",
+            "id": "",
+            "index": 15,
+            "name": "",
+            "rect": {
+              "height": 36,
+              "width": 492,
+              "x": 659,
+              "y": 558
+            },
+            "role": "",
+            "tag": "input",
+            "text": "",
+            "visible": true
+          },
+          {
+            "classes": [
+              "weui-desktop-form__input"
+            ],
+            "href": "",
+            "id": "",
+            "index": 16,
+            "name": "",
+            "rect": {
+              "height": 36,
+              "width": 492,
+              "x": 659,
+              "y": 626
+            },
+            "role": "",
+            "tag": "input",
+            "text": "",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "https://developers.weixin.qq.com/miniprogram/dev/platform-capabilities/industry/wxpoi/",
+            "id": "",
+            "index": 17,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "小程序如何绑定地理位置",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-btn",
+              "weui-desktop-btn_primary",
+              "weui-desktop-btn_disabled"
+            ],
+            "href": "",
+            "id": "",
+            "index": 18,
+            "name": "",
+            "rect": {
+              "height": 36,
+              "width": 96,
+              "x": 799,
+              "y": 932
+            },
+            "role": "",
+            "tag": "button",
+            "text": "发布",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "http://www.tencent.com/zh-cn/index.shtml",
+            "id": "",
+            "index": 19,
+            "name": "",
+            "rect": {
+              "height": 14,
+              "width": 76,
+              "x": 56,
+              "y": 1121
+            },
+            "role": "",
+            "tag": "a",
+            "text": "关于腾讯",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "https://mp.weixin.qq.com/wxopen/wawiki?action=dir_list&path=introduction/index&token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 20,
+            "name": "",
+            "rect": {
+              "height": 14,
+              "width": 77,
+              "x": 173,
+              "y": 1121
+            },
+            "role": "",
+            "tag": "a",
+            "text": "文档中心",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "https://mp.weixin.qq.com/webpoc/ruleCenter?type=mp",
+            "id": "",
+            "index": 21,
+            "name": "",
+            "rect": {
+              "height": 14,
+              "width": 77,
+              "x": 291,
+              "y": 1121
+            },
+            "role": "",
+            "tag": "a",
+            "text": "规则中心",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "http://kf.qq.com/product/wx_xcx.html",
+            "id": "",
+            "index": 22,
+            "name": "",
+            "rect": {
+              "height": 14,
+              "width": 77,
+              "x": 409,
+              "y": 1121
+            },
+            "role": "",
+            "tag": "a",
+            "text": "客服中心",
+            "visible": true
+          },
+          {
+            "classes": [
+              "weui-desktop-link"
+            ],
+            "href": "https://mp.weixin.qq.com/acct/infringement?action=getmanual&t=infringement/manual&type=1&token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 23,
+            "name": "",
+            "rect": {
+              "height": 14,
+              "width": 77,
+              "x": 532,
+              "y": 1121
+            },
+            "role": "",
+            "tag": "a",
+            "text": "侵权投诉",
+            "visible": true
+          },
+          {
+            "classes": [
+              "weui-desktop-icon-btn",
+              "weui-desktop-dialog__close-btn"
+            ],
+            "href": "",
+            "id": "",
+            "index": 24,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "button",
+            "text": "",
+            "visible": false
+          }
+        ],
+        "text_excerpt": "微信学堂\n交流专区\n官方文档\nWe 分析\n23\n#\n心情决定吃啥？锅仔帮你选\n参与话题\n话题简介\n话题名称\n12/16\n背景图\n背景图展示尺寸宽高比最大为 4:3\n上传\n话题描述\n0/40\n推荐链接路径\n推荐链接标题\n自动添加位置\n用户参与话题时将自动添加小程序绑定的位置\n发布\n关于腾讯\n文档中心\n规则中心\n客服中心\n侵权投诉\n\nCopyright © 2012-2026 Tencent. All Rights Reserved.",
+        "title": "小程序",
+        "url": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&lang=zh_CN"
+      },
+      "result_details": null
+    },
+    {
+      "step": 6,
+      "method": "fill",
+      "input": {
+        "selector": {
+          "css": "input.weui-desktop-form__input[placeholder=\"输入话题名称，发布后不可修改\"]",
+          "visible": true,
+          "requireUnique": true,
+          "scope": "div.topic-form"
+        },
+        "value": "[REDACTED]",
+        "value_length": 12,
+        "strategy": "fast",
+        "delay_ms": 25
+      },
+      "started_at": 1790996509304,
+      "url_before": null,
+      "result": "success",
+      "business_step": 2,
+      "duration_ms": 511,
+      "url_after": null,
+      "screenshot": null,
+      "dom_after": null,
+      "result_details": {
+        "value_matches": true,
+        "actual_length": 12,
+        "page_change": {
+          "body_text_length_delta": 9,
+          "dialog_count_delta": 0,
+          "interactive_count_delta": 0,
+          "title_changed": false,
+          "url_changed": false
+        }
+      }
+    },
+    {
+      "step": 7,
+      "method": "evaluate",
+      "input": {
+        "expression_length": 635
+      },
+      "started_at": 1790996509818,
+      "url_before": null,
+      "result": "success",
+      "business_step": 2,
+      "duration_ms": 41,
+      "url_after": null,
+      "screenshot": null,
+      "dom_after": null,
+      "result_details": null
+    },
+    {
+      "step": 8,
+      "method": "step:上传话题背景图",
+      "input": {
+        "step_name": "上传话题背景图"
+      },
+      "started_at": 1790996509926,
+      "url_before": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&lang=zh_CN",
+      "result": "success",
+      "business_step": 3,
+      "duration_ms": 1816,
+      "url_after": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&lang=zh_CN",
+      "screenshot": "screenshots/step-0008.jpg",
+      "dom_after": {
+        "elements": [
+          {
+            "classes": [
+              "header_logo"
+            ],
+            "href": "https://mp.weixin.qq.com/",
+            "id": "",
+            "index": 0,
+            "name": "",
+            "rect": {
+              "height": 40,
+              "width": 120,
+              "x": 32,
+              "y": 18
+            },
+            "role": "",
+            "tag": "a",
+            "text": "",
+            "visible": true
+          },
+          {
+            "classes": [
+              "header_nav"
+            ],
+            "href": "https://developers.weixin.qq.com/community/business",
+            "id": "",
+            "index": 1,
+            "name": "",
+            "rect": {
+              "height": 25.59375,
+              "width": 64,
+              "x": 738.90625,
+              "y": 25.203125
+            },
+            "role": "",
+            "tag": "a",
+            "text": "微信学堂",
+            "visible": true
+          },
+          {
+            "classes": [
+              "header_nav"
+            ],
+            "href": "https://developers.weixin.qq.com/community/develop/mixflow",
+            "id": "",
+            "index": 2,
+            "name": "",
+            "rect": {
+              "height": 25.59375,
+              "width": 64,
+              "x": 842.90625,
+              "y": 25.203125
+            },
+            "role": "",
+            "tag": "a",
+            "text": "交流专区",
+            "visible": true
+          },
+          {
+            "classes": [
+              "header_nav"
+            ],
+            "href": "https://developers.weixin.qq.com/miniprogram/dev/framework/",
+            "id": "",
+            "index": 3,
+            "name": "",
+            "rect": {
+              "height": 25.59375,
+              "width": 64,
+              "x": 946.90625,
+              "y": 25.203125
+            },
+            "role": "",
+            "tag": "a",
+            "text": "官方文档",
+            "visible": true
+          },
+          {
+            "classes": [
+              "header_nav"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/wedata/login?token=766765003&lang=zh_CN&source=2",
+            "id": "",
+            "index": 4,
+            "name": "",
+            "rect": {
+              "height": 25.59375,
+              "width": 61.09375,
+              "x": 1050.90625,
+              "y": 25.203125
+            },
+            "role": "",
+            "tag": "a",
+            "text": "We 分析",
+            "visible": true
+          },
+          {
+            "classes": [
+              "header_notify"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/tools/wasysnotify?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 5,
+            "name": "",
+            "rect": {
+              "height": 24,
+              "width": 24,
+              "x": 1152,
+              "y": 26
+            },
+            "role": "",
+            "tag": "a",
+            "text": "23",
+            "visible": true
+          },
+          {
+            "classes": [
+              "hover_block"
+            ],
+            "href": "javascript:0",
+            "id": "",
+            "index": 6,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "切换账号",
+            "visible": false
+          },
+          {
+            "classes": [
+              "hover_block"
+            ],
+            "href": "https://mp.weixin.qq.com/wxopen/walogout?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 7,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "退出登录",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-form__input"
+            ],
+            "href": "",
+            "id": "",
+            "index": 8,
+            "name": "",
+            "rect": {
+              "height": 36,
+              "width": 508,
+              "x": 643,
+              "y": 204
+            },
+            "role": "",
+            "tag": "input",
+            "text": "心情决定吃啥？锅仔帮你选",
+            "visible": true
+          },
+          {
+            "classes": [
+              "weui-desktop-form__textarea"
+            ],
+            "href": "",
+            "id": "",
+            "index": 9,
+            "name": "",
+            "rect": {
+              "height": 80,
+              "width": 508,
+              "x": 643,
+              "y": 453.3984375
+            },
+            "role": "",
+            "tag": "textarea",
+            "text": "",
+            "visible": true
+          },
+          {
+            "classes": [
+              "recommend-path-tip__link"
+            ],
+            "href": "http://kf.qq.com/faq/180725biaAn2180725VnQjYF.html",
+            "id": "",
+            "index": 10,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "查看操作指引",
+            "visible": false
+          },
+          {
+            "classes": [
+              "recommend-path-tip__input"
+            ],
+            "href": "",
+            "id": "",
+            "index": 11,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "input",
+            "text": "",
+            "visible": false
+          },
+          {
+            "classes": [
+              "recommend-path-tip__enable-btn",
+              "is-disabled"
+            ],
+            "href": "",
+            "id": "",
+            "index": 12,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "开启",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-form__input"
+            ],
+            "href": "",
+            "id": "",
+            "index": 13,
+            "name": "",
+            "rect": {
+              "height": 36,
+              "width": 492,
+              "x": 659,
+              "y": 565.3984375
+            },
+            "role": "",
+            "tag": "input",
+            "text": "",
+            "visible": true
+          },
+          {
+            "classes": [
+              "weui-desktop-form__input"
+            ],
+            "href": "",
+            "id": "",
+            "index": 14,
+            "name": "",
+            "rect": {
+              "height": 36,
+              "width": 492,
+              "x": 659,
+              "y": 633.3984375
+            },
+            "role": "",
+            "tag": "input",
+            "text": "",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "https://developers.weixin.qq.com/miniprogram/dev/platform-capabilities/industry/wxpoi/",
+            "id": "",
+            "index": 15,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "小程序如何绑定地理位置",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-btn",
+              "weui-desktop-btn_primary"
+            ],
+            "href": "",
+            "id": "",
+            "index": 16,
+            "name": "",
+            "rect": {
+              "height": 36,
+              "width": 96,
+              "x": 799,
+              "y": 932
+            },
+            "role": "",
+            "tag": "button",
+            "text": "发布",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "http://www.tencent.com/zh-cn/index.shtml",
+            "id": "",
+            "index": 17,
+            "name": "",
+            "rect": {
+              "height": 14,
+              "width": 76,
+              "x": 56,
+              "y": 1121
+            },
+            "role": "",
+            "tag": "a",
+            "text": "关于腾讯",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "https://mp.weixin.qq.com/wxopen/wawiki?action=dir_list&path=introduction/index&token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 18,
+            "name": "",
+            "rect": {
+              "height": 14,
+              "width": 77,
+              "x": 173,
+              "y": 1121
+            },
+            "role": "",
+            "tag": "a",
+            "text": "文档中心",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "https://mp.weixin.qq.com/webpoc/ruleCenter?type=mp",
+            "id": "",
+            "index": 19,
+            "name": "",
+            "rect": {
+              "height": 14,
+              "width": 77,
+              "x": 291,
+              "y": 1121
+            },
+            "role": "",
+            "tag": "a",
+            "text": "规则中心",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "http://kf.qq.com/product/wx_xcx.html",
+            "id": "",
+            "index": 20,
+            "name": "",
+            "rect": {
+              "height": 14,
+              "width": 77,
+              "x": 409,
+              "y": 1121
+            },
+            "role": "",
+            "tag": "a",
+            "text": "客服中心",
+            "visible": true
+          },
+          {
+            "classes": [
+              "weui-desktop-link"
+            ],
+            "href": "https://mp.weixin.qq.com/acct/infringement?action=getmanual&t=infringement/manual&type=1&token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 21,
+            "name": "",
+            "rect": {
+              "height": 14,
+              "width": 77,
+              "x": 532,
+              "y": 1121
+            },
+            "role": "",
+            "tag": "a",
+            "text": "侵权投诉",
+            "visible": true
+          },
+          {
+            "classes": [
+              "weui-desktop-icon-btn",
+              "weui-desktop-dialog__close-btn"
+            ],
+            "href": "",
+            "id": "",
+            "index": 22,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "button",
+            "text": "",
+            "visible": false
+          }
+        ],
+        "text_excerpt": "微信学堂\n交流专区\n官方文档\nWe 分析\n23\n#\n心情决定吃啥？锅仔帮你选\n参与话题\n话题简介\n话题名称\n12/16\n背景图\n背景图展示尺寸宽高比最大为 4:3\n话题描述\n0/40\n推荐链接路径\n推荐链接标题\n自动添加位置\n用户参与话题时将自动添加小程序绑定的位置\n发布\n关于腾讯\n文档中心\n规则中心\n客服中心\n侵权投诉\n\nCopyright © 2012-2026 Tencent. All Rights Reserved.",
+        "title": "小程序",
+        "url": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&lang=zh_CN"
+      },
+      "result_details": null
+    },
+    {
+      "step": 9,
+      "method": "click",
+      "input": {
+        "selector": {
+          "css": "a.weui-desktop-upload__img__btn",
+          "visible": true,
+          "requireUnique": true,
+          "text": "上传"
+        },
+        "click_count": 1,
+        "delay_ms": 0
+      },
+      "started_at": 1790996509926,
+      "url_before": null,
+      "result": "success",
+      "business_step": 3,
+      "duration_ms": 228,
+      "url_after": null,
+      "screenshot": null,
+      "dom_after": null,
+      "result_details": {
+        "match_count": 1,
+        "target": {
+          "attributes": {
+            "data-doubao-translate-traverse-mark": "1"
+          },
+          "classes": [
+            "weui-desktop-upload__img__btn"
+          ],
+          "id": "",
+          "role": "",
+          "selector_suggestions": [
+            "[data-doubao-translate-traverse-mark=\"\\31 \"]"
+          ],
+          "tag": "a",
+          "text": "上传"
+        },
+        "hit_target": {
+          "attributes": {},
+          "classes": [],
+          "id": "",
+          "role": "",
+          "selector_suggestions": [
+            "label"
+          ],
+          "tag": "label",
+          "text": ""
+        },
+        "page_change": {
+          "body_text_length_delta": 0,
+          "dialog_count_delta": 0,
+          "target_disappeared": false,
+          "title_changed": false,
+          "url_changed": false
+        }
+      }
+    },
+    {
+      "step": 10,
+      "method": "sleep",
+      "input": {
+        "duration_ms": 800
+      },
+      "started_at": 1790996510156,
+      "url_before": null,
+      "result": "success",
+      "business_step": 3,
+      "duration_ms": 801,
+      "url_after": null,
+      "screenshot": null,
+      "dom_after": null,
+      "result_details": null
+    },
+    {
+      "step": 11,
+      "method": "upload_files",
+      "input": {
+        "selector": "input[name=\"file\"]",
+        "file_count": 1
+      },
+      "started_at": 1790996510959,
+      "url_before": null,
+      "result": "success",
+      "business_step": 3,
+      "duration_ms": 37,
+      "url_after": null,
+      "screenshot": null,
+      "dom_after": null,
+      "result_details": null
+    },
+    {
+      "step": 12,
+      "method": "wait_for_selector",
+      "input": {
+        "selector": "img.topic-form__cover-img",
+        "timeout_ms": 20000,
+        "visible": true
+      },
+      "started_at": 1790996510998,
+      "url_before": null,
+      "result": "success",
+      "business_step": 3,
+      "duration_ms": 669,
+      "url_after": null,
+      "screenshot": null,
+      "dom_after": null,
+      "result_details": null
+    },
+    {
+      "step": 13,
+      "method": "step:填写话题描述",
+      "input": {
+        "step_name": "填写话题描述"
+      },
+      "started_at": 1790996511744,
+      "url_before": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&lang=zh_CN",
+      "result": "success",
+      "business_step": 4,
+      "duration_ms": 658,
+      "url_after": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&lang=zh_CN",
+      "screenshot": "screenshots/step-0013.jpg",
+      "dom_after": {
+        "elements": [
+          {
+            "classes": [
+              "header_logo"
+            ],
+            "href": "https://mp.weixin.qq.com/",
+            "id": "",
+            "index": 0,
+            "name": "",
+            "rect": {
+              "height": 40,
+              "width": 120,
+              "x": 32,
+              "y": 18
+            },
+            "role": "",
+            "tag": "a",
+            "text": "",
+            "visible": true
+          },
+          {
+            "classes": [
+              "header_nav"
+            ],
+            "href": "https://developers.weixin.qq.com/community/business",
+            "id": "",
+            "index": 1,
+            "name": "",
+            "rect": {
+              "height": 25.59375,
+              "width": 64,
+              "x": 738.90625,
+              "y": 25.203125
+            },
+            "role": "",
+            "tag": "a",
+            "text": "微信学堂",
+            "visible": true
+          },
+          {
+            "classes": [
+              "header_nav"
+            ],
+            "href": "https://developers.weixin.qq.com/community/develop/mixflow",
+            "id": "",
+            "index": 2,
+            "name": "",
+            "rect": {
+              "height": 25.59375,
+              "width": 64,
+              "x": 842.90625,
+              "y": 25.203125
+            },
+            "role": "",
+            "tag": "a",
+            "text": "交流专区",
+            "visible": true
+          },
+          {
+            "classes": [
+              "header_nav"
+            ],
+            "href": "https://developers.weixin.qq.com/miniprogram/dev/framework/",
+            "id": "",
+            "index": 3,
+            "name": "",
+            "rect": {
+              "height": 25.59375,
+              "width": 64,
+              "x": 946.90625,
+              "y": 25.203125
+            },
+            "role": "",
+            "tag": "a",
+            "text": "官方文档",
+            "visible": true
+          },
+          {
+            "classes": [
+              "header_nav"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/wedata/login?token=766765003&lang=zh_CN&source=2",
+            "id": "",
+            "index": 4,
+            "name": "",
+            "rect": {
+              "height": 25.59375,
+              "width": 61.09375,
+              "x": 1050.90625,
+              "y": 25.203125
+            },
+            "role": "",
+            "tag": "a",
+            "text": "We 分析",
+            "visible": true
+          },
+          {
+            "classes": [
+              "header_notify"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/tools/wasysnotify?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 5,
+            "name": "",
+            "rect": {
+              "height": 24,
+              "width": 24,
+              "x": 1152,
+              "y": 26
+            },
+            "role": "",
+            "tag": "a",
+            "text": "23",
+            "visible": true
+          },
+          {
+            "classes": [
+              "hover_block"
+            ],
+            "href": "javascript:0",
+            "id": "",
+            "index": 6,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "切换账号",
+            "visible": false
+          },
+          {
+            "classes": [
+              "hover_block"
+            ],
+            "href": "https://mp.weixin.qq.com/wxopen/walogout?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 7,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "退出登录",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-form__input"
+            ],
+            "href": "",
+            "id": "",
+            "index": 8,
+            "name": "",
+            "rect": {
+              "height": 36,
+              "width": 508,
+              "x": 643,
+              "y": 204
+            },
+            "role": "",
+            "tag": "input",
+            "text": "心情决定吃啥？锅仔帮你选",
+            "visible": true
+          },
+          {
+            "classes": [
+              "weui-desktop-form__textarea"
+            ],
+            "href": "",
+            "id": "",
+            "index": 9,
+            "name": "",
+            "rect": {
+              "height": 80,
+              "width": 508,
+              "x": 643,
+              "y": 453.3984375
+            },
+            "role": "",
+            "tag": "textarea",
+            "text": "选一个心情，锅仔为你推荐今天该吃的那道菜。心情+美食，治愈每一天！",
+            "visible": true
+          },
+          {
+            "classes": [
+              "recommend-path-tip__link"
+            ],
+            "href": "http://kf.qq.com/faq/180725biaAn2180725VnQjYF.html",
+            "id": "",
+            "index": 10,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "查看操作指引",
+            "visible": false
+          },
+          {
+            "classes": [
+              "recommend-path-tip__input"
+            ],
+            "href": "",
+            "id": "",
+            "index": 11,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "input",
+            "text": "",
+            "visible": false
+          },
+          {
+            "classes": [
+              "recommend-path-tip__enable-btn",
+              "is-disabled"
+            ],
+            "href": "",
+            "id": "",
+            "index": 12,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "开启",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-form__input"
+            ],
+            "href": "",
+            "id": "",
+            "index": 13,
+            "name": "",
+            "rect": {
+              "height": 36,
+              "width": 492,
+              "x": 659,
+              "y": 565.3984375
+            },
+            "role": "",
+            "tag": "input",
+            "text": "",
+            "visible": true
+          },
+          {
+            "classes": [
+              "weui-desktop-form__input"
+            ],
+            "href": "",
+            "id": "",
+            "index": 14,
+            "name": "",
+            "rect": {
+              "height": 36,
+              "width": 492,
+              "x": 659,
+              "y": 633.3984375
+            },
+            "role": "",
+            "tag": "input",
+            "text": "",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "https://developers.weixin.qq.com/miniprogram/dev/platform-capabilities/industry/wxpoi/",
+            "id": "",
+            "index": 15,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "小程序如何绑定地理位置",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-btn",
+              "weui-desktop-btn_primary"
+            ],
+            "href": "",
+            "id": "",
+            "index": 16,
+            "name": "",
+            "rect": {
+              "height": 36,
+              "width": 96,
+              "x": 799,
+              "y": 932
+            },
+            "role": "",
+            "tag": "button",
+            "text": "发布",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "http://www.tencent.com/zh-cn/index.shtml",
+            "id": "",
+            "index": 17,
+            "name": "",
+            "rect": {
+              "height": 14,
+              "width": 76,
+              "x": 56,
+              "y": 1121
+            },
+            "role": "",
+            "tag": "a",
+            "text": "关于腾讯",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "https://mp.weixin.qq.com/wxopen/wawiki?action=dir_list&path=introduction/index&token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 18,
+            "name": "",
+            "rect": {
+              "height": 14,
+              "width": 77,
+              "x": 173,
+              "y": 1121
+            },
+            "role": "",
+            "tag": "a",
+            "text": "文档中心",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "https://mp.weixin.qq.com/webpoc/ruleCenter?type=mp",
+            "id": "",
+            "index": 19,
+            "name": "",
+            "rect": {
+              "height": 14,
+              "width": 77,
+              "x": 291,
+              "y": 1121
+            },
+            "role": "",
+            "tag": "a",
+            "text": "规则中心",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "http://kf.qq.com/product/wx_xcx.html",
+            "id": "",
+            "index": 20,
+            "name": "",
+            "rect": {
+              "height": 14,
+              "width": 77,
+              "x": 409,
+              "y": 1121
+            },
+            "role": "",
+            "tag": "a",
+            "text": "客服中心",
+            "visible": true
+          },
+          {
+            "classes": [
+              "weui-desktop-link"
+            ],
+            "href": "https://mp.weixin.qq.com/acct/infringement?action=getmanual&t=infringement/manual&type=1&token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 21,
+            "name": "",
+            "rect": {
+              "height": 14,
+              "width": 77,
+              "x": 532,
+              "y": 1121
+            },
+            "role": "",
+            "tag": "a",
+            "text": "侵权投诉",
+            "visible": true
+          },
+          {
+            "classes": [
+              "weui-desktop-icon-btn",
+              "weui-desktop-dialog__close-btn"
+            ],
+            "href": "",
+            "id": "",
+            "index": 22,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "button",
+            "text": "",
+            "visible": false
+          }
+        ],
+        "text_excerpt": "微信学堂\n交流专区\n官方文档\nWe 分析\n23\n#\n心情决定吃啥？锅仔帮你选\n参与话题\n选一个心情，锅仔为你推荐今天该吃的那道菜。心情+美食，治愈每一天！\n话题名称\n12/16\n背景图\n背景图展示尺寸宽高比最大为 4:3\n话题描述\n33/40\n推荐链接路径\n推荐链接标题\n自动添加位置\n用户参与话题时将自动添加小程序绑定的位置\n发布\n关于腾讯\n文档中心\n规则中心\n客服中心\n侵权投诉\n\nCopyright © 2012-2026 Tencent. All Rights Reserved.",
+        "title": "小程序",
+        "url": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&lang=zh_CN"
+      },
+      "result_details": null
+    },
+    {
+      "step": 14,
+      "method": "fill",
+      "input": {
+        "selector": {
+          "css": "textarea.weui-desktop-form__textarea",
+          "visible": true,
+          "requireUnique": true
+        },
+        "value": "[REDACTED]",
+        "value_length": 33,
+        "strategy": "fast",
+        "delay_ms": 25
+      },
+      "started_at": 1790996511744,
+      "url_before": null,
+      "result": "success",
+      "business_step": 4,
+      "duration_ms": 499,
+      "url_after": null,
+      "screenshot": null,
+      "dom_after": null,
+      "result_details": {
+        "value_matches": true,
+        "actual_length": 33,
+        "page_change": {
+          "body_text_length_delta": 30,
+          "dialog_count_delta": 0,
+          "interactive_count_delta": 0,
+          "title_changed": false,
+          "url_changed": false
+        }
+      }
+    },
+    {
+      "step": 15,
+      "method": "evaluate",
+      "input": {
+        "expression_length": 635
+      },
+      "started_at": 1790996512245,
+      "url_before": null,
+      "result": "success",
+      "business_step": 4,
+      "duration_ms": 40,
+      "url_after": null,
+      "screenshot": null,
+      "dom_after": null,
+      "result_details": null
+    },
+    {
+      "step": 16,
+      "method": "step:填写推荐链接",
+      "input": {
+        "step_name": "填写推荐链接"
+      },
+      "started_at": 1790996512405,
+      "url_before": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&lang=zh_CN",
+      "result": "success",
+      "business_step": 5,
+      "duration_ms": 1018,
+      "url_after": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&lang=zh_CN",
+      "screenshot": "screenshots/step-0016.jpg",
+      "dom_after": {
+        "elements": [
+          {
+            "classes": [
+              "header_logo"
+            ],
+            "href": "https://mp.weixin.qq.com/",
+            "id": "",
+            "index": 0,
+            "name": "",
+            "rect": {
+              "height": 40,
+              "width": 120,
+              "x": 32,
+              "y": 18
+            },
+            "role": "",
+            "tag": "a",
+            "text": "",
+            "visible": true
+          },
+          {
+            "classes": [
+              "header_nav"
+            ],
+            "href": "https://developers.weixin.qq.com/community/business",
+            "id": "",
+            "index": 1,
+            "name": "",
+            "rect": {
+              "height": 25.59375,
+              "width": 64,
+              "x": 738.90625,
+              "y": 25.203125
+            },
+            "role": "",
+            "tag": "a",
+            "text": "微信学堂",
+            "visible": true
+          },
+          {
+            "classes": [
+              "header_nav"
+            ],
+            "href": "https://developers.weixin.qq.com/community/develop/mixflow",
+            "id": "",
+            "index": 2,
+            "name": "",
+            "rect": {
+              "height": 25.59375,
+              "width": 64,
+              "x": 842.90625,
+              "y": 25.203125
+            },
+            "role": "",
+            "tag": "a",
+            "text": "交流专区",
+            "visible": true
+          },
+          {
+            "classes": [
+              "header_nav"
+            ],
+            "href": "https://developers.weixin.qq.com/miniprogram/dev/framework/",
+            "id": "",
+            "index": 3,
+            "name": "",
+            "rect": {
+              "height": 25.59375,
+              "width": 64,
+              "x": 946.90625,
+              "y": 25.203125
+            },
+            "role": "",
+            "tag": "a",
+            "text": "官方文档",
+            "visible": true
+          },
+          {
+            "classes": [
+              "header_nav"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/wedata/login?token=766765003&lang=zh_CN&source=2",
+            "id": "",
+            "index": 4,
+            "name": "",
+            "rect": {
+              "height": 25.59375,
+              "width": 61.09375,
+              "x": 1050.90625,
+              "y": 25.203125
+            },
+            "role": "",
+            "tag": "a",
+            "text": "We 分析",
+            "visible": true
+          },
+          {
+            "classes": [
+              "header_notify"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/tools/wasysnotify?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 5,
+            "name": "",
+            "rect": {
+              "height": 24,
+              "width": 24,
+              "x": 1152,
+              "y": 26
+            },
+            "role": "",
+            "tag": "a",
+            "text": "23",
+            "visible": true
+          },
+          {
+            "classes": [
+              "hover_block"
+            ],
+            "href": "javascript:0",
+            "id": "",
+            "index": 6,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "切换账号",
+            "visible": false
+          },
+          {
+            "classes": [
+              "hover_block"
+            ],
+            "href": "https://mp.weixin.qq.com/wxopen/walogout?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 7,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "退出登录",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-form__input"
+            ],
+            "href": "",
+            "id": "",
+            "index": 8,
+            "name": "",
+            "rect": {
+              "height": 36,
+              "width": 508,
+              "x": 643,
+              "y": 204
+            },
+            "role": "",
+            "tag": "input",
+            "text": "心情决定吃啥？锅仔帮你选",
+            "visible": true
+          },
+          {
+            "classes": [
+              "weui-desktop-form__textarea"
+            ],
+            "href": "",
+            "id": "",
+            "index": 9,
+            "name": "",
+            "rect": {
+              "height": 80,
+              "width": 508,
+              "x": 643,
+              "y": 453.3984375
+            },
+            "role": "",
+            "tag": "textarea",
+            "text": "选一个心情，锅仔为你推荐今天该吃的那道菜。心情+美食，治愈每一天！",
+            "visible": true
+          },
+          {
+            "classes": [
+              "recommend-path-tip__link"
+            ],
+            "href": "http://kf.qq.com/faq/180725biaAn2180725VnQjYF.html",
+            "id": "",
+            "index": 10,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "查看操作指引",
+            "visible": false
+          },
+          {
+            "classes": [
+              "recommend-path-tip__input"
+            ],
+            "href": "",
+            "id": "",
+            "index": 11,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "input",
+            "text": "",
+            "visible": false
+          },
+          {
+            "classes": [
+              "recommend-path-tip__enable-btn",
+              "is-disabled"
+            ],
+            "href": "",
+            "id": "",
+            "index": 12,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "开启",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-form__input"
+            ],
+            "href": "",
+            "id": "",
+            "index": 13,
+            "name": "",
+            "rect": {
+              "height": 36,
+              "width": 492,
+              "x": 659,
+              "y": 565.3984375
+            },
+            "role": "",
+            "tag": "input",
+            "text": "pages/mood/index",
+            "visible": true
+          },
+          {
+            "classes": [
+              "weui-desktop-form__input"
+            ],
+            "href": "",
+            "id": "",
+            "index": 14,
+            "name": "",
+            "rect": {
+              "height": 36,
+              "width": 492,
+              "x": 659,
+              "y": 633.3984375
+            },
+            "role": "",
+            "tag": "input",
+            "text": "选一个心情吧",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "https://developers.weixin.qq.com/miniprogram/dev/platform-capabilities/industry/wxpoi/",
+            "id": "",
+            "index": 15,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "小程序如何绑定地理位置",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-btn",
+              "weui-desktop-btn_primary"
+            ],
+            "href": "",
+            "id": "",
+            "index": 16,
+            "name": "",
+            "rect": {
+              "height": 36,
+              "width": 96,
+              "x": 799,
+              "y": 932
+            },
+            "role": "",
+            "tag": "button",
+            "text": "发布",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "http://www.tencent.com/zh-cn/index.shtml",
+            "id": "",
+            "index": 17,
+            "name": "",
+            "rect": {
+              "height": 14,
+              "width": 76,
+              "x": 56,
+              "y": 1121
+            },
+            "role": "",
+            "tag": "a",
+            "text": "关于腾讯",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "https://mp.weixin.qq.com/wxopen/wawiki?action=dir_list&path=introduction/index&token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 18,
+            "name": "",
+            "rect": {
+              "height": 14,
+              "width": 77,
+              "x": 173,
+              "y": 1121
+            },
+            "role": "",
+            "tag": "a",
+            "text": "文档中心",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "https://mp.weixin.qq.com/webpoc/ruleCenter?type=mp",
+            "id": "",
+            "index": 19,
+            "name": "",
+            "rect": {
+              "height": 14,
+              "width": 77,
+              "x": 291,
+              "y": 1121
+            },
+            "role": "",
+            "tag": "a",
+            "text": "规则中心",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "http://kf.qq.com/product/wx_xcx.html",
+            "id": "",
+            "index": 20,
+            "name": "",
+            "rect": {
+              "height": 14,
+              "width": 77,
+              "x": 409,
+              "y": 1121
+            },
+            "role": "",
+            "tag": "a",
+            "text": "客服中心",
+            "visible": true
+          },
+          {
+            "classes": [
+              "weui-desktop-link"
+            ],
+            "href": "https://mp.weixin.qq.com/acct/infringement?action=getmanual&t=infringement/manual&type=1&token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 21,
+            "name": "",
+            "rect": {
+              "height": 14,
+              "width": 77,
+              "x": 532,
+              "y": 1121
+            },
+            "role": "",
+            "tag": "a",
+            "text": "侵权投诉",
+            "visible": true
+          },
+          {
+            "classes": [
+              "weui-desktop-icon-btn",
+              "weui-desktop-dialog__close-btn"
+            ],
+            "href": "",
+            "id": "",
+            "index": 22,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "button",
+            "text": "",
+            "visible": false
+          }
+        ],
+        "text_excerpt": "微信学堂\n交流专区\n官方文档\nWe 分析\n23\n#\n心情决定吃啥？锅仔帮你选\n参与话题\n选一个心情，锅仔为你推荐今天该吃的那道菜。心情+美食，治愈每一天！\n话题名称\n12/16\n背景图\n背景图展示尺寸宽高比最大为 4:3\n话题描述\n33/40\n推荐链接路径\n推荐链接标题\n自动添加位置\n用户参与话题时将自动添加小程序绑定的位置\n发布\n关于腾讯\n文档中心\n规则中心\n客服中心\n侵权投诉\n\nCopyright © 2012-2026 Tencent. All Rights Reserved.",
+        "title": "小程序",
+        "url": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&lang=zh_CN"
+      },
+      "result_details": null
+    },
+    {
+      "step": 17,
+      "method": "fill",
+      "input": {
+        "selector": {
+          "css": "input.weui-desktop-form__input[placeholder=\"请填写用户参与话题时推荐添加的链接路径，仅支持当前小程序内的页面路径\"]",
+          "visible": true,
+          "requireUnique": true,
+          "scope": "div.topic-form"
+        },
+        "value": "[REDACTED]",
+        "value_length": 16,
+        "strategy": "fast",
+        "delay_ms": 25
+      },
+      "started_at": 1790996512405,
+      "url_before": null,
+      "result": "success",
+      "business_step": 5,
+      "duration_ms": 475,
+      "url_after": null,
+      "screenshot": null,
+      "dom_after": null,
+      "result_details": {
+        "value_matches": true,
+        "actual_length": 16,
+        "page_change": {
+          "body_text_length_delta": 0,
+          "dialog_count_delta": 0,
+          "interactive_count_delta": 0,
+          "title_changed": false,
+          "url_changed": false
+        }
+      }
+    },
+    {
+      "step": 18,
+      "method": "fill",
+      "input": {
+        "selector": {
+          "css": "input.weui-desktop-form__input[placeholder=\"请输入推荐链接的标题，便于作者和读者理解链接内容\"]",
+          "visible": true,
+          "requireUnique": true,
+          "scope": "div.topic-form"
+        },
+        "value": "[REDACTED]",
+        "value_length": 6,
+        "strategy": "fast",
+        "delay_ms": 25
+      },
+      "started_at": 1790996512884,
+      "url_before": null,
+      "result": "success",
+      "business_step": 5,
+      "duration_ms": 445,
+      "url_after": null,
+      "screenshot": null,
+      "dom_after": null,
+      "result_details": {
+        "value_matches": true,
+        "actual_length": 6,
+        "page_change": {
+          "body_text_length_delta": 0,
+          "dialog_count_delta": 0,
+          "interactive_count_delta": 0,
+          "title_changed": false,
+          "url_changed": false
+        }
+      }
+    },
+    {
+      "step": 19,
+      "method": "evaluate",
+      "input": {
+        "expression_length": 635
+      },
+      "started_at": 1790996513333,
+      "url_before": null,
+      "result": "success",
+      "business_step": 5,
+      "duration_ms": 36,
+      "url_after": null,
+      "screenshot": null,
+      "dom_after": null,
+      "result_details": null
+    },
+    {
+      "step": 20,
+      "method": "step:发布前校验并提交",
+      "input": {
+        "step_name": "发布前校验并提交"
+      },
+      "started_at": 1790996513426,
+      "url_before": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&lang=zh_CN",
+      "result": "success",
+      "business_step": 6,
+      "duration_ms": 3791,
+      "url_after": "https://mp.weixin.qq.com/wxamp/appmsgtopic/get_topic_page?token=766765003&lang=zh_CN",
+      "screenshot": "screenshots/step-0020.jpg",
+      "dom_after": {
+        "elements": [],
+        "text_excerpt": "",
+        "title": "小程序",
+        "url": "https://mp.weixin.qq.com/wxamp/appmsgtopic/get_topic_page?token=766765003&lang=zh_CN"
+      },
+      "result_details": null
+    },
+    {
+      "step": 21,
+      "method": "evaluate",
+      "input": {
+        "expression_length": 635
+      },
+      "started_at": 1790996513426,
+      "url_before": null,
+      "result": "success",
+      "business_step": 6,
+      "duration_ms": 28,
+      "url_after": null,
+      "screenshot": null,
+      "dom_after": null,
+      "result_details": null
+    },
+    {
+      "step": 22,
+      "method": "click",
+      "input": {
+        "selector": {
+          "css": "button.weui-desktop-btn.weui-desktop-btn_primary",
+          "visible": true,
+          "requireUnique": true,
+          "text": "发布"
+        },
+        "click_count": 1,
+        "delay_ms": 0
+      },
+      "started_at": 1790996513457,
+      "url_before": null,
+      "result": "success",
+      "business_step": 6,
+      "duration_ms": 221,
+      "url_after": null,
+      "screenshot": null,
+      "dom_after": null,
+      "result_details": {
+        "match_count": 1,
+        "target": {
+          "attributes": {
+            "data-doubao-translate-traverse-mark": "1"
+          },
+          "classes": [
+            "weui-desktop-btn",
+            "weui-desktop-btn_primary"
+          ],
+          "id": "",
+          "role": "",
+          "selector_suggestions": [
+            "[data-doubao-translate-traverse-mark=\"\\31 \"]"
+          ],
+          "tag": "button",
+          "text": "发布"
+        },
+        "hit_target": {
+          "attributes": {
+            "data-doubao-translate-traverse-mark": "1"
+          },
+          "classes": [
+            "weui-desktop-btn",
+            "weui-desktop-btn_primary"
+          ],
+          "id": "",
+          "role": "",
+          "selector_suggestions": [
+            "[data-doubao-translate-traverse-mark=\"\\31 \"]"
+          ],
+          "tag": "button",
+          "text": "发布"
+        },
+        "page_change": {
+          "body_text_length_delta": 0,
+          "dialog_count_delta": 0,
+          "target_disappeared": false,
+          "title_changed": false,
+          "url_changed": false
+        }
+      }
+    },
+    {
+      "step": 23,
+      "method": "sleep",
+      "input": {
+        "duration_ms": 1200
+      },
+      "started_at": 1790996513682,
+      "url_before": null,
+      "result": "success",
+      "business_step": 6,
+      "duration_ms": 1201,
+      "url_after": null,
+      "screenshot": null,
+      "dom_after": null,
+      "result_details": null
+    },
+    {
+      "step": 24,
+      "method": "evaluate",
+      "input": {
+        "expression_length": 301
+      },
+      "started_at": 1790996514887,
+      "url_before": null,
+      "result": "success",
+      "business_step": 6,
+      "duration_ms": 1972,
+      "url_after": null,
+      "screenshot": null,
+      "dom_after": null,
+      "result_details": null
+    },
+    {
+      "step": 25,
+      "method": "step:验证发布结果",
+      "input": {
+        "step_name": "验证发布结果"
+      },
+      "started_at": 1790996517220,
+      "url_before": "https://mp.weixin.qq.com/wxamp/appmsgtopic/get_topic_page?token=766765003&lang=zh_CN",
+      "result": "success",
+      "business_step": 7,
+      "duration_ms": 3163,
+      "url_after": "https://mp.weixin.qq.com/wxamp/appmsgtopic/get_topic_page?token=766765003&lang=zh_CN",
+      "screenshot": "screenshots/step-0025.jpg",
+      "dom_after": {
+        "elements": [
+          {
+            "classes": [],
+            "href": "https://mp.weixin.qq.com/",
+            "id": "",
+            "index": 0,
+            "name": "",
+            "rect": {
+              "height": 54,
+              "width": 232,
+              "x": 0,
+              "y": 46
+            },
+            "role": "",
+            "tag": "a",
+            "text": "",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "https://mp.weixin.qq.com/wxamp/index/index?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 1,
+            "name": "",
+            "rect": {
+              "height": 54,
+              "width": 200,
+              "x": 16,
+              "y": -286
+            },
+            "role": "",
+            "tag": "a",
+            "text": "首页",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "javascript:;",
+            "id": "",
+            "index": 2,
+            "name": "",
+            "rect": {
+              "height": 24,
+              "width": 204,
+              "x": 16,
+              "y": -217
+            },
+            "role": "",
+            "tag": "a",
+            "text": "管理",
+            "visible": true
+          },
+          {
+            "classes": [
+              "tab-bar__wrap",
+              "tab-bar__wrap--submenu"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/basicprofile/index?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 3,
+            "name": "",
+            "rect": {
+              "height": 28,
+              "width": 162,
+              "x": 54,
+              "y": -178
+            },
+            "role": "",
+            "tag": "a",
+            "text": "账号设置",
+            "visible": true
+          },
+          {
+            "classes": [
+              "tab-bar__wrap",
+              "tab-bar__wrap--submenu"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/wacodepage/getcodepage?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 4,
+            "name": "",
+            "rect": {
+              "height": 28,
+              "width": 162,
+              "x": 54,
+              "y": -140
+            },
+            "role": "",
+            "tag": "a",
+            "text": "版本管理",
+            "visible": true
+          },
+          {
+            "classes": [
+              "tab-bar__wrap",
+              "tab-bar__wrap--submenu"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/user/managev2?action=index&use_role=1&token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 5,
+            "name": "",
+            "rect": {
+              "height": 28,
+              "width": 162,
+              "x": 54,
+              "y": -102
+            },
+            "role": "",
+            "tag": "a",
+            "text": "成员管理",
+            "visible": true
+          },
+          {
+            "classes": [
+              "tab-bar__wrap",
+              "tab-bar__wrap--submenu"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/devprofile/get_profile?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 6,
+            "name": "",
+            "rect": {
+              "height": 28,
+              "width": 162,
+              "x": 54,
+              "y": -64
+            },
+            "role": "",
+            "tag": "a",
+            "text": "开发管理",
+            "visible": true
+          },
+          {
+            "classes": [
+              "tab-bar__wrap",
+              "tab-bar__wrap--submenu"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/manage/feedback?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 7,
+            "name": "",
+            "rect": {
+              "height": 28,
+              "width": 162,
+              "x": 54,
+              "y": -26
+            },
+            "role": "",
+            "tag": "a",
+            "text": "用户反馈",
+            "visible": true
+          },
+          {
+            "classes": [
+              "tab-bar__wrap",
+              "tab-bar__wrap--submenu"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/wxacharge?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 8,
+            "name": "",
+            "rect": {
+              "height": 28,
+              "width": 162,
+              "x": 54,
+              "y": 12
+            },
+            "role": "",
+            "tag": "a",
+            "text": "付费管理",
+            "visible": true
+          },
+          {
+            "classes": [
+              "tab-bar__wrap",
+              "tab-bar__wrap--submenu"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/webpocnew/wxverifyAudit?action=index&isShowSideBar=1&token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 9,
+            "name": "",
+            "rect": {
+              "height": 28,
+              "width": 162,
+              "x": 54,
+              "y": 50
+            },
+            "role": "",
+            "tag": "a",
+            "text": "微信认证",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "https://mp.weixin.qq.com/wxamp/wedata/login?source=3&token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 10,
+            "name": "",
+            "rect": {
+              "height": 54,
+              "width": 200,
+              "x": 16,
+              "y": 78
+            },
+            "role": "",
+            "tag": "a",
+            "text": "数据",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "javascript:;",
+            "id": "",
+            "index": 11,
+            "name": "",
+            "rect": {
+              "height": 24,
+              "width": 204,
+              "x": 16,
+              "y": 147
+            },
+            "role": "",
+            "tag": "a",
+            "text": "基础功能",
+            "visible": true
+          },
+          {
+            "classes": [
+              "tab-bar__wrap",
+              "tab-bar__wrap--submenu"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/aiability/index?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 12,
+            "name": "",
+            "rect": {
+              "height": 28,
+              "width": 162,
+              "x": 54,
+              "y": 186
+            },
+            "role": "",
+            "tag": "a",
+            "text": "AI能力",
+            "visible": true
+          },
+          {
+            "classes": [
+              "tab-bar__wrap",
+              "tab-bar__wrap--submenu"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/appmsgtopic/get_topic_page?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 13,
+            "name": "",
+            "rect": {
+              "height": 28,
+              "width": 162,
+              "x": 54,
+              "y": 224
+            },
+            "role": "",
+            "tag": "a",
+            "text": "贴图话题",
+            "visible": true
+          },
+          {
+            "classes": [
+              "tab-bar__wrap",
+              "tab-bar__wrap--submenu"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/wakf?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 14,
+            "name": "",
+            "rect": {
+              "height": 28,
+              "width": 162,
+              "x": 54,
+              "y": 262
+            },
+            "role": "",
+            "tag": "a",
+            "text": "客服",
+            "visible": true
+          },
+          {
+            "classes": [
+              "tab-bar__wrap",
+              "tab-bar__wrap--submenu"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/newtmpl/mytmpl?start=0&limit=10&token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 15,
+            "name": "",
+            "rect": {
+              "height": 28,
+              "width": 162,
+              "x": 54,
+              "y": 300
+            },
+            "role": "",
+            "tag": "a",
+            "text": "订阅消息",
+            "visible": true
+          },
+          {
+            "classes": [
+              "tab-bar__wrap",
+              "tab-bar__wrap--submenu"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/wedata/login?source=4&path=abtest/board&token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 16,
+            "name": "",
+            "rect": {
+              "height": 28,
+              "width": 162,
+              "x": 54,
+              "y": 338
+            },
+            "role": "",
+            "tag": "a",
+            "text": "实验工具",
+            "visible": true
+          },
+          {
+            "classes": [
+              "tab-bar__wrap",
+              "tab-bar__wrap--submenu"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/translate?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 17,
+            "name": "",
+            "rect": {
+              "height": 28,
+              "width": 162,
+              "x": 54,
+              "y": 376
+            },
+            "role": "",
+            "tag": "a",
+            "text": "翻译",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "javascript:;",
+            "id": "",
+            "index": 18,
+            "name": "",
+            "rect": {
+              "height": 24,
+              "width": 204,
+              "x": 16,
+              "y": 419
+            },
+            "role": "",
+            "tag": "a",
+            "text": "支付与交易",
+            "visible": true
+          },
+          {
+            "classes": [
+              "tab-bar__wrap",
+              "tab-bar__wrap--submenu"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/frame/pluginRedirect/pluginRedirect?action=plugin_redirect&plugin_uin=1053&token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 19,
+            "name": "",
+            "rect": {
+              "height": 28,
+              "width": 162,
+              "x": 54,
+              "y": 458
+            },
+            "role": "",
+            "tag": "a",
+            "text": "微信小店",
+            "visible": true
+          },
+          {
+            "classes": [
+              "tab-bar__wrap",
+              "tab-bar__wrap--submenu"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/frame/pluginRedirect/pluginRedirect?action=plugin_redirect&plugin_uin=1022&token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 20,
+            "name": "",
+            "rect": {
+              "height": 28,
+              "width": 162,
+              "x": 54,
+              "y": 515
+            },
+            "role": "",
+            "tag": "a",
+            "text": "购物订单",
+            "visible": true
+          },
+          {
+            "classes": [
+              "tab-bar__wrap",
+              "tab-bar__wrap--submenu"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/deal?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 21,
+            "name": "",
+            "rect": {
+              "height": 28,
+              "width": 162,
+              "x": 54,
+              "y": 553
+            },
+            "role": "",
+            "tag": "a",
+            "text": "交易保障",
+            "visible": true
+          },
+          {
+            "classes": [
+              "tab-bar__wrap",
+              "tab-bar__wrap--submenu"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/subApp/skit?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 22,
+            "name": "",
+            "rect": {
+              "height": 28,
+              "width": 162,
+              "x": 54,
+              "y": 591
+            },
+            "role": "",
+            "tag": "a",
+            "text": "虚拟支付",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "javascript:;",
+            "id": "",
+            "index": 23,
+            "name": "",
+            "rect": {
+              "height": 24,
+              "width": 204,
+              "x": 16,
+              "y": 473
+            },
+            "role": "",
+            "tag": "a",
+            "text": "行业能力",
+            "visible": true
+          },
+          {
+            "classes": [
+              "tab-bar__wrap",
+              "tab-bar__wrap--submenu"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/location/poiManagement?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 24,
+            "name": "",
+            "rect": {
+              "height": 28,
+              "width": 162,
+              "x": 54,
+              "y": 512
+            },
+            "role": "",
+            "tag": "a",
+            "text": "微信位置",
+            "visible": true
+          },
+          {
+            "classes": [
+              "tab-bar__wrap",
+              "tab-bar__wrap--submenu"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/subApp/store/meta-store/?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 25,
+            "name": "",
+            "rect": {
+              "height": 28,
+              "width": 162,
+              "x": 54,
+              "y": 550
+            },
+            "role": "",
+            "tag": "a",
+            "text": "门店管理",
+            "visible": true
+          },
+          {
+            "classes": [
+              "tab-bar__wrap",
+              "tab-bar__wrap--submenu"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/subApp/devplan?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 26,
+            "name": "",
+            "rect": {
+              "height": 28,
+              "width": 162,
+              "x": 54,
+              "y": 607
+            },
+            "role": "",
+            "tag": "a",
+            "text": "小程序成长计划",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "javascript:;",
+            "id": "",
+            "index": 27,
+            "name": "",
+            "rect": {
+              "height": 24,
+              "width": 204,
+              "x": 16,
+              "y": 650
+            },
+            "role": "",
+            "tag": "a",
+            "text": "推广与搜索",
+            "visible": true
+          },
+          {
+            "classes": [
+              "tab-bar__wrap",
+              "tab-bar__wrap--submenu"
+            ],
+            "href": "https://mp.weixin.qq.com/wxopen/weapp_publisher_index?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 28,
+            "name": "",
+            "rect": {
+              "height": 28,
+              "width": 162,
+              "x": 54,
+              "y": 689
+            },
+            "role": "",
+            "tag": "a",
+            "text": "流量主",
+            "visible": true
+          },
+          {
+            "classes": [
+              "tab-bar__wrap",
+              "tab-bar__wrap--submenu"
+            ],
+            "href": "https://mp.weixin.qq.com/promotion/advertiser_index?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 29,
+            "name": "",
+            "rect": {
+              "height": 28,
+              "width": 162,
+              "x": 54,
+              "y": 727
+            },
+            "role": "",
+            "tag": "a",
+            "text": "广告主",
+            "visible": true
+          },
+          {
+            "classes": [
+              "tab-bar__wrap",
+              "tab-bar__wrap--submenu"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/collect/index?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 30,
+            "name": "",
+            "rect": {
+              "height": 28,
+              "width": 162,
+              "x": 54,
+              "y": 765
+            },
+            "role": "",
+            "tag": "a",
+            "text": "页面内容接入",
+            "visible": true
+          },
+          {
+            "classes": [
+              "tab-bar__wrap",
+              "tab-bar__wrap--submenu"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/frame/pluginRedirect/pluginRedirect?action=plugin_redirect&plugin_uin=1001&token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 31,
+            "name": "",
+            "rect": {
+              "height": 28,
+              "width": 162,
+              "x": 54,
+              "y": 803
+            },
+            "role": "",
+            "tag": "a",
+            "text": "微信搜一搜",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "javascript:;",
+            "id": "",
+            "index": 32,
+            "name": "",
+            "rect": {
+              "height": 24,
+              "width": 204,
+              "x": 16,
+              "y": 846
+            },
+            "role": "",
+            "tag": "a",
+            "text": "开发与服务",
+            "visible": true
+          },
+          {
+            "classes": [
+              "tab-bar__wrap",
+              "tab-bar__wrap--submenu"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/devprofile/get_profile?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 33,
+            "name": "",
+            "rect": {
+              "height": 28,
+              "width": 162,
+              "x": 54,
+              "y": 885
+            },
+            "role": "",
+            "tag": "a",
+            "text": "开发管理",
+            "visible": true
+          },
+          {
+            "classes": [
+              "tab-bar__wrap",
+              "tab-bar__wrap--submenu"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/thirdtools/index?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 34,
+            "name": "",
+            "rect": {
+              "height": 28,
+              "width": 162,
+              "x": 54,
+              "y": 923
+            },
+            "role": "",
+            "tag": "a",
+            "text": "开发工具",
+            "visible": true
+          },
+          {
+            "classes": [
+              "tab-bar__wrap",
+              "tab-bar__wrap--submenu"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/cloudservice/cloudrun?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 35,
+            "name": "",
+            "rect": {
+              "height": 28,
+              "width": 162,
+              "x": 54,
+              "y": 961
+            },
+            "role": "",
+            "tag": "a",
+            "text": "云服务",
+            "visible": true
+          },
+          {
+            "classes": [
+              "tab-bar__wrap",
+              "tab-bar__wrap--submenu"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/frame/pluginRedirect/pluginRedirect?plugin_uin=1019&token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 36,
+            "name": "",
+            "rect": {
+              "height": 28,
+              "width": 162,
+              "x": 54,
+              "y": 999
+            },
+            "role": "",
+            "tag": "a",
+            "text": "服务市场",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "javascript:;",
+            "id": "",
+            "index": 37,
+            "name": "",
+            "rect": {
+              "height": 24,
+              "width": 204,
+              "x": 16,
+              "y": 900
+            },
+            "role": "",
+            "tag": "a",
+            "text": "成长",
+            "visible": true
+          },
+          {
+            "classes": [
+              "tab-bar__wrap",
+              "tab-bar__wrap--submenu"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/score/guide?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 38,
+            "name": "",
+            "rect": {
+              "height": 28,
+              "width": 162,
+              "x": 54,
+              "y": 939
+            },
+            "role": "",
+            "tag": "a",
+            "text": "小程序评测",
+            "visible": true
+          },
+          {
+            "classes": [
+              "tab-bar__wrap",
+              "tab-bar__wrap--submenu"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/frame/illegalRecord?iframe=%2Fpublicpoc%2Fwxaillegalrecord%3Faction%3Dquery&token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 39,
+            "name": "",
+            "rect": {
+              "height": 28,
+              "width": 162,
+              "x": 54,
+              "y": 977
+            },
+            "role": "",
+            "tag": "a",
+            "text": "违规记录",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "https://mp.weixin.qq.com/wxamp/wxaqrcode/weappcode?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 40,
+            "name": "",
+            "rect": {
+              "height": 52,
+              "width": 200,
+              "x": 16,
+              "y": 543
+            },
+            "role": "",
+            "tag": "a",
+            "text": "小程序码",
+            "visible": true
+          },
+          {
+            "classes": [],
+            "href": "https://mp.weixin.qq.com/wxamp/tools/wasysnotify?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 41,
+            "name": "",
+            "rect": {
+              "height": 52,
+              "width": 200,
+              "x": 16,
+              "y": 595
+            },
+            "role": "",
+            "tag": "a",
+            "text": "通知中心\n23",
+            "visible": true
+          },
+          {
+            "classes": [
+              "menu_box_account_info_item"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/basicprofile/index?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 42,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "账号设置",
+            "visible": false
+          },
+          {
+            "classes": [
+              "menu_box_account_info_item"
+            ],
+            "href": "https://developers.weixin.qq.com/community/develop/mixflow",
+            "id": "",
+            "index": 43,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "交流专区",
+            "visible": false
+          },
+          {
+            "classes": [
+              "menu_box_account_info_item"
+            ],
+            "href": "https://developers.weixin.qq.com/community/business",
+            "id": "",
+            "index": 44,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "微信学堂",
+            "visible": false
+          },
+          {
+            "classes": [
+              "menu_box_account_info_item"
+            ],
+            "href": "https://developers.weixin.qq.com/miniprogram/dev/framework/",
+            "id": "",
+            "index": 45,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "官方文档",
+            "visible": false
+          },
+          {
+            "classes": [
+              "menu_box_account_info_item"
+            ],
+            "href": "https://mp.weixin.qq.com/wxamp/wedata/login?token=766765003&lang=zh_CN&source=2",
+            "id": "",
+            "index": 46,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "We 分析",
+            "visible": false
+          },
+          {
+            "classes": [
+              "menu_box_account_info_item"
+            ],
+            "href": "https://mp.weixin.qq.com/wxopen/walogout?token=766765003&lang=zh_CN",
+            "id": "",
+            "index": 47,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "退出登录",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-icon-btn",
+              "weui-desktop-search__btn"
+            ],
+            "href": "",
+            "id": "",
+            "index": 48,
+            "name": "",
+            "rect": {
+              "height": 20,
+              "width": 40,
+              "x": 1184,
+              "y": 56
+            },
+            "role": "",
+            "tag": "button",
+            "text": "",
+            "visible": true
+          },
+          {
+            "classes": [
+              "weui-desktop-form__input"
+            ],
+            "href": "",
+            "id": "",
+            "index": 49,
+            "name": "",
+            "rect": {
+              "height": 36,
+              "width": 348,
+              "x": 876,
+              "y": 48
+            },
+            "role": "",
+            "tag": "input",
+            "text": "",
+            "visible": true
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__value_input"
+            ],
+            "href": "",
+            "id": "",
+            "index": 50,
+            "name": "",
+            "rect": {
+              "height": 34,
+              "width": 84,
+              "x": 949,
+              "y": 141
+            },
+            "role": "",
+            "tag": "input",
+            "text": "2026-09-27",
+            "visible": true
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__value_input"
+            ],
+            "href": "",
+            "id": "",
+            "index": 51,
+            "name": "",
+            "rect": {
+              "height": 34,
+              "width": 84,
+              "x": 1061,
+              "y": 141
+            },
+            "role": "",
+            "tag": "input",
+            "text": "2026-10-03",
+            "visible": true
+          },
+          {
+            "classes": [
+              "weui-desktop-btn__icon",
+              "weui-desktop-btn__icon__left"
+            ],
+            "href": "",
+            "id": "",
+            "index": 52,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "button",
+            "text": "",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__faded"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 53,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "27",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__faded"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 54,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "28",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__faded"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 55,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "29",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__faded"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 56,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "30",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__selected_range"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 57,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "1",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__selected_range"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 58,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "2",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__current",
+              "weui-desktop-picker__selected",
+              "weui-desktop-picker__selected_range"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 59,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "3",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 60,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "4",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 61,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "5",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 62,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "6",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 63,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "7",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 64,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "8",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 65,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "9",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 66,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "10",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 67,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "11",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 68,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "12",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 69,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "13",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 70,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "14",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 71,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "15",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 72,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "16",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 73,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "17",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 74,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "18",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 75,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "19",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 76,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "20",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 77,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "21",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 78,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "22",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 79,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "23",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 80,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "24",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 81,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "25",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 82,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "26",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 83,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "27",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 84,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "28",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 85,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "29",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 86,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "30",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 87,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "31",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__faded",
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 88,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "1",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__faded",
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 89,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "2",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__faded",
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 90,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "3",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__faded",
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 91,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "4",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__faded",
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 92,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "5",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__faded",
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 93,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "6",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__faded",
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 94,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "7",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-btn__icon",
+              "weui-desktop-btn__icon__right"
+            ],
+            "href": "",
+            "id": "",
+            "index": 95,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "button",
+            "text": "",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__faded",
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 96,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "25",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__faded",
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 97,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "26",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__faded",
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 98,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "27",
+            "visible": false
+          },
+          {
+            "classes": [
+              "weui-desktop-picker__faded",
+              "weui-desktop-picker__disabled"
+            ],
+            "href": "javascript:;",
+            "id": "",
+            "index": 99,
+            "name": "",
+            "rect": {
+              "height": 0,
+              "width": 0,
+              "x": 0,
+              "y": 0
+            },
+            "role": "",
+            "tag": "a",
+            "text": "28",
+            "visible": false
+          }
+        ],
+        "text_excerpt": "首页\n管理\n账号设置\n版本管理\n成员管理\n开发管理\n用户反馈\n付费管理\n微信认证\n数据\n基础功能\nAI能力\n贴图话题\n客服\n订阅消息\n实验工具\n翻译\n支付与交易\n微信小店\n购物订单\n交易保障\n虚拟支付\n行业能力\n微信位置\n门店管理\n小程序成长计划\n推广与搜索\n流量主\n广告主\n页面内容接入\n微信搜一搜\n开发与服务\n开发管理\n开发工具\n云服务\n服务市场\n成长\n小程序评测\n违规记录\n小程序码\n通知中心\n23\n心情菜谱日历\n贴图话题\n 至 \n新增贴图数量\n0\n来自小程序的阅读人数\n0\n总阅读人数\n0\n互动次数\n0\n创建话题\n话题名称\t话题来源\t审核状态\t新增贴图数量\t来自小程序的阅读人数\t总阅读人数\t互动次数\t操作\n今天也要好好吃饭\t手动创建\t创建完成\t0\t0\t0\t0\t\n话题推广\n编辑\n删除\n\n心情决定吃啥？锅仔帮你选\t手动创建\t待审核\t0\t0\t0\t0\t\n编辑\n删除\n\n随手一拍，月底收获专属美食画册\t手动创建\t待审核\t0\t0\t0\t0\t\n编辑\n删除\n关于腾讯\n文档中心\n规则中心\n客服中心\n侵权投诉\n\nCopyright © 2012-2026 Tencent. All Rights Reserved.",
+        "title": "小程序",
+        "url": "https://mp.weixin.qq.com/wxamp/appmsgtopic/get_topic_page?token=766765003&lang=zh_CN"
+      },
+      "result_details": null
+    },
+    {
+      "step": 26,
+      "method": "sleep",
+      "input": {
+        "duration_ms": 1500
+      },
+      "started_at": 1790996517220,
+      "url_before": null,
+      "result": "success",
+      "business_step": 7,
+      "duration_ms": 1500,
+      "url_after": null,
+      "screenshot": null,
+      "dom_after": null,
+      "result_details": null
+    },
+    {
+      "step": 27,
+      "method": "evaluate",
+      "input": {
+        "expression_length": 80
+      },
+      "started_at": 1790996518727,
+      "url_before": null,
+      "result": "success",
+      "business_step": 7,
+      "duration_ms": 38,
+      "url_after": null,
+      "screenshot": null,
+      "dom_after": null,
+      "result_details": null
+    },
+    {
+      "step": 28,
+      "method": "sleep",
+      "input": {
+        "duration_ms": 1500
+      },
+      "started_at": 1790996518769,
+      "url_before": null,
+      "result": "success",
+      "business_step": 7,
+      "duration_ms": 1501,
+      "url_after": null,
+      "screenshot": null,
+      "dom_after": null,
+      "result_details": null
+    },
+    {
+      "step": 29,
+      "method": "evaluate",
+      "input": {
+        "expression_length": 646
+      },
+      "started_at": 1790996520276,
+      "url_before": null,
+      "result": "success",
+      "business_step": 7,
+      "duration_ms": 34,
+      "url_after": null,
+      "screenshot": null,
+      "dom_after": null,
+      "result_details": null
+    }
+  ],
+  "success": true,
+  "finished_at": 1790996520388,
+  "current_page": {
+    "elements": [
+      {
+        "classes": [],
+        "href": "https://mp.weixin.qq.com/",
+        "id": "",
+        "index": 0,
+        "name": "",
+        "rect": {
+          "height": 54,
+          "width": 232,
+          "x": 0,
+          "y": 46
+        },
+        "role": "",
+        "tag": "a",
+        "text": "",
+        "visible": true
+      },
+      {
+        "classes": [],
+        "href": "https://mp.weixin.qq.com/wxamp/index/index?token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 1,
+        "name": "",
+        "rect": {
+          "height": 54,
+          "width": 200,
+          "x": 16,
+          "y": -286
+        },
+        "role": "",
+        "tag": "a",
+        "text": "首页",
+        "visible": true
+      },
+      {
+        "classes": [],
+        "href": "javascript:;",
+        "id": "",
+        "index": 2,
+        "name": "",
+        "rect": {
+          "height": 24,
+          "width": 204,
+          "x": 16,
+          "y": -217
+        },
+        "role": "",
+        "tag": "a",
+        "text": "管理",
+        "visible": true
+      },
+      {
+        "classes": [
+          "tab-bar__wrap",
+          "tab-bar__wrap--submenu"
+        ],
+        "href": "https://mp.weixin.qq.com/wxamp/basicprofile/index?token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 3,
+        "name": "",
+        "rect": {
+          "height": 28,
+          "width": 162,
+          "x": 54,
+          "y": -178
+        },
+        "role": "",
+        "tag": "a",
+        "text": "账号设置",
+        "visible": true
+      },
+      {
+        "classes": [
+          "tab-bar__wrap",
+          "tab-bar__wrap--submenu"
+        ],
+        "href": "https://mp.weixin.qq.com/wxamp/wacodepage/getcodepage?token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 4,
+        "name": "",
+        "rect": {
+          "height": 28,
+          "width": 162,
+          "x": 54,
+          "y": -140
+        },
+        "role": "",
+        "tag": "a",
+        "text": "版本管理",
+        "visible": true
+      },
+      {
+        "classes": [
+          "tab-bar__wrap",
+          "tab-bar__wrap--submenu"
+        ],
+        "href": "https://mp.weixin.qq.com/wxamp/user/managev2?action=index&use_role=1&token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 5,
+        "name": "",
+        "rect": {
+          "height": 28,
+          "width": 162,
+          "x": 54,
+          "y": -102
+        },
+        "role": "",
+        "tag": "a",
+        "text": "成员管理",
+        "visible": true
+      },
+      {
+        "classes": [
+          "tab-bar__wrap",
+          "tab-bar__wrap--submenu"
+        ],
+        "href": "https://mp.weixin.qq.com/wxamp/devprofile/get_profile?token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 6,
+        "name": "",
+        "rect": {
+          "height": 28,
+          "width": 162,
+          "x": 54,
+          "y": -64
+        },
+        "role": "",
+        "tag": "a",
+        "text": "开发管理",
+        "visible": true
+      },
+      {
+        "classes": [
+          "tab-bar__wrap",
+          "tab-bar__wrap--submenu"
+        ],
+        "href": "https://mp.weixin.qq.com/wxamp/manage/feedback?token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 7,
+        "name": "",
+        "rect": {
+          "height": 28,
+          "width": 162,
+          "x": 54,
+          "y": -26
+        },
+        "role": "",
+        "tag": "a",
+        "text": "用户反馈",
+        "visible": true
+      },
+      {
+        "classes": [
+          "tab-bar__wrap",
+          "tab-bar__wrap--submenu"
+        ],
+        "href": "https://mp.weixin.qq.com/wxamp/wxacharge?token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 8,
+        "name": "",
+        "rect": {
+          "height": 28,
+          "width": 162,
+          "x": 54,
+          "y": 12
+        },
+        "role": "",
+        "tag": "a",
+        "text": "付费管理",
+        "visible": true
+      },
+      {
+        "classes": [
+          "tab-bar__wrap",
+          "tab-bar__wrap--submenu"
+        ],
+        "href": "https://mp.weixin.qq.com/wxamp/webpocnew/wxverifyAudit?action=index&isShowSideBar=1&token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 9,
+        "name": "",
+        "rect": {
+          "height": 28,
+          "width": 162,
+          "x": 54,
+          "y": 50
+        },
+        "role": "",
+        "tag": "a",
+        "text": "微信认证",
+        "visible": true
+      },
+      {
+        "classes": [],
+        "href": "https://mp.weixin.qq.com/wxamp/wedata/login?source=3&token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 10,
+        "name": "",
+        "rect": {
+          "height": 54,
+          "width": 200,
+          "x": 16,
+          "y": 78
+        },
+        "role": "",
+        "tag": "a",
+        "text": "数据",
+        "visible": true
+      },
+      {
+        "classes": [],
+        "href": "javascript:;",
+        "id": "",
+        "index": 11,
+        "name": "",
+        "rect": {
+          "height": 24,
+          "width": 204,
+          "x": 16,
+          "y": 147
+        },
+        "role": "",
+        "tag": "a",
+        "text": "基础功能",
+        "visible": true
+      },
+      {
+        "classes": [
+          "tab-bar__wrap",
+          "tab-bar__wrap--submenu"
+        ],
+        "href": "https://mp.weixin.qq.com/wxamp/aiability/index?token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 12,
+        "name": "",
+        "rect": {
+          "height": 28,
+          "width": 162,
+          "x": 54,
+          "y": 186
+        },
+        "role": "",
+        "tag": "a",
+        "text": "AI能力",
+        "visible": true
+      },
+      {
+        "classes": [
+          "tab-bar__wrap",
+          "tab-bar__wrap--submenu"
+        ],
+        "href": "https://mp.weixin.qq.com/wxamp/appmsgtopic/get_topic_page?token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 13,
+        "name": "",
+        "rect": {
+          "height": 28,
+          "width": 162,
+          "x": 54,
+          "y": 224
+        },
+        "role": "",
+        "tag": "a",
+        "text": "贴图话题",
+        "visible": true
+      },
+      {
+        "classes": [
+          "tab-bar__wrap",
+          "tab-bar__wrap--submenu"
+        ],
+        "href": "https://mp.weixin.qq.com/wxamp/wakf?token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 14,
+        "name": "",
+        "rect": {
+          "height": 28,
+          "width": 162,
+          "x": 54,
+          "y": 262
+        },
+        "role": "",
+        "tag": "a",
+        "text": "客服",
+        "visible": true
+      },
+      {
+        "classes": [
+          "tab-bar__wrap",
+          "tab-bar__wrap--submenu"
+        ],
+        "href": "https://mp.weixin.qq.com/wxamp/newtmpl/mytmpl?start=0&limit=10&token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 15,
+        "name": "",
+        "rect": {
+          "height": 28,
+          "width": 162,
+          "x": 54,
+          "y": 300
+        },
+        "role": "",
+        "tag": "a",
+        "text": "订阅消息",
+        "visible": true
+      },
+      {
+        "classes": [
+          "tab-bar__wrap",
+          "tab-bar__wrap--submenu"
+        ],
+        "href": "https://mp.weixin.qq.com/wxamp/wedata/login?source=4&path=abtest/board&token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 16,
+        "name": "",
+        "rect": {
+          "height": 28,
+          "width": 162,
+          "x": 54,
+          "y": 338
+        },
+        "role": "",
+        "tag": "a",
+        "text": "实验工具",
+        "visible": true
+      },
+      {
+        "classes": [
+          "tab-bar__wrap",
+          "tab-bar__wrap--submenu"
+        ],
+        "href": "https://mp.weixin.qq.com/wxamp/translate?token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 17,
+        "name": "",
+        "rect": {
+          "height": 28,
+          "width": 162,
+          "x": 54,
+          "y": 376
+        },
+        "role": "",
+        "tag": "a",
+        "text": "翻译",
+        "visible": true
+      },
+      {
+        "classes": [],
+        "href": "javascript:;",
+        "id": "",
+        "index": 18,
+        "name": "",
+        "rect": {
+          "height": 24,
+          "width": 204,
+          "x": 16,
+          "y": 419
+        },
+        "role": "",
+        "tag": "a",
+        "text": "支付与交易",
+        "visible": true
+      },
+      {
+        "classes": [
+          "tab-bar__wrap",
+          "tab-bar__wrap--submenu"
+        ],
+        "href": "https://mp.weixin.qq.com/wxamp/frame/pluginRedirect/pluginRedirect?action=plugin_redirect&plugin_uin=1053&token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 19,
+        "name": "",
+        "rect": {
+          "height": 28,
+          "width": 162,
+          "x": 54,
+          "y": 458
+        },
+        "role": "",
+        "tag": "a",
+        "text": "微信小店",
+        "visible": true
+      },
+      {
+        "classes": [
+          "tab-bar__wrap",
+          "tab-bar__wrap--submenu"
+        ],
+        "href": "https://mp.weixin.qq.com/wxamp/frame/pluginRedirect/pluginRedirect?action=plugin_redirect&plugin_uin=1022&token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 20,
+        "name": "",
+        "rect": {
+          "height": 28,
+          "width": 162,
+          "x": 54,
+          "y": 515
+        },
+        "role": "",
+        "tag": "a",
+        "text": "购物订单",
+        "visible": true
+      },
+      {
+        "classes": [
+          "tab-bar__wrap",
+          "tab-bar__wrap--submenu"
+        ],
+        "href": "https://mp.weixin.qq.com/wxamp/deal?token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 21,
+        "name": "",
+        "rect": {
+          "height": 28,
+          "width": 162,
+          "x": 54,
+          "y": 553
+        },
+        "role": "",
+        "tag": "a",
+        "text": "交易保障",
+        "visible": true
+      },
+      {
+        "classes": [
+          "tab-bar__wrap",
+          "tab-bar__wrap--submenu"
+        ],
+        "href": "https://mp.weixin.qq.com/wxamp/subApp/skit?token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 22,
+        "name": "",
+        "rect": {
+          "height": 28,
+          "width": 162,
+          "x": 54,
+          "y": 591
+        },
+        "role": "",
+        "tag": "a",
+        "text": "虚拟支付",
+        "visible": true
+      },
+      {
+        "classes": [],
+        "href": "javascript:;",
+        "id": "",
+        "index": 23,
+        "name": "",
+        "rect": {
+          "height": 24,
+          "width": 204,
+          "x": 16,
+          "y": 473
+        },
+        "role": "",
+        "tag": "a",
+        "text": "行业能力",
+        "visible": true
+      },
+      {
+        "classes": [
+          "tab-bar__wrap",
+          "tab-bar__wrap--submenu"
+        ],
+        "href": "https://mp.weixin.qq.com/wxamp/location/poiManagement?token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 24,
+        "name": "",
+        "rect": {
+          "height": 28,
+          "width": 162,
+          "x": 54,
+          "y": 512
+        },
+        "role": "",
+        "tag": "a",
+        "text": "微信位置",
+        "visible": true
+      },
+      {
+        "classes": [
+          "tab-bar__wrap",
+          "tab-bar__wrap--submenu"
+        ],
+        "href": "https://mp.weixin.qq.com/wxamp/subApp/store/meta-store/?token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 25,
+        "name": "",
+        "rect": {
+          "height": 28,
+          "width": 162,
+          "x": 54,
+          "y": 550
+        },
+        "role": "",
+        "tag": "a",
+        "text": "门店管理",
+        "visible": true
+      },
+      {
+        "classes": [
+          "tab-bar__wrap",
+          "tab-bar__wrap--submenu"
+        ],
+        "href": "https://mp.weixin.qq.com/wxamp/subApp/devplan?token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 26,
+        "name": "",
+        "rect": {
+          "height": 28,
+          "width": 162,
+          "x": 54,
+          "y": 607
+        },
+        "role": "",
+        "tag": "a",
+        "text": "小程序成长计划",
+        "visible": true
+      },
+      {
+        "classes": [],
+        "href": "javascript:;",
+        "id": "",
+        "index": 27,
+        "name": "",
+        "rect": {
+          "height": 24,
+          "width": 204,
+          "x": 16,
+          "y": 650
+        },
+        "role": "",
+        "tag": "a",
+        "text": "推广与搜索",
+        "visible": true
+      },
+      {
+        "classes": [
+          "tab-bar__wrap",
+          "tab-bar__wrap--submenu"
+        ],
+        "href": "https://mp.weixin.qq.com/wxopen/weapp_publisher_index?token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 28,
+        "name": "",
+        "rect": {
+          "height": 28,
+          "width": 162,
+          "x": 54,
+          "y": 689
+        },
+        "role": "",
+        "tag": "a",
+        "text": "流量主",
+        "visible": true
+      },
+      {
+        "classes": [
+          "tab-bar__wrap",
+          "tab-bar__wrap--submenu"
+        ],
+        "href": "https://mp.weixin.qq.com/promotion/advertiser_index?token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 29,
+        "name": "",
+        "rect": {
+          "height": 28,
+          "width": 162,
+          "x": 54,
+          "y": 727
+        },
+        "role": "",
+        "tag": "a",
+        "text": "广告主",
+        "visible": true
+      },
+      {
+        "classes": [
+          "tab-bar__wrap",
+          "tab-bar__wrap--submenu"
+        ],
+        "href": "https://mp.weixin.qq.com/wxamp/collect/index?token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 30,
+        "name": "",
+        "rect": {
+          "height": 28,
+          "width": 162,
+          "x": 54,
+          "y": 765
+        },
+        "role": "",
+        "tag": "a",
+        "text": "页面内容接入",
+        "visible": true
+      },
+      {
+        "classes": [
+          "tab-bar__wrap",
+          "tab-bar__wrap--submenu"
+        ],
+        "href": "https://mp.weixin.qq.com/wxamp/frame/pluginRedirect/pluginRedirect?action=plugin_redirect&plugin_uin=1001&token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 31,
+        "name": "",
+        "rect": {
+          "height": 28,
+          "width": 162,
+          "x": 54,
+          "y": 803
+        },
+        "role": "",
+        "tag": "a",
+        "text": "微信搜一搜",
+        "visible": true
+      },
+      {
+        "classes": [],
+        "href": "javascript:;",
+        "id": "",
+        "index": 32,
+        "name": "",
+        "rect": {
+          "height": 24,
+          "width": 204,
+          "x": 16,
+          "y": 846
+        },
+        "role": "",
+        "tag": "a",
+        "text": "开发与服务",
+        "visible": true
+      },
+      {
+        "classes": [
+          "tab-bar__wrap",
+          "tab-bar__wrap--submenu"
+        ],
+        "href": "https://mp.weixin.qq.com/wxamp/devprofile/get_profile?token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 33,
+        "name": "",
+        "rect": {
+          "height": 28,
+          "width": 162,
+          "x": 54,
+          "y": 885
+        },
+        "role": "",
+        "tag": "a",
+        "text": "开发管理",
+        "visible": true
+      },
+      {
+        "classes": [
+          "tab-bar__wrap",
+          "tab-bar__wrap--submenu"
+        ],
+        "href": "https://mp.weixin.qq.com/wxamp/thirdtools/index?token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 34,
+        "name": "",
+        "rect": {
+          "height": 28,
+          "width": 162,
+          "x": 54,
+          "y": 923
+        },
+        "role": "",
+        "tag": "a",
+        "text": "开发工具",
+        "visible": true
+      },
+      {
+        "classes": [
+          "tab-bar__wrap",
+          "tab-bar__wrap--submenu"
+        ],
+        "href": "https://mp.weixin.qq.com/wxamp/cloudservice/cloudrun?token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 35,
+        "name": "",
+        "rect": {
+          "height": 28,
+          "width": 162,
+          "x": 54,
+          "y": 961
+        },
+        "role": "",
+        "tag": "a",
+        "text": "云服务",
+        "visible": true
+      },
+      {
+        "classes": [
+          "tab-bar__wrap",
+          "tab-bar__wrap--submenu"
+        ],
+        "href": "https://mp.weixin.qq.com/wxamp/frame/pluginRedirect/pluginRedirect?plugin_uin=1019&token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 36,
+        "name": "",
+        "rect": {
+          "height": 28,
+          "width": 162,
+          "x": 54,
+          "y": 999
+        },
+        "role": "",
+        "tag": "a",
+        "text": "服务市场",
+        "visible": true
+      },
+      {
+        "classes": [],
+        "href": "javascript:;",
+        "id": "",
+        "index": 37,
+        "name": "",
+        "rect": {
+          "height": 24,
+          "width": 204,
+          "x": 16,
+          "y": 900
+        },
+        "role": "",
+        "tag": "a",
+        "text": "成长",
+        "visible": true
+      },
+      {
+        "classes": [
+          "tab-bar__wrap",
+          "tab-bar__wrap--submenu"
+        ],
+        "href": "https://mp.weixin.qq.com/wxamp/score/guide?token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 38,
+        "name": "",
+        "rect": {
+          "height": 28,
+          "width": 162,
+          "x": 54,
+          "y": 939
+        },
+        "role": "",
+        "tag": "a",
+        "text": "小程序评测",
+        "visible": true
+      },
+      {
+        "classes": [
+          "tab-bar__wrap",
+          "tab-bar__wrap--submenu"
+        ],
+        "href": "https://mp.weixin.qq.com/wxamp/frame/illegalRecord?iframe=%2Fpublicpoc%2Fwxaillegalrecord%3Faction%3Dquery&token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 39,
+        "name": "",
+        "rect": {
+          "height": 28,
+          "width": 162,
+          "x": 54,
+          "y": 977
+        },
+        "role": "",
+        "tag": "a",
+        "text": "违规记录",
+        "visible": true
+      },
+      {
+        "classes": [],
+        "href": "https://mp.weixin.qq.com/wxamp/wxaqrcode/weappcode?token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 40,
+        "name": "",
+        "rect": {
+          "height": 52,
+          "width": 200,
+          "x": 16,
+          "y": 543
+        },
+        "role": "",
+        "tag": "a",
+        "text": "小程序码",
+        "visible": true
+      },
+      {
+        "classes": [],
+        "href": "https://mp.weixin.qq.com/wxamp/tools/wasysnotify?token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 41,
+        "name": "",
+        "rect": {
+          "height": 52,
+          "width": 200,
+          "x": 16,
+          "y": 595
+        },
+        "role": "",
+        "tag": "a",
+        "text": "通知中心\n23",
+        "visible": true
+      },
+      {
+        "classes": [
+          "menu_box_account_info_item"
+        ],
+        "href": "https://mp.weixin.qq.com/wxamp/basicprofile/index?token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 42,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "账号设置",
+        "visible": false
+      },
+      {
+        "classes": [
+          "menu_box_account_info_item"
+        ],
+        "href": "https://developers.weixin.qq.com/community/develop/mixflow",
+        "id": "",
+        "index": 43,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "交流专区",
+        "visible": false
+      },
+      {
+        "classes": [
+          "menu_box_account_info_item"
+        ],
+        "href": "https://developers.weixin.qq.com/community/business",
+        "id": "",
+        "index": 44,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "微信学堂",
+        "visible": false
+      },
+      {
+        "classes": [
+          "menu_box_account_info_item"
+        ],
+        "href": "https://developers.weixin.qq.com/miniprogram/dev/framework/",
+        "id": "",
+        "index": 45,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "官方文档",
+        "visible": false
+      },
+      {
+        "classes": [
+          "menu_box_account_info_item"
+        ],
+        "href": "https://mp.weixin.qq.com/wxamp/wedata/login?token=766765003&lang=zh_CN&source=2",
+        "id": "",
+        "index": 46,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "We 分析",
+        "visible": false
+      },
+      {
+        "classes": [
+          "menu_box_account_info_item"
+        ],
+        "href": "https://mp.weixin.qq.com/wxopen/walogout?token=766765003&lang=zh_CN",
+        "id": "",
+        "index": 47,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "退出登录",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-icon-btn",
+          "weui-desktop-search__btn"
+        ],
+        "href": "",
+        "id": "",
+        "index": 48,
+        "name": "",
+        "rect": {
+          "height": 20,
+          "width": 40,
+          "x": 1184,
+          "y": 56
+        },
+        "role": "",
+        "tag": "button",
+        "text": "",
+        "visible": true
+      },
+      {
+        "classes": [
+          "weui-desktop-form__input"
+        ],
+        "href": "",
+        "id": "",
+        "index": 49,
+        "name": "",
+        "rect": {
+          "height": 36,
+          "width": 348,
+          "x": 876,
+          "y": 48
+        },
+        "role": "",
+        "tag": "input",
+        "text": "",
+        "visible": true
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__value_input"
+        ],
+        "href": "",
+        "id": "",
+        "index": 50,
+        "name": "",
+        "rect": {
+          "height": 34,
+          "width": 84,
+          "x": 949,
+          "y": 141
+        },
+        "role": "",
+        "tag": "input",
+        "text": "2026-09-27",
+        "visible": true
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__value_input"
+        ],
+        "href": "",
+        "id": "",
+        "index": 51,
+        "name": "",
+        "rect": {
+          "height": 34,
+          "width": 84,
+          "x": 1061,
+          "y": 141
+        },
+        "role": "",
+        "tag": "input",
+        "text": "2026-10-03",
+        "visible": true
+      },
+      {
+        "classes": [
+          "weui-desktop-btn__icon",
+          "weui-desktop-btn__icon__left"
+        ],
+        "href": "",
+        "id": "",
+        "index": 52,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "button",
+        "text": "",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__faded"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 53,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "27",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__faded"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 54,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "28",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__faded"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 55,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "29",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__faded"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 56,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "30",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__selected_range"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 57,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "1",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__selected_range"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 58,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "2",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__current",
+          "weui-desktop-picker__selected",
+          "weui-desktop-picker__selected_range"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 59,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "3",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 60,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "4",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 61,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "5",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 62,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "6",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 63,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "7",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 64,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "8",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 65,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "9",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 66,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "10",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 67,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "11",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 68,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "12",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 69,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "13",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 70,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "14",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 71,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "15",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 72,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "16",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 73,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "17",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 74,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "18",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 75,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "19",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 76,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "20",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 77,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "21",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 78,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "22",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 79,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "23",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 80,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "24",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 81,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "25",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 82,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "26",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 83,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "27",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 84,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "28",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 85,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "29",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 86,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "30",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 87,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "31",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__faded",
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 88,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "1",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__faded",
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 89,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "2",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__faded",
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 90,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "3",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__faded",
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 91,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "4",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__faded",
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 92,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "5",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__faded",
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 93,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "6",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__faded",
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 94,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "7",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-btn__icon",
+          "weui-desktop-btn__icon__right"
+        ],
+        "href": "",
+        "id": "",
+        "index": 95,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "button",
+        "text": "",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__faded",
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 96,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "25",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__faded",
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 97,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "26",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__faded",
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 98,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "27",
+        "visible": false
+      },
+      {
+        "classes": [
+          "weui-desktop-picker__faded",
+          "weui-desktop-picker__disabled"
+        ],
+        "href": "javascript:;",
+        "id": "",
+        "index": 99,
+        "name": "",
+        "rect": {
+          "height": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "role": "",
+        "tag": "a",
+        "text": "28",
+        "visible": false
+      }
+    ],
+    "text_excerpt": "首页\n管理\n账号设置\n版本管理\n成员管理\n开发管理\n用户反馈\n付费管理\n微信认证\n数据\n基础功能\nAI能力\n贴图话题\n客服\n订阅消息\n实验工具\n翻译\n支付与交易\n微信小店\n购物订单\n交易保障\n虚拟支付\n行业能力\n微信位置\n门店管理\n小程序成长计划\n推广与搜索\n流量主\n广告主\n页面内容接入\n微信搜一搜\n开发与服务\n开发管理\n开发工具\n云服务\n服务市场\n成长\n小程序评测\n违规记录\n小程序码\n通知中心\n23\n心情菜谱日历\n贴图话题\n 至 \n新增贴图数量\n0\n来自小程序的阅读人数\n0\n总阅读人数\n0\n互动次数\n0\n创建话题\n话题名称\t话题来源\t审核状态\t新增贴图数量\t来自小程序的阅读人数\t总阅读人数\t互动次数\t操作\n今天也要好好吃饭\t手动创建\t创建完成\t0\t0\t0\t0\t\n话题推广\n编辑\n删除\n\n心情决定吃啥？锅仔帮你选\t手动创建\t待审核\t0\t0\t0\t0\t\n编辑\n删除\n\n随手一拍，月底收获专属美食画册\t手动创建\t待审核\t0\t0\t0\t0\t\n编辑\n删除\n关于腾讯\n文档中心\n规则中心\n客服中心\n侵权投诉\n\nCopyright © 2012-2026 Tencent. All Rights Reserved.",
+    "title": "小程序",
+    "url": "https://mp.weixin.qq.com/wxamp/appmsgtopic/get_topic_page?token=766765003&lang=zh_CN"
+  },
+  "output": null
+}

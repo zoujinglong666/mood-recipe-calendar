@@ -1,0 +1,37 @@
+{
+  "interactive": [],
+  "repeated_regions": [],
+  "schema_version": 3,
+  "semantic_landmarks": [
+    {
+      "attributes": {
+        "id": "__rpa_dev_recording_ui"
+      },
+      "classes": [],
+      "evidence_score": 33,
+      "href": "",
+      "kind": "visible_business_text",
+      "own_text": "",
+      "rect": {
+        "height": 60,
+        "width": 380,
+        "x": 450,
+        "y": 574
+      },
+      "role": "",
+      "selector_candidates": [
+        {
+          "confidence": 0.99,
+          "recommended": true,
+          "stability": "id",
+          "type": "css",
+          "unique": true,
+          "value": "#__rpa_dev_recording_ui"
+        }
+      ],
+      "semantic_hints": [],
+      "tag": "div",
+      "text": ""
+    }
+  ]
+}

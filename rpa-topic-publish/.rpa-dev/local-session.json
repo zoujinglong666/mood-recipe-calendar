@@ -1,0 +1,11 @@
+{
+  "bridge_socket": "/Users/zou/Library/Application Support/DoubaoWork/rpa-dev/local-preview/bridge.sock",
+  "bridge_version": "0.3.1",
+  "created_at": 1790954190,
+  "local_home": "/Users/zou/Library/Application Support/DoubaoWork/rpa-dev/local-preview",
+  "mode": "local_chrome",
+  "schema": 2,
+  "transport_mode": "local-direct",
+  "workspace_id": "dev:19d8713cfa486079",
+  "workspace_lease_token": "89f795733815531ead305e89ff7b9279"
+}

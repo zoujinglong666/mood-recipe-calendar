@@ -1,0 +1,322 @@
+{
+  "schemaVersion": 1,
+  "steps": [
+    {
+      "logical_tab_id": "tab-1",
+      "raw_event_ids": [
+        2
+      ],
+      "recorded_at": 1790956237150,
+      "type": "navigate",
+      "url": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003\u0026lang=zh_CN"
+    },
+    {
+      "capture_source": "input",
+      "edit_mode": "append",
+      "editable_kind": "input",
+      "input_type": "insertText",
+      "logical_tab_id": "tab-1",
+      "raw_event_ids": [
+        3
+      ],
+      "recorded_at": 1790956252747,
+      "redacted": false,
+      "selectors": [
+        {
+          "confidence": 0.55,
+          "match_count": 163,
+          "recommended": true,
+          "stability": "data_attribute",
+          "type": "css",
+          "unique": false,
+          "value": "[data-doubao-translate-traverse-mark=\"\\31 \"]"
+        },
+        {
+          "confidence": 0.55,
+          "match_count": 3,
+          "stability": "semantic_classes",
+          "type": "css",
+          "unique": false,
+          "value": "input.weui-desktop-form__input"
+        },
+        {
+          "confidence": 0.25,
+          "match_count": 5,
+          "stability": "positional_fallback",
+          "type": "css",
+          "unique": false,
+          "value": "input"
+        }
+      ],
+      "type": "change",
+      "value": "今天也要好好吃饭"
+    },
+    {
+      "button": 0,
+      "logical_tab_id": "tab-1",
+      "raw_event_ids": [
+        4
+      ],
+      "recorded_at": 1790956263011,
+      "selectors": [
+        {
+          "confidence": 0.25,
+          "match_count": 1,
+          "recommended": true,
+          "stability": "positional_fallback",
+          "type": "css",
+          "unique": true,
+          "value": "label"
+        }
+      ],
+      "type": "click"
+    },
+    {
+      "button": 0,
+      "logical_tab_id": "tab-1",
+      "raw_event_ids": [
+        5
+      ],
+      "recorded_at": 1790956263018,
+      "selectors": [
+        {
+          "confidence": 0.88,
+          "match_count": 1,
+          "recommended": true,
+          "stability": "name_attribute",
+          "type": "css",
+          "unique": true,
+          "value": "input[name=\"file\"]"
+        },
+        {
+          "confidence": 0.82,
+          "match_count": 1,
+          "stability": "semantic_classes",
+          "type": "css",
+          "unique": true,
+          "value": "input.webuploader-element-invisible"
+        },
+        {
+          "confidence": 0.25,
+          "match_count": 5,
+          "stability": "positional_fallback",
+          "type": "css",
+          "unique": false,
+          "value": "input"
+        }
+      ],
+      "type": "click"
+    },
+    {
+      "capture_source": "input",
+      "edit_mode": "append",
+      "editable_kind": "input",
+      "input_type": "",
+      "logical_tab_id": "tab-1",
+      "raw_event_ids": [
+        6
+      ],
+      "recorded_at": 1790956280526,
+      "redacted": false,
+      "selectors": [
+        {
+          "confidence": 0.88,
+          "match_count": 1,
+          "recommended": true,
+          "stability": "name_attribute",
+          "type": "css",
+          "unique": true,
+          "value": "input[name=\"file\"]"
+        },
+        {
+          "confidence": 0.82,
+          "match_count": 1,
+          "stability": "semantic_classes",
+          "type": "css",
+          "unique": true,
+          "value": "input.webuploader-element-invisible"
+        },
+        {
+          "confidence": 0.25,
+          "match_count": 5,
+          "stability": "positional_fallback",
+          "type": "css",
+          "unique": false,
+          "value": "input"
+        }
+      ],
+      "type": "change",
+      "value": "C:\\fakepath\\topic-bg-4x3.png"
+    },
+    {
+      "capture_source": "input",
+      "edit_mode": "append",
+      "editable_kind": "textarea",
+      "input_type": "insertText",
+      "logical_tab_id": "tab-1",
+      "raw_event_ids": [
+        7
+      ],
+      "recorded_at": 1790956296786,
+      "redacted": false,
+      "selectors": [
+        {
+          "confidence": 0.55,
+          "match_count": 154,
+          "recommended": true,
+          "stability": "data_attribute",
+          "type": "css",
+          "unique": false,
+          "value": "[data-doubao-translate-traverse-mark=\"\\31 \"]"
+        },
+        {
+          "confidence": 0.82,
+          "match_count": 1,
+          "stability": "semantic_classes",
+          "type": "css",
+          "unique": true,
+          "value": "textarea.weui-desktop-form__textarea"
+        },
+        {
+          "confidence": 0.25,
+          "match_count": 1,
+          "stability": "positional_fallback",
+          "type": "css",
+          "unique": true,
+          "value": "textarea"
+        }
+      ],
+      "type": "change",
+      "value": "选一个心情，跟锅仔做道菜，拍下今日一餐。坚持记录，月底自动生成你的专属画册！"
+    },
+    {
+      "capture_source": "input",
+      "edit_mode": "append",
+      "editable_kind": "input",
+      "input_type": "insertText",
+      "logical_tab_id": "tab-1",
+      "raw_event_ids": [
+        8,
+        9
+      ],
+      "recorded_at": 1790956302402,
+      "redacted": false,
+      "selectors": [
+        {
+          "confidence": 0.55,
+          "match_count": 3,
+          "recommended": true,
+          "stability": "semantic_classes",
+          "type": "css",
+          "unique": false,
+          "value": "input.weui-desktop-form__input"
+        },
+        {
+          "confidence": 0.25,
+          "match_count": 4,
+          "stability": "positional_fallback",
+          "type": "css",
+          "unique": false,
+          "value": "input"
+        }
+      ],
+      "type": "change",
+      "value": "记录今日伙食"
+    },
+    {
+      "button": 0,
+      "logical_tab_id": "tab-1",
+      "raw_event_ids": [
+        10
+      ],
+      "recorded_at": 1790956312660,
+      "selectors": [
+        {
+          "confidence": 0.55,
+          "match_count": 154,
+          "recommended": true,
+          "stability": "data_attribute",
+          "type": "css",
+          "unique": false,
+          "value": "[data-doubao-translate-traverse-mark=\"\\31 \"]"
+        },
+        {
+          "confidence": 0.82,
+          "match_count": 1,
+          "stability": "semantic_classes",
+          "type": "css",
+          "unique": true,
+          "value": "button.weui-desktop-btn.weui-desktop-btn_primary"
+        },
+        {
+          "confidence": 0.72,
+          "stability": "visible_text",
+          "type": "text",
+          "value": "发布"
+        },
+        {
+          "confidence": 0.25,
+          "match_count": 2,
+          "stability": "positional_fallback",
+          "type": "css",
+          "unique": false,
+          "value": "button"
+        }
+      ],
+      "type": "click"
+    },
+    {
+      "button": 0,
+      "logical_tab_id": "tab-1",
+      "raw_event_ids": [
+        11
+      ],
+      "recorded_at": 1790956343918,
+      "selectors": [
+        {
+          "confidence": 0.55,
+          "match_count": 154,
+          "recommended": true,
+          "stability": "data_attribute",
+          "type": "css",
+          "unique": false,
+          "value": "[data-doubao-translate-traverse-mark=\"\\31 \"]"
+        },
+        {
+          "confidence": 0.82,
+          "match_count": 1,
+          "stability": "semantic_classes",
+          "type": "css",
+          "unique": true,
+          "value": "button.weui-desktop-btn.weui-desktop-btn_primary"
+        },
+        {
+          "confidence": 0.72,
+          "stability": "visible_text",
+          "type": "text",
+          "value": "发布"
+        },
+        {
+          "confidence": 0.25,
+          "match_count": 2,
+          "stability": "positional_fallback",
+          "type": "css",
+          "unique": false,
+          "value": "button"
+        }
+      ],
+      "type": "click"
+    }
+  ],
+  "tabGraph": [
+    {
+      "included": true,
+      "logical_tab_id": "tab-1",
+      "opener_logical_tab_id": null,
+      "state": "recording",
+      "title": "小程序",
+      "url": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003\u0026lang=zh_CN"
+    }
+  ],
+  "title": "微信话题每日发布"
+}

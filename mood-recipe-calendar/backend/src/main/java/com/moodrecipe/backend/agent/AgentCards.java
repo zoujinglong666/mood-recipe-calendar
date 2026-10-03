@@ -5,7 +5,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.IntStream;
 
 /**
  * 卡片目录：动作白名单、候选值白名单、默认卡片。
@@ -26,26 +25,6 @@ public final class AgentCards {
             "粤菜", List.of("白切鸡", "豉汁蒸排骨", "白灼菜心"));
 
     private AgentCards() {
-    }
-
-    public static List<String> allowedValues(String action) {
-        List<String> values = switch (action == null ? "" : action) {
-            case "ASK_PEOPLE" -> IntStream.rangeClosed(1, 50).mapToObj(value -> "people=" + value).toList();
-            case "ASK_HOUSEHOLD" -> List.of("elder=yes", "child=yes", "pregnant=yes", "household=elder",
-                    "household=child", "household=pregnant", "household=elder,child", "household=none");
-            case "ASK_SPICE" -> List.of("spice=不吃辣", "spice=微辣", "spice=能吃辣");
-            case "ASK_DAYS" -> List.of("days=0,1,2,3,4,5,6", "days=0,1,2,3,4", "days=5,6");
-            case "ASK_DISHES" -> IntStream.rangeClosed(1, 20).mapToObj(value -> "dishes=" + value).toList();
-            case "ASK_GOAL" -> List.of("goal=BALANCED", "goal=FITNESS", "goal=LEAN");
-            case "ASK_BUDGET" -> List.of("budget=SAVE", "budget=DAILY", "budget=TREAT");
-            case "CONFIRM_CUISINE" -> List.of("记住", "暂不记住");
-            case "READY" -> List.of("generate");
-            default -> List.of();
-        };
-        if (values.isEmpty() || "READY".equals(action)) return values;
-        List<String> withOther = new ArrayList<>(values);
-        withOther.add("other");
-        return List.copyOf(withOther);
     }
 
     /** 反查一个选项值属于哪张卡，用于把"用户点了这个选项"归因到具体动作上。 */
@@ -72,6 +51,7 @@ public final class AgentCards {
         return null;
     }
 
+    /** 最后降级：仅在模型不可用或输出完全无法解析时使用，正常路径的卡片一律由模型现写。 */
     public static DialogueState.Card defaultCard(String action, DialogueState.AgentState state) {
         DialogueState.Card card = switch (action == null ? "" : action) {
             case "ASK_PEOPLE" -> options("一起吃饭的人数", "也可以直接输入具体人数",
@@ -106,78 +86,64 @@ public final class AgentCards {
         return new DialogueState.Card(card.type(), card.title(), card.description(), List.copyOf(options));
     }
 
-    /** 模型给的卡片只有在类型和选项值都合法时才被采纳，否则退回默认卡。 */
+    /**
+     * 模型给的卡片只做格式修剪，不再按预设白名单打回——选项内容交给模型按语境现写。
+     * 修剪后没有有效选项（空、或只剩"自己输入"）时返回 null，由调用方决定
+     * 让模型重新生成还是走最后降级。类型/标题不合规时归一或截断，尽量保留模型的原意。
+     */
     public static DialogueState.Card accept(String action,
-                                                       DialogueState.AgentState state,
-                                                       String type, String title, String description,
-                                                       List<DialogueState.Option> options) {
-        if (options == null || options.isEmpty()) {
-            // 确认卡没有候选选项时，至少把"要确认什么"写进卡里，而不是空泛文案配单个"自己输入"。
-            if ("ASK_CLARIFY".equals(action) && description != null && !description.isBlank()) {
-                return new DialogueState.Card("OPTIONS", "我想确认一下", description,
-                        List.of(new DialogueState.Option("自己输入", "other")));
+                                            DialogueState.AgentState state,
+                                            String type, String title, String description,
+                                            List<DialogueState.Option> options) {
+        List<DialogueState.Option> meaningful = new ArrayList<>();
+        DialogueState.Option other = null;
+        if (options != null) {
+            for (DialogueState.Option option : options) {
+                if (option == null) continue;
+                String label = trimDisplayable(option.label(), 40);
+                String value = trimDisplayable(option.value(), 80);
+                if (label == null || value == null) continue;
+                if ("other".equals(value)) {
+                    other = new DialogueState.Option(label, value);
+                    continue;
+                }
+                if (meaningful.stream().noneMatch(existing -> existing.value().equals(value))) {
+                    meaningful.add(new DialogueState.Option(label, value));
+                }
             }
-            return defaultCard(action, state);
         }
-        // 菜数选项优先使用模型结合上下文生成的结果；模型没有给出可回填的菜数值时才用上下文兜底。
-        if ("ASK_DISHES".equals(action)) {
-            long structuredOptions = options.stream()
-                    .filter(option -> option != null && option.value() != null && option.value().startsWith("dishes="))
-                    .count();
-            if (structuredOptions == 0) return defaultCard(action, state);
-        }
-        if (type == null || !(type.equals("OPTIONS") || type.equals("CUISINE") || type.equals("READY"))) {
-            return defaultCard(action, state);
-        }
-        for (DialogueState.Option option : options) {
-            if (option == null || !displayable(option.label(), 40) || !displayable(option.value(), 80)) {
-                return defaultCard(action, state);
-            }
-            if (!validValueForAction(action, option.value())) return defaultCard(action, state);
-        }
-        if (!displayable(title, 60)) return defaultCard(action, state);
-        String safeDescription = description == null ? "" : description;
-        if (!safeDescription.isBlank() && !displayable(safeDescription, 160)) return defaultCard(action, state);
-        List<DialogueState.Option> safeOptions = new ArrayList<>();
-        options.stream().limit(6).forEach(option -> {
-            if (safeOptions.stream().noneMatch(existing -> existing.value().equals(option.value()))) {
-                safeOptions.add(option);
-            }
-        });
-        if (!"READY".equals(action) && safeOptions.stream().noneMatch(option -> "other".equals(option.value()))) {
-            safeOptions.add(new DialogueState.Option("自己输入", "other"));
-        }
-        return new DialogueState.Card(type, title, safeDescription, List.copyOf(safeOptions));
-    }
-
-    /** Dynamic labels are allowed, but a structured value must belong to the current question. */
-    private static boolean validValueForAction(String action, String value) {
-        if ("other".equals(value)) return true;
-        String prefix = value.contains("=") ? value.substring(0, value.indexOf('=')) : "";
-        if (prefix.isBlank()) return true;
-        return switch (action == null ? "" : action) {
-            case "ASK_PEOPLE" -> "people".equals(prefix);
-            case "ASK_HOUSEHOLD" -> "household".equals(prefix) || "elder".equals(prefix)
-                    || "child".equals(prefix) || "pregnant".equals(prefix);
-            case "ASK_SPICE" -> "spice".equals(prefix);
-            case "ASK_DAYS" -> "days".equals(prefix);
-            case "ASK_DISHES" -> "dishes".equals(prefix);
-            case "ASK_GOAL" -> "goal".equals(prefix);
-            case "ASK_BUDGET" -> "budget".equals(prefix);
-            default -> false;
+        if (meaningful.isEmpty()) return null;
+        List<DialogueState.Option> safeOptions = new ArrayList<>(meaningful.subList(0, Math.min(meaningful.size(), 5)));
+        String safeType = switch (action == null ? "" : action) {
+            case "CONFIRM_CUISINE" -> "CUISINE";
+            case "READY" -> "READY";
+            default -> "OPTIONS";
         };
+        if (!"READY".equals(action)) {
+            safeOptions.add(other != null ? other : new DialogueState.Option("自己输入", "other"));
+        }
+        String safeTitle = trimDisplayable(title, 60);
+        if (safeTitle == null) safeTitle = trimDisplayable(description, 60);
+        if (safeTitle == null) return null;
+        String safeDescription = trimDisplayable(description, 160);
+        return new DialogueState.Card(safeType, safeTitle, safeDescription == null ? "" : safeDescription,
+                List.copyOf(safeOptions));
     }
 
-    private static boolean displayable(String value, int maxLength) {
-        if (value == null || value.isBlank() || value.length() > maxLength) return false;
-        for (int offset = 0; offset < value.length();) {
-            int codePoint = value.codePointAt(offset);
+    /** 可展示文本：去首尾空白、截断超长、剔除控制字符；空或含坏字符返回 null。 */
+    private static String trimDisplayable(String value, int maxLength) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        if (trimmed.isEmpty()) return null;
+        if (trimmed.length() > maxLength) trimmed = trimmed.substring(0, maxLength);
+        for (int offset = 0; offset < trimmed.length();) {
+            int codePoint = trimmed.codePointAt(offset);
             if (Character.isISOControl(codePoint) || codePoint == 0xfffd) {
-                return false;
+                return null;
             }
             offset += Character.charCount(codePoint);
         }
-        return true;
+        return trimmed;
     }
 
     private static DialogueState.Card options(String title, String description, String... pairs) {
@@ -204,12 +170,5 @@ public final class AgentCards {
 
     public static Map<String, List<String>> cuisineDishes() {
         return new LinkedHashMap<>(CUISINE_DISHES);
-    }
-
-    public static List<DialogueState.Card> clarificationCards(List<String> unclear) {
-        if (unclear == null) return List.of();
-        return unclear.stream().map(text -> new DialogueState.Card(
-                "OPTIONS", "锅仔想确认一下", text,
-                List.of(new DialogueState.Option("自己输入", "other")))).toList();
     }
 }

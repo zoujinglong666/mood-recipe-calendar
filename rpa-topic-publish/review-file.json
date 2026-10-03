@@ -1,0 +1,197 @@
+{
+ "schema": 1,
+ "recording_id": "local-rec-1790956186556",
+ "recording_artifact_sha256": "9bc563c87c9fa06c80b3ce4fdf29fbec0958aaa8b401a9c6c356711c16dfebfa",
+ "prd_version": 2,
+ "reviewer": "doubao-agent",
+ "reviewed_step_indexes": [
+  0,
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  8
+ ],
+ "reviewed_screenshots": [
+  {
+   "path": "screenshots/step-000002-document-tab-1.jpg",
+   "sha256": "eb0eac93c8a758f83e5b668abf5b65e0814aba3a20c4ee48f96441a22fd479ef",
+   "source": "step:0"
+  },
+  {
+   "path": "screenshots/step-000003-change-tab-1.jpg",
+   "sha256": "0a3de0be685a85fbb91dc13d209112bc324d4f6326361ed9b5e2b4b7eadd97d2",
+   "source": "step:1"
+  },
+  {
+   "path": "screenshots/step-000004-click-tab-1.jpg",
+   "sha256": "9fe0eb29979550d7f15c38e80a59663350b07162ae4dce145b1f8d55ec53ef78",
+   "source": "step:2"
+  },
+  {
+   "path": "screenshots/step-000005-click-tab-1.jpg",
+   "sha256": "9fe0eb29979550d7f15c38e80a59663350b07162ae4dce145b1f8d55ec53ef78",
+   "source": "step:3"
+  },
+  {
+   "path": "screenshots/step-000006-change-tab-1.jpg",
+   "sha256": "2d2a2522cdda9bf1dfaf59781e295651bcbc8fb8e14508348a24ea175136bf73",
+   "source": "step:4"
+  },
+  {
+   "path": "screenshots/step-000007-change-tab-1.jpg",
+   "sha256": "92cfbbb10761c40c7d1fe72254dddb47b6d4f41e22d935340b60c855fc5b1d28",
+   "source": "step:5"
+  },
+  {
+   "path": "screenshots/step-000009-change-tab-1.jpg",
+   "sha256": "771140d30a1af9a878052e5cea745a9eeaaec3b927d83401d60ac5d478e92142",
+   "source": "step:6"
+  },
+  {
+   "path": "screenshots/step-000010-click-tab-1.jpg",
+   "sha256": "f041a05a15a56ebbe50faae6e8b472476a16f14ffd23762b5d69ab815e5dca05",
+   "source": "step:7"
+  },
+  {
+   "path": "screenshots/step-000011-click-tab-1.jpg",
+   "sha256": "5a20a50475e29ed95a1bfc8d3bb1df48e9919156d4d661102770af2accbae15e",
+   "source": "step:8"
+  },
+  {
+   "path": "screenshots/checkpoint-final-tab-1.jpg",
+   "sha256": "60546e69fb362dccdfb0b2c9521ea78f778265c288c117e9cbe2699ffb27dcf0",
+   "source": "final:tab-1"
+  }
+ ],
+ "primary_intent": "在微信小程序后台创建并发布一个贴图话题：填写话题名称、上传背景图、填写话题描述、填写推荐链接路径与标题，点击发布，使话题成功发布（页面提交后刷新/跳转）。",
+ "completion_invariant": "点击发布后话题创建成功：表单内容被提交（页面刷新或跳转），话题管理页（get_topic_page）的话题列表中出现对应话题且审核状态为「创建完成」；返回话题名称、话题描述、推荐链接路径与标题、页面 URL 与处理状态作为可验证结果。",
+ "prd_changes_summary": "将录制推断的泛化结果语义修正为「发布微信贴图话题」业务闭环：为 4 个录制输入提供语义命名与用户可见名称、必填规则与默认值；完成标准改为「发布成功并在话题管理列表可见」；推荐链接路径（pages/record/index）虽未在录制事件中成为独立输入步骤，但最终状态截图已确认其正确出现在表单中，且为用户此前确认的定稿值，作为固定业务默认值补充进任务说明。",
+ "input_candidates": [
+  {
+   "candidate_id": "input-step-1",
+   "editable_kind": "input",
+   "field_evidence": {
+    "aria_label": null,
+    "id": null,
+    "label": "",
+    "name": "",
+    "nearby_text": "今天也要好好吃饭",
+    "placeholder": "输入话题名称，发布后不可修改"
+   },
+   "page_context": {
+    "title": "小程序",
+    "url": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&lang=zh_CN"
+   },
+   "recorded_step_indexes": [
+    1
+   ],
+   "value_example": "今天也要好好吃饭",
+   "value_type": "string"
+  },
+  {
+   "candidate_id": "input-step-4",
+   "editable_kind": "input",
+   "field_evidence": {
+    "aria_label": null,
+    "id": null,
+    "label": "file",
+    "name": "file",
+    "nearby_text": "C:\\fakepath\\topic-bg-4x3.png",
+    "placeholder": null
+   },
+   "page_context": {
+    "title": "小程序",
+    "url": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&lang=zh_CN"
+   },
+   "recorded_step_indexes": [
+    4
+   ],
+   "value_example": "C:\\fakepath\\topic-bg-4x3.png",
+   "value_type": "string"
+  },
+  {
+   "candidate_id": "input-step-5",
+   "editable_kind": "textarea",
+   "field_evidence": {
+    "aria_label": null,
+    "id": null,
+    "label": "",
+    "name": "",
+    "nearby_text": "选一个心情，跟锅仔做道菜，拍下今日一餐。坚持记录，月底自动生成你的专属画册！",
+    "placeholder": "输入参与话题的规则，如分享内容的要求、可获得的活动激励和领奖方式"
+   },
+   "page_context": {
+    "title": "小程序",
+    "url": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&lang=zh_CN"
+   },
+   "recorded_step_indexes": [
+    5
+   ],
+   "value_example": "选一个心情，跟锅仔做道菜，拍下今日一餐。坚持记录，月底自动生成你的专属画册！",
+   "value_type": "string"
+  },
+  {
+   "candidate_id": "input-step-6",
+   "editable_kind": "input",
+   "field_evidence": {
+    "aria_label": null,
+    "id": null,
+    "label": "",
+    "name": "",
+    "nearby_text": "记录今日伙食",
+    "placeholder": "请输入推荐链接的标题，便于作者和读者理解链接内容"
+   },
+   "page_context": {
+    "title": "小程序",
+    "url": "https://mp.weixin.qq.com/wxamp/appmsgtopic/create_topic_page?token=766765003&lang=zh_CN"
+   },
+   "recorded_step_indexes": [
+    6
+   ],
+   "value_example": "记录今日伙食",
+   "value_type": "string"
+  }
+ ],
+ "input_proposals": [
+  {
+   "name": "topic_name",
+   "display_name": "话题名称",
+   "required": true,
+   "rule": "必填；不超过 16 个汉字；发布后不可修改",
+   "step_binding": "step 1：在话题名称输入框输入",
+   "candidate_id": "input-step-1",
+   "example": "今天也要好好吃饭"
+  },
+  {
+   "name": "topic_bg_image",
+   "display_name": "背景图",
+   "required": true,
+   "rule": "必填；本地图片文件；背景图展示尺寸宽高比最大为 4:3",
+   "step_binding": "step 2-4：点击上传区域，通过文件选择对话框选择背景图",
+   "candidate_id": "input-step-4",
+   "example": "topic-bg-4x3.png"
+  },
+  {
+   "name": "topic_description",
+   "display_name": "话题描述",
+   "required": true,
+   "rule": "必填；不超过 40 字",
+   "step_binding": "step 5：在话题描述输入框输入",
+   "candidate_id": "input-step-5",
+   "example": "选一个心情，跟锅仔做道菜，拍下今日一餐。坚持记录，月底自动生成你的专属画册！"
+  },
+  {
+   "name": "link_title",
+   "display_name": "推荐链接标题",
+   "required": true,
+   "rule": "必填；推荐链接的展示标题",
+   "step_binding": "step 6：在推荐链接标题输入框输入",
+   "candidate_id": "input-step-6",
+   "example": "记录今日伙食"
+  }
+ ]
+}

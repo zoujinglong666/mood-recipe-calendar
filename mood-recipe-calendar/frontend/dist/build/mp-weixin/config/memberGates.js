@@ -1,0 +1,1 @@
+"use strict";exports.MEMBER_GATES={fridge_recognize:{title:"会员专享功能",content:"冰箱拍照识别（自动认食材、算保质期、临期提醒）为会员功能，开通后即可使用。"},fridge_expiry:{title:"会员专享功能",content:"食材临期提醒为会员功能，开通后即可使用。"},meal_agent_web_search:{title:"会员专享功能",content:"锅仔联网搜索（问到菜谱库外的知识也能答）为会员功能，开通后即可使用。"}};

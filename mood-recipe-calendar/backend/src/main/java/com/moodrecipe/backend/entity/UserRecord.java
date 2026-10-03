@@ -75,6 +75,10 @@ public class UserRecord {
     @Column(name = "record_date")
     private String recordDate;
 
+    /** 会员服务端生成的杂志海报地址。 */
+    @Column(name = "poster_url", columnDefinition = "TEXT")
+    private String posterUrl;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

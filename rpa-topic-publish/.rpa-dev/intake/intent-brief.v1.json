@@ -1,0 +1,95 @@
+{
+  "candidate_intents": [
+    {
+      "confidence": "high",
+      "confidence_score": 0.93,
+      "goal": "微信话题每日发布",
+      "kind": "form_submission",
+      "rank": 1
+    },
+    {
+      "confidence": "low",
+      "confidence_score": 0.18,
+      "goal": "读取提交前后页面中的可见信息",
+      "kind": "information_extraction",
+      "rank": 2
+    }
+  ],
+  "evidence": [
+    "连续查看/点击了 3 个不同对象：label, file, 发布。",
+    "业务页面出现可回溯的字段标签、卡片字段或详情入口。",
+    "录制操作了 3 个不同元素，但点击后页面证据不足以证明它们属于需要批量提取的同类条目。",
+    "关键步骤视觉证据覆盖率为 100%。",
+    "最后一个业务输入后记录到 `click`，优先判定为提交/发送类操作。"
+  ],
+  "inferred_inputs": [
+    {
+      "confidence": "high",
+      "example": "今天也要好好吃饭",
+      "name": "input_text_1",
+      "parameterize": true,
+      "requires_confirmation": true,
+      "source": "recorded_submitted_input",
+      "type": "string"
+    },
+    {
+      "confidence": "high",
+      "example": "C:\\fakepath\\topic-bg-4x3.png",
+      "name": "input_text_2",
+      "parameterize": true,
+      "requires_confirmation": true,
+      "source": "recorded_submitted_input",
+      "type": "string"
+    },
+    {
+      "confidence": "high",
+      "example": "选一个心情，跟锅仔做道菜，拍下今日一餐。坚持记录，月底自动生成你的专属画册！",
+      "name": "input_text_3",
+      "parameterize": true,
+      "requires_confirmation": true,
+      "source": "recorded_submitted_input",
+      "type": "string"
+    },
+    {
+      "confidence": "high",
+      "example": "记录今日伙食",
+      "name": "input_text_4",
+      "parameterize": true,
+      "requires_confirmation": true,
+      "source": "recorded_submitted_input",
+      "type": "string"
+    }
+  ],
+  "inferred_outputs": [
+    {
+      "meaning": "录制的提交或发送动作已完成",
+      "name": "success",
+      "required": true,
+      "source": "terminal_submission",
+      "type": "boolean"
+    },
+    {
+      "meaning": "已验证提交后的业务可见状态",
+      "name": "validated",
+      "required": true,
+      "source": "recorded_postcondition",
+      "type": "boolean"
+    }
+  ],
+  "primary_intent": {
+    "confidence": "high",
+    "confidence_score": 0.93,
+    "goal": "微信话题每日发布",
+    "kind": "form_submission",
+    "rank": 1
+  },
+  "questions": [],
+  "recording_id": "local-rec-1790956186556",
+  "schema": 1,
+  "semantic_inference": {
+    "business_page_count": 4,
+    "observed_output_count": 5,
+    "provider": "deterministic_submission_evidence"
+  },
+  "version": 1
+}

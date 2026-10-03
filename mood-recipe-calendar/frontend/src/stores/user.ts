@@ -19,6 +19,14 @@ export const useUserStore = defineStore('user', () => {
 
   const isLoggedIn = computed(() => !!openid.value && !!sessionToken.value)
 
+  /** 有效会员：isMember=1 且会员未过期。会员门禁的唯一真相源。 */
+  const isActiveMember = computed(() => {
+    const info = userInfo.value
+    if (!info || info.isMember !== 1 || !info.memberExpire)
+      return false
+    return new Date(info.memberExpire).getTime() > Date.now()
+  })
+
   function setLogin(oid: string, token: string, info?: UserInfo) {
     openid.value = oid
     sessionToken.value = token
@@ -64,6 +72,7 @@ export const useUserStore = defineStore('user', () => {
     sessionToken,
     userInfo,
     isLoggedIn,
+    isActiveMember,
     userInitiatedLogout,
     setLogin,
     logout,

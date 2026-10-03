@@ -8,6 +8,8 @@ import com.moodrecipe.backend.model.RecordRequest;
 import com.moodrecipe.backend.model.RecordSaveResponse;
 import com.moodrecipe.backend.repository.UserRecordRepository;
 import com.moodrecipe.backend.service.RecordLearningService;
+import com.moodrecipe.backend.service.RecordPosterService;
+import com.moodrecipe.backend.service.UsageQuotaService;
 import com.moodrecipe.backend.service.WechatContentSafetyService;
 import jakarta.validation.Valid;
 import com.moodrecipe.backend.config.SessionAuthInterceptor;
@@ -25,14 +27,19 @@ public class RecordController {
     private final UserRecordRepository repository;
     private final RecordLearningService learning;
     private final WechatContentSafetyService contentSafety;
+    private final UsageQuotaService quotas;
+    private final RecordPosterService posters;
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ISO_LOCAL_DATE;
     private static final String DEFAULT_DISH_IMAGE = "/static/dish_tomato_beef.png";
 
     public RecordController(UserRecordRepository repository, RecordLearningService learning,
-                            WechatContentSafetyService contentSafety) {
+                            WechatContentSafetyService contentSafety, UsageQuotaService quotas,
+                            RecordPosterService posters) {
         this.repository = repository;
         this.learning = learning;
         this.contentSafety = contentSafety;
+        this.quotas = quotas;
+        this.posters = posters;
     }
 
     /** 保存一条记录 */
@@ -94,6 +101,7 @@ public class RecordController {
         if (!contentSafety.allowsText(openid, req.dishName(), req.moodTag(), req.note())) return ApiResponse.error(400, "文字未通过安全检查");
         record.setImageUrls(imageUrls); record.setImageUrl(imageUrls.get(0)); record.setDishName(req.dishName());
         record.setMoodTag(req.moodTag()); record.setNote(req.note()); record.setCookingTime(req.cookingTime());
+        record.setPosterUrl(null);
         if (req.exposureId() != null && !req.exposureId().isBlank()) record.setExposureId(req.exposureId());
         if (req.recordDate() != null) record.setRecordDate(req.recordDate());
         return ApiResponse.ok(repository.save(record));
@@ -120,6 +128,20 @@ public class RecordController {
         if (record == null) return ApiResponse.error(404, "记录不存在");
         if (!openid.equals(record.getOpenid())) return ApiResponse.error(403, "无权查看该记录");
         return ApiResponse.ok(record);
+    }
+
+    /** 会员专享：使用服务端杂志排版生成可分享海报。 */
+    @PostMapping("/{id}/poster")
+    public ApiResponse<Map<String, String>> generatePoster(@PathVariable Long id,
+                                                            @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
+        UserRecord record = repository.findById(id).orElse(null);
+        if (record == null) return ApiResponse.error(404, "记录不存在");
+        if (!openid.equals(record.getOpenid())) return ApiResponse.error(403, "无权生成这条记录的海报");
+        if (!quotas.member(openid)) return ApiResponse.error(403, "海报+后端为会员专享，开通会员后即可使用");
+        String url = posters.generate(record);
+        record.setPosterUrl(url);
+        repository.save(record);
+        return ApiResponse.ok(Map.of("url", url, "mode", "SERVER_POSTER"));
     }
 
     /** 某用户某月记录 */

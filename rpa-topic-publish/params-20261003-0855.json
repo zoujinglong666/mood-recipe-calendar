@@ -1,0 +1,7 @@
+{
+  "topic_name": "随手一拍，月底收获专属美食画册",
+  "topic_bg_image": "/Users/zou/WebstormProjects/mood-recipe-calendar/rpa-topic-publish/assets/topic-bg-20261003-0855-record.jpg",
+  "topic_description": "拍下今日一餐，记录每顿饭的心情与滋味。坚持记录，月底自动生成你的专属美食画册！",
+  "link_title": "记录今日伙食",
+  "link_path": "pages/record/index"
+}

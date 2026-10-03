@@ -23,6 +23,7 @@ declare global {
   const askMealAgent: typeof import('./api/weeklyPlans')['askMealAgent']
   const assetUrl: typeof import('./utils/assets')['assetUrl']
   const asyncComputed: typeof import('@vueuse/core')['asyncComputed']
+  const autoCheckUpdate: typeof import('./utils/update')['autoCheckUpdate']
   const autoLayout: typeof import('./utils/albumLayout')['autoLayout']
   const autoResetRef: typeof import('@vueuse/core')['autoResetRef']
   const beginAuthRecovery: typeof import('./utils/authRecovery')['beginAuthRecovery']
@@ -104,6 +105,7 @@ declare global {
   const fetchRecord: typeof import('./api/records')['fetchRecord']
   const fetchRecords: typeof import('./api/records')['fetchRecords']
   const fetchRecordsByMonth: typeof import('./api/records')['fetchRecordsByMonth']
+  const fetchShareStatus: typeof import('./api/share')['fetchShareStatus']
   const fetchStats: typeof import('./api/records')['fetchStats']
   const fetchStorageAdvice: typeof import('./api/fridge')['fetchStorageAdvice']
   const fetchVirtualOrder: typeof import('./api/virtualCommerce')['fetchVirtualOrder']
@@ -114,6 +116,7 @@ declare global {
   const forgetAgentMemory: typeof import('./api/auth')['forgetAgentMemory']
   const generatePlanDayCover: typeof import('./api/weeklyPlans')['generatePlanDayCover']
   const generatePlanDishCover: typeof import('./api/weeklyPlans')['generatePlanDishCover']
+  const generateRecordPoster: typeof import('./api/recordPoster')['generateRecordPoster']
   const generateWeeklyPlan: typeof import('./api/weeklyPlans')['generateWeeklyPlan']
   const get: typeof import('./api/request')['get']
   const getActivePinia: typeof import('pinia')['getActivePinia']
@@ -137,6 +140,7 @@ declare global {
   const initializeThemeOnce: typeof import('./utils/systemTheme')['initializeThemeOnce']
   const inject: typeof import('vue')['inject']
   const injectLocal: typeof import('@vueuse/core')['injectLocal']
+  const isActiveMember: typeof import('./utils/memberGate')['isActiveMember']
   const isDefined: typeof import('@vueuse/core')['isDefined']
   const isDisplayableWeeklyPlan: typeof import('./api/weeklyPlans')['isDisplayableWeeklyPlan']
   const isProxy: typeof import('vue')['isProxy']
@@ -148,6 +152,7 @@ declare global {
   const login: typeof import('./api/auth')['login']
   const logout: typeof import('./api/auth')['logout']
   const makeDestructurable: typeof import('@vueuse/core')['makeDestructurable']
+  const manualCheckUpdate: typeof import('./utils/update')['manualCheckUpdate']
   const mapActions: typeof import('pinia')['mapActions']
   const mapGetters: typeof import('pinia')['mapGetters']
   const mapState: typeof import('pinia')['mapState']
@@ -156,6 +161,7 @@ declare global {
   const markRaw: typeof import('vue')['markRaw']
   const memoryKeyLabel: typeof import('./utils/memoryLabels')['memoryKeyLabel']
   const navBack: typeof import('./composables/useNavBar')['navBack']
+  const navigateToLogin: typeof import('./utils/login')['navigateToLogin']
   const nextTick: typeof import('vue')['nextTick']
   const notifyFridgeExpiring: typeof import('./api/fridge')['notifyFridgeExpiring']
   const onActivated: typeof import('vue')['onActivated']
@@ -214,6 +220,7 @@ declare global {
   const readonly: typeof import('vue')['readonly']
   const recognizeFridgeImage: typeof import('./api/fridge')['recognizeFridgeImage']
   const recommendRecipe: typeof import('./api/recipes')['recommendRecipe']
+  const recordShare: typeof import('./api/share')['recordShare']
   const ref: typeof import('vue')['ref']
   const refAutoReset: typeof import('@vueuse/core')['refAutoReset']
   const refDebounced: typeof import('@vueuse/core')['refDebounced']
@@ -223,12 +230,14 @@ declare global {
   const refreshDailyBoard: typeof import('./api/dailyMenu')['refreshDailyBoard']
   const refreshNavMetrics: typeof import('./composables/useNavBar')['refreshNavMetrics']
   const refreshUserInfo: typeof import('./utils/login')['refreshUserInfo']
+  const refreshWechatLoginForPayment: typeof import('./utils/login')['refreshWechatLoginForPayment']
   const replaceDailyMealPlanMeal: typeof import('./api/dailyMealPlan')['replaceDailyMealPlanMeal']
   const replacePlanDay: typeof import('./api/weeklyPlans')['replacePlanDay']
   const reportPlanDishOutcome: typeof import('./api/weeklyPlans')['reportPlanDishOutcome']
   const requestDeepRecipe: typeof import('./api/recipes')['requestDeepRecipe']
   const requestWechatVirtualPayment: typeof import('./api/virtualCommerce')['requestWechatVirtualPayment']
   const requestWeeklyPlanCompletionNotice: typeof import('./api/weeklyPlans')['requestWeeklyPlanCompletionNotice']
+  const requireMember: typeof import('./utils/memberGate')['requireMember']
   const resolveAssetUrl: typeof import('./api/request')['resolveAssetUrl']
   const resolveComponent: typeof import('vue')['resolveComponent']
   const resolveRef: typeof import('@vueuse/core')['resolveRef']
@@ -501,6 +510,7 @@ declare module 'vue' {
     readonly askMealAgent: UnwrapRef<typeof import('./api/weeklyPlans')['askMealAgent']>
     readonly assetUrl: UnwrapRef<typeof import('./utils/assets')['assetUrl']>
     readonly asyncComputed: UnwrapRef<typeof import('@vueuse/core')['asyncComputed']>
+    readonly autoCheckUpdate: UnwrapRef<typeof import('./utils/update')['autoCheckUpdate']>
     readonly autoLayout: UnwrapRef<typeof import('./utils/albumLayout')['autoLayout']>
     readonly autoResetRef: UnwrapRef<typeof import('@vueuse/core')['autoResetRef']>
     readonly beginAuthRecovery: UnwrapRef<typeof import('./utils/authRecovery')['beginAuthRecovery']>
@@ -582,6 +592,7 @@ declare module 'vue' {
     readonly fetchRecord: UnwrapRef<typeof import('./api/records')['fetchRecord']>
     readonly fetchRecords: UnwrapRef<typeof import('./api/records')['fetchRecords']>
     readonly fetchRecordsByMonth: UnwrapRef<typeof import('./api/records')['fetchRecordsByMonth']>
+    readonly fetchShareStatus: UnwrapRef<typeof import('./api/share')['fetchShareStatus']>
     readonly fetchStats: UnwrapRef<typeof import('./api/records')['fetchStats']>
     readonly fetchStorageAdvice: UnwrapRef<typeof import('./api/fridge')['fetchStorageAdvice']>
     readonly fetchVirtualOrder: UnwrapRef<typeof import('./api/virtualCommerce')['fetchVirtualOrder']>
@@ -592,6 +603,7 @@ declare module 'vue' {
     readonly forgetAgentMemory: UnwrapRef<typeof import('./api/auth')['forgetAgentMemory']>
     readonly generatePlanDayCover: UnwrapRef<typeof import('./api/weeklyPlans')['generatePlanDayCover']>
     readonly generatePlanDishCover: UnwrapRef<typeof import('./api/weeklyPlans')['generatePlanDishCover']>
+    readonly generateRecordPoster: UnwrapRef<typeof import('./api/recordPoster')['generateRecordPoster']>
     readonly generateWeeklyPlan: UnwrapRef<typeof import('./api/weeklyPlans')['generateWeeklyPlan']>
     readonly get: UnwrapRef<typeof import('./api/request')['get']>
     readonly getActivePinia: UnwrapRef<typeof import('pinia')['getActivePinia']>
@@ -615,6 +627,7 @@ declare module 'vue' {
     readonly initializeThemeOnce: UnwrapRef<typeof import('./utils/systemTheme')['initializeThemeOnce']>
     readonly inject: UnwrapRef<typeof import('vue')['inject']>
     readonly injectLocal: UnwrapRef<typeof import('@vueuse/core')['injectLocal']>
+    readonly isActiveMember: UnwrapRef<typeof import('./utils/memberGate')['isActiveMember']>
     readonly isDefined: UnwrapRef<typeof import('@vueuse/core')['isDefined']>
     readonly isDisplayableWeeklyPlan: UnwrapRef<typeof import('./api/weeklyPlans')['isDisplayableWeeklyPlan']>
     readonly isProxy: UnwrapRef<typeof import('vue')['isProxy']>
@@ -626,6 +639,7 @@ declare module 'vue' {
     readonly login: UnwrapRef<typeof import('./api/auth')['login']>
     readonly logout: UnwrapRef<typeof import('./api/auth')['logout']>
     readonly makeDestructurable: UnwrapRef<typeof import('@vueuse/core')['makeDestructurable']>
+    readonly manualCheckUpdate: UnwrapRef<typeof import('./utils/update')['manualCheckUpdate']>
     readonly mapActions: UnwrapRef<typeof import('pinia')['mapActions']>
     readonly mapGetters: UnwrapRef<typeof import('pinia')['mapGetters']>
     readonly mapState: UnwrapRef<typeof import('pinia')['mapState']>
@@ -634,6 +648,7 @@ declare module 'vue' {
     readonly markRaw: UnwrapRef<typeof import('vue')['markRaw']>
     readonly memoryKeyLabel: UnwrapRef<typeof import('./utils/memoryLabels')['memoryKeyLabel']>
     readonly navBack: UnwrapRef<typeof import('./composables/useNavBar')['navBack']>
+    readonly navigateToLogin: UnwrapRef<typeof import('./utils/login')['navigateToLogin']>
     readonly nextTick: UnwrapRef<typeof import('vue')['nextTick']>
     readonly notifyFridgeExpiring: UnwrapRef<typeof import('./api/fridge')['notifyFridgeExpiring']>
     readonly onActivated: UnwrapRef<typeof import('vue')['onActivated']>
@@ -692,6 +707,7 @@ declare module 'vue' {
     readonly readonly: UnwrapRef<typeof import('vue')['readonly']>
     readonly recognizeFridgeImage: UnwrapRef<typeof import('./api/fridge')['recognizeFridgeImage']>
     readonly recommendRecipe: UnwrapRef<typeof import('./api/recipes')['recommendRecipe']>
+    readonly recordShare: UnwrapRef<typeof import('./api/share')['recordShare']>
     readonly ref: UnwrapRef<typeof import('vue')['ref']>
     readonly refAutoReset: UnwrapRef<typeof import('@vueuse/core')['refAutoReset']>
     readonly refDebounced: UnwrapRef<typeof import('@vueuse/core')['refDebounced']>
@@ -701,12 +717,14 @@ declare module 'vue' {
     readonly refreshDailyBoard: UnwrapRef<typeof import('./api/dailyMenu')['refreshDailyBoard']>
     readonly refreshNavMetrics: UnwrapRef<typeof import('./composables/useNavBar')['refreshNavMetrics']>
     readonly refreshUserInfo: UnwrapRef<typeof import('./utils/login')['refreshUserInfo']>
+    readonly refreshWechatLoginForPayment: UnwrapRef<typeof import('./utils/login')['refreshWechatLoginForPayment']>
     readonly replaceDailyMealPlanMeal: UnwrapRef<typeof import('./api/dailyMealPlan')['replaceDailyMealPlanMeal']>
     readonly replacePlanDay: UnwrapRef<typeof import('./api/weeklyPlans')['replacePlanDay']>
     readonly reportPlanDishOutcome: UnwrapRef<typeof import('./api/weeklyPlans')['reportPlanDishOutcome']>
     readonly requestDeepRecipe: UnwrapRef<typeof import('./api/recipes')['requestDeepRecipe']>
     readonly requestWechatVirtualPayment: UnwrapRef<typeof import('./api/virtualCommerce')['requestWechatVirtualPayment']>
     readonly requestWeeklyPlanCompletionNotice: UnwrapRef<typeof import('./api/weeklyPlans')['requestWeeklyPlanCompletionNotice']>
+    readonly requireMember: UnwrapRef<typeof import('./utils/memberGate')['requireMember']>
     readonly resolveAssetUrl: UnwrapRef<typeof import('./api/request')['resolveAssetUrl']>
     readonly resolveComponent: UnwrapRef<typeof import('vue')['resolveComponent']>
     readonly resolveRef: UnwrapRef<typeof import('@vueuse/core')['resolveRef']>

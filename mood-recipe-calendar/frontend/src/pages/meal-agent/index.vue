@@ -11,8 +11,11 @@ import { safeDecodePrompt } from '@/utils/safeDecodePrompt'
 import { toastError } from '@/utils/toast'
 import { useUserStore } from '@/stores/user'
 import { ensureLogin, refreshUserInfo } from '@/utils/login'
+import { requireMember } from '@/utils/memberGate'
+import { recordShare } from '@/api/share'
 import GuozaiChipGroup from '@/components/guozai/GuozaiChipGroup.vue'
 import GuozaiButton from '@/components/guozai/GuozaiButton.vue'
+import Icon from '@/components/common/Icon.vue'
 
 definePage({ name: 'meal-agent', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '锅仔管饭' } })
 
@@ -83,6 +86,14 @@ const agentCards = computed(() => {
     return cards.slice(0, 1)
   return agentTurn.value?.card ? [agentTurn.value.card] : []
 })
+// 家庭多选选择器只用于模型给出了结构化 household 选项的卡；
+// 模型现写的自由文本选项（如"就我们俩，不用照顾"）走通用单选，交给后端模型理解
+const householdPickerActive = computed(() => {
+  if (agentTurn.value?.action !== 'ASK_HOUSEHOLD')
+    return false
+  const options = agentCards.value[0]?.options || []
+  return options.some(option => /^(household=|elder=|child=|pregnant=)/.test(option.value))
+})
 let messageId = 0
 let progressTimer: ReturnType<typeof setInterval> | undefined
 let agentConversationId = ''
@@ -95,10 +106,17 @@ const agentSteps = [
   { title: '合并买菜清单', copy: '复用食材，整理成一张清单' },
 ]
 
-const isMember = computed(() => userStore.userInfo?.isMember === 1
-  && Boolean(userStore.userInfo?.memberExpire)
-  && new Date(userStore.userInfo!.memberExpire!).getTime() > Date.now())
+const isMember = computed(() => userStore.isActiveMember)
+/** 联网搜索：会员专属开关，开启后本次会话所有对话都走联网 */
+const webSearchEnabled = ref(false)
 const canUseAgent = computed(() => isMember.value || (agentQuota.value?.remaining || 0) > 0)
+
+/** 切换联网搜索：非会员拦截并引导开通，会员切换开关 */
+function toggleWebSearch() {
+  if (!requireMember('meal_agent_web_search'))
+    return
+  webSearchEnabled.value = !webSearchEnabled.value
+}
 const hasConversation = computed(() => messages.value.length > 0)
 
 const memoryTags = computed(() => {
@@ -279,18 +297,19 @@ async function scrollToLatest() {
   uni.pageScrollTo({ scrollTop: 999999, duration: 220 })
 }
 
-async function runAgent(message: string, echo = false, echoLabel = message) {
+/** echoMode：option=点卡片选项/快捷回复发出的（回执显示成选中的选项），text=手动输入的（普通气泡）。 */
+async function runAgent(message: string, echo = false, echoLabel = message, webSearch = webSearchEnabled.value, echoMode: 'option' | 'text' = 'text') {
   if (agentBusy.value || agentTyping.value)
     return
   if (echo && message)
-    messages.value.push({ id: ++messageId, role: 'user', text: echoLabel, selected: true })
+    messages.value.push({ id: ++messageId, role: 'user', text: echoLabel, selected: echoMode === 'option' })
   agentBusy.value = true
   quickReplies.value = []
   startThinking()
   await scrollToLatest()
   try {
     const history: MealAgentHistoryMessage[] = messages.value.map(({ role, text, tags, selected }) => ({ role, text, tags, selected }))
-    const turn = await runMealAgentTurn(message, agentState.value, currentConversationId(), history)
+    const turn = await runMealAgentTurn(message, agentState.value, currentConversationId(), history, webSearch)
     stopThinking()
     agentTurn.value = turn
     otherInput.value = false
@@ -309,7 +328,8 @@ async function runAgent(message: string, echo = false, echoLabel = message) {
     spiceLevel.value = turn.state.spiceLevel || spiceLevel.value
     sessionCuisine.value = turn.state.favoriteCuisine || sessionCuisine.value
     await streamAgentReply(turn.reply)
-    quickReplies.value = buildQuickReplies(turn)
+    // 快捷追问由模型按本轮语境现写（后端 followups），不再用前端写死映射
+    quickReplies.value = (turn.followups || []).map(text => text.trim()).filter(Boolean).slice(0, 3)
     persistConversation()
   }
   catch (error) {
@@ -357,23 +377,11 @@ async function streamAgentReply(reply: string) {
   })
 }
 
-// ===== A. 快捷追问：回复结束后按动作给出建议的下一句，点一下就能继续 =====
+// ===== A. 快捷追问：由后端模型按本轮语境生成（turn.followups），点一下就能继续 =====
 const quickReplies = ref<string[]>([])
 
-function buildQuickReplies(turn: MealAgentTurn) {
-  const action = turn.action || ''
-  if (action === 'ASK_PEOPLE') return ['1 个人吃', '2 个人吃', '一家人吃']
-  if (action === 'ASK_SPICE') return ['能吃辣', '微辣就行', '不吃辣']
-  if (action === 'ASK_DAYS') return ['工作日做饭', '周末也做', '每天都做']
-  if (action === 'ASK_DISHES') return ['每天一道', '每天两道', '丰盛一点']
-  // 家庭/菜系确认走结构化卡片，卡片本身就是选项，不再重复给 chips
-  if (action === 'ASK_HOUSEHOLD' || action === 'CONFIRM_CUISINE') return []
-  if (turn.state.requestedIngredients?.length) return ['教我做这道菜', '再换几道别的', '开始排菜单']
-  return ['开始排菜单', '再聊聊我的口味', '想吃点别的']
-}
-
 async function sendQuickReply(text: string) {
-  await runAgent(text, true)
+  await runAgent(text, true, text, webSearchEnabled.value, 'option')
 }
 
 // ===== B. 教学卡：带来源标注的做法回复解析为分步卡片，替代文字墙 =====
@@ -441,7 +449,7 @@ const memoryChips = computed(() => {
 })
 
 async function onMemoryChipTap(intent: string) {
-  await runAgent(intent, true)
+  await runAgent(intent, true, intent, webSearchEnabled.value, 'option')
 }
 
 function householdValue(value: string) {
@@ -474,7 +482,7 @@ async function confirmHousehold() {
   const adult = householdSelection.value.includes('adult') || householdSelection.value.includes('none')
   const value = adult ? 'household=adult' : `household=${householdSelection.value.join(',')}`
   const label = adult ? '都是成人' : householdSelection.value.map(item => item === 'elder' ? '有老人' : item === 'child' ? '有小孩' : '有孕妇').join('、')
-  await runAgent(value, true, label)
+  await runAgent(value, true, label, webSearchEnabled.value, 'option')
 }
 
 async function submitComposer() {
@@ -490,7 +498,7 @@ async function selectCardOption(value: string, label: string) {
     otherInput.value = true
     return
   }
-  await runAgent(value, true, label)
+  await runAgent(value, true, label, webSearchEnabled.value, 'option')
 }
 
 function toggleFridgeItem(value: string) {
@@ -510,7 +518,7 @@ async function confirmFridgeSelection() {
     ? fridgeSelection.value
     : [`fridge_select=${fridgeSelection.value.map(value => value.replace(/^fridge_item=/, '')).join(',')}`]
   const label = priority ? '优先消耗临期食材' : `选用：${fridgeSelection.value.map(value => value.replace(/^fridge_item=/, '')).join('、')}`
-  await runAgent(values[0], true, label)
+  await runAgent(values[0], true, label, webSearchEnabled.value, 'option')
 }
 
 async function submitOther() {
@@ -604,6 +612,17 @@ function openMembership() {
 function openGallery() {
   router.push({ name: 'gallery' })
 }
+
+onShareAppMessage(() => {
+  const sharer = userStore.openid
+  const path = `/pages/meal-agent/index${sharer ? `?sharer=${encodeURIComponent(sharer)}` : ''}`
+  // 记录分享：发放「分享家」徽章 + 非会员当日 +1 次对话激励（失败静默，不影响转发）
+  void recordShare('meal-agent').catch(() => {})
+  return {
+    title: '锅仔管饭：这一周交给锅仔安排，少想一点认真吃饭',
+    path,
+  }
+})
 </script>
 
 <template>
@@ -630,6 +649,7 @@ function openGallery() {
       <image class="agent-hero__guozai" :src="`${STATIC_BASE_URL}/static/guozai/action_06_glasses.png`" mode="aspectFit" aria-label="正在安排菜单的锅仔" />
       <view class="agent-hero__orbit agent-hero__orbit--one" />
       <view class="agent-hero__orbit agent-hero__orbit--two" />
+      <button class="agent-share" open-type="share">分享给朋友 · 一起让锅仔管饭</button>
     </view>
 
     <view v-if="loading" class="agent-loading" aria-live="polite">
@@ -710,7 +730,10 @@ function openGallery() {
             <image v-if="message.role === 'agent'" :src="`${STATIC_BASE_URL}/static/guozai/action_08_peek.png`" mode="aspectFit" aria-hidden="true" />
             <view v-if="message.selected" class="selection-card" aria-label="已选择的回答">
               <text class="selection-card__eyebrow">已选择</text>
-              <text class="selection-card__value">{{ message.text }}</text>
+              <view class="selection-card__row">
+                <text class="selection-card__check">✓</text>
+                <text class="selection-card__value">{{ message.text }}</text>
+              </view>
             </view>
             <view v-else class="agent-reply">
               <view v-if="parseTeachingReply(message.text).steps.length" class="chat-bubble teach-bubble">
@@ -769,7 +792,7 @@ function openGallery() {
             <view><text class="ready-summary__dot">02</text><text>买菜清单</text></view>
             <view><text class="ready-summary__dot">03</text><text>详细做法</text></view>
           </view>
-          <view v-if="agentTurn?.action === 'ASK_HOUSEHOLD'" class="household-picker">
+          <view v-if="householdPickerActive" class="household-picker">
             <view class="choice-grid choice-grid--household">
               <button v-for="option in card.options" :key="option.value" :class="{ selected: householdSelection.includes(householdValue(option.value)) }" :aria-pressed="householdSelection.includes(householdValue(option.value))" :disabled="agentBusy" @click="option.value === 'other' ? (otherInput = true) : toggleHousehold(option.value)">
                 <text class="selection-mark" aria-hidden="true">
@@ -810,10 +833,15 @@ function openGallery() {
               {{ option.label }}
             </button>
           </view>
-          <view v-if="otherInput && agentTurn?.action !== 'ASK_HOUSEHOLD'" class="other-input"><input v-model="composerText" class="other-input__field" :disabled="agentBusy" inputmode="text" confirm-type="send" placeholder="直接告诉锅仔你的想法" @confirm="submitOther"><GuozaiButton class="other-input__send" variant="primary" :block="false" :disabled="agentBusy || !composerText.trim()" :loading="agentBusy" aria-label="发送自定义回答" @click="submitOther">发送</GuozaiButton></view>
+          <view v-if="otherInput && !householdPickerActive" class="other-input"><input v-model="composerText" class="other-input__field" :disabled="agentBusy" inputmode="text" confirm-type="send" placeholder="直接告诉锅仔你的想法" @confirm="submitOther"><GuozaiButton class="other-input__send" variant="primary" :block="false" :disabled="agentBusy || !composerText.trim()" :loading="agentBusy" aria-label="发送自定义回答" @click="submitOther">发送</GuozaiButton></view>
         </view>
 
         <view class="composer composer--fixed">
+          <view class="composer__web" :class="{ 'is-on': webSearchEnabled, 'is-locked': !isMember }" role="button" :aria-label="isMember ? '联网搜索开关' : '会员专享：联网搜索'" @click="toggleWebSearch">
+            <Icon name="search" :size="26" :color="webSearchEnabled ? '#fff' : (isMember ? '#EF5A3C' : '#B9A99C')" />
+            <text class="composer__web-text">联网</text>
+            <text v-if="!isMember" class="composer__web-lock">会员</text>
+          </view>
           <input v-model="composerText" :disabled="agentBusy || agentTyping || !canUseAgent" inputmode="text" confirm-type="send" placeholder="也可以直接说：周三不做饭，想减脂" aria-label="告诉锅仔你的安排" @confirm="submitComposer">
           <GuozaiButton class="composer__send" variant="primary" :block="false" :disabled="agentBusy || agentTyping || !canUseAgent || !composerText.trim()" :loading="agentBusy || agentTyping" :aria-label="agentBusy || agentTyping ? '锅仔正在思考' : '发送'" @click="submitComposer">
             发送
@@ -844,12 +872,14 @@ function openGallery() {
 
 <style lang="scss" scoped>
 .agent-page { min-height: 100vh; padding: 0 28rpx calc(176rpx + env(safe-area-inset-bottom)); color: var(--mrc-text); background: var(--mrc-bg); box-sizing: border-box; }
-.selection-card { display: flex; min-width: 180rpx; max-width: 78%; flex-direction: column; gap: 6rpx; padding: 16rpx 20rpx 18rpx; border: 2rpx solid rgba(255, 255, 255, .28); border-radius: 24rpx 24rpx 8rpx 24rpx; background: var(--mrc-accent); box-shadow: 0 10rpx 22rpx rgba(239, 90, 60, .16); color: #fff; box-sizing: border-box; }.selection-card__eyebrow { color: rgba(255, 255, 255, .72); font-size: 18rpx; font-weight: 700; letter-spacing: 1.5rpx; }.selection-card__value { color: #fff; font-size: 25rpx; font-weight: 800; line-height: 1.35; }
+.selection-card { display: flex; min-width: 180rpx; max-width: 78%; flex-direction: column; gap: 8rpx; padding: 16rpx 20rpx 18rpx; border: 2rpx solid var(--mrc-accent); border-radius: 24rpx 24rpx 8rpx 24rpx; background: var(--mrc-accent-soft); box-shadow: 0 10rpx 22rpx rgba(239, 90, 60, .12); box-sizing: border-box; }.selection-card__eyebrow { color: var(--mrc-accent); font-size: 18rpx; font-weight: 700; letter-spacing: 1.5rpx; }.selection-card__row { display: flex; align-items: center; gap: 10rpx; }.selection-card__check { display: flex; width: 32rpx; height: 32rpx; flex: 0 0 auto; align-items: center; justify-content: center; border-radius: 50%; background: var(--mrc-accent); color: #fff; font-size: 18rpx; line-height: 1; }.selection-card__value { color: var(--mrc-accent); font-size: 25rpx; font-weight: 800; line-height: 1.35; }
 .agent-hero { position: relative; min-height: 214rpx; overflow: hidden; padding: 22rpx 26rpx; border: 2rpx solid var(--mrc-border); border-radius: 32rpx; background: linear-gradient(145deg, var(--mrc-text-deep), #5b3325); box-shadow: var(--mrc-shadow-lift); box-sizing: border-box; }
 .agent-hero__top { position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; color: rgba(255,255,255,.7); font-size: 19rpx; font-weight: 800; letter-spacing: 2rpx; }
 .agent-online { display: flex; align-items: center; gap: 8rpx; letter-spacing: 0; }.agent-online view { width: 12rpx; height: 12rpx; border-radius: 50%; background: var(--mrc-mint); box-shadow: 0 0 0 6rpx rgba(74,220,171,.13); }
 .agent-hero__copy { position: relative; z-index: 2; display: flex; width: 66%; flex-direction: column; padding-top: 22rpx; }.agent-hero__eyebrow { color: #ff9d87; font-size: 20rpx; font-weight: 700; }.agent-hero__title { margin-top: 8rpx; color: #fff; font-size: 38rpx; font-weight: 800; line-height: 1.2; }.agent-hero__sub { margin-top: 8rpx; color: rgba(255,255,255,.72); font-size: 20rpx; line-height: 1.45; }
 .agent-hero__guozai { position: absolute; z-index: 2; right: 6rpx; bottom: -18rpx; width: 204rpx; height: 204rpx; }.agent-hero__orbit { position: absolute; border: 2rpx solid rgba(255,255,255,.1); border-radius: 50%; }.agent-hero__orbit--one { right: -70rpx; bottom: -108rpx; width: 290rpx; height: 290rpx; }.agent-hero__orbit--two { right: 74rpx; top: 56rpx; width: 96rpx; height: 96rpx; }
+.agent-share { position: relative; z-index: 3; margin-top: 28rpx; width: 86%; padding: 20rpx 0; background: rgba(255,255,255,.14); border: 2rpx solid rgba(255,255,255,.3); border-radius: 999rpx; color: #fff; font-size: 24rpx; font-weight: 700; line-height: normal; }
+.agent-share::after { border: none; }
 .agent-loading { padding: 80rpx 0; text-align: center; color: var(--mrc-text-sub); font-size: 24rpx; }
 .dialog-row { display: flex; align-items: flex-start; gap: 12rpx; margin: 24rpx 4rpx 18rpx; }.dialog-row > image { width: 72rpx; height: 72rpx; flex: 0 0 auto; }.agent-bubble { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 10rpx; padding: 22rpx 24rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 8rpx 28rpx 28rpx 28rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); color: var(--mrc-text-deep); font-size: 25rpx; line-height: 1.55; }.agent-bubble__name { color: var(--mrc-accent); font-size: 20rpx; font-weight: 800; letter-spacing: 2rpx; }.memory-tags { display: flex; flex-wrap: wrap; gap: 8rpx; }.memory-tags text { padding: 7rpx 14rpx; border-radius: 999rpx; background: var(--mrc-surface-peach); color: var(--mrc-text-sub); font-size: 19rpx; line-height: 1.3; }
 .current-plan { display: flex; align-items: center; justify-content: space-between; min-height: 100rpx; margin-bottom: 18rpx; padding: 16rpx 22rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 24rpx; background: var(--mrc-surface-sun); box-sizing: border-box; }.current-plan:active { opacity: .74; }.current-plan > view { display: flex; flex-direction: column; gap: 5rpx; }.current-plan__label { color: var(--mrc-accent); font-size: 19rpx; font-weight: 700; }.current-plan__title { color: var(--mrc-text-deep); font-size: 25rpx; font-weight: 700; }.current-plan__action { color: var(--mrc-accent); font-size: 21rpx; font-weight: 700; }
@@ -897,7 +927,12 @@ function openGallery() {
 .fridge-picker__hint { margin: -4rpx 2rpx 14rpx; color: var(--mrc-text-sub); font-size: 20rpx; line-height: 1.45; }.fridge-picker__grid { grid-template-columns: repeat(2, 1fr); }.fridge-picker__grid button { position: relative; min-height: 82rpx; padding-right: 34rpx; }.fridge-picker__grid button.selected { border-color: var(--mrc-accent); background: var(--mrc-accent-soft); color: var(--mrc-accent); }.fridge-picker__grid .selection-mark { position: absolute; top: 10rpx; right: 10rpx; display: flex; width: 28rpx; height: 28rpx; align-items: center; justify-content: center; border: 2rpx solid var(--mrc-border); border-radius: 50%; color: transparent; font-size: 18rpx; }.fridge-picker__grid button.selected .selection-mark { border-color: var(--mrc-accent); background: var(--mrc-accent); color: #fff; }
 .weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8rpx; }.weekdays view { display: flex; min-height: 76rpx; align-items: center; justify-content: center; border: 2rpx solid var(--mrc-border); border-radius: 18rpx; color: var(--mrc-text-sub); font-size: 22rpx; }.weekdays view.selected { border-color: var(--mrc-accent); background: var(--mrc-accent-soft); color: var(--mrc-accent); font-weight: 800; }.choice-confirm { min-height: 88rpx; margin: 18rpx 0 0; border: 0; border-radius: 22rpx; background: var(--mrc-text-deep); color: #fff; font-size: 25rpx; font-weight: 750; }
 .plan-confirm__summary { display: flex; justify-content: space-between; padding: 4rpx 4rpx 18rpx; color: var(--mrc-text-deep); font-size: 24rpx; font-weight: 750; }.plan-confirm__summary text:last-child { color: var(--mrc-accent); font-size: 21rpx; }.generate-button { display: flex; min-height: 98rpx; align-items: center; justify-content: space-between; margin: 0; padding: 0 26rpx; border: 0; border-radius: 24rpx; background: var(--mrc-primary-grad); color: #fff; box-shadow: var(--mrc-shadow-coral); line-height: 1.2; }.generate-button:active { transform: scale(.98); }.generate-button { font-size: 28rpx; font-weight: 800; }.generate-button text { font-size: 19rpx; font-weight: 500; opacity: .86; }.restart-button { min-height: 72rpx; margin: 8rpx 0 0; border: 0; background: transparent; color: var(--mrc-text-sub); font-size: 21rpx; }
-.composer { display: flex; align-items: center; gap: 10rpx; min-height: 96rpx; margin-top: 18rpx; padding: 10rpx 12rpx 10rpx 22rpx; border: 2rpx solid var(--mrc-border); border-radius: 28rpx; background: var(--mrc-surface); box-sizing: border-box; }.composer--fixed { position: fixed; z-index: 20; right: 28rpx; bottom: calc(18rpx + env(safe-area-inset-bottom)); left: 28rpx; margin: 0; box-shadow: 0 12rpx 40rpx rgba(69, 37, 24, .16); }.composer input { min-width: 0; flex: 1; color: var(--mrc-text-deep); font-size: 23rpx; }.composer input[disabled] { opacity: .58; }.composer__send { width: 104rpx; min-height: 70rpx; padding: 0 14rpx !important; border-radius: 20rpx !important; font-size: 21rpx !important; }.archive-link { display: flex; min-height: 82rpx; align-items: center; justify-content: center; color: var(--mrc-text-sub); font-size: 21rpx; }
+.composer { display: flex; align-items: center; gap: 10rpx; min-height: 96rpx; margin-top: 18rpx; padding: 10rpx 12rpx 10rpx 22rpx; border: 2rpx solid var(--mrc-border); border-radius: 28rpx; background: var(--mrc-surface); box-sizing: border-box; }.composer--fixed { position: fixed; z-index: 20; right: 28rpx; bottom: calc(18rpx + env(safe-area-inset-bottom)); left: 28rpx; margin: 0; box-shadow: 0 12rpx 40rpx rgba(69, 37, 24, .16); }.composer input { min-width: 0; flex: 1; color: var(--mrc-text-deep); font-size: 23rpx; }.composer input[disabled] { opacity: .58; }
+.composer__web { display: flex; align-items: center; gap: 6rpx; padding: 10rpx 16rpx; border-radius: 999rpx; background: var(--mrc-surface-sun); border: 2rpx solid var(--mrc-border-light); color: var(--mrc-accent); font-size: 20rpx; font-weight: 800; flex: 0 0 auto; }
+.composer__web.is-on { background: var(--mrc-primary-grad); border-color: transparent; color: #fff; }
+.composer__web.is-locked { color: #B9A99C; }
+.composer__web-text { line-height: 1; }
+.composer__web-lock { padding: 1rpx 8rpx; border-radius: 16rpx; background: var(--mrc-accent-soft); color: var(--mrc-accent); font-size: 15rpx; }.composer__send { width: 104rpx; min-height: 70rpx; padding: 0 14rpx !important; border-radius: 20rpx !important; font-size: 21rpx !important; }.archive-link { display: flex; min-height: 82rpx; align-items: center; justify-content: center; color: var(--mrc-text-sub); font-size: 21rpx; }
 .other-input { display: flex; align-items: center; gap: 12rpx; margin-top: 16rpx; padding: 10rpx 12rpx 10rpx 20rpx; border: 2rpx solid var(--mrc-border); border-radius: 24rpx; background: var(--mrc-surface-sun); box-sizing: border-box; }.other-input__field { min-width: 0; flex: 1; color: var(--mrc-text-deep); font-size: 23rpx; line-height: 1.35; }.other-input__field[disabled] { opacity: .58; }.other-input__send { width: 104rpx; min-height: 66rpx; padding: 0 14rpx !important; border-radius: 18rpx !important; font-size: 21rpx !important; }
 .conversation-rating { display: flex; flex-direction: column; gap: 16rpx; margin-top: 18rpx; padding-top: 22rpx; border-top: 2rpx solid var(--mrc-border-light); color: var(--mrc-text-deep); font-size: 25rpx; font-weight: 750; }
 .tool-panel { margin-top: 8rpx; padding: 26rpx; }.tool-panel__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24rpx; color: var(--mrc-text-deep); font-size: 28rpx; font-weight: 800; }.tool-panel__head text:last-child { padding: 7rpx 13rpx; border-radius: 999rpx; background: var(--mrc-accent-soft); color: var(--mrc-accent); font-size: 20rpx; }.tool-step { display: flex; align-items: center; gap: 18rpx; min-height: 98rpx; opacity: .46; }.tool-step--active, .tool-step--done { opacity: 1; }.tool-step__state { display: flex; width: 54rpx; height: 54rpx; flex: 0 0 auto; align-items: center; justify-content: center; border: 2rpx solid var(--mrc-border); border-radius: 50%; color: var(--mrc-text-sub); background: var(--mrc-surface); font-size: 20rpx; }.tool-step--done .tool-step__state { border-color: var(--mrc-primary-deep); background: var(--mrc-primary-grad); color: #fff; box-shadow: 0 6rpx 14rpx rgba(239, 90, 60, .2); }.tool-step--active .tool-step__state { border-color: var(--mrc-accent); background: var(--mrc-surface-peach); box-shadow: 0 0 0 6rpx var(--mrc-accent-soft); }.tool-step__pulse { width: 15rpx; height: 15rpx; border-radius: 50%; background: var(--mrc-accent); animation: pulse 1s ease-in-out infinite; }.tool-step > view:last-child { display: flex; min-width: 0; flex-direction: column; gap: 6rpx; }.tool-step__title { color: var(--mrc-text-deep); font-size: 24rpx; font-weight: 750; }.tool-step__copy { color: var(--mrc-text-sub); font-size: 20rpx; }.tool-step + .tool-step { border-top: 2rpx solid var(--mrc-border-light); }

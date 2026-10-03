@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import PrivacyPopup from './components/PrivacyPopup.vue'
 import { refreshNavMetrics } from './composables/useNavBar'
+import { autoCheckUpdate } from './utils/update'
 import { useUserStore } from './stores/user'
 
 onLaunch(() => {
   // 适配微信状态栏与胶囊按钮
   refreshNavMetrics()
+  // 静默检查小程序更新（微信后台上传新包后自动分发，零维护）
+  autoCheckUpdate()
   // 恢复登录状态
   const userStore = useUserStore()
   userStore.restoreFromStorage()

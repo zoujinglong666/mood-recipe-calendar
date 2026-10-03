@@ -22,6 +22,7 @@ export interface MealAgentTurn {
   memoryUsed?: string[]
   conflicts?: string[]
   degraded?: string[]
+  followups?: string[]
 }
 export interface MealAgentConversationSnapshot {
   conversationId: string
@@ -85,8 +86,8 @@ export function generateWeeklyPlan(data: { people: number, days: number, cooking
 export function askMealAgent(message: string, nextQuestion: string) {
   return post<{ reply: string }>('/weekly-plans/agent-replies', { message, nextQuestion })
 }
-export function runMealAgentTurn(message: string, state: MealAgentState, conversationId?: string, history?: MealAgentHistoryMessage[]) {
-  return post<MealAgentTurn>('/weekly-plans/agent-turns', { message, state, conversationId, requestId: requestId('turn'), history })
+export function runMealAgentTurn(message: string, state: MealAgentState, conversationId?: string, history?: MealAgentHistoryMessage[], webSearch?: boolean) {
+  return post<MealAgentTurn>('/weekly-plans/agent-turns', { message, state, conversationId, requestId: requestId('turn'), history, ...(webSearch ? { webSearch } : {}) })
 }
 
 const WEEKLY_PLAN_TEMPLATE_ID = 'h00FlM2Xf_X64sXln5WoYGnbvtJBjasdEraRPjs4NOg'

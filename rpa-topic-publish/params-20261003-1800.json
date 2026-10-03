@@ -1,0 +1,7 @@
+{
+  "topic_name": "心情决定吃啥？锅仔帮你选",
+  "topic_bg_image": "/Users/zou/WebstormProjects/mood-recipe-calendar/rpa-topic-publish/assets/topic-bg-20261003-1800-mood.jpg",
+  "topic_description": "选一个心情，锅仔为你推荐今天该吃的那道菜。心情+美食，治愈每一天！",
+  "link_title": "选一个心情吧",
+  "link_path": "pages/mood/index"
+}
