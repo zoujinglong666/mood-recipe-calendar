@@ -30,7 +30,7 @@ class AgentConversationServiceTest {
 
         AgentConversationService service = new AgentConversationService(repo, new ObjectMapper());
         DialogueState.Turn turn = new DialogueState.Turn("南昌拌粉安排上，还有其他菜一起排吗？",
-                "READY", DialogueState.AgentState.empty(), null);
+                "READY", DialogueState.AgentState.empty(), null, "", List.of(), List.of(), List.of(), List.of(), List.of());
         service.save("o123", "c1", turn,
                 List.of(new AgentConversationService.TranscriptMessage("user", "就吃南昌拌粉", List.of(), true)));
 
@@ -60,7 +60,7 @@ class AgentConversationServiceTest {
 
         AgentConversationService service = new AgentConversationService(repo, new ObjectMapper());
         String longReply = "长".repeat(600);
-        DialogueState.Turn turn = new DialogueState.Turn(longReply, "ASK_SPICE", DialogueState.AgentState.empty(), null);
+        DialogueState.Turn turn = new DialogueState.Turn(longReply, "ASK_SPICE", DialogueState.AgentState.empty(), null, "", List.of(), List.of(), List.of(), List.of(), List.of());
         service.save("o123", "c1", turn, List.of());
 
         verify(repo).save(argThat(saved -> {

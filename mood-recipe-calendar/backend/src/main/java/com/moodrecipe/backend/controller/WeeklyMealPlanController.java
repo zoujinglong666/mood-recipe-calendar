@@ -9,8 +9,11 @@ import com.moodrecipe.backend.service.GuozaiAgent;
 import com.moodrecipe.backend.service.WechatContentSafetyService;
 import com.moodrecipe.backend.service.UsageQuotaService;
 import com.moodrecipe.backend.service.AgentConversationService;
+import com.moodrecipe.backend.agent.AgentReflectionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/weekly-plans")
@@ -21,9 +24,10 @@ public class WeeklyMealPlanController {
     private final WechatContentSafetyService contentSafety;
     private final UsageQuotaService quotas;
     private final AgentConversationService conversations;
+    private final AgentReflectionService reflection;
     @Autowired public WeeklyMealPlanController(WeeklyMealPlanService plans, GuozaiAgent agent, DialogueAgent mealAgent,
                                     WechatContentSafetyService contentSafety, UsageQuotaService quotas,
-                                    AgentConversationService conversations) { this.plans = plans; this.agent = agent; this.mealAgent = mealAgent; this.contentSafety = contentSafety; this.quotas = quotas; this.conversations = conversations; }
+                                    AgentConversationService conversations, AgentReflectionService reflection) { this.plans = plans; this.agent = agent; this.mealAgent = mealAgent; this.contentSafety = contentSafety; this.quotas = quotas; this.conversations = conversations; this.reflection = reflection; }
     @GetMapping("/current") public ApiResponse<?> current(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) { return plans.current(openid).map(ApiResponse::ok).orElseGet(() -> ApiResponse.error(404, "还没有本周计划")); }
     @GetMapping("/history") public ApiResponse<?> history(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) { return ApiResponse.ok(plans.history(openid)); }
     @GetMapping("/{id}") public ApiResponse<?> get(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @PathVariable Long id) { return plans.get(openid, id).map(ApiResponse::ok).orElseGet(() -> ApiResponse.error(404, "计划不存在")); }
@@ -66,7 +70,8 @@ public class WeeklyMealPlanController {
             String previousAction = conversations.lastAction(openid, conversationId);
             DialogueState.AgentState serverState = conversations.state(openid, conversationId,
                     request == null ? null : request.state());
-            DialogueState.Turn turn = mealAgent.turn(openid, request == null ? "" : request.message(), serverState, previousAction);
+            DialogueState.Turn turn = mealAgent.turn(openid, request == null ? "" : request.message(), serverState,
+                    previousAction, request == null ? null : request.history());
             conversations.save(openid, conversationId, turn, request == null ? null : request.history());
             return ApiResponse.ok(turn);
         } catch (RuntimeException e) {
@@ -74,6 +79,12 @@ public class WeeklyMealPlanController {
             if (consumed) quotas.release(openid, UsageQuotaService.Feature.AGENT_CONVERSATION);
             return ApiResponse.error(500, "锅仔刚刚走神了，请稍后再试");
         }
+    }
+    /** 会话评分：不满意/一般会触发锅仔异步复盘，把教训写进记忆，下一轮对话生效（自进化）。 */
+    @PostMapping("/agent-feedback") public ApiResponse<?> agentFeedback(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @RequestBody AgentRatingRequest request) {
+        if (request == null || request.rating() == null || !Set.of("满意", "一般", "不满意").contains(request.rating())) return ApiResponse.error(400, "评分无效");
+        reflection.reflectOnRatingAsync(openid, request.rating(), request.comment());
+        return ApiResponse.ok();
     }
     @PostMapping("/{id}/favorite") public ApiResponse<?> favorite(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @PathVariable Long id) { return plans.toggleFavorite(openid, id).map(ApiResponse::ok).orElseGet(() -> ApiResponse.error(404, "计划不存在")); }
     @PostMapping("/{id}/days/{index}/cover") public ApiResponse<?> cover(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @PathVariable Long id, @PathVariable int index) { return plans.ensureCover(openid, id, index).map(ApiResponse::ok).orElseGet(() -> ApiResponse.error(404, "计划不存在")); }
@@ -84,4 +95,5 @@ public class WeeklyMealPlanController {
     public record AgentReply(String reply) {}
     public record AgentTurnRequest(String message, DialogueState.AgentState state, String conversationId,
                                    String requestId, java.util.List<AgentConversationService.TranscriptMessage> history) {}
+    public record AgentRatingRequest(String rating, String comment) {}
 }

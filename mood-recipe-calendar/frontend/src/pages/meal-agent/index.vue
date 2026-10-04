@@ -2,9 +2,8 @@
 import type { FoodMemoryView } from '@/api/preferences'
 import type { MealAgentConversationSnapshot, MealAgentHistoryMessage, MealAgentState, MealAgentTurn, WeeklyPlan, UsageQuotaView } from '@/api/weeklyPlans'
 import { computed, nextTick, ref } from 'vue'
-import { submitFeedback } from '@/api/feedback'
 import { fetchFoodMemory } from '@/api/preferences'
-import { fetchAgentConversationQuota, fetchCurrentAgentConversation, generateWeeklyPlan, getCurrentPlan, requestWeeklyPlanCompletionNotice, runMealAgentTurn } from '@/api/weeklyPlans'
+import { fetchAgentConversationQuota, fetchCurrentAgentConversation, generateWeeklyPlan, getCurrentPlan, requestWeeklyPlanCompletionNotice, rateAgentConversation, runMealAgentTurn } from '@/api/weeklyPlans'
 import { navBack } from '@/composables/useNavBar'
 import { STATIC_BASE_URL } from '@/utils/assets'
 import { safeDecodePrompt } from '@/utils/safeDecodePrompt'
@@ -582,7 +581,12 @@ async function rateConversation(value: string) {
     return
   rating.value = value
   try {
-    await submitFeedback({ category: '体验问题', content: `锅仔管饭对话评分：${value}` })
+    await rateAgentConversation(value)
+    // 让用户感知到反馈真的被记住：评分进入锅仔的复盘，下一轮对话生效
+    if (value !== '满意')
+      uni.showToast({ title: '锅仔记下了，下次会更懂你', icon: 'none', duration: 2200 })
+    else
+      uni.showToast({ title: '收到！锅仔继续保持', icon: 'none', duration: 1800 })
   }
   catch {
     // 评分不影响查看已生成的菜单。

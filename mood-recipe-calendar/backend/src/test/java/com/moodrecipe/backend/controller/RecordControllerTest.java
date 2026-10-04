@@ -7,6 +7,8 @@ import com.moodrecipe.backend.model.LearningReceipt;
 import com.moodrecipe.backend.model.LearningReceiptItem;
 import com.moodrecipe.backend.service.RecommendationExposureService;
 import com.moodrecipe.backend.service.RecordLearningService;
+import com.moodrecipe.backend.service.RecordPosterService;
+import com.moodrecipe.backend.service.UsageQuotaService;
 import com.moodrecipe.backend.service.WechatContentSafetyService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -32,7 +34,7 @@ class RecordControllerTest {
         when(records.findByOpenidOrderByCreatedAtDesc("user-1"))
                 .thenReturn(List.of(third, second, first));
         RecordController controller = new RecordController(records,
-                mock(RecordLearningService.class), allowSafety());
+                mock(RecordLearningService.class), allowSafety(), mock(UsageQuotaService.class), mock(RecordPosterService.class));
 
         var response = controller.yearStats("user-1", 2026);
         Map<String, Object> stats = response.getData();
@@ -45,7 +47,7 @@ class RecordControllerTest {
     void rejectsImpossibleRecordDateBeforeSaving() {
         UserRecordRepository records = mock(UserRecordRepository.class);
         RecordController controller = new RecordController(records,
-                mock(RecordLearningService.class), allowSafety());
+                mock(RecordLearningService.class), allowSafety(), mock(UsageQuotaService.class), mock(RecordPosterService.class));
         RecordRequest request = new RecordRequest("https://example.com/a.jpg", "番茄炒蛋", "平静",
                 "", null, null, "request-1", 20, "2026-02-31");
 
@@ -59,7 +61,7 @@ class RecordControllerTest {
     void rejectsRecipeRecordWithoutAnUploadedPhoto() {
         UserRecordRepository records = mock(UserRecordRepository.class);
         RecordController controller = new RecordController(records,
-                mock(RecordLearningService.class), allowSafety());
+                mock(RecordLearningService.class), allowSafety(), mock(UsageQuotaService.class), mock(RecordPosterService.class));
         RecordRequest request = new RecordRequest("", "番茄炒蛋", "平静", "", 1L, null,
                 "request-1", 20, "2026-09-22");
 
@@ -77,7 +79,7 @@ class RecordControllerTest {
         when(records.findByOpenidAndClientRequestId("user-1", "request-1")).thenReturn(Optional.of(existing));
         RecordLearningService learning = mock(RecordLearningService.class);
         RecordController controller = new RecordController(records,
-                learning, allowSafety());
+                learning, allowSafety(), mock(UsageQuotaService.class), mock(RecordPosterService.class));
         RecordRequest request = new RecordRequest("https://example.com/a.jpg", "番茄炒蛋", "平静", "", 1L, null,
                 "request-1", 20, null);
 
@@ -101,7 +103,7 @@ class RecordControllerTest {
         LearningReceipt receipt = LearningReceipt.learned(List.of(
                 new LearningReceiptItem("SIMPLE", "下次优先简单菜", "preference.simpleDishes")));
         when(learning.learn("user-1", 1L, "exp-1", true, true, false)).thenReturn(receipt);
-        RecordController controller = new RecordController(records, learning, allowSafety());
+        RecordController controller = new RecordController(records, learning, allowSafety(), mock(UsageQuotaService.class), mock(RecordPosterService.class));
         RecordRequest request = new RecordRequest("https://example.com/a.jpg", "番茄炒蛋", "平静", "",
                 1L, "exp-1", "request-1", 20, "2026-09-22", List.of(), true, true, false);
 
@@ -119,7 +121,7 @@ class RecordControllerTest {
         RecordLearningService learning = mock(RecordLearningService.class);
         when(learning.learn("user-1", 1L, null, false, false, false))
                 .thenThrow(new IllegalStateException("learning unavailable"));
-        RecordController controller = new RecordController(records, learning, allowSafety());
+        RecordController controller = new RecordController(records, learning, allowSafety(), mock(UsageQuotaService.class), mock(RecordPosterService.class));
         RecordRequest request = new RecordRequest("https://example.com/a.jpg", "番茄炒蛋", "平静", "",
                 1L, null, "request-1", 20, "2026-09-22");
 
@@ -140,7 +142,7 @@ class RecordControllerTest {
         record.setOpenid("user-1");
         when(records.findById(12L)).thenReturn(Optional.of(record));
         RecordController controller = new RecordController(records,
-                mock(RecordLearningService.class), allowSafety());
+                mock(RecordLearningService.class), allowSafety(), mock(UsageQuotaService.class), mock(RecordPosterService.class));
 
         var response = controller.getById(12L, "user-1");
 
@@ -155,7 +157,7 @@ class RecordControllerTest {
         record.setOpenid("user-2");
         when(records.findById(12L)).thenReturn(Optional.of(record));
         RecordController controller = new RecordController(records,
-                mock(RecordLearningService.class), allowSafety());
+                mock(RecordLearningService.class), allowSafety(), mock(UsageQuotaService.class), mock(RecordPosterService.class));
         RecordRequest request = new RecordRequest("https://example.com/a.jpg", "番茄炒蛋", "平静", "", null, null,
                 null, 20, "2026-09-22", List.of("https://example.com/a.jpg", "https://example.com/b.jpg"));
 

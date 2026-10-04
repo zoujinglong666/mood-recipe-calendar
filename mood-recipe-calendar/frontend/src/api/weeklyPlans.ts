@@ -89,6 +89,10 @@ export function askMealAgent(message: string, nextQuestion: string) {
 export function runMealAgentTurn(message: string, state: MealAgentState, conversationId?: string, history?: MealAgentHistoryMessage[], webSearch?: boolean) {
   return post<MealAgentTurn>('/weekly-plans/agent-turns', { message, state, conversationId, requestId: requestId('turn'), history, ...(webSearch ? { webSearch } : {}) })
 }
+/** 会话评分：后端据此触发锅仔异步复盘，教训在之后的对话中生效 */
+export function rateAgentConversation(rating: string, comment?: string) {
+  return post<null>('/weekly-plans/agent-feedback', { rating, ...(comment ? { comment } : {}) })
+}
 
 const WEEKLY_PLAN_TEMPLATE_ID = 'h00FlM2Xf_X64sXln5WoYGnbvtJBjasdEraRPjs4NOg'
 

@@ -36,7 +36,7 @@ class DialogueAgentTest {
     @Test
     void understandsHometownThatNoRegexKnows() {
         FakeLlm llm = new FakeLlm();
-        llm.understand = "{\"facts\":[{\"key\":\"favoriteCuisine\",\"value\":\"赣菜\","
+        llm.decide = "{\"facts\":[{\"key\":\"favoriteCuisine\",\"value\":\"赣菜\","
                 + "\"confidence\":0.85,\"explicit\":false,\"evidence\":\"用户说老家在乐平，属江西\"}]}";
 
         DialogueState.Turn turn = agent(llm, List.of()).turn(OPENID, "我老家在乐平，小时候口味重", null);
@@ -59,8 +59,8 @@ class DialogueAgentTest {
     @Test
     void turnsModelUncertaintyIntoAnActiveClarifyingQuestion() {
         FakeLlm llm = new FakeLlm();
-        llm.understand = "{\"facts\":[],\"unclear\":[\"用户说想吃点好的，但没有说明是丰盛还是清淡\"]}";
-        llm.decide = "{\"action\":\"ASK_CLARIFY\",\"reply\":\"我先确认一下\","
+        llm.decide = "{\"facts\":[],\"unclear\":[\"用户说想吃点好的，但没有说明是丰盛还是清淡\"],"
+                + "\"action\":\"ASK_CLARIFY\",\"reply\":\"我先确认一下\","
                 + "\"card\":{\"type\":\"OPTIONS\",\"title\":\"你说的\u201c好\u201d更接近哪种？\","
                 + "\"description\":\"也可以直接告诉我\",\"options\":["
                 + "{\"label\":\"丰盛一点\",\"value\":\"想吃丰盛的\"},"
@@ -82,8 +82,8 @@ class DialogueAgentTest {
     @Test
     void clarifyingCardWithoutOptionsStatesWhatIsUnclear() {
         FakeLlm llm = new FakeLlm();
-        llm.understand = "{\"facts\":[],\"unclear\":[\"用户说想吃点好的，但没有说明是丰盛还是清淡\"]}";
-        llm.decide = "{\"action\":\"ASK_CLARIFY\",\"reply\":\"我先确认一下\"}";
+        llm.decide = "{\"action\":\"ASK_CLARIFY\",\"reply\":\"我先确认一下\","
+                + "\"unclear\":[\"用户说想吃点好的，但没有说明是丰盛还是清淡\"]}";
 
         DialogueState.Turn turn = agent(llm, List.of()).turn(OPENID, "我想吃点好的", null);
 
@@ -142,9 +142,6 @@ class DialogueAgentTest {
     @Test
     void surfacesConflictBetweenChildAndSpicy() {
         FakeLlm llm = new FakeLlm();
-        llm.understand = "{\"facts\":[{\"key\":\"household\",\"value\":\"有小孩\",\"confidence\":0.9,\"explicit\":true,"
-                + "\"evidence\":\"用户说家里有小孩\"},{\"key\":\"spice\",\"value\":\"能吃辣\",\"confidence\":0.9,"
-                + "\"explicit\":true,\"evidence\":\"用户说能吃辣\"}]}";
         llm.decide = "{\"action\":\"READY\",\"reply\":\"开始吧\"}";
 
         DialogueState.Turn turn = agent(llm, List.of()).turn(OPENID, "家里有小孩，但是我们都能吃辣", null);
@@ -156,9 +153,6 @@ class DialogueAgentTest {
     @Test
     void keepsBanquetDishCountAndGuestContextWithoutAskingAgain() {
         FakeLlm llm = new FakeLlm();
-        llm.understand = "{\"facts\":[{\"key\":\"favoriteCuisine\",\"value\":\"湘菜\"," 
-                + "\"confidence\":0.9,\"explicit\":false,\"evidence\":\"有湖南客人\"}]}";
-
         DialogueState.Turn turn = agent(llm, List.of()).turn(OPENID,
                 "家里来客人，有湖南人、西安人、广东人，总共8人，帮我安排9道菜宴请客人", null);
 
@@ -270,7 +264,6 @@ class DialogueAgentTest {
     @Test
     void doesNotRepeatSameQuestionWhenUserAnswerDidNotAddInformation() {
         FakeLlm llm = new FakeLlm();
-        llm.understand = "{\"facts\":[],\"conflicts\":[],\"unclear\":[]}";
         llm.decide = "{\"action\":\"ASK_PEOPLE\",\"reply\":\"请告诉我人数\",\"card\":{\"type\":\"OPTIONS\",\"title\":\"几个人\",\"description\":\"\",\"options\":[]}}";
         DialogueState.Turn turn = agent(llm, List.of()).turn(OPENID, "随便安排", DialogueState.AgentState.empty(), "ASK_PEOPLE");
         assertEquals("ASK_CLARIFY", turn.action());
@@ -282,7 +275,7 @@ class DialogueAgentTest {
         FakeLlm llm = new FakeLlm();
         llm.decide = "{\"action\":\"ASK_CUISINE\",\"reply\":\"今天（周五）想吃什么菜系？\",\"card\":{\"type\":\"OPTIONS\",\"title\":\"选择菜系\",\"description\":\"\",\"options\":[]}}";
 
-        DialogueState.Turn turn = agent(llm, List.of()).turn(OPENID, "", DialogueState.AgentState.empty()
+        DialogueState.Turn turn = agent(llm, List.of()).turn(OPENID, "随便安排", DialogueState.AgentState.empty()
                 .withPeople(2).withCookingDays(List.of(0)).withDishesPerDay(1)
                 .withHealthGoal("BALANCED").withBudget("DAILY"));
 
@@ -308,7 +301,9 @@ class DialogueAgentTest {
         // 知识问答分流用的工具循环：测试里不注册工具，且 fake 模型不会返回 ASK_KNOWLEDGE，
         // 因此分流不会触发，不影响既有问卷行为验收。
         AgentLoop agentLoop = new AgentLoop(llm, new ToolRegistry(List.of()), new ObjectMapper());
-        return new DialogueAgent(llm, store, mock(UserFoodPreferenceRepository.class), learning, agentLoop, new ObjectMapper());
+        return new DialogueAgent(llm, store, mock(UserFoodPreferenceRepository.class), learning,
+                mock(AgentReflectionService.class), mock(AgentContextCompactor.class), new AgentOutputGate(),
+                agentLoop, new ObjectMapper());
     }
 
     private AgentMemoryFact fact(String key, String value, String source) {
@@ -326,14 +321,12 @@ class DialogueAgentTest {
     }
 
     private static final class FakeLlm implements LlmClient {
-        private String understand = "{}";
         private String decide = "{}";
         private boolean configured = true;
 
         @Override
         public LlmResult complete(LlmRequest request) {
-            String payload = "agent-understand".equals(request.purpose()) ? understand : decide;
-            return LlmResult.ok(new LlmResponse(payload, List.of(), "stop", null, "fake-model"), 1, 1L);
+            return LlmResult.ok(new LlmResponse(decide, List.of(), "stop", null, "fake-model"), 1, 1L);
         }
 
         @Override
