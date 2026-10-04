@@ -80,6 +80,56 @@ public final class HeuristicExtractor {
         return state;
     }
 
+    /**
+     * 把卡片选项回传的机器载荷（days=0、people=2…）翻译成人话再给编排模型。
+     * 否则模型会收到自己上轮生成的裸载荷（如“days=0”）并看不懂——
+     * 实测案例：选项意图是“只排1顿”，value 却误用了 days=0，模型回复“你发这个days=0是啥意思”。
+     * 非载荷输入原样返回；载荷解析（applySelection）仍使用原始 input，不受影响。
+     */
+    public static String humanizeSelection(String input) {
+        if (input == null) return "";
+        String v = input.trim();
+        if (v.equals("记住")) return "好的，记住我的口味偏好";
+        if (v.equals("elder=yes")) return "家里有老人";
+        if (v.equals("child=yes")) return "家里有小孩";
+        if (v.equals("pregnant=yes")) return "家里有孕妇";
+        if (v.startsWith("people=")) return "一起吃饭 " + rest(v) + " 个人";
+        if (v.startsWith("dishes=")) return "每天做 " + rest(v) + " 道菜";
+        if (v.startsWith("days=")) return "做饭日：" + weekdays(rest(v));
+        if (v.startsWith("spice=")) return "口味偏好：" + rest(v);
+        if (v.startsWith("goal=")) return "饮食目标：" + rest(v);
+        if (v.startsWith("budget=")) return "预算偏好：" + rest(v);
+        if (v.startsWith("household=")) return "家里情况：" + household(rest(v));
+        if (v.startsWith("fridge_select=")) return "从冰箱里选来用的食材：" + rest(v);
+        if (v.startsWith("ingredients=")) return "想吃：" + rest(v);
+        return input;
+    }
+
+    private static String rest(String v) {
+        return v.substring(v.indexOf('=') + 1).trim();
+    }
+
+    private static String household(String value) {
+        StringBuilder sb = new StringBuilder();
+        if (value.contains("elder")) sb.append("有老人");
+        if (value.contains("child")) sb.append(sb.length() == 0 ? "" : "、").append("有小孩");
+        if (value.contains("pregnant")) sb.append(sb.length() == 0 ? "" : "、").append("有孕妇");
+        return sb.length() == 0 ? value : sb.toString();
+    }
+
+    private static String weekdays(String value) {
+        String[] names = {"周一", "周二", "周三", "周四", "周五", "周六", "周日"};
+        StringBuilder sb = new StringBuilder();
+        for (String token : value.split("[,，]")) {
+            try {
+                sb.append(names[Math.floorMod(Integer.parseInt(token.trim()), 7)]).append("、");
+            } catch (Exception ignored) {
+                // 非法 token 跳过，翻译尽力而为
+            }
+        }
+        return sb.length() == 0 ? value : sb.substring(0, sb.length() - 1);
+    }
+
     /** 从自然话里抽事实；模型可用时只作为补充，模型不可用时作为主力。 */
     public static List<AgentFact> facts(String input) {
         List<AgentFact> facts = new ArrayList<>();

@@ -126,14 +126,16 @@ public class DialogueAgent {
 
         // Minimal loop（pi 核心哲学）：一次循环内，模型自主完成「理解 → 按需查证 → 抽取事实 → 决策动作」，
         // 代码不再编排 classify → planningTools → understand → decide 的阶段顺序。
-        Orchestrated orchestrated = orchestrate(openid, input, state, profile, independentMeal,
+        // 卡片点选回传的是机器载荷（days=0 等），先翻译成人话再给模型，否则模型看不懂自己上轮生成的载荷。
+        String modelInput = HeuristicExtractor.humanizeSelection(input);
+        Orchestrated orchestrated = orchestrate(openid, modelInput, state, profile, independentMeal,
                 historyText, lessonsText, outputGate.disciplineText(), degraded);
 
         // 知识问答：模型在循环里已调用工具并给出答案，直接返回，不再进入问卷流程。
         if ("ASK_KNOWLEDGE".equals(orchestrated.intent()) && !orchestrated.reply().isBlank()) {
             state = HeuristicExtractor.applySelection(state, input);
             String action = nextAction(state, gaps(state, List.of()));
-            DialogueState.Card card = dynamicCard(action, state, input,
+            DialogueState.Card card = dynamicCard(action, state, modelInput,
                     "用户刚问了一个知识问题并已得到回答，现在引导用户继续安排这一周的备餐");
             if (card == null) card = AgentCards.defaultCard(action, state);
             return new DialogueState.Turn(orchestrated.reply(), action, state, card,
@@ -195,7 +197,7 @@ public class DialogueAgent {
                 // 模型给的卡片没能通过格式修剪（无有效选项）→ 记入违规台账
                 outputGate.record("card.empty");
             }
-            card = dynamicCard(action, state, input, questionHint(card, action, gaps, orchestrated.unclear()));
+            card = dynamicCard(action, state, modelInput, questionHint(card, action, gaps, orchestrated.unclear()));
         }
         if (needsCard && card == null) {
             card = AgentCards.defaultCard("ASK_CLARIFY".equals(action) ? nextAction(state, gaps) : action, state);
