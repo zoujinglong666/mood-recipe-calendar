@@ -74,7 +74,7 @@ public class AgentController {
         if (request.dishName() == null || request.dishName().isBlank()) return ApiResponse.error(400, "缺少菜名");
         learning.recordOutcome(openid, new AgentLearningService.OutcomeInput(request.planId(),
                 request.dayIndex(), request.dishIndex(), request.dishName().trim(),
-                request.cooked(), request.leftover(), request.tooHard()));
+                request.cooked(), request.leftover(), request.tooHard(), request.moodAfter()));
         AgentLearningService.StrategyHints hints = learning.hints(openid);
         return ApiResponse.ok(new OutcomeAck(hints.cuisineAffinity(), List.copyOf(hints.skipQuestions()),
                 hints.maxCookingMinutes(), hints.preferSimple(), hints.avoidDishes()));
@@ -103,7 +103,7 @@ public class AgentController {
     public record PersonalizationRequest(boolean enabled) {}
 
     public record OutcomeRequest(Long planId, int dayIndex, int dishIndex, String dishName,
-                                 Boolean cooked, Boolean leftover, Boolean tooHard) {}
+                                 Boolean cooked, Boolean leftover, Boolean tooHard, String moodAfter) {}
 
     public record OutcomeAck(Map<String, Double> cuisineAffinity, List<String> skipQuestions,
                              Integer maxCookingMinutes, boolean preferSimple, List<String> avoidDishes) {}

@@ -10,6 +10,7 @@ import GuozaiChipGroup from '@/components/guozai/GuozaiChipGroup.vue'
 import GuozaiImage from '@/components/guozai/GuozaiImage.vue'
 import ErrorState from '@/components/guozai/ErrorState.vue'
 import { exportRecipeShare, saveShareImage } from '@/utils/albumShare'
+import { MOOD_EMOJI } from '@/utils/albumLayout'
 import { STATIC_BASE_URL } from '@/utils/assets'
 import { toastError, toastSuccess } from '@/utils/toast'
 import { bus, MRC_EVENTS } from '@/utils/bus'
@@ -49,6 +50,26 @@ const outcomeMap: Record<OutcomeKey, { cooked: boolean, leftover: boolean, tooHa
   SKIP: { cooked: false, leftover: false, tooHard: false },
 }
 const outcomes = ref<Record<string, OutcomeKey>>({})
+
+// 餐后心情回采（飞轮开关）：标记"做了"后顺带问一句吃完心情，把"菜 -> 心情"因果链补上
+const postMealMoods = ['开心', '满足', '平静', '疲惫', '焦虑', '难过', '低落']
+const postMealMoodOptions = postMealMoods.map(m => ({ value: m, label: `${MOOD_EMOJI[m] ?? ''} ${m}` }))
+const moodAfters = ref<Record<string, string>>({})
+async function reportMood(dayIndex: number, dishIndex: number, dishName: string, mood: string | string[]) {
+  const m = (Array.isArray(mood) ? mood[0] : mood) as string
+  if (!m || !plan.value) return
+  const key = feedbackKey(dayIndex, dishIndex)
+  if (moodAfters.value[key] === m) return
+  moodAfters.value = { ...moodAfters.value, [key]: m }
+  try {
+    await reportPlanDishOutcome({ planId: plan.value.id, dayIndex, dishIndex, dishName, moodAfter: m })
+  } catch (error) {
+    const rollback = { ...moodAfters.value }
+    delete rollback[key]
+    moodAfters.value = rollback
+    toastError(error, '心情没记上，稍后再试')
+  }
+}
 const groups = computed(() => ['肉蛋豆', '蔬菜', '主食', '调料']
   .map(category => ({ category, items: plan.value?.shopping.filter(item => item.category === category) || [] }))
   .filter(group => group.items.length))
@@ -485,6 +506,18 @@ async function shareDay(day: PlanDay, index: number) {
                     aria-label="这道菜做得怎么样"
                     @change="onOutcomeChange(index, dishIndex, dish.name, $event)"
                   />
+                  <view v-if="outcomes[feedbackKey(index, dishIndex)] === 'DONE' && !moodAfters[feedbackKey(index, dishIndex)]" class="dish-feedback__mood">
+                    <text class="dish-feedback__mood-label">吃完心情如何？</text>
+                    <GuozaiChipGroup
+                      :options="postMealMoodOptions"
+                      :columns="4"
+                      aria-label="吃完心情"
+                      @change="reportMood(index, dishIndex, dish.name, $event)"
+                    />
+                  </view>
+                  <text v-else-if="moodAfters[feedbackKey(index, dishIndex)]" class="dish-feedback__mood-done">
+                    已记录心情：{{ MOOD_EMOJI[moodAfters[feedbackKey(index, dishIndex)]] }} {{ moodAfters[feedbackKey(index, dishIndex)] }}
+                  </text>
                 </view>
               </view>
 
@@ -638,6 +671,9 @@ async function shareDay(day: PlanDay, index: number) {
 .dish-feedback__eyebrow { display: block; color: var(--mrc-accent); font-size: 19rpx; font-weight: 800; letter-spacing: 1rpx; }
 .dish-feedback__title { display: block; margin-top: 5rpx; color: var(--mrc-text-strong); font-size: 25rpx; font-weight: 800; }
 .dish-feedback__row { margin-top: 20rpx; padding: 18rpx; border-radius: 20rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); }
+.dish-feedback__mood { margin-top: 14rpx; padding-top: 14rpx; border-top: 2rpx dashed var(--mrc-border-light); }
+.dish-feedback__mood-label { display: block; margin-bottom: 10rpx; color: var(--mrc-text-sub); font-size: 22rpx; }
+.dish-feedback__mood-done { display: block; margin-top: 12rpx; color: var(--mrc-accent); font-size: 22rpx; }
 .dish-feedback__dish { display: flex; align-items: center; gap: 12rpx; margin-bottom: 16rpx; }.dish-feedback__number { display: flex; width: 34rpx; height: 34rpx; flex: 0 0 auto; align-items: center; justify-content: center; border-radius: 50%; background: var(--mrc-accent-soft); color: var(--mrc-accent); font-size: 19rpx; font-weight: 800; line-height: 1; }.dish-feedback__name { color: var(--mrc-text-strong); font-size: 24rpx; font-weight: 750; }
 /* 成果选择器改用 GuozaiChipGroup，样式由组件自身承担 */
 .shopping-panel { margin: 12rpx 2rpx 20rpx; overflow: hidden; }

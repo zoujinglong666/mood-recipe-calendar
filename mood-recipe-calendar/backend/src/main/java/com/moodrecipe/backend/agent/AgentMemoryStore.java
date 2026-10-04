@@ -102,7 +102,9 @@ public class AgentMemoryStore {
         if (isSafetyKey(command.key()) && SRC_INFERRED.equals(command.source())) return null;
         if (!KEY_PERSONALIZATION.equals(command.key()) && !personalizationEnabled(command.openid())) return null;
 
-        String value = command.value().trim();
+        // memory_value 列上限 200：聚合类记忆（如 dish.avoid、preference.moodLiked 的菜名清单）可能超长，
+        // 统一在此收口截断，防止 Data too long 异常沿调用链把同步接口（如 /agent/outcomes）打成 500。
+        String value = trim(command.value(), 200);
         AgentMemoryFact fact = facts.findByOpenidAndMemoryKeyAndStatus(command.openid(), command.key(),
                         AgentMemoryFact.STATUS_ACTIVE)
                 .orElseGet(() -> facts.findByOpenidAndMemoryKey(command.openid(), command.key()).orElse(null));

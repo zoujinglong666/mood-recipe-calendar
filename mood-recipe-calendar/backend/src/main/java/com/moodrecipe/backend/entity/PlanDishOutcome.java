@@ -45,6 +45,10 @@ public class PlanDishOutcome {
     @Column(name = "too_hard")
     private Boolean tooHard;
 
+    /** 做完吃完后的心情标签（与全局 MOOD 词表一致）。null = 未回采。这是飞轮开关：把"菜 -> 心情"因果链补上。 */
+    @Column(name = "mood_after", length = 16)
+    private String moodAfter;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

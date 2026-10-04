@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { FoodMemoryView } from '@/api/preferences'
-import type { MealAgentConversationSnapshot, MealAgentHistoryMessage, MealAgentState, MealAgentTurn, WeeklyPlan, UsageQuotaView } from '@/api/weeklyPlans'
+import type { MealAgentConversationSnapshot, MealAgentHistoryMessage, MealAgentOption, MealAgentState, MealAgentTurn, WeeklyPlan, UsageQuotaView } from '@/api/weeklyPlans'
 import { computed, nextTick, ref } from 'vue'
 import { fetchFoodMemory } from '@/api/preferences'
 import { fetchAgentConversationQuota, fetchCurrentAgentConversation, generateWeeklyPlan, getCurrentPlan, requestWeeklyPlanCompletionNotice, rateAgentConversation, runMealAgentTurn } from '@/api/weeklyPlans'
@@ -203,7 +203,11 @@ function restoreConversation() {
     return
   }
   agentConversationId = draft.conversationId
-  messages.value = draft.messages.filter(message => message && (message.role === 'agent' || message.role === 'user') && typeof message.text === 'string')
+  // 旧草稿把所有用户消息都标了 selected=true，恢复后全变成「已选择」卡；历史消息一律按普通气泡处理，
+  // 选项回执只在发生它的那轮会话里有意义。
+  messages.value = draft.messages
+    .filter(message => message && (message.role === 'agent' || message.role === 'user') && typeof message.text === 'string')
+    .map(message => ({ ...message, selected: false }))
   messageId = messages.value.reduce((max, message) => Math.max(max, Number(message.id) || 0), 0)
   agentState.value = draft.state || {}
   agentTurn.value = draft.turn
@@ -229,7 +233,8 @@ function restoreRemoteConversation(snapshot: MealAgentConversationSnapshot) {
   const lastAgent = [...restored].reverse().find(message => message.role === 'agent')
   if (turnReply && (!lastAgent || lastAgent.text !== turnReply))
     restored.push({ role: 'agent', text: turnReply })
-  messages.value = restored.map((message, index) => ({ ...message, id: index + 1 }))
+  // 远端 transcript 同样消毒：旧数据里用户消息普遍带 selected=true（历史 bug），恢复时一律按普通气泡渲染
+  messages.value = restored.map((message, index) => ({ ...message, id: index + 1, selected: false }))
   messageId = messages.value.length
   agentState.value = snapshot.state || {}
   agentTurn.value = snapshot.turn || undefined
@@ -498,6 +503,29 @@ async function selectCardOption(value: string, label: string) {
     return
   }
   await runAgent(value, true, label, webSearchEnabled.value, 'option')
+}
+
+interface OptionCard { type: string, title: string, description: string, options: MealAgentOption[] }
+
+/** READY 卡里真正的「生成」按钮；其余是模型现写的对话式选项，走消息而不是触发生成。 */
+function readyGenerateOptions(card: OptionCard) {
+  return card.options.filter(option => option.value === 'generate')
+}
+function readyOtherOptions(card: OptionCard) {
+  return card.options.filter(option => option.value !== 'generate')
+}
+
+/** 动态选项统一走专用 ChipGroup：一行一个，点选即作为消息发给锅仔。 */
+async function onCardOptionChange(card: OptionCard, value: string | string[]) {
+  const picked = (Array.isArray(value) ? value[0] : value) as string
+  if (!picked)
+    return
+  if (picked === 'generate') {
+    generate()
+    return
+  }
+  const label = card.options.find(option => option.value === picked)?.label || picked
+  await selectCardOption(picked, label)
 }
 
 function toggleFridgeItem(value: string) {
@@ -820,9 +848,9 @@ onShareAppMessage(() => {
             </view>
             <button class="household-confirm" :disabled="agentBusy" @click="confirmFridgeSelection">{{ fridgeSelection.length ? '用这些食材安排菜谱' : '按临期优先安排菜谱' }}</button>
           </view>
-          <view v-else-if="card.type === 'READY'" class="choice-grid choice-grid--ready">
+          <view v-else-if="card.type === 'READY'" class="ready-actions">
             <GuozaiButton
-              v-for="option in card.options"
+              v-for="option in readyGenerateOptions(card)"
               :key="option.value"
               variant="primary"
               aria-label="开始生成本周菜单"
@@ -831,11 +859,23 @@ onShareAppMessage(() => {
             >
               {{ option.label }}
             </GuozaiButton>
+            <GuozaiChipGroup
+              v-if="readyOtherOptions(card).length"
+              :options="readyOtherOptions(card)"
+              :columns="1"
+              :disabled="agentBusy"
+              aria-label="生成前再调整一下"
+              @change="value => onCardOptionChange(card, value)"
+            />
           </view>
-          <view v-else class="choice-grid" :class="{ 'choice-grid--cuisine': card.type === 'CUISINE' }">
-            <button v-for="option in card.options" :key="option.value" :class="{ 'choice-option--long': option.label.length > 8 }" :disabled="agentBusy" @click="option.value === 'generate' ? generate() : selectCardOption(option.value, option.label)">
-              {{ option.label }}
-            </button>
+          <view v-else class="card-options">
+            <GuozaiChipGroup
+              :options="card.options"
+              :columns="1"
+              :disabled="agentBusy"
+              :aria-label="card.title || '选择一个选项'"
+              @change="value => onCardOptionChange(card, value)"
+            />
           </view>
           <view v-if="otherInput && !householdPickerActive" class="other-input"><input v-model="composerText" class="other-input__field" :disabled="agentBusy" inputmode="text" confirm-type="send" placeholder="直接告诉锅仔你的想法" @confirm="submitOther"><GuozaiButton class="other-input__send" variant="primary" :block="false" :disabled="agentBusy || !composerText.trim()" :loading="agentBusy" aria-label="发送自定义回答" @click="submitOther">发送</GuozaiButton></view>
         </view>
@@ -924,7 +964,9 @@ onShareAppMessage(() => {
 @keyframes thinking-spin { to { transform: rotate(360deg); } }
 .choice-card { position: relative; padding: 22rpx; border: 2rpx solid var(--mrc-border); border-radius: 30rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-lift); }
 .agent-card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18rpx; padding: 4rpx 2rpx 20rpx; }.agent-card__copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 7rpx; }.agent-card__eyebrow { color: var(--mrc-accent); font-size: 19rpx; font-weight: 800; letter-spacing: 1.5rpx; }.agent-card__title { color: var(--mrc-text-deep); font-size: 29rpx; font-weight: 800; line-height: 1.25; }.agent-card__description { color: var(--mrc-text-sub); font-size: 21rpx; line-height: 1.45; }.agent-card__head image { width: 92rpx; height: 92rpx; flex: 0 0 auto; margin-top: -8rpx; }
-.choice-card--ready { padding: 26rpx; border-color: rgba(239, 90, 60, .22); background: linear-gradient(145deg, var(--mrc-surface) 0%, var(--mrc-surface-sun) 100%); box-shadow: 0 14rpx 34rpx rgba(113, 63, 36, .12); }.choice-card--ready .agent-card__eyebrow { display: flex; align-items: center; gap: 8rpx; }.choice-card--ready .agent-card__eyebrow::before { width: 14rpx; height: 14rpx; border-radius: 50%; background: var(--mrc-mint); box-shadow: 0 0 0 6rpx rgba(74, 220, 171, .15); content: ''; }.choice-card--ready .agent-card__title { font-size: 33rpx; letter-spacing: -.3rpx; }.choice-card--ready .agent-card__description { max-width: 88%; }.ready-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10rpx; margin: 2rpx 0 20rpx; padding: 12rpx; border: 2rpx solid rgba(239, 90, 60, .1); border-radius: 20rpx; background: rgba(255, 255, 255, .52); }.ready-summary view { display: flex; min-width: 0; flex-direction: column; gap: 7rpx; color: var(--mrc-text-sub); font-size: 19rpx; line-height: 1.25; }.ready-summary__dot { color: var(--mrc-accent); font-size: 17rpx; font-weight: 800; letter-spacing: 1px; }.choice-grid--ready { display: block; }.choice-grid--ready button { display: flex; width: 100%; min-height: 86rpx; align-items: center; justify-content: space-between; padding: 0 24rpx; border: 0; border-radius: 22rpx; background: var(--mrc-primary-grad); box-shadow: 0 10rpx 22rpx rgba(239, 90, 60, .2); color: #fff; font-size: 25rpx; font-weight: 800; }.choice-grid--ready button::after { display: block; margin-left: auto; color: rgba(255,255,255,.84); content: '›'; font-size: 42rpx; font-weight: 400; line-height: 1; }.choice-grid--ready button:active { border-color: transparent; background: var(--mrc-primary-grad); opacity: .86; transform: translateY(1rpx); }
+.choice-card--ready { padding: 26rpx; border-color: rgba(239, 90, 60, .22); background: linear-gradient(145deg, var(--mrc-surface) 0%, var(--mrc-surface-sun) 100%); box-shadow: 0 14rpx 34rpx rgba(113, 63, 36, .12); }.choice-card--ready .agent-card__eyebrow { display: flex; align-items: center; gap: 8rpx; }.choice-card--ready .agent-card__eyebrow::before { width: 14rpx; height: 14rpx; border-radius: 50%; background: var(--mrc-mint); box-shadow: 0 0 0 6rpx rgba(74, 220, 171, .15); content: ''; }.choice-card--ready .agent-card__title { font-size: 33rpx; letter-spacing: -.3rpx; }.choice-card--ready .agent-card__description { max-width: 88%; }.ready-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10rpx; margin: 2rpx 0 20rpx; padding: 12rpx; border: 2rpx solid rgba(239, 90, 60, .1); border-radius: 20rpx; background: rgba(255, 255, 255, .52); }.ready-summary view { display: flex; min-width: 0; flex-direction: column; gap: 7rpx; color: var(--mrc-text-sub); font-size: 19rpx; line-height: 1.25; }.ready-summary__dot { color: var(--mrc-accent); font-size: 17rpx; font-weight: 800; letter-spacing: 1px; }/* 动态选项统一走 GuozaiChipGroup（一行一个）；READY 卡里生成按钮与对话选项纵向排列 */
+.ready-actions { display: flex; flex-direction: column; gap: 14rpx; }
+.card-options { padding-top: 2rpx; }
 .cuisine-card { overflow: hidden; padding: 22rpx; border-radius: 22rpx; background: linear-gradient(135deg, var(--mrc-surface-sun), var(--mrc-surface-peach)); }.cuisine-card__head { display: flex; align-items: center; justify-content: space-between; }.cuisine-card__head > view { display: flex; flex-direction: column; gap: 8rpx; }.cuisine-card__head text:first-child { color: var(--mrc-text-deep); font-size: 29rpx; font-weight: 800; }.cuisine-card__head text:last-child { color: var(--mrc-accent); font-size: 19rpx; font-weight: 700; }.cuisine-card__head image { width: 92rpx; height: 92rpx; }.cuisine-card__dishes { display: flex; flex-wrap: wrap; gap: 10rpx; margin: 18rpx 0; }.cuisine-card__dishes text { padding: 10rpx 14rpx; border: 2rpx solid rgba(255, 107, 91, .22); border-radius: 999rpx; background: rgba(255,255,255,.54); color: var(--mrc-text-deep); font-size: 20rpx; }.cuisine-card button { min-height: 80rpx; margin: 0; border-radius: 20rpx; font-size: 23rpx; font-weight: 750; }.cuisine-card button::after { display: none; }.cuisine-card__primary { border: 0; background: var(--mrc-primary-grad); color: #fff; }.cuisine-card__secondary { border: 0; background: transparent; color: var(--mrc-text-sub); }
 .choice-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12rpx; }.choice-grid--people { grid-template-columns: repeat(5, 1fr); }.choice-grid button { display: flex; min-height: 88rpx; flex-direction: column; align-items: center; justify-content: center; margin: 0; padding: 12rpx 6rpx; border: 2rpx solid var(--mrc-border); border-radius: 20rpx; background: var(--mrc-surface); color: var(--mrc-text-deep); font-size: 25rpx; font-weight: 750; line-height: 1.25; }.choice-grid button.choice-option--long { min-height: 104rpx; padding-right: 14rpx; padding-left: 14rpx; font-size: 22rpx; line-height: 1.4; }.choice-grid button::after, .choice-confirm::after, .generate-button::after, .restart-button::after, .composer button::after { display: none; }.choice-grid button:active { border-color: var(--mrc-accent); background: var(--mrc-accent-soft); }.choice-grid button text { margin-top: 7rpx; color: var(--mrc-text-sub); font-size: 18rpx; font-weight: 500; }
 .choice-grid--household { grid-template-columns: repeat(3, 1fr); }.choice-grid--household button { position: relative; min-height: 92rpx; padding: 12rpx 8rpx; transition: border-color .18s ease, background-color .18s ease, color .18s ease; }.choice-grid--household button.selected { border-color: var(--mrc-accent); background: var(--mrc-accent-soft); color: var(--mrc-accent); }.choice-grid--household button .selection-mark { position: absolute; top: 8rpx; right: 10rpx; display: flex; width: 28rpx; height: 28rpx; align-items: center; justify-content: center; border: 2rpx solid var(--mrc-border); border-radius: 50%; color: transparent; font-size: 18rpx; line-height: 1; }.choice-grid--household button.selected .selection-mark { border-color: var(--mrc-accent); background: var(--mrc-accent); color: #fff; }.household-confirm { min-height: 82rpx; margin: 16rpx 0 0; border: 0; border-radius: 20rpx; background: var(--mrc-text-deep); color: #fff; font-size: 24rpx; font-weight: 750; }.household-confirm::after { display: none; }.household-confirm[disabled] { opacity: .38; }.choice-grid--spice { grid-template-columns: repeat(3, 1fr); }

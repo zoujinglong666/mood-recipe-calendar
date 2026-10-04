@@ -129,7 +129,7 @@ export function generatePlanDishCover(id: number, dayIndex: number, dishIndex: n
   return post<WeeklyPlan>(`/weekly-plans/${id}/days/${dayIndex}/cover/${dishIndex}`)
 }
 /** 把"做没做成、剩没剩、难不难"反馈给智能体，它才会越用越准。 */
-export function reportPlanDishOutcome(data: { planId: number, dayIndex: number, dishIndex: number, dishName: string, cooked?: boolean, leftover?: boolean, tooHard?: boolean }) {
+export function reportPlanDishOutcome(data: { planId: number, dayIndex: number, dishIndex: number, dishName: string, cooked?: boolean, leftover?: boolean, tooHard?: boolean, moodAfter?: string }) {
   return post<PlanOutcomeAck>('/agent/outcomes', data)
 }
 export function toggleShoppingItem(id: number, name: string) {

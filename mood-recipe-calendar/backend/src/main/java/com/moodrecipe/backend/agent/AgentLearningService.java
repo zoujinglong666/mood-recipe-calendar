@@ -32,8 +32,12 @@ public class AgentLearningService {
     private static final String CARD_PREFIX = "strategy.card.";
     private static final int UNANSWERED_THRESHOLD = 3;
 
+    /** 餐后心情词表（与前端 MOOD_EMOJI 对齐）：正向=做了心情变好，负向=做了心情变差。 */
+    private static final Set<String> POSITIVE_MOODS = Set.of("开心", "满足", "平静", "期待", "得意");
+    private static final Set<String> NEGATIVE_MOODS = Set.of("疲惫", "焦虑", "难过", "低落");
+
     public record OutcomeInput(Long planId, int dayIndex, int dishIndex, String dishName,
-                               Boolean cooked, Boolean leftover, Boolean tooHard) {}
+                               Boolean cooked, Boolean leftover, Boolean tooHard, String moodAfter) {}
 
     public record StrategyHints(Set<String> skipQuestions, Set<String> preferQuickOptions,
                                 Map<String, Double> cuisineAffinity, Integer maxCookingMinutes,
@@ -77,6 +81,11 @@ public class AgentLearningService {
         if (input.cooked() != null) outcome.setCooked(input.cooked());
         if (input.leftover() != null) outcome.setLeftover(input.leftover());
         if (input.tooHard() != null) outcome.setTooHard(input.tooHard());
+        if (input.moodAfter() != null) {
+            // mood_after 列上限 16；入参收口截断，防超长直写 DB 异常把接口打成 500
+            String mood = input.moodAfter().trim();
+            outcome.setMoodAfter(mood.isEmpty() ? null : mood.substring(0, Math.min(mood.length(), 16)));
+        }
         PlanDishOutcome saved = outcomes.save(outcome);
         refresh(openid);
         return saved;
@@ -119,6 +128,34 @@ public class AgentLearningService {
             store.remember(AgentMemoryStore.RememberCommand.learned(openid, KEY_AVOID_DISHES,
                     String.join(",", avoid), "这些菜被反馈没做，累计 " + avoid.size() + " 道"));
         }
+
+        // 餐后心情回流（飞轮开关）：做了且心情变好 -> 强化；做了且心情差 -> 进回避名单
+        Map<String, Integer> moodPos = new LinkedHashMap<>();
+        Map<String, Integer> moodNeg = new LinkedHashMap<>();
+        for (PlanDishOutcome o : history) {
+            if (!Boolean.TRUE.equals(o.getCooked()) || o.getMoodAfter() == null || o.getMoodAfter().isBlank())
+                continue;
+            if (POSITIVE_MOODS.contains(o.getMoodAfter())) moodPos.merge(o.getDishName(), 1, Integer::sum);
+            else if (NEGATIVE_MOODS.contains(o.getMoodAfter())) moodNeg.merge(o.getDishName(), 1, Integer::sum);
+        }
+        // moodLiked 用单 key 聚合（与 dish.avoid 同模式）：memory_key 列上限 48 字符，
+        // 「前缀+菜名」的 key 必超长导致 DB 写入异常，进而把 /agent/outcomes 打成 500。
+        if (!moodPos.isEmpty()) {
+            String liked = String.join(",", moodPos.keySet());
+            store.remember(AgentMemoryStore.RememberCommand.learned(openid,
+                    "preference.moodLiked", liked.length() > 200 ? liked.substring(0, 200) : liked,
+                    "这些菜做完后用户反馈心情变好，共 " + moodPos.size() + " 道"));
+        }
+        if (!moodNeg.isEmpty()) {
+            Set<String> neg = new LinkedHashSet<>(moodNeg.keySet());
+            for (MemoryItem it : store.recall(openid, AgentMemoryStore.Scene.WEEKLY_PLAN, 60)) {
+                if (KEY_AVOID_DISHES.equals(it.key()))
+                    for (String s : it.value().split(",")) if (!s.isBlank()) neg.add(s);
+            }
+            store.remember(AgentMemoryStore.RememberCommand.learned(openid, KEY_AVOID_DISHES,
+                    String.join(",", neg), "这些菜做了但心情变差，纳入回避"));
+        }
+
         refreshQuestionPolicy(openid);
     }
 

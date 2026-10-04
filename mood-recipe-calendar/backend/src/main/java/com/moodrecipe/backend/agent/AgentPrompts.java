@@ -62,7 +62,7 @@ public final class AgentPrompts {
                 + PromptFiles.get("dynamic-card-rules");
     }
 
-    public static String planMenu(String constraintsText, String daysText, int dishesPerDay, String rejectedText) {
+    public static String planMenu(String constraintsText, String daysText, int dishesPerDay, String rejectedText, String referenceDishes) {
         return system() + "\n\n"
                 + """
                         请为这位用户排出一周家常菜菜单。
@@ -70,7 +70,9 @@ public final class AgentPrompts {
                         """
                 + constraintsText + "\n做饭日：" + daysText + "，每天 " + dishesPerDay + " 道菜。\n"
                 + (rejectedText.isBlank() ? "" : "这些菜这次不能用：" + rejectedText + "\n")
+                + (referenceDishes.isBlank() ? "" : "参考菜谱（真实存在、有出处的菜，优先直接选用这些菜名）：\n" + referenceDishes + "\n")
                 + """
+                        菜名硬要求：只能使用真实存在、有出处的家常菜名（优先从参考菜谱里选，其次是广为人知的经典菜如番茄炒蛋、麻婆豆腐、可乐鸡翅）；严禁把两种菜硬拼成不存在的自创菜名（如「清火汤里脊」这类组合），严禁生造词。用户点名的每道菜/每个食材必须由各自独立的菜满足，一道菜绝不允许同时凑两个点名。
                         要求：每个做饭日必须严格生成指定数量且菜名不重复；普通餐兼顾荤素，4 道及以上按宴席思路搭配主菜、清爽菜、汤羹或主食；跨天复用食材减少浪费；避开最近吃过的菜；照顾老人小孩；做法家常可复现。
                         食材只写食材名和用量，不要把“撒、加入、切”等动作写进食材名；每一步只表达一个主要动作，步骤之间不要重复同一种食材或重复同一句话；使用普通家庭能看懂的中文，例如西兰花用“掰成小朵”，不要写“切朵”；不要输出英文、乱码、问号或生造词。
                         只输出一个 JSON 对象：
@@ -88,6 +90,45 @@ public final class AgentPrompts {
                 + """
                         请只修改有问题的部分，保留其余可用安排，重新输出同样结构的 JSON，不要解释。
                         """;
+    }
+
+    /** 点名感知：判断用户点名的每一项是完整菜名还是食材，输出结构化分类，供规划侧分级处理。 */
+    public static String perceiveRequests(String userText, String itemsJson) {
+        return system() + "\n\n"
+                + "用户说了这样的话：\n" + fence(userText) + "\n\n"
+                + "系统从中提取了以下点名项（带初步猜测的分类）：\n" + itemsJson + "\n\n"
+                + "请你逐项判断分类是否正确：\n"
+                + "- kind=dish：它本身就是一道完整、真实存在的菜（如糖醋里脊、清火汤、麻婆豆腐）\n"
+                + "- kind=ingredient：它只是一种食材（如番茄、牛肉、排骨）\n"
+                + "注意：句式（“我想吃/来一个/安排”）不改变分类，只看词本身是不是菜名。\n"
+                + "只输出 JSON：{\"items\":[{\"name\":\"原词\",\"kind\":\"dish|ingredient\"}]}，不要增删项，不要解释。";
+    }
+
+    /** 菜单自审：让模型像资深中餐厨师一样逐道审查真实性、点名拼接与搭配，输出结构化问题清单与替换建议。 */
+    public static String critiqueMenu(String menuJson, String requestedText, String referenceDishes) {
+        return system() + "\n\n"
+                + "下面是为用户排的一周菜单 JSON、用户点名想吃的东西和菜谱库真实菜名。\n"
+                + "请你像资深中餐厨师一样逐道审查：\n"
+                + "1) 每道菜名是否真实存在、有出处？是否把两种菜硬拼成不存在的菜（如点名“糖醋里脊和清火汤”却出现“清火汤里脊”）？是否生造词？\n"
+                + "2) 用户点名是否被如实满足？点名是完整菜名时必须原样成菜，一道菜只能满足一个点名。\n"
+                + "3) 搭配是否合理：荤素结构、主次分明、跨天复用、老人小孩能否吃。\n"
+                + "只输出一个 JSON 对象：\n"
+                + "{\"ok\":true/false,\"issues\":[{\"dish\":\"问题菜名\",\"problem\":\"问题说明\"}],"
+                + "\"replacements\":[{\"badDish\":\"问题菜名\",\"goodDish\":\"真实存在的菜名\",\"reason\":\"替换理由\"}]}\n"
+                + "goodDish 必须来自参考菜谱或广为人知的经典菜，绝不允许为了替换再造新菜名；同类型替换（荤换荤、素换素、汤换汤）。没有问题的项不要输出；整体没有问题就输出 {\"ok\":true,\"issues\":[],\"replacements\":[]}。\n"
+                + (requestedText.isBlank() ? "" : "用户点名：" + requestedText + "\n")
+                + (referenceDishes.isBlank() ? "" : "参考菜谱：\n" + referenceDishes + "\n")
+                + "菜单 JSON：\n" + menuJson;
+    }
+
+    /** 菜单自修复：把审查发现的问题交回模型，由它自主决策如何修改整份菜单；产出仍需过规则硬校验。 */
+    public static String repairMenuWithIssues(String menuJson, String issuesText, String referenceDishes) {
+        return system() + "\n\n"
+                + "这份一周菜单 JSON 审查发现了以下问题：\n" + issuesText + "\n"
+                + "请你自主决策如何修复：优先替换成参考菜谱里的真实菜（同类型替换），确实没有合适的就调整搭配；"
+                + "菜名必须真实存在、有出处，绝不允许拼接或生造。只输出修复后的完整菜单 JSON（结构与原菜单一致），不要解释。\n"
+                + (referenceDishes.isBlank() ? "" : "参考菜谱：\n" + referenceDishes + "\n")
+                + "菜单 JSON：\n" + menuJson;
     }
 
     /**

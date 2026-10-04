@@ -458,14 +458,27 @@ public class DialogueAgent {
         for (AgentFact fact : heuristic) merged.put(fact.key(), fact);
         for (AgentFact fact : fromModel) {
             AgentFact existing = merged.get(fact.key());
+            // 点名以模型为准：词表只能抽到「鱼/鸡肉」这类食材词，若按 confidence 竞争，
+            // 高置信的词表结果会把模型的完整菜名抽取（如「糖醋里脊、清火汤」）覆盖退化成单个食材。
+            if ("requestedIngredients".equals(fact.key())) {
+                boolean modelHasValue = fact.value() != null && !fact.value().isBlank();
+                if (modelHasValue) merged.put(fact.key(), fact);
+                continue;
+            }
             if (existing == null || fact.confidence() >= existing.confidence()) merged.put(fact.key(), fact);
         }
         return List.copyOf(merged.values());
     }
 
+    /** 菜系基本合法性：2~8 字且以“菜”结尾，让模型感知到的词表外菜系（淮扬菜、客家菜等）也能入档。 */
+    private static boolean isPlausibleCuisine(String value) {
+        if (value == null) return false;
+        String v = value.trim();
+        return v.length() >= 2 && v.length() <= 8 && v.endsWith("菜");
+    }
+
     private DialogueState.AgentState applyFacts(DialogueState.AgentState state,
-                                                           List<AgentFact> facts) {
-        for (AgentFact fact : facts) {
+                                                           List<AgentFact> facts) {        for (AgentFact fact : facts) {
             String value = fact.value() == null ? "" : fact.value().trim();
             switch (fact.key()) {
                 case "people" -> {
@@ -500,8 +513,11 @@ public class DialogueAgent {
                     if (BUDGET_VALUES.contains(value)) state = state.withBudget(value);
                 }
                 case "favoriteCuisine" -> {
+                    // 菜系感知信任模型：词表（赣菜/川菜…）只是模型不可用时的兜底，
+                    // 「淮扬菜」「客家菜」这类词表外菜系不能在这里被丢掉。
                     if (HeuristicExtractor.cuisines().contains(value)
-                            || AgentCards.cuisineDishes().containsKey(value)) {
+                            || AgentCards.cuisineDishes().containsKey(value)
+                            || isPlausibleCuisine(value)) {
                         state = state.withFavoriteCuisine(value);
                     }
                 }
