@@ -39,7 +39,7 @@ public class ToolRegistry {
     private static final Set<String> READONLY_RETRYABLE = Set.of(
             "search_recipes", "get_fridge_inventory", "recall_user_profile", "check_recent_history",
             "check_dietary_conflicts", "score_menu_plan", "consolidate_ingredients",
-            "web_search");
+            "web_search", "guideline_rag");
 
     public ToolResult execute(String name, String argumentsJson, ToolContext context) {
         AgentTool tool = tools.get(name);

@@ -76,7 +76,7 @@ public class DialogueAgent {
      */
     private static final Set<String> ORCHESTRATOR_TOOLS = Set.of(
             "recall_user_profile", "check_recent_history", "check_dietary_conflicts",
-            "search_recipes", "web_search", "get_fridge_inventory");
+            "search_recipes", "web_search", "get_fridge_inventory", "guideline_rag");
     private static final Set<String> FRIDGE_TOOLS = Set.of("get_fridge_inventory", "search_recipes");
 
     public DialogueState.Turn turn(String openid, String message, DialogueState.AgentState clientState) {
