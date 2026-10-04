@@ -80,8 +80,8 @@ class AgentLearningServiceTest {
     /** 连续两道菜被反馈"太难做"，下次自动收紧难度与时长上限。 */
     @Test
     void tightensDifficultyWhenDishesAreTooHard() {
-        learning.recordOutcome(OPENID, new AgentLearningService.OutcomeInput(1L, 0, 0, "佛跳墙", true, false, true));
-        learning.recordOutcome(OPENID, new AgentLearningService.OutcomeInput(1L, 1, 0, "松鼠鳜鱼", true, false, true));
+        learning.recordOutcome(OPENID, new AgentLearningService.OutcomeInput(1L, 0, 0, "佛跳墙", true, false, true, null));
+        learning.recordOutcome(OPENID, new AgentLearningService.OutcomeInput(1L, 1, 0, "松鼠鳜鱼", true, false, true, null));
 
         AgentLearningService.StrategyHints hints = learning.hints(OPENID);
 
@@ -93,11 +93,25 @@ class AgentLearningServiceTest {
     /** 反复没做的菜要被拉黑，而不是继续排进下周。 */
     @Test
     void avoidsDishesUserNeverCooks() {
-        learning.recordOutcome(OPENID, new AgentLearningService.OutcomeInput(1L, 0, 0, "红烧肉", false, null, null));
-        learning.recordOutcome(OPENID, new AgentLearningService.OutcomeInput(1L, 1, 0, "红烧肉", false, null, null));
+        learning.recordOutcome(OPENID, new AgentLearningService.OutcomeInput(1L, 0, 0, "红烧肉", false, null, null, null));
+        learning.recordOutcome(OPENID, new AgentLearningService.OutcomeInput(1L, 1, 0, "红烧肉", false, null, null, null));
 
         assertTrue(learning.hints(OPENID).avoidDishes().contains("红烧肉"));
         assertEquals("红烧肉", facts.get(OPENID, AgentLearningService.KEY_AVOID_DISHES).getMemoryValue());
+    }
+
+    /** 餐后心情回流：做完心情变好的菜被强化，心情变差的菜进回避名单。 */
+    @Test
+    void learnsFromPostMealMood() {
+        learning.recordOutcome(OPENID, new AgentLearningService.OutcomeInput(1L, 0, 0, "糖醋里脊", true, false, false, "开心"));
+        learning.recordOutcome(OPENID, new AgentLearningService.OutcomeInput(1L, 1, 0, "苦瓜酿肉", true, false, false, "难过"));
+
+        learning.refresh(OPENID);
+
+        assertTrue(facts.get(OPENID, "preference.moodLiked").getMemoryValue().contains("糖醋里脊"),
+                "心情变好的菜应被记入强化名单");
+        assertTrue(learning.hints(OPENID).avoidDishes().contains("苦瓜酿肉"),
+                "心情变差的菜应进回避名单");
     }
 
     /** 做过的菜会沉淀成菜系亲和，下一次规划优先用得上。 */

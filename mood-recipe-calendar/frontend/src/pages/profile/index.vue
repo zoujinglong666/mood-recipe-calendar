@@ -7,7 +7,8 @@ import {STATIC_BASE_URL} from '@/utils/assets'
 import Icon from '../../components/common/Icon.vue'
 import {useUserStore} from '../../stores/user'
 import {refreshUserInfo, navigateToLogin} from '../../utils/login'
-import {toast, toastError, toastSuccess} from '../../utils/toast'
+import {toast, toastError} from '../../utils/toast'
+import SuccessModal from '../../components/guozai/SuccessModal.vue'
 import {fetchShareStatus, type ShareStatus} from '@/api/share'
 import {fetchCheckinStatus, doCheckin, type CheckinStatus} from '@/api/gallery'
 import {uploadFile} from '@/api/request'
@@ -38,6 +39,7 @@ const history = ref<RecordItem[]>([])
 const shareStatus = ref<ShareStatus>({ isSharer: false, sharedToday: false })
 const checkinStatus = ref<CheckinStatus | null>(null)
 const checkingIn = ref(false)
+const showCheckinModal = ref(false)
 const activeMembership = computed(() => userStore.userInfo?.isMember === 1
   && Boolean(userStore.userInfo?.memberExpire)
   && new Date(userStore.userInfo!.memberExpire!).getTime() > Date.now())
@@ -249,8 +251,8 @@ async function quickCheckin() {
   checkingIn.value = true
   try {
     await doCheckin()
-    toastSuccess('签到成功 · 今日锅仔对话 +3 次')
     checkinStatus.value = await fetchCheckinStatus()
+    showCheckinModal.value = true
   }
   catch (e: any) {
     toastError(e, '签到失败，请稍后再试')
@@ -465,9 +467,6 @@ function openStat(type: 'records' | 'days' | 'streak') {
         </text>
       </view>
       <view class="profile-gallery__badges">
-        <view class="profile-gallery__badge">
-          每日签到
-        </view>
         <view v-if="shareStatus.isSharer" class="profile-gallery__badge profile-gallery__badge--sharer">
           分享家
         </view>
@@ -499,6 +498,15 @@ function openStat(type: 'records' | 'days' | 'streak') {
         {{ checkinStatus?.checkedIn ? '已签' : (checkingIn ? '签到中' : '签到') }}
       </view>
     </view>
+
+    <!-- 签到成功弹窗（与打卡记录成功同款） -->
+    <SuccessModal
+      :visible="showCheckinModal"
+      title="签到成功！"
+      :subtitle="`今日锅仔对话 +3 次，已连续签到 ${checkinStatus?.streak ?? 1} 天`"
+      confirm-text="好的"
+      @confirm="showCheckinModal = false"
+    />
 
     <!-- 功能按钮 -->
     <view class="profile-actions">

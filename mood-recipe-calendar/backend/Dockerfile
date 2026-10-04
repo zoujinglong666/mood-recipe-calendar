@@ -2,7 +2,8 @@
 FROM eclipse-temurin:21-jre-alpine
 
 # 安装 curl 用于健康检查（alpine 精简镜像默认没有 wget/curl）
-RUN apk add --no-cache curl
+# fontconfig + font-noto-cjk：alpine 精简 JRE 零字体，服务端海报的中文会全部渲染成方框（豆腐块）
+RUN apk add --no-cache curl fontconfig font-noto-cjk
 
 WORKDIR /app
 

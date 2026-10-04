@@ -7,6 +7,7 @@ import LoadingState from '../../components/guozai/LoadingState.vue'
 import ErrorState from '../../components/guozai/ErrorState.vue'
 import { ensureLogin } from '../../utils/login'
 import { toast, toastError, toastSuccess } from '../../utils/toast'
+import SuccessModal from '../../components/guozai/SuccessModal.vue'
 import {
   fetchCheckinStatus,
   doCheckin,
@@ -42,6 +43,7 @@ const buyType = ref<'normal' | 'exchange'>('normal')
 const showBuy = ref(false)
 const checkin = ref<CheckinStatus>({ checkedIn: false, streak: 0, exchangeReady: false, daysToExchange: 30, totalDays: 0 })
 const checking = ref(false)
+const showCheckinModal = ref(false)
 
 // ---------- 表情包（内容资产区：锅仔透明 PNG 资源库） ----------
 const STICKER_GROUPS = [
@@ -131,7 +133,7 @@ async function onCheckin() {
   try {
     await ensureLogin()
     checkin.value = await doCheckin()
-    toast('签到成功，锅仔陪你吃饭！')
+    showCheckinModal.value = true
   } catch (e: any) {
     toastError(e, '签到失败')
   } finally {
@@ -339,6 +341,15 @@ function onBuy() {}
         </view>
       </view>
     </view>
+
+    <!-- 签到成功弹窗（与打卡记录成功同款） -->
+    <SuccessModal
+      :visible="showCheckinModal"
+      title="签到成功！"
+      :subtitle="`今日锅仔对话 +3 次，已连续签到 ${checkin.streak} 天`"
+      confirm-text="好的"
+      @confirm="showCheckinModal = false"
+    />
   </view>
 </template>
 

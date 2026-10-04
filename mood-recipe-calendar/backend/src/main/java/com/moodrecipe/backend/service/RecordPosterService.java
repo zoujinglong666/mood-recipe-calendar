@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import javax.imageio.ImageIO;
 import java.awt.*;
+import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -32,6 +33,10 @@ import java.util.UUID;
 public class RecordPosterService {
     private static final int WIDTH = 1080;
     private static final int HEIGHT = 1440;
+    /** 海报中文字体：Alpine 精简 JRE 零字体，中文会全部渲染成方框（豆腐块）。
+     *  部署镜像已在 Dockerfile 安装 font-noto-cjk；此处按优先级探测可用中文字体，
+     *  都探测不到再回退 SansSerif（英文兜底，功能不崩）。 */
+    private static final Font POSTER_FONT = resolvePosterFont();
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(8)).build();
     private final String uploadDir;
     private final String publicBaseUrl;
@@ -63,23 +68,37 @@ public class RecordPosterService {
         this.cosDomain = cosDomain;
     }
 
+    private static Font resolvePosterFont() {
+        String[] candidates = {"Noto Sans CJK SC", "Noto Sans CJK SC Regular", "Source Han Sans SC",
+                "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "WenQuanYi Zen Hei", "SimHei"};
+        for (String name : candidates) {
+            Font font = new Font(name, Font.PLAIN, 24);
+            if (font.canDisplayUpTo("锅仔美食海报") < 0) return font;
+        }
+        return new Font("SansSerif", Font.PLAIN, 24);
+    }
+
     public String generate(UserRecord record) {
         try {
             BufferedImage poster = new BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB);
             Graphics2D g = poster.createGraphics();
             g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            g.setRenderingHint(RenderingHints.KEY_FRACTIONALMETRICS, RenderingHints.VALUE_FRACTIONALMETRICS_ON);
             g.setColor(new Color(255, 249, 239));
             g.fillRect(0, 0, WIDTH, HEIGHT);
             drawText(g, "GUOZAI  /  FOOD MEMORY", 72, 92, 28, new Color(239, 90, 60), true);
             drawText(g, "NO. " + safe(record.getRecordDate()), 820, 92, 22, new Color(143, 112, 91), false);
             drawText(g, "这一餐的食光", 72, 170, 26, new Color(143, 112, 91), false);
-            drawText(g, safe(record.getDishName()), 72, 245, 72, new Color(57, 36, 25), true);
+            drawDishTitle(g, safe(record.getDishName()), 72, 245);
             drawText(g, safe(record.getRecordDate()) + "  ·  " + (record.getCookingTime() == null ? 30 : record.getCookingTime()) + " 分钟", 72, 292, 26, new Color(143, 112, 91), false);
             drawPhotos(g, record.getImageUrls());
             g.setColor(new Color(239, 90, 60));
-            g.fillRect(72, 1120, 8, 150);
-            drawText(g, "锅仔编辑批注", 108, 1160, 24, new Color(239, 90, 60), true);
-            drawText(g, clip(record.getNote() == null || record.getNote().isBlank() ? "把今天的味道收好，下一次回来继续。" : record.getNote(), 34), 108, 1210, 30, new Color(78, 54, 40), false);
+            g.fillRect(72, 1120, 8, 176);
+            drawText(g, "锅仔编辑批注", 108, 1152, 24, new Color(239, 90, 60), true);
+            String note = record.getNote() == null || record.getNote().isBlank()
+                    ? "把今天的味道收好，下一次回来继续。" : record.getNote();
+            drawNote(g, clip(note, 66), 108, 1188);
             drawText(g, "THE TASTE OF TODAY", 72, 1368, 18, new Color(143, 112, 91), false);
             g.dispose();
 
@@ -134,16 +153,43 @@ public class RecordPosterService {
         return response.statusCode() >= 200 && response.statusCode() < 300 ? ImageIO.read(new ByteArrayInputStream(response.body())) : null;
     }
 
+    /** 菜名标题：按长度自动缩号，保证单行放下不溢出画布——长菜名不再挤出一行怪字。 */
+    private void drawDishTitle(Graphics2D g, String title, int x, int baseline) {
+        int size = 72;
+        if (title.length() > 6) size = 60;
+        if (title.length() > 10) size = 48;
+        if (title.length() > 14) size = 40;
+        while (size > 28 && g.getFontMetrics(POSTER_FONT.deriveFont(Font.BOLD, (float) size)).stringWidth(title) > WIDTH - x - 72) {
+            size -= 4;
+        }
+        drawText(g, title, x, baseline, size, new Color(57, 36, 25), true);
+    }
+
+    /** 批注按约 26 字/行折行，最多三行（超出尾部省略），行距 44。 */
+    private void drawNote(Graphics2D g, String note, int x, int firstBaseline) {
+        int perLine = 26;
+        for (int i = 0; i * perLine < note.length() && i < 3; i++) {
+            int end = Math.min(note.length(), (i + 1) * perLine);
+            String line = note.substring(i * perLine, end);
+            if (i == 2 && end < note.length()) line = line.substring(0, Math.max(0, line.length() - 1)) + "…";
+            drawText(g, line, x, firstBaseline + i * 44, 30, new Color(78, 54, 40), false);
+        }
+    }
+
     private void drawCover(Graphics2D g, BufferedImage source, int x, int y, int width, int height) {
         double scale = Math.max((double) width / source.getWidth(), (double) height / source.getHeight());
         int sw = (int) (width / scale), sh = (int) (height / scale);
         int sx = (source.getWidth() - sw) / 2, sy = (source.getHeight() - sh) / 2;
-        g.drawImage(source, x, y, x + width, y + height, sx, sy, sx + sw, sy + sh, null);
+        Graphics2D clip = (Graphics2D) g.create();
+        clip.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        clip.clip(new RoundRectangle2D.Float(x, y, width, height, 24, 24));
+        clip.drawImage(source, x, y, x + width, y + height, sx, sy, sx + sw, sy + sh, null);
+        clip.dispose();
     }
 
     private void drawText(Graphics2D g, String text, int x, int y, int size, Color color, boolean bold) {
         g.setColor(color);
-        g.setFont(new Font("SansSerif", bold ? Font.BOLD : Font.PLAIN, size));
+        g.setFont(POSTER_FONT.deriveFont(bold ? Font.BOLD : Font.PLAIN, (float) size));
         g.drawString(text, x, y);
     }
 
