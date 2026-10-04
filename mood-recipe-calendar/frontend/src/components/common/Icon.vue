@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 
 const props = defineProps<{
-  name: 'camera' | 'dice' | 'heart' | 'calendar' | 'book' | 'user' | 'back' | 'cart' | 'share' | 'clock' | 'flame' | 'gear' | 'list' | 'moon' | 'phone' | 'info' | 'search'
+  name: 'camera' | 'dice' | 'heart' | 'calendar' | 'book' | 'user' | 'back' | 'cart' | 'share' | 'clock' | 'flame' | 'gear' | 'list' | 'moon' | 'phone' | 'info' | 'search' | 'send'
   size?: number
   color?: string
 }>()
@@ -26,6 +26,7 @@ const SVG_MAP: Record<string, string> = {
   phone: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="__COLOR__" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="12" y="6" width="24" height="36" rx="4"/><path d="M20 38h8"/></svg>',
   info: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="__COLOR__" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="24" cy="24" r="17"/><circle cx="24" cy="17" r="2" fill="__COLOR__"/><path d="M24 23v9"/></svg>',
   search: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="__COLOR__" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="21" cy="21" r="13"/><path d="M31 31l11 11"/></svg>',
+  send: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" fill="none" stroke="__COLOR__" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M24 39V10"/><path d="M12 22l12-12 12 12"/></svg>',
 }
 
 const dataUri = computed(() => {

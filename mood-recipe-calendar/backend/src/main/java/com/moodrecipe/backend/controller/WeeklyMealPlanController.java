@@ -18,6 +18,7 @@ import java.util.Set;
 @RestController
 @RequestMapping("/api/weekly-plans")
 public class WeeklyMealPlanController {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(WeeklyMealPlanController.class);
     private final WeeklyMealPlanService plans;
     private final GuozaiAgent agent;
     private final DialogueAgent mealAgent;
@@ -38,7 +39,8 @@ public class WeeklyMealPlanController {
     }
     /** 开启新对话：归档当前 ACTIVE 会话；前端清空本地后从新问候开始，历史对话不再被自动恢复。 */
     @PostMapping("/agent-conversations/reset") public ApiResponse<?> resetAgentConversation(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
-        conversations.archiveActive(openid);
+        boolean hadActive = conversations.archiveActive(openid);
+        log.info("[agent-reset] openid={} hadActiveConversation={} 开启新对话{}", openid, hadActive, hadActive ? "（已归档旧会话）" : "（无 ACTIVE 会话，空转）");
         return ApiResponse.ok(true);
     }
     @PostMapping("/generate") public ApiResponse<?> generate(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @RequestBody WeeklyMealPlanService.GenerateRequest request) {

@@ -12,6 +12,8 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 import jakarta.validation.ConstraintViolationException;
 import java.util.stream.Collectors;
 
@@ -93,9 +95,9 @@ public class GlobalExceptionHandler {
 
     /** 兜底：所有未捕获异常 */
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponse<Void>> handleAll(Exception e) {
-        // 不向前端泄露堆栈，仅记录日志
-        e.printStackTrace();
+    public ResponseEntity<ApiResponse<Void>> handleAll(Exception e, HttpServletRequest request) {
+        // 不向前端泄露堆栈，但用日志框架完整记录（带请求路径），方便线上定位；不再用 printStackTrace 丢到 stderr 难检索
+        log.error("[uncaught-500] {} {} -> {}: {}", request.getMethod(), request.getRequestURI(), e.getClass().getName(), e.getMessage(), e);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
             .body(ApiResponse.error(500, "服务器内部错误，请稍后重试"));
     }

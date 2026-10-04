@@ -32,14 +32,16 @@ public class AgentConversationService {
                 .map(this::snapshot);
     }
 
-    /** 归档该用户当前 ACTIVE 会话（「开启新对话」用）：不归档的话刷新后又会恢复旧会话。 */
+    /** 归档该用户当前 ACTIVE 会话（「开启新对话」用）：不归档的话刷新后又会恢复旧会话。返回是否真的有会话被归档。 */
     @Transactional
-    public void archiveActive(String openid) {
-        conversations.findFirstByOpenidAndStatusOrderByUpdatedAtDesc(openid, "ACTIVE")
-                .ifPresent(conversation -> {
+    public boolean archiveActive(String openid) {
+        return conversations.findFirstByOpenidAndStatusOrderByUpdatedAtDesc(openid, "ACTIVE")
+                .map(conversation -> {
                     conversation.setStatus("ARCHIVED");
                     conversations.save(conversation);
-                });
+                    return true;
+                })
+                .orElse(false);
     }
 
     @Transactional
