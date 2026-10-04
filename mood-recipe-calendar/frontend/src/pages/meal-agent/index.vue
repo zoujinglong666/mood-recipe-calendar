@@ -3,7 +3,7 @@ import type { FoodMemoryView } from '@/api/preferences'
 import type { MealAgentConversationSnapshot, MealAgentHistoryMessage, MealAgentOption, MealAgentState, MealAgentTurn, WeeklyPlan, UsageQuotaView } from '@/api/weeklyPlans'
 import { computed, nextTick, ref } from 'vue'
 import { fetchFoodMemory } from '@/api/preferences'
-import { fetchAgentConversationQuota, fetchCurrentAgentConversation, generateWeeklyPlan, getCurrentPlan, requestWeeklyPlanCompletionNotice, rateAgentConversation, runMealAgentTurn } from '@/api/weeklyPlans'
+import { fetchAgentConversationQuota, fetchCurrentAgentConversation, generateWeeklyPlan, getCurrentPlan, requestWeeklyPlanCompletionNotice, rateAgentConversation, resetAgentConversation, runMealAgentTurn } from '@/api/weeklyPlans'
 import { navBack } from '@/composables/useNavBar'
 import { STATIC_BASE_URL } from '@/utils/assets'
 import { safeDecodePrompt } from '@/utils/safeDecodePrompt'
@@ -282,6 +282,47 @@ function addAgent(text: string, tags?: string[]) {
   messages.value.push({ id: ++messageId, role: 'agent', text: localizeAgentText(text), tags })
 }
 
+/** 开启一轮新对话：归档后端会话 + 清空本地现场；锅仔的长期口味记忆不受影响。 */
+async function startNewConversation() {
+  if (agentBusy.value || loading.value)
+    return
+  try {
+    await resetAgentConversation()
+  }
+  catch {
+    // 归档失败不阻塞：本地换新 conversationId 后，下一轮会落成新会话行
+  }
+  agentConversationId = newConversationId()
+  messages.value = []
+  messageId = 0
+  agentTurn.value = undefined
+  agentState.value = {}
+  quickReplies.value = []
+  rating.value = ''
+  otherInput.value = false
+  completed.value = false
+  generatedPlanId.value = undefined
+  persistConversation()
+  addAgent(agentGreeting.value, memoryTags.value)
+  await scrollToLatest()
+}
+
+/** 对话过长被判停时，弹窗引导用户一键开新对话。 */
+async function offerNewConversation() {
+  const confirmed = await new Promise<boolean>((resolve) => {
+    uni.showModal({
+      title: '这轮对话太长啦',
+      content: '开启一轮新对话吧，锅仔记住的口味偏好还会一直在。',
+      confirmText: '新对话',
+      cancelText: '暂不',
+      success: res => resolve(Boolean(res.confirm)),
+      fail: () => resolve(false),
+    })
+  })
+  if (confirmed)
+    await startNewConversation()
+}
+
 /** 模型偶尔会把内部枚举原样带进回复，用户界面统一显示中文。 */
 function localizeAgentText(text: string) {
   return text
@@ -340,6 +381,11 @@ async function runAgent(message: string, echo = false, echoLabel = message, webS
     stopThinking()
     stopTyping()
     const message = String((error as any)?.message || '')
+    if (message.includes('重新开始') || message.includes('过长')) {
+      // 后端判定本轮对话过长：主动引导开启新对话，而不是让用户卡死
+      await offerNewConversation()
+      return
+    }
     toastError(error, message.includes('签到') || message.includes('用完') ? '今日签到赠送的对话已用完，明天再来' : '锅仔刚刚走神了，请再说一次')
   }
   finally {
@@ -894,6 +940,9 @@ onShareAppMessage(() => {
         <view class="archive-link" role="button" aria-label="查看备餐档案" @click="router.push({ name: 'weekly-plan' })">
           查看以前的菜单 ›
         </view>
+        <view class="archive-link archive-link--new" role="button" aria-label="开启新对话" @click="startNewConversation">
+          ✳ 开启新对话
+        </view>
       </view>
 
       <view v-else class="simple-plan">
@@ -979,6 +1028,7 @@ onShareAppMessage(() => {
 .composer__web.is-locked { color: #B9A99C; }
 .composer__web-text { line-height: 1; }
 .composer__web-lock { padding: 1rpx 8rpx; border-radius: 16rpx; background: var(--mrc-accent-soft); color: var(--mrc-accent); font-size: 15rpx; }.composer__send { width: 104rpx; min-height: 70rpx; padding: 0 14rpx !important; border-radius: 20rpx !important; font-size: 21rpx !important; }.archive-link { display: flex; min-height: 82rpx; align-items: center; justify-content: center; color: var(--mrc-text-sub); font-size: 21rpx; }
+.archive-link--new { margin-top: -8rpx; color: var(--mrc-accent); }
 .other-input { display: flex; align-items: center; gap: 12rpx; margin-top: 16rpx; padding: 10rpx 12rpx 10rpx 20rpx; border: 2rpx solid var(--mrc-border); border-radius: 24rpx; background: var(--mrc-surface-sun); box-sizing: border-box; }.other-input__field { min-width: 0; flex: 1; color: var(--mrc-text-deep); font-size: 23rpx; line-height: 1.35; }.other-input__field[disabled] { opacity: .58; }.other-input__send { width: 104rpx; min-height: 66rpx; padding: 0 14rpx !important; border-radius: 18rpx !important; font-size: 21rpx !important; }
 .conversation-rating { display: flex; flex-direction: column; gap: 16rpx; margin-top: 18rpx; padding-top: 22rpx; border-top: 2rpx solid var(--mrc-border-light); color: var(--mrc-text-deep); font-size: 25rpx; font-weight: 750; }
 .tool-panel { margin-top: 8rpx; padding: 26rpx; }.tool-panel__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24rpx; color: var(--mrc-text-deep); font-size: 28rpx; font-weight: 800; }.tool-panel__head text:last-child { padding: 7rpx 13rpx; border-radius: 999rpx; background: var(--mrc-accent-soft); color: var(--mrc-accent); font-size: 20rpx; }.tool-step { display: flex; align-items: center; gap: 18rpx; min-height: 98rpx; opacity: .46; }.tool-step--active, .tool-step--done { opacity: 1; }.tool-step__state { display: flex; width: 54rpx; height: 54rpx; flex: 0 0 auto; align-items: center; justify-content: center; border: 2rpx solid var(--mrc-border); border-radius: 50%; color: var(--mrc-text-sub); background: var(--mrc-surface); font-size: 20rpx; }.tool-step--done .tool-step__state { border-color: var(--mrc-primary-deep); background: var(--mrc-primary-grad); color: #fff; box-shadow: 0 6rpx 14rpx rgba(239, 90, 60, .2); }.tool-step--active .tool-step__state { border-color: var(--mrc-accent); background: var(--mrc-surface-peach); box-shadow: 0 0 0 6rpx var(--mrc-accent-soft); }.tool-step__pulse { width: 15rpx; height: 15rpx; border-radius: 50%; background: var(--mrc-accent); animation: pulse 1s ease-in-out infinite; }.tool-step > view:last-child { display: flex; min-width: 0; flex-direction: column; gap: 6rpx; }.tool-step__title { color: var(--mrc-text-deep); font-size: 24rpx; font-weight: 750; }.tool-step__copy { color: var(--mrc-text-sub); font-size: 20rpx; }.tool-step + .tool-step { border-top: 2rpx solid var(--mrc-border-light); }

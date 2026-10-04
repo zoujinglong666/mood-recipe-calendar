@@ -32,6 +32,16 @@ public class AgentConversationService {
                 .map(this::snapshot);
     }
 
+    /** 归档该用户当前 ACTIVE 会话（「开启新对话」用）：不归档的话刷新后又会恢复旧会话。 */
+    @Transactional
+    public void archiveActive(String openid) {
+        conversations.findFirstByOpenidAndStatusOrderByUpdatedAtDesc(openid, "ACTIVE")
+                .ifPresent(conversation -> {
+                    conversation.setStatus("ARCHIVED");
+                    conversations.save(conversation);
+                });
+    }
+
     @Transactional
     public DialogueState.AgentState state(String openid, String conversationId,
                                           DialogueState.AgentState clientState) {

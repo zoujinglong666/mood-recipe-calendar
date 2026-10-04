@@ -239,6 +239,7 @@ declare global {
   const requestWechatVirtualPayment: typeof import('./api/virtualCommerce')['requestWechatVirtualPayment']
   const requestWeeklyPlanCompletionNotice: typeof import('./api/weeklyPlans')['requestWeeklyPlanCompletionNotice']
   const requireMember: typeof import('./utils/memberGate')['requireMember']
+  const resetAgentConversation: typeof import('./api/weeklyPlans')['resetAgentConversation']
   const resolveAssetUrl: typeof import('./api/request')['resolveAssetUrl']
   const resolveComponent: typeof import('vue')['resolveComponent']
   const resolveRef: typeof import('@vueuse/core')['resolveRef']
@@ -727,6 +728,7 @@ declare module 'vue' {
     readonly requestWechatVirtualPayment: UnwrapRef<typeof import('./api/virtualCommerce')['requestWechatVirtualPayment']>
     readonly requestWeeklyPlanCompletionNotice: UnwrapRef<typeof import('./api/weeklyPlans')['requestWeeklyPlanCompletionNotice']>
     readonly requireMember: UnwrapRef<typeof import('./utils/memberGate')['requireMember']>
+    readonly resetAgentConversation: UnwrapRef<typeof import('./api/weeklyPlans')['resetAgentConversation']>
     readonly resolveAssetUrl: UnwrapRef<typeof import('./api/request')['resolveAssetUrl']>
     readonly resolveComponent: UnwrapRef<typeof import('vue')['resolveComponent']>
     readonly resolveRef: UnwrapRef<typeof import('@vueuse/core')['resolveRef']>

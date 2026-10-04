@@ -36,6 +36,11 @@ public class WeeklyMealPlanController {
     @GetMapping("/agent-conversations/current") public ApiResponse<?> currentAgentConversation(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
         return ApiResponse.ok(conversations.latest(openid).orElse(null));
     }
+    /** 开启新对话：归档当前 ACTIVE 会话；前端清空本地后从新问候开始，历史对话不再被自动恢复。 */
+    @PostMapping("/agent-conversations/reset") public ApiResponse<?> resetAgentConversation(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
+        conversations.archiveActive(openid);
+        return ApiResponse.ok(true);
+    }
     @PostMapping("/generate") public ApiResponse<?> generate(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @RequestBody WeeklyMealPlanService.GenerateRequest request) {
         if (request == null || request.people() < 1) return ApiResponse.error(400, "请填写用餐人数");
         if (!contentSafety.allowsText(openid, request.conversationNotes())) return ApiResponse.error(400, "文字未通过安全检查");

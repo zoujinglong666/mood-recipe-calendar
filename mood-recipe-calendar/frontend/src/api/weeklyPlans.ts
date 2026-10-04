@@ -80,6 +80,10 @@ export function fetchAgentConversationQuota() {
 export function fetchCurrentAgentConversation() {
   return get<MealAgentConversationSnapshot | null>('/weekly-plans/agent-conversations/current')
 }
+/** 开启新对话：后端归档当前会话，前端清空本地记录后从新问候开始。 */
+export function resetAgentConversation() {
+  return post<boolean>('/weekly-plans/agent-conversations/reset')
+}
 export function generateWeeklyPlan(data: { people: number, days: number, cookingDays: number[], healthGoal: string, sendNotification: boolean, dishesPerDay: number, budget?: string, conversationNotes?: string, requestId?: string }) {
   return post<WeeklyPlan>('/weekly-plans/generate', { ...data, requestId: data.requestId || requestId('plan') })
 }

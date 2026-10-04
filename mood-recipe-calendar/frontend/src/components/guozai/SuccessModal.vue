@@ -207,8 +207,9 @@ watch(() => props.visible, (v) => {
 }
 .gz-modal__content { width: 100%; margin-bottom: 28rpx; }
 .gz-modal__actions { width: 100%; display: flex; gap: var(--mrc-space-sm); }
-.gz-modal__actions--double .gz-modal__btn { flex: 1; min-width: 0; }
 .gz-modal__btn {
+  flex: 1 1 0;
+  min-width: 0;
   height: 96rpx;
   font-size: var(--mrc-fs-body);
   letter-spacing: 0;
