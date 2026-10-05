@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 
 /** 独立于今日单菜的健康成年人一日三餐计划入口。 */
 @RestController
@@ -29,7 +30,7 @@ public class DailyMealPlanController {
             LocalDate target = date == null || date.isBlank() ? AppClock.today() : LocalDate.parse(date);
             return plans.plan(openid, target).map(ApiResponse::ok)
                     .orElseGet(() -> ApiResponse.error(422, "暂时无法生成合格的三餐计划，请调整忌口或稍后再试"));
-        } catch (Exception e) {
+        } catch (DateTimeParseException e) {
             return ApiResponse.error(400, "日期格式应为 YYYY-MM-DD");
         }
     }
@@ -41,6 +42,6 @@ public class DailyMealPlanController {
             LocalDate target = date == null || date.isBlank() ? AppClock.today() : LocalDate.parse(date);
             return plans.replace(openid, target, mealIndex).map(ApiResponse::ok)
                     .orElseGet(() -> ApiResponse.error(422, "暂时没有符合条件的替换菜，请稍后再试"));
-        } catch (Exception e) { return ApiResponse.error(400, "日期格式应为 YYYY-MM-DD"); }
+        } catch (DateTimeParseException e) { return ApiResponse.error(400, "日期格式应为 YYYY-MM-DD"); }
     }
 }

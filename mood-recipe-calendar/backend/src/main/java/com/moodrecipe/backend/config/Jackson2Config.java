@@ -1,5 +1,7 @@
 package com.moodrecipe.backend.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -12,7 +14,12 @@ import org.springframework.context.annotation.Configuration;
 public class Jackson2Config {
 
     @Bean
-    public com.fasterxml.jackson.databind.ObjectMapper jackson2ObjectMapper() {
-        return new com.fasterxml.jackson.databind.ObjectMapper();
+    public ObjectMapper jackson2ObjectMapper() {
+        ObjectMapper mapper = new ObjectMapper();
+        // 注册 JavaTime 模块：否则序列化 Recipe.createdAt(LocalDateTime) / PlanView.date(LocalDate) 等
+        // Java 8 时间类型会抛 InvalidDefinitionException，导致 daily-meal-plan 生成静默失败、接口 422/500。
+        // 注册后日期序列化为 ISO-8601 字符串（如 2026-10-05），前端拼接也更友好。
+        mapper.registerModule(new JavaTimeModule());
+        return mapper;
     }
 }

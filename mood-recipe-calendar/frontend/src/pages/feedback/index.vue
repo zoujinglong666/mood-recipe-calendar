@@ -23,8 +23,12 @@ const statusLabels: Record<string, string> = {
   CLOSED: '已关闭',
 }
 
+const followOptions = ['邮箱', '其他方式']
+
 const category = ref<FeedbackCategory>('功能建议')
 const content = ref('')
+const wantFollow = ref(false)
+const followChannel = ref(followOptions[0])
 const contact = ref('')
 const sending = ref(false)
 const history = ref<Feedback[]>([])
@@ -62,10 +66,11 @@ async function submit() {
     await submitFeedback({
       category: category.value,
       content: content.value.trim(),
-      contact: contact.value.trim() || undefined,
+      contact: wantFollow.value ? (contact.value.trim() || undefined) : undefined,
     })
     content.value = ''
     contact.value = ''
+    followChannel.value = followOptions[0]
     await loadHistory()
     toastSuccess('锅仔收到啦，谢谢你')
   }
@@ -107,6 +112,15 @@ onShow(loadHistory)
         <view class="stage-glow" />
         <image :src="STATIC_BASE_URL + '/static/guozai/action_08_peek.png'" mode="aspectFit" />
       </view>
+    </view>
+
+    <view class="privacy-banner">
+      <text class="privacy-banner-title">
+        我们只收建议，不收隐私
+      </text>
+      <text class="privacy-banner-desc">
+        反馈全程无需填写任何账号信息，你写下的内容仅用于产品改进。
+      </text>
     </view>
 
     <view class="feedback-card">
@@ -178,21 +192,35 @@ onShow(loadHistory)
           </text>
           <view>
             <text class="section-title">
-              方便联系你吗？
+              想跟进这个问题吗？
             </text>
             <text class="section-desc">
-              选填，仅用于反馈沟通
+              选填。只在下方「我的反馈」里同步进度
             </text>
           </view>
         </view>
-        <input
-          v-model="contact"
-          :maxlength="100"
-          placeholder="微信号或邮箱"
-          placeholder-class="input-placeholder"
-        >
+        <view class="follow-switch" :class="{ active: wantFollow }" @click="wantFollow = !wantFollow">
+          <view class="follow-switch-mark" />
+          <text>{{ wantFollow ? '开启跟进，我会回来看' : '暂时不用，先记下来就好' }}</text>
+        </view>
+        <view v-if="wantFollow" class="follow-panel">
+          <view
+            v-for="opt in followOptions"
+            :key="opt"
+            class="follow-option" :class="{ active: followChannel === opt }"
+            @click="followChannel = opt"
+          >
+            <text>{{ opt }}</text>
+          </view>
+          <input
+            v-model="contact"
+            :maxlength="100"
+            :placeholder="followChannel === '邮箱' ? '留一个常用的邮箱' : '留一个能联系到你的方式'"
+            placeholder-class="input-placeholder"
+          >
+        </view>
         <text class="privacy-hint">
-          请勿填写身份证、银行卡等敏感信息
+          无需填写任何账号信息，仅用于产品改进
         </text>
       </view>
 
@@ -378,6 +406,93 @@ onShow(loadHistory)
   box-shadow: 0 12rpx 38rpx rgba(93, 59, 38, 0.06);
 }
 
+.privacy-banner {
+  margin-bottom: 22rpx;
+  padding: 22rpx 24rpx;
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 24rpx;
+  background: var(--mrc-surface-peach);
+}
+
+.privacy-banner-title,
+.privacy-banner-desc {
+  display: block;
+}
+
+.privacy-banner-title {
+  color: var(--mrc-text-deep);
+  font-size: 25rpx;
+  font-weight: 800;
+}
+
+.privacy-banner-desc {
+  margin-top: 8rpx;
+  color: var(--mrc-text-sub);
+  font-size: 21rpx;
+  line-height: 1.55;
+}
+
+.follow-switch {
+  display: flex;
+  align-items: center;
+  min-height: 84rpx;
+  padding: 0 20rpx;
+  box-sizing: border-box;
+  border: 2rpx solid transparent;
+  border-radius: 22rpx;
+  background: var(--mrc-bg);
+  color: var(--mrc-text-sub);
+  font-size: 24rpx;
+  transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
+}
+
+.follow-switch.active {
+  border-color: var(--mrc-accent);
+  background: var(--mrc-accent-soft);
+  color: var(--mrc-accent);
+  font-weight: 800;
+}
+
+.follow-switch-mark {
+  width: 14rpx;
+  height: 14rpx;
+  margin-right: 14rpx;
+  box-sizing: border-box;
+  border: 3rpx solid var(--mrc-border);
+  border-radius: 50%;
+  background: var(--mrc-surface);
+}
+
+.follow-switch.active .follow-switch-mark {
+  border-color: var(--mrc-surface);
+  background: var(--mrc-accent);
+  box-shadow: 0 0 0 3rpx var(--mrc-accent);
+}
+
+.follow-panel {
+  margin-top: 16rpx;
+}
+
+.follow-option {
+  display: inline-flex;
+  align-items: center;
+  min-height: 62rpx;
+  margin: 0 12rpx 14rpx 0;
+  padding: 0 22rpx;
+  border: 2rpx solid transparent;
+  border-radius: 999rpx;
+  background: var(--mrc-bg);
+  color: var(--mrc-text-sub);
+  font-size: 23rpx;
+}
+
+.follow-option.active {
+  border-color: var(--mrc-accent);
+  background: var(--mrc-accent-soft);
+  color: var(--mrc-accent);
+  font-weight: 800;
+}
+
 .feedback-card {
   padding: 32rpx 28rpx 28rpx;
 }
@@ -521,7 +636,10 @@ input {
 
 .privacy-hint {
   display: block;
-  margin-top: 12rpx;
+  margin-top: 14rpx;
+  padding-left: 18rpx;
+  box-sizing: border-box;
+  border-left: 4rpx solid var(--mrc-border);
   color: var(--mrc-text-light);
   font-size: 20rpx;
   line-height: 1.5;

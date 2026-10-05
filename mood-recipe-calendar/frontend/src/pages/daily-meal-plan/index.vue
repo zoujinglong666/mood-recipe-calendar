@@ -4,6 +4,8 @@ import { ref } from 'vue'
 import { fetchDailyMealPlan, replaceDailyMealPlanMeal } from '@/api/dailyMealPlan'
 import { STATIC_BASE_URL } from '@/utils/assets'
 import { toastError } from '@/utils/toast'
+import ErrorState from '@/components/guozai/ErrorState.vue'
+import LoadingState from '@/components/guozai/LoadingState.vue'
 
 definePage({
   name: 'daily-meal-plan',
@@ -15,16 +17,13 @@ definePage({
 })
 
 const router = useRouter()
-const loading = ref(false)
+const loading = ref(true)
 const plan = ref<DailyMealPlan>()
 const empty = ref(false)
 const expanded = ref(-1)
 const replacing = ref(-1)
 
 async function load() {
-  if (loading.value)
-    return
-
   loading.value = true
   try {
     plan.value = await fetchDailyMealPlan()
