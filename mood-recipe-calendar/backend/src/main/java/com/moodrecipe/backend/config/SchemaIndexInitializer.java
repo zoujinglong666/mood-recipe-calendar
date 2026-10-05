@@ -29,6 +29,10 @@ public class SchemaIndexInitializer implements ApplicationRunner {
         ensure("idx_ur_openid_created", "user_records", "openid, created_at");
         ensure("idx_amf_openid_status_updated", "agent_memory_facts", "openid, status, updated_at");
         ensure("idx_ac_openid_status_updated", "agent_conversations", "openid, status, updated_at");
+        // 每日活跃统计与留存查询按日期过滤
+        ensure("idx_dau_active_date", "daily_active_users", "active_date");
+        // 新增用户统计按 users.created_at 的日期过滤
+        ensure("idx_users_created_at", "users", "created_at");
     }
 
     private void ensure(String index, String table, String columns) {

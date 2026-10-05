@@ -69,11 +69,14 @@ public class WxPusherNotifier {
         CompletableFuture.runAsync(() -> {
             // 使用专用线程池 notifyExecutor，避免阻塞公共 ForkJoinPool
             try {
-                // 去掉会破坏 URL 的换行/制表符，统一成单行
+                // 去掉会破坏 URL 的换行/制表符，统一成单行。
+                // 斜杠必须替换成全角'／'：路径段里的 %2F 会让 WxPusher 路由解析失败返回 400，
+                // 实测 "a / b" 必失败、"a ／ b" 正常（方括号/中文/空格均无影响）。
                 String safe = (content == null ? "" : content)
                         .replace("\r", " ")
-                        .replace("\n", " / ")
-                        .replace("\t", " ");
+                        .replace("\n", " ")
+                        .replace("\t", " ")
+                        .replace("/", "／");
                 // 手动 URL 编码一次；把空格的 '+' 换成 '%20'，避免路径段里 '+' 不被还原
                 String encoded = URLEncoder.encode(safe, StandardCharsets.UTF_8).replace("+", "%20");
                 // 用 URI.create 构造，交给 RestTemplate 直接发送，避免 Spring 对 '%' 二次编码导致双重编码乱码
