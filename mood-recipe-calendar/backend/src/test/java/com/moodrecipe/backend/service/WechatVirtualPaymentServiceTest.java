@@ -2,6 +2,7 @@ package com.moodrecipe.backend.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moodrecipe.backend.entity.VirtualOrder;
+import com.moodrecipe.backend.service.WxPusherNotifier;
 import com.moodrecipe.backend.repository.UserRepository;
 import com.moodrecipe.backend.repository.VirtualOrderRepository;
 import com.moodrecipe.backend.repository.VirtualProductRepository;
@@ -16,7 +17,8 @@ class WechatVirtualPaymentServiceTest {
     private final ObjectMapper json = new ObjectMapper();
     private final WechatVirtualPaymentService service = new WechatVirtualPaymentService(
             mock(VirtualOrderRepository.class), mock(VirtualProductRepository.class), mock(UserRepository.class),
-            mock(SessionKeyCipher.class), json, mock(VirtualCommerceService.class), mock(OperationalEventService.class));
+            mock(SessionKeyCipher.class), json, mock(VirtualCommerceService.class), mock(OperationalEventService.class),
+            mock(WxPusherNotifier.class));
 
     @Test
     void recognizesPaidIosOrderAndRejectsMismatchedAmount() throws Exception {

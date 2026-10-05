@@ -80,8 +80,13 @@ public class DailyMetricsService {
         return value == null ? 0 : value;
     }
 
-    private long countTotalUsers() {
-        Long value = jdbc.queryForObject("select count(*) from users", Long.class);
-        return value == null ? 0 : value;
+    /** 累计注册用户数，登录通知里用来体现增长。 */
+    public long countTotalUsers() {
+        try {
+            Long value = jdbc.queryForObject("select count(*) from users", Long.class);
+            return value == null ? 0 : value;
+        } catch (Exception e) {
+            return 0;
+        }
     }
 }

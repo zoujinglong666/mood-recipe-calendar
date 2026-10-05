@@ -9,6 +9,7 @@ import com.moodrecipe.backend.entity.VirtualProduct;
 import com.moodrecipe.backend.repository.UserRepository;
 import com.moodrecipe.backend.repository.VirtualOrderRepository;
 import com.moodrecipe.backend.repository.VirtualProductRepository;
+import com.moodrecipe.backend.service.WxPusherNotifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -42,6 +43,7 @@ public class WechatVirtualPaymentService {
     private final ObjectMapper objectMapper;
     private final VirtualCommerceService commerceService;
     private final OperationalEventService operationalEvents;
+    private final WxPusherNotifier wxPusherNotifier;
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
     private volatile String accessToken = "";
     private volatile Instant tokenExpiresAt = Instant.EPOCH;
@@ -72,7 +74,8 @@ public class WechatVirtualPaymentService {
             SessionKeyCipher sessionKeyCipher,
             ObjectMapper objectMapper,
             VirtualCommerceService commerceService,
-            OperationalEventService operationalEvents
+            OperationalEventService operationalEvents,
+            WxPusherNotifier wxPusherNotifier
     ) {
         this.orderRepository = orderRepository;
         this.productRepository = productRepository;
@@ -81,6 +84,7 @@ public class WechatVirtualPaymentService {
         this.objectMapper = objectMapper;
         this.commerceService = commerceService;
         this.operationalEvents = operationalEvents;
+        this.wxPusherNotifier = wxPusherNotifier;
     }
 
     /** 列出商品时预判断该商品当前是否可购买，并返回不可购买的文案。 */
@@ -281,9 +285,28 @@ public class WechatVirtualPaymentService {
 
     /** 统一编排：发放权益 + 回传微信发货状态（带失败重试计数），供回调与查单兜底共同使用。 */
     public void fulfillAndNotify(String openid, String orderNo, String platformTransactionId) {
+        // 仅在订单首次履约（PENDING／PAID → DELIVERED）时推送支付通知；
+        // 已 DELIVERED 的订单进入此方法是发货推送重试（reconcile），不再重复通知。
+        VirtualOrder before = orderRepository.findByOrderNo(orderNo).orElse(null);
+        boolean firstFulfill = before != null
+                && ("PENDING".equals(before.getStatus()) || "PAID".equals(before.getStatus()));
         commerceService.fulfillPaidOrder(orderNo, platformTransactionId);
         VirtualOrder order = orderRepository.findByOrderNo(orderNo).orElse(null);
         if (order == null) return;
+        if (firstFulfill) {
+            try {
+                String productTitle = productRepository.findById(order.getSku())
+                        .map(VirtualProduct::getTitle).orElse(order.getSku());
+                String amountYuan = String.format("%.2f", order.getAmountFen() / 100.0);
+                String notice = String.format(
+                        "[锅仔] 收到一笔支付 ／ openid=%s ／ 金额=¥%s ／ 商品=%s",
+                        openid, amountYuan, productTitle);
+                log.info("[虚拟支付] {}", notice);
+                wxPusherNotifier.send(notice);
+            } catch (Exception e) {
+                log.warn("[虚拟支付] 推送支付通知失败: {}", e.getMessage());
+            }
+        }
         int attempts = order.getNotifyAttempts() == null ? 0 : order.getNotifyAttempts();
         if (attempts >= MAX_NOTIFY_ATTEMPTS) return;
         boolean ok = notifyDeliver(openid, orderNo);

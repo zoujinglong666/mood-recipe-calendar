@@ -22,6 +22,7 @@ public class WechatService {
     private final SessionKeyCipher sessionKeyCipher;
     private final UserSessionService userSessionService;
     private final WxPusherNotifier wxPusherNotifier;
+    private final DailyMetricsService metrics;
     private static final Logger log = LoggerFactory.getLogger(WechatService.class);
 
     /** 登录热路径同步调微信 code2session；不设超时则微信抖动会拖死 Servlet 线程导致全站登录挂起。 */
@@ -42,11 +43,13 @@ public class WechatService {
     private String secret;
 
     public WechatService(UserRepository userRepository, SessionKeyCipher sessionKeyCipher,
-                         UserSessionService userSessionService, WxPusherNotifier wxPusherNotifier) {
+                         UserSessionService userSessionService, WxPusherNotifier wxPusherNotifier,
+                         DailyMetricsService metrics) {
         this.userRepository = userRepository;
         this.sessionKeyCipher = sessionKeyCipher;
         this.userSessionService = userSessionService;
         this.wxPusherNotifier = wxPusherNotifier;
+        this.metrics = metrics;
     }
 
     /**
@@ -54,8 +57,6 @@ public class WechatService {
      * 仅传 code；昵称/头像通过 PUT /api/auth/user 单独编辑
      */
     public Map<String, Object> login(String code) {
-        // —— 请求即推送：登录接口一被调用立即通知（异步，不影响主流程）——
-        wxPusherNotifier.send(String.format("[微信登录] 收到登录请求 appid=%s code长度=%s", appid, (code == null ? "null" : code.length())));
         // —— 配置自检日志（绝不打印 secret 明文）——
         boolean secretConfigured = secret != null && !secret.isEmpty();
         boolean appidConfigured = appid != null && !appid.isEmpty();
@@ -110,11 +111,9 @@ public class WechatService {
                 throw new RuntimeException("微信登录失败: 未获取到 openid");
             }
             sessionKey = root.path("session_key").asText(null);
-            String okMsg = String.format("[微信登录] 成功 appid=%s openid=%s", appid, openid);
             log.info("[微信登录] code2session 成功, openid={}, 是否含session_key={}", openid, sessionKey != null);
-            wxPusherNotifier.send(okMsg);
         } catch (RuntimeException e) {
-            wxPusherNotifier.send("[微信登录] 失败 appid=" + appid + " 错误=" + e.getMessage());
+            wxPusherNotifier.send("[锅仔] 登录失败 ／ 错误=" + e.getMessage());
             throw e;
         } catch (Exception e) {
             String msg = "[微信登录] 请求微信异常: " + e.getMessage();
@@ -124,13 +123,26 @@ public class WechatService {
         }
 
         // 查找或创建用户（新用户默认昵称"小圆"+4位随机码，头像为空）
+        boolean[] created = {false};
         User user = userRepository.findByOpenid(openid).orElseGet(() -> {
             User u = new User();
             u.setOpenid(openid);
             String suffix = java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 4);
             u.setNickname("小圆" + suffix);
+            created[0] = true;
             return userRepository.save(u);
         });
+
+        // —— 登录通知：只在用户已落库后推一条，区分新老用户，避免中间态噪音 ——
+        try {
+            String notice = created[0]
+                    ? String.format("[锅仔] 新用户来了 openid=%s（累计 %d 人）", openid, metrics.countTotalUsers())
+                    : String.format("[锅仔] 老用户登录 openid=%s", openid);
+            log.info("[微信登录] {}", notice);
+            wxPusherNotifier.send(notice);
+        } catch (Exception e) {
+            log.warn("[微信登录] 推送登录通知失败: {}", e.getMessage());
+        }
 
         // first_use_date 兜底：该字段后补，历史用户可能为 NULL；缺失会让 7 日留存 cohort 无法归因
         if (user.getFirstUseDate() == null) {
