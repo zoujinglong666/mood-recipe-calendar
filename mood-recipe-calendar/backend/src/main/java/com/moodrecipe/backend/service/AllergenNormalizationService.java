@@ -11,6 +11,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
@@ -92,7 +93,12 @@ public class AllergenNormalizationService {
         return members == null ? Stream.empty() : members.stream();
     }
 
+    private final Map<String, List<String>> modelCache = new ConcurrentHashMap<>();
+
     private List<String> modelTerms(String avoidIngredients, String allergens) {
+        String key = cacheKey(avoidIngredients, allergens);
+        List<String> cached = modelCache.get(key);
+        if (cached != null) return cached;
         String prompt = """
                 将用户明确写下的忌口与食物过敏原转换成菜谱文本可直接匹配的食材词和同义词。
                 只返回 JSON：{\"terms\":[\"食材词\"]}。不得给医疗建议、不得增加用户未提及的过敏原。
@@ -112,10 +118,17 @@ public class AllergenNormalizationService {
                 if (validTerm(value)) normalized.add(value);
                 if (normalized.size() == MAX_TERMS) break;
             }
-            return List.copyOf(normalized);
+            List<String> out = List.copyOf(normalized);
+            // 只在成功拿到结果时缓存，避免把 429 的空结果永久污染缓存
+            if (!out.isEmpty()) modelCache.put(key, out);
+            return out;
         } catch (Exception ignored) {
             return List.of();
         }
+    }
+
+    private String cacheKey(String avoidIngredients, String allergens) {
+        return safe(avoidIngredients) + " " + safe(allergens);
     }
 
     private List<String> split(String value) {

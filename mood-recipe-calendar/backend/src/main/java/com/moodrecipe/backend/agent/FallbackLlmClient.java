@@ -25,7 +25,12 @@ public class FallbackLlmClient implements LlmClient {
 
     @Override public LlmResult complete(LlmRequest request) {
         LlmResult result = primary.complete(request);
-        return result.ok() || !result.retryable() ? result : fallback.complete(request);
+        // 限流时主/备共用同一个 agnes key，回退只会多烧额度且必再 429，直接返回；
+        // 只有其它可重试错误（如某模型不支持）才尝试备用模型。
+        if (result.ok() || result.failure() == LlmResult.Failure.RATE_LIMITED) {
+            return result;
+        }
+        return result.retryable() ? fallback.complete(request) : result;
     }
     @Override public boolean isConfigured() { return primary.isConfigured() || fallback.isConfigured(); }
     @Override public String model() { return primary.model() + " -> " + fallback.model(); }

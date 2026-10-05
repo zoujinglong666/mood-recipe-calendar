@@ -12,6 +12,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.concurrent.Semaphore;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,6 +45,12 @@ public class AgnesLlmClient implements LlmClient {
     private final int maxAttempts;
     private final boolean toolCallingEnabled;
     private final AtomicBoolean toolsSupported;
+
+    /**
+     * 全局并发闸：同一 JVM 内所有 AgnesLlmClient 实例（主/备）共享，限制同时打向 agnes 的请求数。
+     * 防止批量任务（如一批忌口归一化）瞬间并发撞 RPM 限流。permits 可按需调整。
+     */
+    private static final Semaphore CONCURRENCY = new Semaphore(3);
 
     public AgnesLlmClient(ObjectMapper json,
                           @Value("${ai.recipe.api-key:}") String apiKey,
@@ -92,8 +99,15 @@ public class AgnesLlmClient implements LlmClient {
         int attempts = 0;
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             attempts = attempt;
+            HttpResponse<String> response;
             try {
-                HttpResponse<String> response = send(request, messages, useNativeTools, useJsonMode);
+                // 并发闸：限制同时打向 agnes 的请求数，退避等待期间不占闸，避免把限流放大成雪崩。
+                CONCURRENCY.acquire();
+                try {
+                    response = send(request, messages, useNativeTools, useJsonMode);
+                } finally {
+                    CONCURRENCY.release();
+                }
                 int status = response.statusCode();
                 if (status < 200 || status >= 300) {
                     failure = classify(status);
@@ -107,9 +121,10 @@ public class AgnesLlmClient implements LlmClient {
                         continue;
                     }
                     if (retryable(failure)) {
-                        log.warn("LLM 返回可重试状态 purpose={} status={} attempt={} traceId={}",
-                                request.purpose(), status, attempt, traceId);
-                        backoff(attempt);
+                        long retryAfter = status == 429 ? retryAfterSeconds(response) : 0L;
+                        log.warn("LLM 返回可重试状态 purpose={} status={} attempt={} retryAfter={}s traceId={}",
+                                request.purpose(), status, attempt, retryAfter, traceId);
+                        backoff(attempt, retryAfter);
                         continue;
                     }
                     break;
@@ -117,7 +132,7 @@ public class AgnesLlmClient implements LlmClient {
                 LlmResponse parsed = parse(response.body());
                 if (parsed.content().isBlank() && !parsed.hasToolCalls()) {
                     failure = LlmResult.Failure.EMPTY_OUTPUT;
-                    backoff(attempt);
+                    backoff(attempt, 0L);
                     continue;
                 }
                 if (useJsonMode && !looksLikeJson(parsed.content())) {
@@ -134,20 +149,16 @@ public class AgnesLlmClient implements LlmClient {
                         request.purpose(), attempt, System.currentTimeMillis() - start,
                         parsed.usage().totalTokens(), traceId);
                 return LlmResult.ok(parsed, attempts, System.currentTimeMillis() - start);
-            } catch (java.net.http.HttpTimeoutException ex) {
-                failure = LlmResult.Failure.TIMEOUT;
-                log.warn("LLM 调用超时 purpose={} tier={} attempt={} traceId={}",
-                        request.purpose(), request.tier(), attempt, traceId);
-                break;
-            } catch (InterruptedException ex) {
+            } catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
                 failure = LlmResult.Failure.TIMEOUT;
+                log.warn("LLM 调用被中断 purpose={} attempt={} traceId={}", request.purpose(), attempt, traceId);
                 break;
             } catch (Exception ex) {
                 failure = LlmResult.Failure.SERVER_ERROR;
                 log.warn("LLM 调用异常 purpose={} attempt={} traceId={} detail={}",
                         request.purpose(), attempt, traceId, ex.toString());
-                backoff(attempt);
+                backoff(attempt, 0L);
             }
         }
         log.warn("LLM 调用失败 purpose={} failure={} attempts={} traceId={}",
@@ -259,11 +270,39 @@ public class AgnesLlmClient implements LlmClient {
                 || failure == LlmResult.Failure.TIMEOUT;
     }
 
-    private void backoff(int attempt) {
+    /**
+     * 退避等待。优先尊重 429 响应头里的 Retry-After（免费层常需等待数秒），
+     * 否则按指数退避（1s, 2s, 4s...）。单次上限 8s 并叠加抖动，避免大量并发请求同步重试放大限流。
+     */
+    private void backoff(int attempt, long retryAfterSeconds) {
+        long waitMs;
+        if (retryAfterSeconds > 0) {
+            waitMs = retryAfterSeconds * 1000L;
+        } else {
+            waitMs = (long) (Math.pow(2, attempt - 1) * 1000L);
+        }
+        waitMs = Math.min(waitMs, 8_000L) + (long) (Math.random() * 400L);
         try {
-            Thread.sleep(Math.min(1_200L, 250L * attempt));
+            Thread.sleep(waitMs);
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
+        }
+    }
+
+    /** 读取 429 响应的 Retry-After 头（秒）。解析失败返回 0，交由指数退避兜底。 */
+    private long retryAfterSeconds(HttpResponse<String> response) {
+        try {
+            return response.headers().firstValue("Retry-After")
+                    .map(v -> {
+                        try {
+                            return Long.parseLong(v.trim());
+                        } catch (Exception ignored) {
+                            return 0L;
+                        }
+                    })
+                    .orElse(0L);
+        } catch (Exception ignored) {
+            return 0L;
         }
     }
 }
