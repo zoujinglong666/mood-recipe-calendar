@@ -20,6 +20,8 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.moodrecipe.backend.service.WxPusherNotifier;
+
 /**
  * 全局异常处理器：统一错误响应格式，避免堆栈信息泄露给前端。
  */
@@ -27,6 +29,11 @@ import org.slf4j.LoggerFactory;
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private final WxPusherNotifier wxPusherNotifier;
+
+    public GlobalExceptionHandler(WxPusherNotifier wxPusherNotifier) {
+        this.wxPusherNotifier = wxPusherNotifier;
+    }
 
     /** 参数校验失败（@Valid / @Validated） */
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -98,6 +105,9 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleAll(Exception e, HttpServletRequest request) {
         // 不向前端泄露堆栈，但用日志框架完整记录（带请求路径），方便线上定位；不再用 printStackTrace 丢到 stderr 难检索
         log.error("[uncaught-500] {} {} -> {}: {}", request.getMethod(), request.getRequestURI(), e.getClass().getName(), e.getMessage(), e);
+        // 关键服务器错误推送到微信，便于第一时间感知（异步、失败不影响主流程）
+        wxPusherNotifier.send(String.format("[锅仔后端 500 告警] %s %s%n%s: %s",
+                request.getMethod(), request.getRequestURI(), e.getClass().getSimpleName(), e.getMessage()));
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
             .body(ApiResponse.error(500, "服务器内部错误，请稍后重试"));
     }
