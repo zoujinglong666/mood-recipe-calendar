@@ -66,7 +66,7 @@ public class AgentLoop {
 
         for (int step = 1; step <= maxSteps; step++) {
             LlmRequest request = new LlmRequest(spec.purpose(), AgentPrompts.system(), List.copyOf(messages),
-                    spec.temperature(), spec.maxTokens(), spec.tier(), true, specs);
+                    spec.temperature(), spec.maxTokens(), spec.tier(), true, specs, null, spec.context().openid());
             LlmResult result = llm.complete(request);
             if (!result.ok()) {
                 return new Outcome("", observations, toolsUsed, step - 1, false,

@@ -24,6 +24,11 @@ definePage({
   },
 })
 
+import { useShare } from '@/composables/useShare'
+
+// 让微信胶囊「···」可转发 / 分享到朋友圈
+useShare()
+
 const router = useRouter()
 const route = useRoute()
 

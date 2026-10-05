@@ -18,6 +18,11 @@ import { toast, toastError, toastSuccess } from '../../utils/toast'
 
 definePage({ name: 'membership', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '锅仔会员' } })
 
+import { useShare } from '@/composables/useShare'
+
+// 让微信胶囊「···」可转发 / 分享到朋友圈
+useShare()
+
 const router = useRouter()
 const nav = useNavBar()
 const userStore = useUserStore()

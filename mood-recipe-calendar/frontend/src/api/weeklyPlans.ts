@@ -121,7 +121,7 @@ export function requestWeeklyPlanCompletionNotice(): Promise<boolean> {
   })
 }
 export function replacePlanDay(id: number, index: number) {
-  return post<WeeklyPlan>(`/weekly-plans/${id}/days/${index}/replace`)
+  return post<WeeklyPlan>(`/weekly-plans/${id}/days/${index}/replace`, undefined, SLOW_TIMEOUT)
 }
 export function toggleWeeklyPlanFavorite(id: number) {
   return post<WeeklyPlan>(`/weekly-plans/${id}/favorite`)

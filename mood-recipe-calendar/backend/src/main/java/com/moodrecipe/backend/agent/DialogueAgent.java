@@ -135,7 +135,7 @@ public class DialogueAgent {
         if ("ASK_KNOWLEDGE".equals(orchestrated.intent()) && !orchestrated.reply().isBlank()) {
             state = HeuristicExtractor.applySelection(state, input);
             String action = nextAction(state, gaps(state, List.of()));
-            DialogueState.Card card = dynamicCard(action, state, modelInput,
+            DialogueState.Card card = dynamicCard(action, state, modelInput, openid,
                     "用户刚问了一个知识问题并已得到回答，现在引导用户继续安排这一周的备餐");
             if (card == null) card = AgentCards.defaultCard(action, state);
             return new DialogueState.Turn(orchestrated.reply(), action, state, card,
@@ -197,7 +197,7 @@ public class DialogueAgent {
                 // 模型给的卡片没能通过格式修剪（无有效选项）→ 记入违规台账
                 outputGate.record("card.empty");
             }
-            card = dynamicCard(action, state, modelInput, questionHint(card, action, gaps, orchestrated.unclear()));
+            card = dynamicCard(action, state, modelInput, openid, questionHint(card, action, gaps, orchestrated.unclear()));
         }
         if (needsCard && card == null) {
             card = AgentCards.defaultCard("ASK_CLARIFY".equals(action) ? nextAction(state, gaps) : action, state);
@@ -633,12 +633,12 @@ public class DialogueAgent {
 
     /** 让模型按当前语境现写一张选择卡；任何失败都返回 null，由调用方决定降级。 */
     private DialogueState.Card dynamicCard(String action, DialogueState.AgentState state,
-                                           String input, String questionHint) {
+                                           String input, String questionHint, String openid) {
         if (!llm.isConfigured() || questionHint == null || questionHint.isBlank()) return null;
         try {
             String prompt = AgentPrompts.dynamicCard(input, jsonValue(state), AgentPrompts.budget(questionHint, 200));
             LlmResult result = llm.complete(LlmRequest.json("agent-card", AgentPrompts.system(),
-                    prompt, 0.4, 500, TimeoutTier.FAST));
+                    prompt, 0.4, 500, TimeoutTier.FAST).withOpenid(openid));
             if (!result.ok()) return null;
             JsonNode root = json.readTree(stripFence(result.text()));
             if (!root.isObject()) return null;

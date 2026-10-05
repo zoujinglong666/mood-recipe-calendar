@@ -20,6 +20,11 @@ definePage({
   style: { navigationStyle: 'custom', navigationBarTitleText: '设置' },
 })
 
+import { useShare } from '@/composables/useShare'
+
+// 让微信胶囊「···」可转发 / 分享到朋友圈
+useShare()
+
 type ThemeChoice = ThemeMode | 'system'
 const THEME_CHOICES: { value: ThemeChoice, label: string, icon: 'phone' | 'user' | 'moon' }[] = [
   { value: 'system', label: '跟随系统', icon: 'phone' },

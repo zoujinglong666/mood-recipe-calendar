@@ -91,7 +91,7 @@ public class MenuPlannerAgent {
                         AgentPrompts.planMenu(constraintsText(profile, request, independentMeal), daysText(request.cookingDays()),
                                 request.dishesPerDay(), String.join("、", rejected), referenceDishes()),
                         Math.min(0.9, 0.5 + round * 0.15), planTokens,
-                        round == 0 ? TimeoutTier.STANDARD : TimeoutTier.LONG));
+                        round == 0 ? TimeoutTier.STANDARD : TimeoutTier.LONG).withOpenid(request.openid()));
                 if (!result.ok()) {
                     degradeReasons.add("第 " + (round + 1) + " 版菜单生成失败：" + result.reason());
                     trace.record("plan", "generate", System.currentTimeMillis() - start, result.reason(), false);
@@ -213,7 +213,7 @@ public class MenuPlannerAgent {
             LlmResult response = llm.complete(LlmRequest.json("agent-plan-menu", AgentPrompts.system(),
                     AgentPrompts.planMenu(constraintsText(profile, batch, independentMeal), daysText(batch.cookingDays()),
                             batch.dishesPerDay(), String.join("、", rejected), referenceDishes()), 0.55,
-                    Math.max(2_400, batch.dishesPerDay() * 420), TimeoutTier.STANDARD));
+                    Math.max(2_400, batch.dishesPerDay() * 420), TimeoutTier.STANDARD).withOpenid(batch.openid()));
             if (!response.ok()) {
                 degradeReasons.add("周" + (weekday + 1) + "菜单生成失败：" + response.reason());
                 return null;
@@ -400,7 +400,7 @@ public class MenuPlannerAgent {
         String menuJson = daysJson(days);
         LlmResult critique = llm.complete(LlmRequest.json("agent-critique-menu", AgentPrompts.system(),
                 AgentPrompts.critiqueMenu(menuJson, requestsText(request.notes()),
-                        referenceDishes()), 0.25, 1_200, TimeoutTier.STANDARD));
+                        referenceDishes()), 0.25, 1_200, TimeoutTier.STANDARD).withOpenid(request.openid()));
         if (!critique.ok()) {
             trace.record("critique", "review", System.currentTimeMillis() - start,
                     "自审不可用，走规则兜底：" + critique.reason(), true);
@@ -434,7 +434,7 @@ public class MenuPlannerAgent {
                 Math.max(days.size(), 1) * Math.max(1, request.dishesPerDay()) * 320));
         LlmResult repaired = llm.complete(LlmRequest.json("agent-plan-menu", AgentPrompts.system(),
                 AgentPrompts.repairMenuWithIssues(daysJson(patched), issuesText.toString(), referenceDishes()),
-                0.4, tokens, TimeoutTier.LONG));
+                0.4, tokens, TimeoutTier.LONG).withOpenid(request.openid()));
         if (!repaired.ok()) {
             degradeReasons.add("模型自修复失败（" + repaired.reason() + "），保留替换后的菜单");
             trace.record("repair", "llm-self-repair", System.currentTimeMillis() - repairStart, repaired.reason(), false);
@@ -629,7 +629,7 @@ public class MenuPlannerAgent {
             MenuQualityScorer.DishInput dish = replacement == null ? null : toDishInput(replacement, "MAIN");
             if (dish == null && llm.isConfigured()) {
                 // 库内没有（地方特色菜等）：现场生成可执行菜谱补进菜单，而不是静默丢弃用户的点名。
-                dish = generateRequestedDish(item.name());
+                dish = generateRequestedDish(item.name(), request.openid());
                 if (dish != null) {
                     degradeReasons.add("点名的「" + item.name() + "」菜谱库没有，已现场生成菜谱补进菜单");
                 }
@@ -647,7 +647,7 @@ public class MenuPlannerAgent {
     }
 
     /** 为菜谱库里没有的点名菜现场生成一份可执行菜谱；失败返回 null，由调用方如实降级。 */
-    private MenuQualityScorer.DishInput generateRequestedDish(String dishName) {
+    private MenuQualityScorer.DishInput generateRequestedDish(String dishName, String openid) {
         // 先联网搜这道菜的真实做法作为生成依据：有依据的生成比凭模型记忆更可信（真实用量/步骤）。
         // 搜索未配置、失败或无结果时返回空串，退化为纯生成——搜索只是增强，绝不是依赖。
         String evidence = searchEvidence(dishName);
@@ -659,7 +659,7 @@ public class MenuPlannerAgent {
                         + "{\"name\":\"" + dishName + "\",\"ingredients\":[\"食材 用量，如：米粉 200g\"],"
                         + "\"steps\":[\"具体步骤\"],\"cookingTime\":20,\"difficulty\":\"简单\"}。"
                         + "要求：食材必须带用量；步骤 3-6 步、具体可执行；全部使用简体中文。",
-                0.4, 1600, TimeoutTier.LONG));
+                0.4, 1600, TimeoutTier.LONG).withOpenid(openid));
         if (!result.ok()) return null;
         try {
             JsonNode root = json.readTree(stripFence(result.text()));

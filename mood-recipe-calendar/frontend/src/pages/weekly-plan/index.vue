@@ -10,6 +10,16 @@ import { getWindowInfo } from '@/utils/wxSystem'
 
 definePage({ name: 'weekly-plan', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '锅仔备餐小本' } })
 
+import { useShare } from '@/composables/useShare'
+
+// 让微信胶囊「···」可转发 / 分享到朋友圈（标题带本周天数，更利于传播）
+useShare({
+  title: () => {
+    const n = currentPlan.value?.days?.length
+    return n ? `锅仔已替我备好这周 ${n} 天的饭菜` : '锅仔 · 替你备好这一周的饭菜'
+  },
+})
+
 const router = useRouter()
 const people = ref(3)
 const dishesPerDay = ref(2)

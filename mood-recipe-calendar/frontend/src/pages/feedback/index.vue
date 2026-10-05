@@ -15,6 +15,11 @@ definePage({
   },
 })
 
+import { useShare } from '@/composables/useShare'
+
+// 让微信胶囊「···」可转发 / 分享到朋友圈
+useShare()
+
 const categories: FeedbackCategory[] = ['功能建议', '体验问题', '内容反馈', '其他']
 const statusLabels: Record<string, string> = {
   OPEN: '已收到',

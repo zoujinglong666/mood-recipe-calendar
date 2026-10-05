@@ -8,6 +8,11 @@ import { toastError } from '@/utils/toast'
 
 definePage({ name: 'login', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '微信登录' } })
 
+import { useShare } from '@/composables/useShare'
+
+// 让微信胶囊「···」可转发 / 分享到朋友圈
+useShare()
+
 const router = useRouter()
 const userStore = useUserStore()
 const loggingIn = ref(false)

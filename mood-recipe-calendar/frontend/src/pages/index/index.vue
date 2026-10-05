@@ -72,8 +72,10 @@ import { fetchRecipeQuota, type UsageQuotaView } from '../../api/recipes'
 import { fetchDailyBoard, refreshDailyBoard, type DailyBoard } from '../../api/dailyMenu'
 import { fetchFridgeSummary, type FridgeSummary } from '../../api/fridge'
 import { saveCookingDraft } from '../../utils/cookingDraft'
+import { useUserStore } from '../../stores/user'
 
 definePage({ name: 'home', layout: 'tabbar', style: { navigationStyle: 'custom', navigationBarTitleText: '首页' } })
+const userStore = useUserStore()
 const router = useRouter()
 const isBouncing = ref(false)
 function bounceGuozai() {
@@ -243,6 +245,21 @@ function goCookToday() {
 onShow(() => {
   now.value = new Date()
   loadData()
+})
+
+/** 转发给好友/群：必须定义 onShareAppMessage 胶囊「···」里的转发才可用 */
+onShareAppMessage(() => {
+  const sharer = userStore.openid
+  const path = `/pages/index/index${sharer ? `?sharer=${encodeURIComponent(sharer)}` : ''}`
+  return { title: '锅仔 · 按心情帮你决定今天吃什么', path }
+})
+/** 分享到朋友圈：必须定义 onShareTimeline 才可用 */
+onShareTimeline(() => {
+  const sharer = userStore.openid
+  return {
+    title: '锅仔 · 按心情帮你决定今天吃什么',
+    query: sharer ? `sharer=${encodeURIComponent(sharer)}` : '',
+  }
 })
 const MOODS = ['开心', '平静', '疲惫', '焦虑', '难过', '嘴馋', '低落', '想家', '期待', '满足', '得意', '害羞']
 function gotoLucky() { router.push({ name: 'recipe', params: { mood: MOODS[Math.floor(Math.random() * MOODS.length)], random: '1' } }) }

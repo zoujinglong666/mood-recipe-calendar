@@ -17,6 +17,15 @@ import { bus, MRC_EVENTS } from '@/utils/bus'
 
 definePage({ name: 'weekly-plan-detail', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '这一周吃什么', enablePullDownRefresh: true } })
 
+import { useShare } from '@/composables/useShare'
+
+// 让微信胶囊「···」可转发 / 分享到朋友圈（标题带本周计划天数，更利于传播）
+useShare({
+  title: () => plan.value?.days?.length
+    ? `这一周，锅仔帮我安排了 ${plan.value.days.length} 天的饭菜`
+    : '锅仔 · 替你备好这一周的饭菜',
+})
+
 const router = useRouter()
 const { previewImage } = useImagePreview()
 const plan = ref<WeeklyPlan>()

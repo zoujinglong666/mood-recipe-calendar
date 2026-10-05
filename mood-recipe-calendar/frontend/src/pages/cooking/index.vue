@@ -10,6 +10,15 @@ import { toast } from '../../utils/toast'
 
 definePage({ name: 'cooking', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '跟锅仔做菜' } })
 
+import { useShare } from '@/composables/useShare'
+
+// 让微信胶囊「···」可转发 / 分享到朋友圈（标题带当前菜名，更利于传播）
+useShare({
+  title: () => recipe.value?.name
+    ? `跟着锅仔做「${recipe.value.name}」`
+    : '锅仔 · 跟着锅仔一起下厨',
+})
+
 interface CookingProgress {
   recipeKey: string
   stepIndex: number

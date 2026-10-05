@@ -6,6 +6,11 @@ import { navBack } from '@/composables/useNavBar'
 
 definePage({ name: 'record-edit', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '编辑这顿饭' } })
 
+import { useShare } from '@/composables/useShare'
+
+// 让微信胶囊「···」可转发 / 分享到朋友圈
+useShare()
+
 const router = useRouter()
 const route = useRoute()
 // 同 record/detail：@wot-ui/router 的 route.query 不可靠（name 跳转会丢弃 query 字段，

@@ -26,6 +26,20 @@ definePage({
 
 const router = useRouter()
 const userStore = useUserStore()
+/** 转发给好友/群：必须定义 onShareAppMessage 胶囊「···」里的转发才可用 */
+onShareAppMessage(() => {
+  const sharer = userStore.openid
+  const path = `/pages/profile/index${sharer ? `?sharer=${encodeURIComponent(sharer)}` : ''}`
+  return { title: '锅仔 · 按心情帮你决定今天吃什么', path }
+})
+/** 分享到朋友圈：必须定义 onShareTimeline 才可用 */
+onShareTimeline(() => {
+  const sharer = userStore.openid
+  return {
+    title: '锅仔 · 按心情帮你决定今天吃什么',
+    query: sharer ? `sharer=${encodeURIComponent(sharer)}` : '',
+  }
+})
 // 顶部用户信息卡适配状态栏 + 右侧齿轮避让胶囊
 const nav = useNavBar()
 

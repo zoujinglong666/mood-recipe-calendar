@@ -3,6 +3,8 @@
  * 抽象 uni.showToast，统一错误/成功/信息提示的调用方式
  */
 
+import { beginAuthRecovery } from './authRecovery'
+
 /** 普通信息提示（无图标） */
 export function toast(msg: string, duration = 2000) {
   uni.showToast({ title: msg, icon: 'none', duration })
@@ -47,6 +49,15 @@ export function toastError(err: unknown, fallback = '操作失败，请稍后重
     msg = fallback
   if (isCancel)
     msg = '已取消支付'
+  // 未登录错误（ensureLogin 在主动退出后拒绝自动登录时抛出）：绝不透出原始码，
+  // 统一转成可读提示，并复用「登录恢复」流程——保存当前页为回跳目标后跳登录页，
+  // 登录成功后 consumeAuthReturn 会把用户带回原页面。所有页面经此统一修复，
+  // 不再出现「toast 提示了 NOT_LOGGED_IN 却停在原地」的情况。
+  if (/^NOT_LOGGED_IN$/.test(msg)) {
+    uni.showToast({ title: '请先登录', icon: 'none', duration: 2000 })
+    beginAuthRecovery()
+    return
+  }
   uni.showToast({ title: msg, icon: 'none', duration: 2500 })
 }
 

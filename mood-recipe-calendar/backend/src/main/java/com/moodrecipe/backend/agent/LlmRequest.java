@@ -4,26 +4,38 @@ import java.util.List;
 
 /** 一次模型调用请求。purpose 只用于日志与链路追踪，绝不写入提示词。 */
 public record LlmRequest(String purpose,
-                         String system,
-                         List<LlmMessage> messages,
-                         double temperature,
-                         int maxTokens,
-                         TimeoutTier tier,
-                         boolean jsonMode,
-                         List<LlmToolSpec> tools,
-                         String modelOverride) {
+                          String system,
+                          List<LlmMessage> messages,
+                          double temperature,
+                          int maxTokens,
+                          TimeoutTier tier,
+                          boolean jsonMode,
+                          List<LlmToolSpec> tools,
+                          String modelOverride,
+                          String openid) {
 
     public LlmRequest {
         messages = messages == null ? List.of() : List.copyOf(messages);
         tools = tools == null ? List.of() : List.copyOf(tools);
         tier = tier == null ? TimeoutTier.STANDARD : tier;
         maxTokens = Math.max(64, maxTokens);
+        openid = openid == null ? null : openid;
     }
 
-    /** 兼容旧签名（不指定模型覆盖）。 */
+    /** 拷贝本请求但覆盖模型（用于把会员请求分流到具体 DeepSeek 模型），openid 一并保留。 */
+    public LlmRequest withModelOverride(String model) {
+        return new LlmRequest(purpose, system, messages, temperature, maxTokens, tier, jsonMode, tools, model, openid);
+    }
+
+    /** 拷贝本请求并附带发起用户的 openid，供 TieredLlmClient 做会员分级路由。 */
+    public LlmRequest withOpenid(String openid) {
+        return new LlmRequest(purpose, system, messages, temperature, maxTokens, tier, jsonMode, tools, modelOverride, openid);
+    }
+
+    /** 兼容旧签名（不指定模型覆盖 / openid）。 */
     public LlmRequest(String purpose, String system, List<LlmMessage> messages, double temperature,
                       int maxTokens, TimeoutTier tier, boolean jsonMode, List<LlmToolSpec> tools) {
-        this(purpose, system, messages, temperature, maxTokens, tier, jsonMode, tools, null);
+        this(purpose, system, messages, temperature, maxTokens, tier, jsonMode, tools, null, null);
     }
 
     public static LlmRequest text(String purpose, String system, String user, double temperature, int maxTokens,
@@ -46,6 +58,6 @@ public record LlmRequest(String purpose,
     public static LlmRequest vision(String purpose, String system, String prompt, String imageUrl,
                                     String model, int maxTokens) {
         return new LlmRequest(purpose, system, List.of(LlmMessage.userWithImage(prompt, imageUrl)),
-                0.1, maxTokens, TimeoutTier.STANDARD, true, List.of(), model);
+                0.1, maxTokens, TimeoutTier.STANDARD, true, List.of(), model, null);
     }
 }

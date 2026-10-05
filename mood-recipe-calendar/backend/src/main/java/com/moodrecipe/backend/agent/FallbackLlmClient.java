@@ -2,12 +2,10 @@ package com.moodrecipe.backend.agent;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 
-/** 主模型失败时才调用备用模型，业务层仍只依赖 LlmClient。 */
+/** 主模型失败时才调用备用模型，业务层仍只依赖 LlmClient。本类作为「免费层」被 TieredLlmClient 包裹。 */
 @Service
-@Primary
 public class FallbackLlmClient implements LlmClient {
     private final LlmClient primary;
     private final LlmClient fallback;

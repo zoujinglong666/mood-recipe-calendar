@@ -4,6 +4,11 @@ import { navBack } from '@/composables/useNavBar'
 import { STATIC_BASE_URL } from '@/utils/assets'
 
 definePage({ name: 'privacy', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '隐私政策' } })
+
+import { useShare } from '@/composables/useShare'
+
+// 让微信胶囊「···」可转发 / 分享到朋友圈
+useShare()
 const router = useRouter()
 const updatedAt = '2026 年 9 月 17 日'
 </script>

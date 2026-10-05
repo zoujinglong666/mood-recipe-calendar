@@ -18,6 +18,13 @@ definePage({
   },
 })
 
+import { useShare } from '@/composables/useShare'
+
+// 让微信胶囊「···」可转发 / 分享到朋友圈（标题带年度，更利于传播）
+useShare({
+  title: () => `我的 ${currentYear} 吃饭年度报告 · 锅仔陪你回顾这一年`,
+})
+
 const toast = useToast()
 const currentPage = ref(0)
 const totalPages = 8

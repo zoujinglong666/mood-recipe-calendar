@@ -47,10 +47,10 @@ public class AgnesLlmClient implements LlmClient {
     private final AtomicBoolean toolsSupported;
 
     /**
-     * 全局并发闸：同一 JVM 内所有 AgnesLlmClient 实例（主/备）共享，限制同时打向 agnes 的请求数。
-     * 防止批量任务（如一批忌口归一化）瞬间并发撞 RPM 限流。permits 可按需调整。
+     * 并发闸：限制同时打向供应商的请求数，防止批量任务（如一批忌口归一化）瞬间并发撞 RPM 限流。
+     * 实例级——agnes 免费层默认 3 permits；DeepSeek 等付费层会传入更大的 permits，互不干扰。
      */
-    private static final Semaphore CONCURRENCY = new Semaphore(3);
+    private final Semaphore concurrency;
 
     public AgnesLlmClient(ObjectMapper json,
                           @Value("${ai.recipe.api-key:}") String apiKey,
@@ -58,6 +58,16 @@ public class AgnesLlmClient implements LlmClient {
                           @Value("${ai.recipe.model:agnes-2.5-flash}") String model,
                           @Value("${ai.llm.max-attempts:2}") int maxAttempts,
                           @Value("${ai.llm.tool-calling:true}") boolean toolCallingEnabled) {
+        this(json, apiKey, baseUrl, model, maxAttempts, toolCallingEnabled, 3);
+    }
+
+    public AgnesLlmClient(ObjectMapper json,
+                          String apiKey,
+                          String baseUrl,
+                          String model,
+                          int maxAttempts,
+                          boolean toolCallingEnabled,
+                          int maxConcurrency) {
         this.json = json;
         this.apiKey = apiKey == null ? "" : apiKey.trim();
         this.baseUrl = baseUrl == null ? "" : baseUrl.trim();
@@ -65,6 +75,7 @@ public class AgnesLlmClient implements LlmClient {
         this.maxAttempts = Math.max(1, Math.min(maxAttempts, 4));
         this.toolCallingEnabled = toolCallingEnabled;
         this.toolsSupported = new AtomicBoolean(toolCallingEnabled);
+        this.concurrency = new Semaphore(Math.max(1, maxConcurrency));
         this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(8)).build();
     }
 
@@ -101,12 +112,12 @@ public class AgnesLlmClient implements LlmClient {
             attempts = attempt;
             HttpResponse<String> response;
             try {
-                // 并发闸：限制同时打向 agnes 的请求数，退避等待期间不占闸，避免把限流放大成雪崩。
-                CONCURRENCY.acquire();
+                // 并发闸：限制同时打向供应商的请求数，退避等待期间不占闸，避免把限流放大成雪崩。
+                concurrency.acquire();
                 try {
                     response = send(request, messages, useNativeTools, useJsonMode);
                 } finally {
-                    CONCURRENCY.release();
+                    concurrency.release();
                 }
                 int status = response.statusCode();
                 if (status < 200 || status >= 300) {

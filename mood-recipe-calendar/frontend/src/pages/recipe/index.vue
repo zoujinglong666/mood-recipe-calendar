@@ -242,6 +242,7 @@ onShareAppMessage(() => {
   return {
     title: recipe.value ? `锅仔推荐：${recipe.value.name}，适合${mood.value}的今天` : '让锅仔按心情推荐今天吃什么',
     path,
+    ...(recipe.value?.image ? { imageUrl: recipe.value.image } : {}),
   }
 })
 

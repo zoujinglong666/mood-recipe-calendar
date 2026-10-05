@@ -245,7 +245,7 @@ async function purchaseAlbum(): Promise<boolean> {
       toast('支付已完成，权益确认中，稍后刷新即可保存')
       return false
     }
-    await refreshEntitlements(openid)
+    await refreshEntitlements(paymentOpenid)
     return hasAlbumEntitlement.value
   }
   catch (e: any) {
@@ -320,6 +320,15 @@ onShareAppMessage(() => {
   return {
     title: `${yearNum}年${monthNum}月，我和锅仔一起吃了${stats.value.totalDays || 0}天的饭`,
     path,
+    imageUrl: photoRecords.value[0]?.imageUrl || `${STATIC_BASE_URL}/static/guozai/action_05_album.png`,
+  }
+})
+/** 分享到朋友圈 */
+onShareTimeline(() => {
+  const sharer = userStore.openid
+  return {
+    title: `${yearNum}年${monthNum}月，我和锅仔一起吃了${stats.value.totalDays || 0}天的饭`,
+    query: sharer ? `sharer=${encodeURIComponent(sharer)}` : '',
   }
 })
 </script>

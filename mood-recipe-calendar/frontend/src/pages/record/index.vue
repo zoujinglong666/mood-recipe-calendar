@@ -14,6 +14,7 @@ import { createRequestId, RECORD_DRAFT_KEY } from '../../utils/cookingDraft'
 import { ensureLogin } from '../../utils/login'
 import { toast, toastError, toastSuccess } from '../../utils/toast'
 import { bus, MRC_EVENTS } from '@/utils/bus'
+import { useUserStore } from '../../stores/user'
 
 /** 与 calendar 页约定：历史补记时由 calendar 写入，record 页 onShow 读取作为记录日期。 */
 const RECORD_DATE_KEY = 'mrc_record_date'
@@ -28,6 +29,21 @@ definePage({
 })
 
 const router = useRouter()
+const userStore = useUserStore()
+/** 转发给好友/群 */
+onShareAppMessage(() => {
+  const sharer = userStore.openid
+  const path = `/pages/record/index${sharer ? `?sharer=${encodeURIComponent(sharer)}` : ''}`
+  return { title: '锅仔 · 记录今天吃了什么', path }
+})
+/** 分享到朋友圈 */
+onShareTimeline(() => {
+  const sharer = userStore.openid
+  return {
+    title: '锅仔 · 记录今天吃了什么',
+    query: sharer ? `sharer=${encodeURIComponent(sharer)}` : '',
+  }
+})
 
 const dishName = ref('')
 const selectedMood = ref('')

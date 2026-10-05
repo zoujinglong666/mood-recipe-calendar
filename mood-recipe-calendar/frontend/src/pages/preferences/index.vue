@@ -16,6 +16,11 @@ definePage({
   style: { navigationStyle: 'custom', navigationBarTitleText: '锅仔记忆' },
 })
 
+import { useShare } from '@/composables/useShare'
+
+// 让微信胶囊「···」可转发 / 分享到朋友圈
+useShare()
+
 const route = useRoute()
 const router = useRouter()
 const loading = ref(true)

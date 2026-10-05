@@ -17,6 +17,11 @@ const GZ_BELL = `${STATIC_BASE_URL}/static/guozai/action_14_clap.png` // 临期�
 
 definePage({ name: 'fridge', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '我的冰箱' } })
 
+import { useShare } from '@/composables/useShare'
+
+// 让微信胶囊「···」可转发 / 分享到朋友圈
+useShare()
+
 const now = new Date()
 const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
 const items = ref<FridgeItem[]>([])

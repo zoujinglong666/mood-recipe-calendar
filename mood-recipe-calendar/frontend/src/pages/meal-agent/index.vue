@@ -701,6 +701,14 @@ onShareAppMessage(() => {
     path,
   }
 })
+/** 分享到朋友圈 */
+onShareTimeline(() => {
+  const sharer = userStore.openid
+  return {
+    title: '锅仔管饭：这一周交给锅仔安排，少想一点认真吃饭',
+    query: sharer ? `sharer=${encodeURIComponent(sharer)}` : '',
+  }
+})
 </script>
 
 <template>
