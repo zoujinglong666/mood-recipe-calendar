@@ -13,14 +13,20 @@ import {COOKING_PROGRESS_KEY, saveCookingDraft} from '../../utils/cookingDraft'
 
 definePage({ name: 'timeline', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '菜谱时光机' } })
 
-import { useShare } from '@/composables/useShare'
+import { onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 
-// 让微信胶囊「···」可转发 / 分享到朋友圈（标题带留住的餐数，更利于传播）
-useShare({
-  title: () => records.value.length
-    ? `我留住了 ${records.value.length} 顿饭的食光`
-    : '锅仔 · 用时光机收好你的餐桌回忆',
+// 直接本页写生命周期，比 useShare 组合式更可靠（标题带留住的餐数）
+onShareAppMessage(() => {
+  const pages = getCurrentPages()
+  const route = (pages[pages.length - 1] as any)?.route || ''
+  return {
+    title: records.value.length ? `我留住了 ${records.value.length} 顿饭的食光` : '锅仔 · 用时光机收好你的餐桌回忆',
+    path: `/${route}`,
+  }
 })
+onShareTimeline(() => ({
+  title: records.value.length ? `我留住了 ${records.value.length} 顿饭的食光` : '锅仔 · 用时光机收好你的餐桌回忆',
+}))
 const router = useRouter()
 const {previewImage} = useImagePreview()
 const loading = ref(true)

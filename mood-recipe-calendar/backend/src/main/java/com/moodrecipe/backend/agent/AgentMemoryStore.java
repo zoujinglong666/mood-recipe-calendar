@@ -13,6 +13,9 @@ import com.moodrecipe.backend.repository.RecipeInteractionRepository;
 import com.moodrecipe.backend.repository.RecipeRepository;
 import com.moodrecipe.backend.repository.UserFoodPreferenceRepository;
 import com.moodrecipe.backend.repository.UserRecordRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +36,7 @@ import java.util.stream.Collectors;
  */
 @Service
 public class AgentMemoryStore {
+    private static final Logger log = LoggerFactory.getLogger(AgentMemoryStore.class);
 
     public enum Scene { DIALOGUE, WEEKLY_PLAN, SINGLE_RECIPE, COMPANION }
 
@@ -189,15 +193,28 @@ public class AgentMemoryStore {
     @Transactional
     public void forget(String openid, String key) {
         if (KEY_PERSONALIZATION.equals(key)) return;
-        facts.deleteByOpenidAndMemoryKey(openid, key);
+        // 防御：即便未来回退成逐条删除写法，目标行已不存在也应幂等通过，不 500
+        idempotentDelete(() -> facts.deleteByOpenidAndMemoryKey(openid, key));
     }
 
     @Transactional
     public void clear(String openid) {
         boolean enabled = personalizationEnabled(openid);
-        facts.deleteByOpenid(openid);
-        interactions.deleteByOpenid(openid);
+        // 防御：即便未来回退成逐条删除写法，重复清空/并发清空时目标行已不存在也应幂等通过
+        idempotentDelete(() -> {
+            facts.deleteByOpenid(openid);
+            interactions.deleteByOpenid(openid);
+        });
         setPersonalizationEnabled(openid, enabled);
+    }
+
+    /** 删除失败时若是乐观锁（目标行已被删），按幂等 no-op 处理，避免记忆清空/遗忘接口 500。 */
+    private void idempotentDelete(Runnable deletes) {
+        try {
+            deletes.run();
+        } catch (ObjectOptimisticLockingFailureException e) {
+            log.warn("记忆删除目标行已不存在，按幂等 no-op 处理: {}", e.getMessage());
+        }
     }
 
     public boolean personalizationEnabled(String openid) {

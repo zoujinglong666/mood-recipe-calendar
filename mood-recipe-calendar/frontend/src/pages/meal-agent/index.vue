@@ -796,7 +796,7 @@ onShareTimeline(() => {
       <view v-if="canUseAgent && (generating || completed)" class="composer composer--fixed">
         <input v-model="composerText" :disabled="agentBusy || agentTyping" confirm-type="send" placeholder="还想补充什么？直接告诉锅仔" aria-label="告诉锅仔你的安排" @confirm="submitComposer">
         <GuozaiButton class="composer__send" variant="primary" :block="false" :disabled="agentBusy || agentTyping || !composerText.trim()" :loading="agentBusy || agentTyping" :aria-label="agentBusy || agentTyping ? '锅仔正在思考' : '发送'" @click="submitComposer">
-          <Icon v-if="!agentBusy && !agentTyping" name="send" :size="34" color="#fff" />
+          <text v-if="!agentBusy && !agentTyping" class="composer__send-text">发送</text>
           <text v-else class="composer__send-loading">…</text>
         </GuozaiButton>
       </view>
@@ -943,7 +943,7 @@ onShareTimeline(() => {
           </view>
           <input v-model="composerText" :disabled="agentBusy || agentTyping || !canUseAgent" inputmode="text" confirm-type="send" placeholder="也可以直接说：周三不做饭，想减脂" aria-label="告诉锅仔你的安排" @confirm="submitComposer">
           <GuozaiButton class="composer__send" variant="primary" :block="false" :disabled="agentBusy || agentTyping || !canUseAgent || !composerText.trim()" :loading="agentBusy || agentTyping" :aria-label="agentBusy || agentTyping ? '锅仔正在思考' : '发送'" @click="submitComposer">
-            <Icon v-if="!agentBusy && !agentTyping" name="send" :size="34" color="#fff" />
+            <text v-if="!agentBusy && !agentTyping" class="composer__send-text">发送</text>
             <text v-else class="composer__send-loading">…</text>
           </GuozaiButton>
         </view>
@@ -1041,9 +1041,11 @@ onShareTimeline(() => {
 .composer__web.is-locked { color: #B9A99C; }
 .composer__web-text { line-height: 1; }
 .composer__web-lock { padding: 1rpx 8rpx; border-radius: 16rpx; background: var(--mrc-accent-soft); color: var(--mrc-accent); font-size: 15rpx; }
-/* 发送按钮：定宽圆形，避免「发送」两字被挤成竖排；禁用态改成暖灰，不再用半透明橙叠脏底 */
-.composer__send { display: flex; width: 76rpx; height: 76rpx; min-width: 76rpx; min-height: 76rpx; flex: 0 0 auto; align-items: center; justify-content: center; padding: 0 !important; border-radius: 50% !important; }
+/* 发送按钮：胶囊形文字按钮（文字天然居中，避免图标基线偏移）；禁用态改成暖灰 */
+.composer__send { display: flex; flex: 0 0 auto; align-items: center; justify-content: center; min-width: 136rpx;  padding: 0 32rpx !important; border-radius: 999rpx !important; }
+.composer__send-text { color: #fff; font-size: 26rpx; font-weight: 800; line-height: 1; }
 .composer__send.is-disabled { background: var(--mrc-surface-sun) !important; color: #C9B7A8 !important; box-shadow: none !important; text-shadow: none !important; opacity: 1; }
+.composer__send.is-disabled .composer__send-text { color: #C9B7A8; }
 .composer__send-loading { color: #fff; font-size: 30rpx; font-weight: 800; line-height: 1; }
 .composer__send.is-disabled .composer__send-loading { color: #C9B7A8; }
 .archive-link { display: flex; min-height: 82rpx; align-items: center; justify-content: center; color: var(--mrc-text-sub); font-size: 21rpx; }

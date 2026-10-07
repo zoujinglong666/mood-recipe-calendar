@@ -18,12 +18,15 @@ definePage({
   },
 })
 
-import { useShare } from '@/composables/useShare'
+import { onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 
-// 让微信胶囊「···」可转发 / 分享到朋友圈（标题带年度，更利于传播）
-useShare({
-  title: () => `我的 ${currentYear} 吃饭年度报告 · 锅仔陪你回顾这一年`,
+// 直接本页写生命周期，比 useShare 组合式更可靠（标题带年度）
+onShareAppMessage(() => {
+  const pages = getCurrentPages()
+  const route = (pages[pages.length - 1] as any)?.route || ''
+  return { title: `我的 ${currentYear} 吃饭年度报告 · 锅仔陪你回顾这一年`, path: `/${route}` }
 })
+onShareTimeline(() => ({ title: `我的 ${currentYear} 吃饭年度报告 · 锅仔陪你回顾这一年` }))
 
 const toast = useToast()
 const currentPage = ref(0)

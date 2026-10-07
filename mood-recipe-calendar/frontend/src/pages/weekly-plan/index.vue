@@ -2,7 +2,7 @@
 import type { TourStep } from '@wot-ui/ui/components/wd-tour/types'
 import type { PlanDay, WeeklyPlan, WeeklyPlanSummary } from '@/api/weeklyPlans'
 import { computed, nextTick, ref } from 'vue'
-import { generateWeeklyPlan, getCurrentPlan, getWeeklyPlanHistory, requestWeeklyPlanCompletionNotice, toggleWeeklyPlanFavorite } from '@/api/weeklyPlans'
+import { generateWeeklyPlan, getCurrentPlan, getWeeklyPlanHistory, getWeeklyPlanJob, requestWeeklyPlanCompletionNotice, toggleWeeklyPlanFavorite } from '@/api/weeklyPlans'
 import { navBack } from '@/composables/useNavBar'
 import { STATIC_BASE_URL } from '@/utils/assets'
 import { toastError } from '@/utils/toast'
@@ -10,14 +10,18 @@ import { getWindowInfo } from '@/utils/wxSystem'
 
 definePage({ name: 'weekly-plan', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '锅仔备餐小本' } })
 
-import { useShare } from '@/composables/useShare'
+import { onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 
-// 让微信胶囊「···」可转发 / 分享到朋友圈（标题带本周天数，更利于传播）
-useShare({
-  title: () => {
-    const n = currentPlan.value?.days?.length
-    return n ? `锅仔已替我备好这周 ${n} 天的饭菜` : '锅仔 · 替你备好这一周的饭菜'
-  },
+// 直接本页写生命周期，比 useShare 组合式更可靠（标题带本周天数）
+onShareAppMessage(() => {
+  const pages = getCurrentPages()
+  const route = (pages[pages.length - 1] as any)?.route || ''
+  const n = currentPlan.value?.days?.length
+  return { title: n ? `锅仔已替我备好这周 ${n} 天的饭菜` : '锅仔 · 替你备好这一周的饭菜', path: `/${route}` }
+})
+onShareTimeline(() => {
+  const n = currentPlan.value?.days?.length
+  return { title: n ? `锅仔已替我备好这周 ${n} 天的饭菜` : '锅仔 · 替你备好这一周的饭菜' }
 })
 
 const router = useRouter()
@@ -139,8 +143,10 @@ async function generate() {
   generating.value = true
   try {
     const notify = await requestWeeklyPlanCompletionNotice()
-    const plan = await generateWeeklyPlan({ people: people.value, days: cookingDays.value.length, cookingDays: cookingDays.value, healthGoal: healthGoal.value, sendNotification: notify, dishesPerDay: dishesPerDay.value })
-    router.replace({ name: 'weekly-plan-detail', params: { id: String(plan.id) } })
+    const job = await generateWeeklyPlan({ people: people.value, days: cookingDays.value.length, cookingDays: cookingDays.value, healthGoal: healthGoal.value, sendNotification: notify, dishesPerDay: dishesPerDay.value })
+    const planId = await pollWeeklyPlanJob(job.jobId)
+    if (planId != null) router.replace({ name: 'weekly-plan-detail', params: { id: String(planId) } })
+    else toastError(null, '锅仔还在努力排这周，稍后在备餐小本里看结果')
   }
   catch (error) {
     toastError(error, '锅仔暂时没排好这一周，请重试')
@@ -148,6 +154,18 @@ async function generate() {
   finally {
     generating.value = false
   }
+}
+
+/** 轮询后台生成任务，直到成功/失败或超时（默认 90s）。返回成功后的 planId，失败抛错，超时返回 null。 */
+async function pollWeeklyPlanJob(jobId: string, timeoutMs = 90000, interval = 2000): Promise<number | null> {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    const job = await getWeeklyPlanJob(jobId)
+    if (job.status === 'SUCCEEDED') return job.planId ?? null
+    if (job.status === 'FAILED') throw new Error(job.message || '生成失败')
+    await new Promise(resolve => setTimeout(resolve, interval))
+  }
+  return null
 }
 
 // 节流防连点：收藏/取消是写入操作，快速点击会导致重复请求、状态乱跳（leading 节流，冷却期内忽略）

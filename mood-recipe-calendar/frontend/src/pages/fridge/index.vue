@@ -17,10 +17,15 @@ const GZ_BELL = `${STATIC_BASE_URL}/static/guozai/action_14_clap.png` // 临期�
 
 definePage({ name: 'fridge', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '我的冰箱' } })
 
-import { useShare } from '@/composables/useShare'
+import { onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 
-// 让微信胶囊「···」可转发 / 分享到朋友圈
-useShare()
+// 直接本页写生命周期，比 useShare 组合式更可靠
+onShareAppMessage(() => {
+  const pages = getCurrentPages()
+  const route = (pages[pages.length - 1] as any)?.route || ''
+  return { title: '锅仔 · 按心情帮你决定今天吃什么', path: `/${route}` }
+})
+onShareTimeline(() => ({ title: '锅仔 · 按心情帮你决定今天吃什么' }))
 
 const now = new Date()
 const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`

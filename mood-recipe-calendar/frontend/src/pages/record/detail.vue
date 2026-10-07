@@ -13,14 +13,29 @@ import { useUserStore } from '@/stores/user'
 
 definePage({ name: 'record-detail', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '这一餐的食光' } })
 
-import { useShare } from '@/composables/useShare'
+import { onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 
 // 让微信胶囊「···」可转发 / 分享到朋友圈（标题带本餐内容、卡片带首图，更利于传播）
-useShare({
-  title: () => record.value
-    ? `我记下了「${record.value.dishName}」，锅仔帮我留住这顿饭`
-    : '锅仔 · 记录今天的食光',
-  imageUrl: () => photos.value[0] || '',
+// 注意：直接在本页写 onShareAppMessage，比用 useShare 组合式更可靠（组合式被抽成独立 chunk 时，个别 uni-app 构建下转发不会挂到本页）
+onShareAppMessage(() => {
+  const sharer = userStore.openid
+  const path = `/pages/record/detail${sharer ? `?sharer=${encodeURIComponent(sharer)}` : ''}`
+  return {
+    title: record.value
+      ? `我记下了「${record.value.dishName}」，锅仔帮我留住这顿饭`
+      : '锅仔 · 记录今天的食光',
+    path,
+    ...(photos.value[0] ? { imageUrl: photos.value[0] } : {}),
+  }
+})
+onShareTimeline(() => {
+  const sharer = userStore.openid
+  return {
+    title: record.value
+      ? `我记下了「${record.value.dishName}」，锅仔帮我留住这顿饭`
+      : '锅仔 · 记录今天的食光',
+    query: sharer ? `sharer=${encodeURIComponent(sharer)}` : '',
+  }
 })
 
 const router = useRouter()

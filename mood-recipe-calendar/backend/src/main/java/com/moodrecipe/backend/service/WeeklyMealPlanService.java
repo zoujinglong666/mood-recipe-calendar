@@ -41,8 +41,13 @@ public class WeeklyMealPlanService {
 
     /** 每次生成保留旧计划，历史页可直接回看，不会覆盖收藏。 */
     public PlanView generate(String openid, GenerateRequest request) {
+        return generate(openid, request, (stage, stepStatus, message) -> { });
+    }
+
+    /** 带进度回调的生成版本，供异步任务（WeeklyPlanJobService）上报阶段，避免前端长连接超时。 */
+    public PlanView generate(String openid, GenerateRequest request, WeeklyPlanJobService.Progress progress) {
+        progress.update(WeeklyPlanJobService.Stage.MEMORY, WeeklyPlanJobService.StepStatus.RUNNING, "读取你的口味记忆");
         List<Integer> cookingDays = cookingDays(request);
-        int days = cookingDays.size();
         int dishesPerDay = request.dishesPerDay() > 0
                 ? Math.max(1, Math.min(request.dishesPerDay(), 20))
                 : request.people() >= 3 ? 2 : 1;
@@ -63,13 +68,16 @@ public class WeeklyMealPlanService {
         }
         rememberPlannedDishes(openid, result);
 
+        progress.update(WeeklyPlanJobService.Stage.PLAN, WeeklyPlanJobService.StepStatus.RUNNING, "调用锅仔规划这一周");
         WeeklyMealPlan plan = new WeeklyMealPlan();
         plan.setOpenid(openid);
         plan.setPlanJson(write(result));
         plan.setShoppingJson(write(merge(result, List.of())));
         plan.setAgentJson(write(audit(planned)));
+        progress.update(WeeklyPlanJobService.Stage.SAVE, WeeklyPlanJobService.StepStatus.RUNNING, "保存周菜单");
         PlanView view = view(plans.save(plan));
         if (request.sendNotification()) subscriptions.sendWeeklyPlanCompleted(openid, view.id());
+        progress.update(WeeklyPlanJobService.Stage.FINALIZE, WeeklyPlanJobService.StepStatus.COMPLETED, "整理生成结果");
         return view;
     }
 

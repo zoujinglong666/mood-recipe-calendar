@@ -17,14 +17,20 @@ import { bus, MRC_EVENTS } from '@/utils/bus'
 
 definePage({ name: 'weekly-plan-detail', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '这一周吃什么', enablePullDownRefresh: true } })
 
-import { useShare } from '@/composables/useShare'
+import { onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 
-// 让微信胶囊「···」可转发 / 分享到朋友圈（标题带本周计划天数，更利于传播）
-useShare({
-  title: () => plan.value?.days?.length
-    ? `这一周，锅仔帮我安排了 ${plan.value.days.length} 天的饭菜`
-    : '锅仔 · 替你备好这一周的饭菜',
+// 直接本页写生命周期，比 useShare 组合式更可靠（标题带本周计划天数）
+onShareAppMessage(() => {
+  const pages = getCurrentPages()
+  const route = (pages[pages.length - 1] as any)?.route || ''
+  return {
+    title: plan.value?.days?.length ? `这一周，锅仔帮我安排了 ${plan.value.days.length} 天的饭菜` : '锅仔 · 替你备好这一周的饭菜',
+    path: `/${route}`,
+  }
 })
+onShareTimeline(() => ({
+  title: plan.value?.days?.length ? `这一周，锅仔帮我安排了 ${plan.value.days.length} 天的饭菜` : '锅仔 · 替你备好这一周的饭菜',
+}))
 
 const router = useRouter()
 const { previewImage } = useImagePreview()

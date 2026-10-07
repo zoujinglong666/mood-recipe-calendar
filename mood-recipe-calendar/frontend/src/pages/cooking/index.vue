@@ -10,14 +10,20 @@ import { toast } from '../../utils/toast'
 
 definePage({ name: 'cooking', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '跟锅仔做菜' } })
 
-import { useShare } from '@/composables/useShare'
+import { onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 
-// 让微信胶囊「···」可转发 / 分享到朋友圈（标题带当前菜名，更利于传播）
-useShare({
-  title: () => recipe.value?.name
-    ? `跟着锅仔做「${recipe.value.name}」`
-    : '锅仔 · 跟着锅仔一起下厨',
+// 直接本页写生命周期，比 useShare 组合式更可靠（标题带当前菜名）
+onShareAppMessage(() => {
+  const pages = getCurrentPages()
+  const route = (pages[pages.length - 1] as any)?.route || ''
+  return {
+    title: recipe.value?.name ? `跟着锅仔做「${recipe.value.name}」` : '锅仔 · 跟着锅仔一起下厨',
+    path: `/${route}`,
+  }
 })
+onShareTimeline(() => ({
+  title: recipe.value?.name ? `跟着锅仔做「${recipe.value.name}」` : '锅仔 · 跟着锅仔一起下厨',
+}))
 
 interface CookingProgress {
   recipeKey: string

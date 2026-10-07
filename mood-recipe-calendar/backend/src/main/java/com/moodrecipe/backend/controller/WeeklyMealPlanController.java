@@ -5,6 +5,7 @@ import com.moodrecipe.backend.config.SessionAuthInterceptor;
 import com.moodrecipe.backend.agent.DialogueAgent;
 import com.moodrecipe.backend.agent.DialogueState;
 import com.moodrecipe.backend.service.WeeklyMealPlanService;
+import com.moodrecipe.backend.service.WeeklyPlanJobService;
 import com.moodrecipe.backend.service.GuozaiAgent;
 import com.moodrecipe.backend.service.WechatContentSafetyService;
 import com.moodrecipe.backend.service.UsageQuotaService;
@@ -26,9 +27,11 @@ public class WeeklyMealPlanController {
     private final UsageQuotaService quotas;
     private final AgentConversationService conversations;
     private final AgentReflectionService reflection;
+    private final WeeklyPlanJobService weeklyPlanJobs;
     @Autowired public WeeklyMealPlanController(WeeklyMealPlanService plans, GuozaiAgent agent, DialogueAgent mealAgent,
                                     WechatContentSafetyService contentSafety, UsageQuotaService quotas,
-                                    AgentConversationService conversations, AgentReflectionService reflection) { this.plans = plans; this.agent = agent; this.mealAgent = mealAgent; this.contentSafety = contentSafety; this.quotas = quotas; this.conversations = conversations; this.reflection = reflection; }
+                                    AgentConversationService conversations, AgentReflectionService reflection,
+                                    WeeklyPlanJobService weeklyPlanJobs) { this.plans = plans; this.agent = agent; this.mealAgent = mealAgent; this.contentSafety = contentSafety; this.quotas = quotas; this.conversations = conversations; this.reflection = reflection; this.weeklyPlanJobs = weeklyPlanJobs; }
     @GetMapping("/current") public ApiResponse<?> current(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) { return plans.current(openid).map(ApiResponse::ok).orElseGet(() -> ApiResponse.error(404, "还没有本周计划")); }
     @GetMapping("/history") public ApiResponse<?> history(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) { return ApiResponse.ok(plans.history(openid)); }
     @GetMapping("/{id}") public ApiResponse<?> get(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @PathVariable Long id) { return plans.get(openid, id).map(ApiResponse::ok).orElseGet(() -> ApiResponse.error(404, "计划不存在")); }
@@ -46,14 +49,27 @@ public class WeeklyMealPlanController {
     @PostMapping("/generate") public ApiResponse<?> generate(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @RequestBody WeeklyMealPlanService.GenerateRequest request) {
         if (request == null || request.people() < 1) return ApiResponse.error(400, "请填写用餐人数");
         if (!contentSafety.allowsText(openid, request.conversationNotes())) return ApiResponse.error(400, "文字未通过安全检查");
+        // 配额前置扣除（瞬时，不阻塞连接）；失败则在后台任务内释放，行为与同步版一致。
+        // 真正的 LLM 排菜在后台虚拟线程跑，POST 立即返回任务 jobId，前端轮询进度，避免客户端超时断连导致 Broken pipe。
         try { quotas.consume(openid, UsageQuotaService.Feature.SIMPLE_WEEKLY_PLAN, null, request.requestId()); }
         catch (IllegalStateException e) { return ApiResponse.error(403, e.getMessage()); }
-        try {
-            return ApiResponse.ok(plans.generate(openid, request));
-        } catch (RuntimeException e) {
-            quotas.release(openid, UsageQuotaService.Feature.SIMPLE_WEEKLY_PLAN);
-            return ApiResponse.error(500, "菜单生成失败，请稍后重试");
-        }
+        WeeklyPlanJobService.JobView job = weeklyPlanJobs.start(openid, () -> {}, progress -> {
+            try {
+                return plans.generate(openid, request, progress).id();
+            } catch (RuntimeException e) {
+                quotas.release(openid, UsageQuotaService.Feature.SIMPLE_WEEKLY_PLAN);
+                throw e;
+            }
+        });
+        return ApiResponse.ok(job);
+    }
+
+    /** 轮询周菜单生成任务进度；成功后携带 planId，前端据此跳详情。 */
+    @GetMapping("/generate/jobs/{jobId}")
+    public ApiResponse<?> weeklyPlanJob(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @PathVariable String jobId) {
+        return weeklyPlanJobs.find(jobId, openid)
+                .map(ApiResponse::ok)
+                .orElseGet(() -> ApiResponse.error(404, "任务不存在或已过期"));
     }
     @PostMapping("/agent-replies") public ApiResponse<?> agentReply(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @RequestBody AgentReplyRequest request) {
         try { quotas.requireMember(openid); } catch (IllegalStateException e) { return ApiResponse.error(403, e.getMessage()); }

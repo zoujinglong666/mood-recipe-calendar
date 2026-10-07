@@ -3,6 +3,7 @@ package com.moodrecipe.backend.common;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.http.converter.HttpMessageNotWritableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -13,6 +14,7 @@ import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 import jakarta.servlet.http.HttpServletRequest;
+import java.io.IOException;
 
 import jakarta.validation.ConstraintViolationException;
 import java.util.stream.Collectors;
@@ -98,6 +100,53 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleIllegalArg(IllegalArgumentException e) {
         log.warn("IllegalArgumentException: {}", e.getMessage());
         return ResponseEntity.badRequest().body(ApiResponse.error(400, "请求参数不合法，请检查输入"));
+    }
+
+    /**
+     * 响应写出失败：绝大多数情况是客户端在长耗时请求（如周菜单同步生成）期间已断开连接
+     * （Broken pipe / Connection reset / Tomcat ClientAbortException）。这是客户端超时或切走导致的，
+     * 不是服务器错误，不应作为 500 告警。仅当根因确为客户端断开时按 debug 记日志、不推送；
+     * 其余真实写不出（如序列化错误）仍走 500 流程。
+     */
+    @ExceptionHandler(HttpMessageNotWritableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNotWritable(HttpMessageNotWritableException e, HttpServletRequest request) {
+        if (isClientAbort(e.getCause())) {
+            log.debug("[client-abort] {} {} 客户端已断开，响应写出失败（非服务器错误，不告警）: {}",
+                    request.getMethod(), request.getRequestURI(), rootMessage(e.getCause()));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+        log.error("[write-500] {} {} -> {}: {}", request.getMethod(), request.getRequestURI(), e.getClass().getName(), e.getMessage(), e);
+        wxPusherNotifier.send(String.format("[锅仔后端 500 告警] %s %s%n%s: %s",
+                request.getMethod(), request.getRequestURI(), e.getClass().getSimpleName(), e.getMessage()));
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body(ApiResponse.error(500, "服务器内部错误，请稍后重试"));
+    }
+
+    /** 判断异常根因是否为客户端主动断开连接（Broken pipe / Connection reset / ClientAbortException）。 */
+    private static boolean isClientAbort(Throwable cause) {
+        Throwable t = cause;
+        while (t != null) {
+            if (t instanceof IOException
+                    && (t.getClass().getName().equals("org.apache.catalina.connector.ClientAbortException")
+                        || messageContains(t, "Broken pipe", "Connection reset", "Connection aborted", "ClientAbort"))) {
+                return true;
+            }
+            t = t.getCause();
+        }
+        return false;
+    }
+
+    private static String rootMessage(Throwable cause) {
+        Throwable t = cause;
+        while (t != null && t.getCause() != null) t = t.getCause();
+        return t == null ? "" : t.getMessage();
+    }
+
+    private static boolean messageContains(Throwable t, String... keywords) {
+        String m = t.getMessage();
+        if (m == null) return false;
+        for (String kw : keywords) if (m.contains(kw)) return true;
+        return false;
     }
 
     /** 兜底：所有未捕获异常 */

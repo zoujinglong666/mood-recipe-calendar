@@ -36,6 +36,9 @@ function requestId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 }
 
+/** 慢接口（换菜等涉及重排）的超时，单位毫秒。 */
+const SLOW_TIMEOUT = 60000
+
 /** 展示前最后一道闸门：编码污染的数据宁可整页不展示，也不把问号菜名暴露给用户。 */
 export function isDisplayableWeeklyPlan(plan: WeeklyPlan | null | undefined): plan is WeeklyPlan {
   const text = (value: unknown, maxLength: number) => typeof value === 'string'
@@ -84,8 +87,19 @@ export function fetchCurrentAgentConversation() {
 export function resetAgentConversation() {
   return post<boolean>('/weekly-plans/agent-conversations/reset')
 }
+export interface WeeklyPlanJob {
+  jobId: string
+  status: 'RUNNING' | 'SUCCEEDED' | 'FAILED'
+  currentStage?: string
+  message?: string
+  planId?: number
+}
 export function generateWeeklyPlan(data: { people: number, days: number, cookingDays: number[], healthGoal: string, sendNotification: boolean, dishesPerDay: number, budget?: string, conversationNotes?: string, requestId?: string }) {
-  return post<WeeklyPlan>('/weekly-plans/generate', { ...data, requestId: data.requestId || requestId('plan') })
+  return post<WeeklyPlanJob>('/weekly-plans/generate', { ...data, requestId: data.requestId || requestId('plan') })
+}
+/** 轮询周菜单生成任务；成功后带 planId，前端据此跳详情。 */
+export function getWeeklyPlanJob(jobId: string) {
+  return get<WeeklyPlanJob>(`/weekly-plans/generate/jobs/${jobId}`)
 }
 export function askMealAgent(message: string, nextQuestion: string) {
   return post<{ reply: string }>('/weekly-plans/agent-replies', { message, nextQuestion })
