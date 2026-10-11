@@ -15,6 +15,8 @@ export interface RecipeItem {
   source: 'AI' | 'LOCAL'
   recommendationReason?: string
   recommendationInsights?: RecommendationInsight[]
+  /** 推荐依据：本次推荐检索到的《中国居民膳食指南》要点（JSON 串），用于「有迹可循」展示 */
+  guidelineBasis?: string
 }
 
 export interface RecommendationInsight {
@@ -75,9 +77,9 @@ export function recommendRecipe(mood: string) {
   return get<RecipeItem>('/recipes/recommend', { mood }).then(normalizeRecipe)
 }
 
-/** 创建可查询真实执行阶段的今日推荐任务。 */
-export function createRecommendationJob(mood: string) {
-  return post<RecommendationJob>('/recipes/recommend-jobs', { mood }).then(job => ({
+/** 创建可查询真实执行阶段的今日推荐任务。mealType 可选：BREAKFAST / LUNCH / DINNER。 */
+export function createRecommendationJob(mood: string, mealType?: string) {
+  return post<RecommendationJob>('/recipes/recommend-jobs', { mood, mealType }).then(job => ({
     ...job,
     recipe: job.recipe ? normalizeRecipe(job.recipe) : undefined,
   }))
@@ -85,6 +87,11 @@ export function createRecommendationJob(mood: string) {
 
 export function fetchRecipeQuota() {
   return get<UsageQuotaView>('/recipes/quota')
+}
+
+/** 全库 AI 菜谱池（source=AI 且有真实图片，即所有用户的 AI 推荐记录），供锅仔转盘抽样。 */
+export function fetchRecipePool() {
+  return get<RecipeItem[]>('/recipes').then(items => (Array.isArray(items) ? items : []).map(normalizeRecipe))
 }
 
 export function fetchRecommendationHistory() {

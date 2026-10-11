@@ -168,11 +168,14 @@ public class DialogueAgent {
             rememberCuisine(openid, state.favoriteCuisine());
         }
 
-        String action = validateAction(orchestrated.action(), state, learnedSomething, gaps, conflicts, orchestrated.unclear());
+        String action = validateAction(orchestrated.action(), state, learnedSomething, gaps, conflicts, orchestrated.unclear(), previousAction);
         // 违规台账（Harness）：模型提了白名单外的动作 → 记录，反复出现自动升级为提示词纪律
         if (!action.equals(orchestrated.action()) && !orchestrated.action().isBlank()) {
             outputGate.record("action.invalid");
         }
+        // 信息已收齐后用户继续闲聊/微调时，不再复读「信息够了」：上一轮已是 READY 且本轮没有新信息，
+        // 就换一句轻量的确认话术（卡片保留——它是常驻的生成入口）。
+        boolean readyRepeat = "READY".equals(action) && "READY".equals(previousAction) && !learnedSomething;
         boolean repeatedQuestion = previousAction != null && previousAction.equals(action)
                 && action.startsWith("ASK_") && !input.isBlank()
                 && state.equals(incoming);
@@ -214,7 +217,11 @@ public class DialogueAgent {
                 : orchestrated.askReason();
         String reply = repeatedQuestion
                 ? "我还没从刚才的话里确认到新的信息。请直接告诉我具体答案，也可以点“自己输入”。"
-                : (orchestrated.reply().isBlank() ? fallbackReply(action, conflicts) : orchestrated.reply());
+                : (orchestrated.reply().isBlank()
+                        ? (readyRepeat
+                                ? "收到～信息没变化，点下面的「生成这一周菜单」随时开工；想改哪项直接告诉我。"
+                                : fallbackReply(action, conflicts))
+                        : orchestrated.reply());
         reply = sanitizeReply(correctTodayWeekday(reply));
 
         List<String> memoryUsed = independentMeal ? List.of() : profile.memory().stream()
@@ -682,14 +689,19 @@ public class DialogueAgent {
     }
 
     private String validateAction(String proposed, DialogueState.AgentState state, boolean learnedSomething,
-                                  List<Gap> gaps, List<Conflict> conflicts, List<String> unclear) {
+                                  List<Gap> gaps, List<Conflict> conflicts, List<String> unclear,
+                                  String previousAction) {
         // 本轮状态有实质更新（用户给出了新信息）时，不再被 unclear 劫持成确认卡；
         // 只有"说了但什么都没听出来"才进入澄清，避免反复追问同一个问题。
         if (unclear != null && !unclear.isEmpty() && !learnedSomething) return "ASK_CLARIFY";
         List<String> allowed = allowedActions(state, gaps);
         if (!conflicts.isEmpty() && "READY".equals(proposed) && !gaps.isEmpty()) {
             String suggested = conflicts.get(0).suggestAction();
-            if (!suggested.isBlank() && allowed.contains(suggested)) return suggested;
+            // 冲突提醒只发一次：上一轮已经为同一冲突打回过（previousAction 即建议动作），
+            // 这次尊重用户坚持的选择放行，否则会陷入「回答→冲突→再问同一张卡」的死循环。
+            if (!suggested.isBlank() && allowed.contains(suggested) && !suggested.equals(previousAction)) {
+                return suggested;
+            }
         }
         if (proposed != null && allowed.contains(proposed)) return proposed;
         return nextAction(state, gaps);

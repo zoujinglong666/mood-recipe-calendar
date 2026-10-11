@@ -64,6 +64,10 @@ const currentBackend = computed(() => API_BACKENDS.find(b => b.url === currentBa
 })
 const switchingBackend = ref(false)
 
+/** 设置页是否显示「后端服务」切换入口：生产构建仅单一生产环境、无可选项，默认隐藏；开发/联调构建可见。可用 VITE_SHOW_BACKEND_SWITCHER=true 强制显示（调试真机联调用）。 */
+const showBackendSwitcher = !import.meta.env.PROD
+  || String(import.meta.env.VITE_SHOW_BACKEND_SWITCHER) === 'true'
+
 function selectBackend(backend: ApiBackend) {
   if (switchingBackend.value || backend.url === getApiBaseUrl())
     return
@@ -371,7 +375,7 @@ function askDeleteAccount() {
         </view>
       </view>
 
-      <view class="settings-section">
+      <view v-if="showBackendSwitcher" class="settings-section">
         <view class="settings-heading">
           <text class="settings-heading__title">
             后端服务

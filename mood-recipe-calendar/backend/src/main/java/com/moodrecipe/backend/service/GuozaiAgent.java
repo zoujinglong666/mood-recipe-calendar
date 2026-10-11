@@ -57,12 +57,13 @@ public class GuozaiAgent {
     private final RecommendationExposureService exposures;
     private final WechatContentSafetyService contentSafety;
     private final RecipePool recipePool;
+    private final GuidelineRagService guidelineRag;
 
     public GuozaiAgent(AiRecipeService aiRecipeService, GuozaiMemory memory, GuozaiPersona persona,
                        RecipeRepository recipeRepository, RecipeInteractionRepository interactions,
                        UserFoodPreferenceRepository preferences, OperationalEventService operationalEvents,
                        RecommendationExposureService exposures, WechatContentSafetyService contentSafety,
-                       RecipePool recipePool) {
+                       RecipePool recipePool, GuidelineRagService guidelineRag) {
         this.aiRecipeService = aiRecipeService;
         this.memory = memory;
         this.persona = persona;
@@ -73,6 +74,7 @@ public class GuozaiAgent {
         this.exposures = exposures;
         this.contentSafety = contentSafety;
         this.recipePool = recipePool;
+        this.guidelineRag = guidelineRag;
     }
 
     // ==================== 能力一：菜谱推荐 ====================
@@ -86,6 +88,10 @@ public class GuozaiAgent {
      * AI 失败时回退本地菜谱库。
      */
     public Recipe recommend(String openid, String mood, RecommendationJobService.Progress progress) {
+        return recommend(openid, mood, null, progress);
+    }
+
+    public Recipe recommend(String openid, String mood, String mealType, RecommendationJobService.Progress progress) {
         update(progress, RecommendationJobService.Stage.MEMORY,
                 RecommendationJobService.StepStatus.RUNNING, "锅仔正在回想你的吃饭习惯");
         UserFoodPreference preference = preferences.findByOpenid(openid).orElse(null);
@@ -101,10 +107,13 @@ public class GuozaiAgent {
                         ? "已记起你连续记录 " + snapshot.streak() + " 天，最近常做 " + snapshot.topDish()
                         : "还在了解你的口味，这次先按心情推荐");
 
+        // 本次推荐的《中国居民膳食指南》依据，随推荐结果返回（失败不影响推荐本身）
+        String guidelineBasis = buildGuidelineBasis(mood, mealType);
+
         // 优先 AI 智能体推荐（基于记忆主动分析，不是简单传 mood+preference）
         try {
             String preferenceText = preferencePrompt(preference);
-            String smartPrompt = persona.recipePrompt(mood, userAnalysis, preferenceText);
+            String smartPrompt = persona.recipePrompt(mood, userAnalysis, preferenceText, mealType);
             Optional<Recipe> aiRecipe = aiRecipeService.recommendWithPersona(mood, smartPrompt,
                     event -> updateAiProgress(openid, progress, event));
             if (aiRecipe.isPresent() && contentSafe(openid, aiRecipe.get()) && allowedByPreference(aiRecipe.get(), preference)
@@ -122,6 +131,7 @@ public class GuozaiAgent {
                 // 动态推荐理由：结合记忆分析 + AI 生成的 description
                 generated.setRecommendationReason(buildSmartReason(mood, snapshot, preference, generated.getDescription()));
                 generated.setRecommendationInsights(recommendationInsights(generated, snapshot));
+                generated.setGuidelineBasis(guidelineBasis);
                 if (generated.getId() != null) recordInteraction(openid, generated.getId(), "SHOWN");
                 generated.setExposureId(exposures.recordShown(openid, generated, "AI"));
                 update(progress, RecommendationJobService.Stage.FINALIZE,
@@ -133,7 +143,30 @@ public class GuozaiAgent {
         }
 
         // 回退：本地菜谱库
-        return fallbackLocalRecipe(openid, mood, preference, snapshot, progress);
+        Recipe fallback = fallbackLocalRecipe(openid, mood, preference, snapshot, progress);
+        fallback.setGuidelineBasis(guidelineBasis);
+        return fallback;
+    }
+
+    /** 检索《中国居民膳食指南》要点作为本次推荐的可见依据；失败则静默返回 null，不影响推荐本身。 */
+    private String buildGuidelineBasis(String mood, String mealType) {
+        try {
+            String label = GuozaiPersona.mealTypeLabel(mealType);
+            String query = (label.isEmpty() ? "" : label + " 餐 ") + "膳食搭配 营养均衡 " + mood;
+            List<Map<String, Object>> points = guidelineRag.search(query, 3);
+            if (points == null || points.isEmpty()) return null;
+            List<Map<String, Object>> slim = points.stream().map(p -> {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("title", p.get("title"));
+                m.put("content", p.get("content"));
+                m.put("source", p.get("source"));
+                return m;
+            }).toList();
+            return JSON.writeValueAsString(slim);
+        } catch (Exception e) {
+            log.warn("膳食指南依据检索失败，本次推荐不附带依据: {}", e.toString());
+            return null;
+        }
     }
 
     /** 深度推荐（已购权益）——结合用户输入的食材、时长、口味 + 锅仔记忆分析。 */

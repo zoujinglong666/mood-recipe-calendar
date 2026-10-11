@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { FoodMemoryView } from '@/api/preferences'
-import type { MealAgentConversationSnapshot, MealAgentHistoryMessage, MealAgentOption, MealAgentState, MealAgentTurn, WeeklyPlan, UsageQuotaView } from '@/api/weeklyPlans'
+import type { MealAgentCard, MealAgentConversationSnapshot, MealAgentHistoryMessage, MealAgentOption, MealAgentState, MealAgentTurn, WeeklyPlan, UsageQuotaView } from '@/api/weeklyPlans'
 import { computed, nextTick, ref } from 'vue'
 import { fetchFoodMemory } from '@/api/preferences'
 import { fetchAgentConversationQuota, fetchCurrentAgentConversation, generateWeeklyPlan, getCurrentPlan, requestWeeklyPlanCompletionNotice, rateAgentConversation, resetAgentConversation, runMealAgentTurn } from '@/api/weeklyPlans'
@@ -43,7 +43,7 @@ const hasElder = ref(false)
 const hasChild = ref(false)
 const spiceLevel = ref('微辣')
 const sessionCuisine = ref('')
-interface ChatMessage { id: number, role: 'agent' | 'user', text: string, tags?: string[], selected?: boolean }
+interface ChatMessage { id: number, role: 'agent' | 'user', text: string, tags?: string[], selected?: boolean, card?: MealAgentCard | null }
 interface MealAgentDraft { conversationId: string, messages: ChatMessage[], state: MealAgentState, turn?: MealAgentTurn, completed?: boolean, generatedPlanId?: number }
 const composerText = ref('')
 const messages = ref<ChatMessage[]>([])
@@ -343,7 +343,7 @@ async function scrollToLatest() {
 }
 
 /** echoMode：option=点卡片选项/快捷回复发出的（回执显示成选中的选项），text=手动输入的（普通气泡）。 */
-async function runAgent(message: string, echo = false, echoLabel = message, webSearch = webSearchEnabled.value, echoMode: 'option' | 'text' = 'text') {
+async function runAgent(message: string, echo = false, echoLabel = message, webSearch = webSearchEnabled.value, echoMode: 'option' | 'text' = 'text', preset?: string) {
   if (agentBusy.value || agentTyping.value)
     return
   if (echo && message)
@@ -353,8 +353,8 @@ async function runAgent(message: string, echo = false, echoLabel = message, webS
   startThinking()
   await scrollToLatest()
   try {
-    const history: MealAgentHistoryMessage[] = messages.value.map(({ role, text, tags, selected }) => ({ role, text, tags, selected }))
-    const turn = await runMealAgentTurn(message, agentState.value, currentConversationId(), history, webSearch)
+    const history: MealAgentHistoryMessage[] = messages.value.map(({ role, text, tags, selected, card }) => ({ role, text, tags, selected, card }))
+    const turn = await runMealAgentTurn(message, agentState.value, currentConversationId(), history, webSearch, preset)
     stopThinking()
     agentTurn.value = turn
     otherInput.value = false
@@ -434,6 +434,21 @@ async function sendQuickReply(text: string) {
   await runAgent(text, true, text, webSearchEnabled.value, 'option')
 }
 
+// ===== A2. 场景预设：一键带整套偏好进场，跳过逐项追问（冰箱清空走冰箱问答路径） =====
+const SCENE_PRESETS = [
+  { key: 'SINGLE', label: '🍳 单人快煮', message: '就我一个人吃饭，安排这一周的晚餐，简单省事不剩饭' },
+  { key: 'COUPLE', label: '💑 情侣二人食', message: '我们两个人一起吃饭，安排这一周的晚餐' },
+  { key: 'BANQUET', label: '🎉 宴席硬菜', message: '周末家里来客人，帮我安排一桌宴席硬菜' },
+  { key: 'FRIDGE', label: '🧊 冰箱清空', message: '冰箱里还剩哪些食材？帮我用现有的食材安排菜单' },
+] as const
+
+async function runPreset(preset: typeof SCENE_PRESETS[number]) {
+  await runAgent(preset.message, true, preset.label, webSearchEnabled.value, 'option', preset.key)
+}
+
+/** 预设条常驻可点；菜单已生成后收起，避免误触重开场景。 */
+const scenePresetsVisible = computed(() => canUseAgent.value && !completed.value && !generating.value)
+
 // ===== B. 教学卡：带来源标注的做法回复解析为分步卡片，替代文字墙 =====
 const TEACH_SOURCES: Record<string, string> = {
   'baike.baidu.com': '百度百科',
@@ -479,7 +494,20 @@ function parseTeachingReply(raw: string): TeachingReply {
 }
 
 // ===== C. 记忆可视化：锅仔已记住的要点常驻顶部，点一下就能改 =====
-const GOAL_LABELS: Record<string, string> = { LEAN: '清淡', FITNESS: '均衡', BALANCED: '均衡', DAILY: '日常', TREAT: '丰盛', SAVE: '省钱' }
+const GOAL_LABELS: Record<string, string> = {
+  LEAN: '清淡', FITNESS: '均衡', BALANCED: '均衡', DAILY: '日常', TREAT: '丰盛', SAVE: '省钱',
+  // 历史会话/模型自由文本的兜底映射，避免「目标:mild_flavor」这类原文漏出
+  MILD_FLAVOR: '清淡', LIGHT: '清淡', RICH: '丰盛', CHEAP: '省钱',
+}
+const SPICE_LABELS: Record<string, string> = {
+  NONE: '不辣', MILD: '微辣', NORMAL: '中辣', MEDIUM: '中辣', HOT: '能吃辣', SPICY: '能吃辣',
+  不辣: '不辣', 微辣: '微辣', 中辣: '中辣', 能吃辣: '能吃辣',
+}
+
+/** 槽位值 → 展示中文：先查映射表（精确/大小写），再走通用枚举翻译，最后原样。 */
+function labelValue(map: Record<string, string>, value: string) {
+  return map[value] || map[value.toUpperCase()] || map[value.toLowerCase()] || localizeAgentText(value)
+}
 
 const memoryChips = computed(() => {
   const state = agentState.value || {}
@@ -487,10 +515,10 @@ const memoryChips = computed(() => {
   if (state.people) chips.push({ key: 'people', label: `${state.people} 人吃`, intent: '人数要调整一下' })
   if (state.hasElder) chips.push({ key: 'elder', label: '家有老人', intent: '家庭情况要调整一下' })
   if (state.hasChild) chips.push({ key: 'child', label: '家有小孩', intent: '家庭情况要调整一下' })
-  if (state.spiceLevel) chips.push({ key: 'spice', label: `口味:${state.spiceLevel}`, intent: '口味要改一下，重新说说辣度' })
+  if (state.spiceLevel) chips.push({ key: 'spice', label: `口味:${labelValue(SPICE_LABELS, state.spiceLevel)}`, intent: '口味要改一下，重新说说辣度' })
   if (state.favoriteCuisine) chips.push({ key: 'cuisine', label: `偏爱${state.favoriteCuisine}`, intent: '想换个菜系' })
-  if (state.healthGoal) chips.push({ key: 'goal', label: `目标:${GOAL_LABELS[state.healthGoal] || state.healthGoal}`, intent: '饮食目标要调整' })
-  if (state.budget) chips.push({ key: 'budget', label: `预算:${GOAL_LABELS[state.budget] || state.budget}`, intent: '预算标准要调整' })
+  if (state.healthGoal) chips.push({ key: 'goal', label: `目标:${labelValue(GOAL_LABELS, state.healthGoal)}`, intent: '饮食目标要调整' })
+  if (state.budget) chips.push({ key: 'budget', label: `预算:${labelValue(GOAL_LABELS, state.budget)}`, intent: '预算标准要调整' })
   if (state.cookingDays?.length) chips.push({ key: 'days', label: `做 ${state.cookingDays.length} 天`, intent: '做饭的天数要调整' })
   if (state.dishesPerDay) chips.push({ key: 'dishes', label: `每天 ${state.dishesPerDay} 道`, intent: '每天做的菜数要调整' })
   for (const item of state.requestedIngredients || [])
@@ -812,6 +840,13 @@ onShareTimeline(() => {
             </button>
           </view>
         </scroll-view>
+        <scroll-view v-if="scenePresetsVisible" class="preset-strip" scroll-x :show-scrollbar="false" aria-label="场景预设，一键安排菜单">
+          <view class="preset-strip__inner">
+            <button v-for="preset in SCENE_PRESETS" :key="preset.key" class="preset-strip__chip" :disabled="agentBusy || agentTyping" @click="runPreset(preset)">
+              {{ preset.label }}
+            </button>
+          </view>
+        </scroll-view>
         <view class="chat-list">
           <view v-for="message in messages" :key="message.id" class="chat-row" :class="[`chat-row--${message.role}`, { 'chat-row--selection': message.selected }]">
             <image v-if="message.role === 'agent'" :src="`${STATIC_BASE_URL}/static/guozai/action_08_peek.png`" mode="aspectFit" aria-hidden="true" />
@@ -839,6 +874,14 @@ onShareTimeline(() => {
                   <text v-for="tag in message.tags" :key="tag">
                     {{ tag }}
                   </text>
+                </view>
+              </view>
+              <view v-if="message.card" class="chat-card-echo" aria-label="当时的确认卡">
+                <text class="chat-card-echo__eyebrow">当时的确认卡</text>
+                <text class="chat-card-echo__title">{{ message.card.title }}</text>
+                <text v-if="message.card.description" class="chat-card-echo__desc">{{ message.card.description }}</text>
+                <view class="chat-card-echo__options">
+                  <text v-for="option in message.card.options" :key="option.value" class="chat-card-echo__option">{{ option.label }}</text>
                 </view>
               </view>
             </view>
@@ -1004,6 +1047,19 @@ onShareTimeline(() => {
 .memory-strip__inner { display: inline-flex; gap: 12rpx; padding: 2rpx 4rpx; }
 .memory-strip__chip { flex: 0 0 auto; min-height: 56rpx; margin: 0; padding: 0 20rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 999rpx; background: var(--mrc-surface); color: var(--mrc-text-sub); font-size: 21rpx; line-height: 52rpx; }
 .memory-strip__chip::after { border: none; }
+/* 场景预设条：一键带整套偏好进场 */
+.preset-strip { margin: 0 0 14rpx; white-space: nowrap; }
+.preset-strip__inner { display: inline-flex; gap: 12rpx; padding: 2rpx 4rpx; }
+.preset-strip__chip { flex: 0 0 auto; min-height: 64rpx; margin: 0; padding: 0 24rpx; border: 2rpx solid var(--mrc-border); border-radius: 999rpx; background: var(--mrc-surface-sun); color: var(--mrc-text-deep); font-size: 22rpx; font-weight: 700; line-height: 60rpx; transition: transform .15s ease; }
+.preset-strip__chip:active { transform: scale(.96); }
+.preset-strip__chip::after { border: none; }
+/* 历史消息里回显当时的确认卡（只读） */
+.chat-card-echo { display: flex; flex-direction: column; gap: 8rpx; width: 100%; margin-top: 10rpx; padding: 18rpx 22rpx; border: 2rpx dashed var(--mrc-border-light); border-radius: 22rpx; background: var(--mrc-surface-2); box-sizing: border-box; opacity: .85; }
+.chat-card-echo__eyebrow { color: var(--mrc-text-light); font-size: 18rpx; font-weight: 800; letter-spacing: 1rpx; }
+.chat-card-echo__title { color: var(--mrc-text-deep); font-size: 26rpx; font-weight: 800; }
+.chat-card-echo__desc { color: var(--mrc-text-sub); font-size: 21rpx; line-height: 1.45; }
+.chat-card-echo__options { display: flex; flex-wrap: wrap; gap: 10rpx; }
+.chat-card-echo__option { padding: 6rpx 18rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 999rpx; background: var(--mrc-surface); color: var(--mrc-text-sub); font-size: 20rpx; }
 .quick-replies { display: flex; flex-wrap: wrap; gap: 12rpx; margin: 2rpx 0 6rpx 72rpx; }
 .quick-replies__chip { min-height: 60rpx; margin: 0; padding: 0 22rpx; border: 2rpx dashed var(--mrc-accent-soft, rgba(232, 101, 43, .35)); border-radius: 999rpx; background: var(--mrc-surface); color: var(--mrc-accent); font-size: 22rpx; line-height: 56rpx; }
 .quick-replies__chip::after { border: none; }

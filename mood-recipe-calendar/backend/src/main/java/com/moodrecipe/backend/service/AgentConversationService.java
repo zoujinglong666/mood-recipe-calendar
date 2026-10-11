@@ -20,7 +20,13 @@ public class AgentConversationService {
         this.json = json;
     }
 
-    public record TranscriptMessage(String role, String text, List<String> tags, Boolean selected) {}
+    /** card：该条锅仔消息携带的确认卡（历史回看用）；用户消息恒为 null。 */
+    public record TranscriptMessage(String role, String text, List<String> tags, Boolean selected,
+                                    DialogueState.Card card) {
+        public TranscriptMessage(String role, String text, List<String> tags, Boolean selected) {
+            this(role, text, tags, selected, null);
+        }
+    }
 
     public record Snapshot(String conversationId, DialogueState.AgentState state,
                            String lastAction, DialogueState.Turn turn,
@@ -78,7 +84,7 @@ public class AgentConversationService {
             // 恢复会话时最后一条锅仔回复永远丢失（刷新后"少了"的直接原因）。
             List<TranscriptMessage> full = new java.util.ArrayList<>(safeTranscript(transcript));
             if (turn.reply() != null && !turn.reply().isBlank())
-                full.add(new TranscriptMessage("agent", turn.reply(), List.of(), false));
+                full.add(new TranscriptMessage("agent", turn.reply(), List.of(), false, turn.card()));
             conversation.setTranscriptJson(json.writeValueAsString(safeTranscript(full)));
             conversation.setLastAction(turn.action());
             conversation.setTurnCount(conversation.getTurnCount() + 1);
@@ -126,7 +132,8 @@ public class AgentConversationService {
                         message.role().equals("user") ? "user" : "agent",
                         message.text().length() > 500 ? message.text().substring(0, 500) : message.text(),
                         message.tags() == null ? List.of() : message.tags().stream().limit(8).toList(),
-                        Boolean.TRUE.equals(message.selected())))
+                        Boolean.TRUE.equals(message.selected()),
+                        message.card()))
                 .toList();
     }
 

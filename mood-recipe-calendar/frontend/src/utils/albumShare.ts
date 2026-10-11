@@ -458,6 +458,315 @@ export async function exportRecipeShare(data: RecipeShareData, canvasId = 'recip
   })
 }
 
+export interface DailyMenuShareMeal {
+  name: string
+  mealLabel: string
+  image: string
+  guideline?: { title: string; content: string; source?: string }
+}
+
+export interface DailyMenuShareData {
+  date: string
+  meals: DailyMenuShareMeal[]
+  nutrition: { headline: string; tags: string[]; tip: string }
+}
+
+function drawTag(ctx: any, text: string, x: number, y: number): number {
+  ctx.font = '20px sans-serif'
+  const paddingX = 16
+  const w = ctx.measureText(text).width + paddingX * 2
+  const h = 42
+  ctx.fillStyle = COLORS.card
+  roundRect(ctx, x, y, w, h, 21)
+  ctx.fill()
+  ctx.fillStyle = COLORS.sub
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'middle'
+  ctx.fillText(text, x + paddingX, y + h / 2 + 1)
+  ctx.textBaseline = 'top'
+  return w + 14
+}
+
+/** 把「锅仔的一日三餐」绘成竖版营养卡长图（返回临时文件路径，由调用方保存相册/下载）。 */
+export async function exportDailyMenuShare(data: DailyMenuShareData, canvasId = 'dailyMenuShareCanvas'): Promise<string> {
+  const inst = getCurrentInstance()
+  const query = uni.createSelectorQuery()
+  const q: any = inst?.proxy ? query.in(inst.proxy) : query
+  const canvasInfo = await new Promise<any>((resolve, reject) => {
+    q.select(`#${canvasId}`).fields({ node: true, size: true }).exec((res: any[]) => {
+      if (res?.[0]?.node) resolve(res[0])
+      else reject(new Error('未找到一日三餐画布'))
+    })
+  })
+
+  const W = 750
+  const headerH = 224
+  const nutritionH = 280
+  const mealGap = 28
+  const mealH = 380
+  const footerH = 210
+  const totalH = headerH + nutritionH + mealGap + mealH * 3 + mealGap * 3 + footerH
+
+  const canvas = canvasInfo.node
+  const ctx = canvas.getContext('2d')
+  const dpr = getWindowInfo().pixelRatio || 2
+  canvas.width = W * dpr
+  canvas.height = totalH * dpr
+  ctx.scale(dpr, dpr)
+
+  ctx.fillStyle = COLORS.bg
+  ctx.fillRect(0, 0, W, totalH)
+
+  ctx.fillStyle = COLORS.yellow
+  ctx.beginPath(); ctx.arc(70, 80, 24, 0, Math.PI * 2); ctx.fill()
+  ctx.fillStyle = COLORS.accent
+  ctx.beginPath(); ctx.arc(W - 76, 140, 20, 0, Math.PI * 2); ctx.fill()
+
+  centerText(ctx, W / 2, 60, 'GUOZAI · DAILY MENU', 20, COLORS.sub, 'bold')
+  centerText(ctx, W / 2, 100, '锅仔的一日三餐', 46, COLORS.text, 'bold')
+  centerText(ctx, W / 2, 164, data.date || '', 24, COLORS.sub)
+
+  const nutY = headerH
+  ctx.fillStyle = COLORS.card
+  roundRect(ctx, 52, nutY, W - 104, nutritionH, 32)
+  ctx.fill()
+  leftText(ctx, 80, nutY + 28, '今日营养结构', 22, COLORS.accent, 'bold')
+  ctx.font = '28px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'
+  wrapText(ctx, data.nutrition.headline || '', W - 200, 2).forEach((line, i) => {
+    ctx.fillStyle = COLORS.text
+    ctx.fillText(line, 80, nutY + 66 + i * 34)
+  })
+  let tagX = 80
+  const tagY = nutY + 150
+  for (const t of (data.nutrition.tags || [])) {
+    const w = drawTag(ctx, t, tagX, tagY)
+    tagX += w
+    if (tagX > W - 130) break
+  }
+  ctx.font = '22px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'
+  wrapText(ctx, data.nutrition.tip || '', W - 200, 2).forEach((line, i) => {
+    ctx.fillStyle = COLORS.sub
+    ctx.fillText(line, 80, nutY + 204 + i * 30)
+  })
+
+  let cardY = headerH + nutritionH + mealGap
+  for (let i = 0; i < data.meals.length; i++) {
+    const meal = data.meals[i]
+    ctx.fillStyle = COLORS.white
+    roundRect(ctx, 52, cardY, W - 104, mealH, 32)
+    ctx.fill()
+
+    const imgX = 76, imgY = cardY + 30, imgW = 200, imgH = 200
+    let drawn = false
+    if (meal.image) {
+      try {
+        drawCover(ctx, await loadCanvasImage(canvas, meal.image), imgX, imgY, imgW, imgH, 20)
+        drawn = true
+      }
+      catch { drawn = false }
+    }
+    if (!drawn) {
+      ctx.fillStyle = COLORS.card
+      roundRect(ctx, imgX, imgY, imgW, imgH, 20)
+      ctx.fill()
+      centerText(ctx, imgX + imgW / 2, imgY + imgH / 2 - 22, '锅仔', 30, COLORS.sub, 'bold')
+      centerText(ctx, imgX + imgW / 2, imgY + imgH / 2 + 16, '用心搭', 22, COLORS.sub)
+    }
+
+    leftText(ctx, 304, cardY + 36, meal.mealLabel, 24, COLORS.accent, 'bold')
+    ctx.font = '34px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'
+    ctx.fillStyle = COLORS.text
+    ctx.fillText(String(meal.name || '').slice(0, 12), 304, cardY + 74)
+    leftText(ctx, 304, cardY + 124, '锅仔替你决定', 22, COLORS.sub)
+
+    const g = meal.guideline
+    if (g && (g.title || g.content)) {
+      ctx.fillStyle = COLORS.accent
+      roundRect(ctx, 76, cardY + 248, 96, 36, 18)
+      ctx.fill()
+      centerText(ctx, 76 + 48, cardY + 257, '有据可依', 19, COLORS.white, 'bold')
+      ctx.font = '22px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'
+      ctx.fillStyle = COLORS.accent
+      ctx.fillText((g.title || '').slice(0, 16), 188, cardY + 254)
+      ctx.font = '20px sans-serif'; ctx.fillStyle = COLORS.text
+      wrapText(ctx, g.content || '', W - 200, 2).forEach((line, li) => {
+        ctx.fillText(line, 76, cardY + 294 + li * 26)
+      })
+      if (g.source) {
+        ctx.fillStyle = COLORS.sub; ctx.font = '18px sans-serif'
+        ctx.fillText(`来源：${(g.source || '').slice(0, 22)}`, 76, cardY + 294 + 2 * 26 + 4)
+      }
+    }
+    else {
+      leftText(ctx, 76, cardY + 256, '用心搭配的三餐，慢慢吃完。', 22, COLORS.sub)
+    }
+
+    cardY += mealH + mealGap
+  }
+
+  const footerY = cardY + 8
+  drawRule(ctx, footerY)
+  leftText(ctx, 52, footerY + 36, 'GUOZAI · MOOD RECIPE', 18, COLORS.accent, 'bold')
+  leftText(ctx, 52, footerY + 72, '依据《中国居民膳食指南（2022）》', 28, COLORS.text, 'bold')
+  leftText(ctx, 52, footerY + 114, '扫码让锅仔替你决定今天吃什么', 20, COLORS.sub)
+  const codeBox = 150
+  const codeX = W - 52 - codeBox
+  const codeY = footerY + 24
+  ctx.fillStyle = COLORS.white
+  roundRect(ctx, codeX, codeY, codeBox, codeBox, 16)
+  ctx.fill()
+  try {
+    ctx.drawImage(await loadCanvasImage(canvas, miniProgramCodePath), codeX + 12, codeY + 12, codeBox - 24, codeBox - 24)
+  }
+  catch {
+    leftText(ctx, codeX + 36, codeY + 62, '扫码', 18, COLORS.sub, 'bold')
+  }
+
+  return await new Promise<string>((resolve, reject) => {
+    uni.canvasToTempFilePath({
+      canvasId,
+      canvas,
+      width: W * dpr,
+      height: totalH * dpr,
+      destWidth: W * 2,
+      destHeight: totalH * 2,
+      fileType: 'png',
+      success: result => resolve(result.tempFilePath),
+      fail: error => reject(new Error(error.errMsg || '一日三餐长图导出失败')),
+    }, inst?.proxy)
+  })
+}
+
+export interface RecordShareData {
+  dishName: string
+  moodTag: string
+  note?: string
+  recordDate: string
+  cookingTime?: number
+  /** 真实菜品照片（已解析为可访问 URL），可多张 */
+  photos: string[]
+}
+
+/** 把「这一餐的食光」绘成可保存/分享的竖版回忆海报（返回临时文件路径）。 */
+export async function exportRecordShare(data: RecordShareData, canvasId = 'recordShareCanvas'): Promise<string> {
+  const inst = getCurrentInstance()
+  const query = uni.createSelectorQuery()
+  const q: any = inst?.proxy ? query.in(inst.proxy) : query
+  const canvasInfo = await new Promise<any>((resolve, reject) => {
+    q.select(`#${canvasId}`).fields({ node: true, size: true }).exec((res: any[]) => {
+      if (res?.[0]?.node) resolve(res[0])
+      else reject(new Error('未找到回忆海报画布'))
+    })
+  })
+
+  const W = 750
+  const HEAD = 300
+  const MAIN = 520
+  const capH = 300
+  const footerH = 210
+  const totalH = HEAD + MAIN + capH + footerH
+
+  const canvas = canvasInfo.node
+  const ctx = canvas.getContext('2d')
+  const dpr = getWindowInfo().pixelRatio || 2
+  canvas.width = W * dpr
+  canvas.height = totalH * dpr
+  ctx.scale(dpr, dpr)
+
+  ctx.fillStyle = COLORS.bg
+  ctx.fillRect(0, 0, W, totalH)
+
+  ctx.fillStyle = COLORS.yellow
+  ctx.beginPath(); ctx.arc(72, 86, 24, 0, Math.PI * 2); ctx.fill()
+  ctx.fillStyle = COLORS.accent
+  ctx.beginPath(); ctx.arc(W - 78, 148, 20, 0, Math.PI * 2); ctx.fill()
+
+  leftText(ctx, 52, 52, 'FOOD MEMORY', 20, COLORS.accent, 'bold')
+  ctx.fillStyle = COLORS.card
+  roundRect(ctx, W - 172, 46, 120, 46, 23)
+  ctx.fill()
+  centerText(ctx, W - 112, 58, (data.moodTag || '这一餐').slice(0, 6), 20, COLORS.accent, 'bold')
+  ctx.font = 'bold 50px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'
+  ctx.fillStyle = COLORS.text
+  wrapText(ctx, data.dishName || '', W - 140, 1).forEach((line) => ctx.fillText(line, 52, 116))
+  leftText(ctx, 52, 190, `${data.recordDate || ''}  ·  ${data.cookingTime || 30} 分钟`, 24, COLORS.sub)
+
+  const [main, ...rest] = data.photos
+  const imgY = HEAD
+  let mainHeight = MAIN
+  let drawnMain = false
+  if (main) {
+    try {
+      drawCover(ctx, await loadCanvasImage(canvas, main), 52, imgY, W - 104, MAIN, 28)
+      drawnMain = true
+    }
+    catch { drawnMain = false }
+  }
+  if (!drawnMain) {
+    ctx.fillStyle = COLORS.card
+    roundRect(ctx, 52, imgY, W - 104, MAIN, 28)
+    ctx.fill()
+    centerText(ctx, W / 2, imgY + MAIN / 2 - 30, '锅仔', 40, COLORS.sub, 'bold')
+    centerText(ctx, W / 2, imgY + MAIN / 2 + 24, '照片没留住，味道留住了', 24, COLORS.sub)
+  }
+  else if (rest.length) {
+    const stripY = imgY + MAIN + 10
+    const stripH = 150
+    const cols = Math.min(rest.length, 3)
+    const gap = 10
+    const cw = (W - 104 - gap * (cols - 1)) / cols
+    for (let i = 0; i < cols; i++) {
+      try {
+        drawCover(ctx, await loadCanvasImage(canvas, rest[i]), 52 + i * (cw + gap), stripY, cw, stripH, 12)
+      }
+      catch { /* 缩略图失败跳过 */ }
+    }
+    mainHeight = MAIN + 10 + stripH
+  }
+
+  const capY = HEAD + mainHeight + 26
+  ctx.fillStyle = COLORS.accent
+  roundRect(ctx, 52, capY, 6, 130, 3)
+  ctx.fill()
+  leftText(ctx, 78, capY + 2, '留下一句记忆', 20, COLORS.accent, 'bold')
+  ctx.font = '26px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'
+  ctx.fillStyle = COLORS.text
+  const noteLines = wrapText(ctx, data.note || '下次回来看，你会记得这顿饭的味道。', W - 190, 3)
+  noteLines.forEach((line, i) => ctx.fillText(line, 78, capY + 40 + i * 36))
+
+  const footerY = totalH - footerH
+  drawRule(ctx, footerY + 8)
+  leftText(ctx, 52, footerY + 42, 'GUOZAI · MOOD RECIPE', 18, COLORS.accent, 'bold')
+  leftText(ctx, 52, footerY + 78, '把今天这一顿，认真记住。', 30, COLORS.text, 'bold')
+  leftText(ctx, 52, footerY + 124, '扫码打开小程序，记录你的食光', 20, COLORS.sub)
+  const codeBox = 150
+  const codeX = W - 52 - codeBox
+  const codeY = footerY + 28
+  ctx.fillStyle = COLORS.white
+  roundRect(ctx, codeX, codeY, codeBox, codeBox, 16)
+  ctx.fill()
+  try {
+    ctx.drawImage(await loadCanvasImage(canvas, miniProgramCodePath), codeX + 12, codeY + 12, codeBox - 24, codeBox - 24)
+  }
+  catch {
+    leftText(ctx, codeX + 36, codeY + 62, '扫码', 18, COLORS.sub, 'bold')
+  }
+
+  return await new Promise<string>((resolve, reject) => {
+    uni.canvasToTempFilePath({
+      canvasId,
+      canvas,
+      width: W * dpr,
+      height: totalH * dpr,
+      destWidth: W * 2,
+      destHeight: totalH * 2,
+      fileType: 'png',
+      success: result => resolve(result.tempFilePath),
+      fail: error => reject(new Error(error.errMsg || '回忆海报导出失败')),
+    }, inst?.proxy)
+  })
+}
+
 /** 保存导出的 PNG；小程序写入相册，H5 触发浏览器下载。 */
 export async function saveShareImage(path: string, filename = '锅仔食谱卡.png') {
   // #ifdef H5

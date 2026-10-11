@@ -479,9 +479,25 @@ function statusText(item: FridgeItem) {
 
 /* 页面局部令牌：全部由主题变量推导，不新增硬编码色板 */
 .fridge-page {
-  --mrc-counter-deep: #3D2519;
-  --mrc-counter-mid: #5A3728;
-  --mrc-counter-line: rgba(255, 231, 200, .14);
+  --mrc-counter-deep: #1C6B52;
+  --mrc-counter-mid: #2E8B6C;
+  --mrc-counter-line: rgba(255, 255, 255, .16);
+  /* 冰箱页整体换淡青体系：页内卡面/次级面/描边全部映射到薄荷青，不再漏暖色 */
+  --mrc-bg: var(--mrc-surface-mint);
+  --mrc-surface: #FFFFFF;
+  --mrc-surface-2: #E6F4EC;
+  --mrc-surface-3: #D7EDE1;
+  --mrc-surface-peach: #E1F3E9;
+  --mrc-surface-sun: #EAF7F0;
+  --mrc-border: #C9E5D8;
+  --mrc-border-light: #D8EDE2;
+  --mrc-border-strong: #AED4C3;
+  --mrc-text-light: #8FB3A4;
+  /* 按钮主色也换薄荷：GuozaiButton 的主 CTA 在页内自动变绿；警示/会员徽章仍走珊瑚 accent */
+  --mrc-primary: #58CFA8;
+  --mrc-color-primary: #1C8B66;
+  --mrc-color-on-primary: #FFFFFF;
+  --mrc-shadow-coral: 0 12rpx 26rpx rgba(28, 139, 102, .35);
   min-height: 100vh;
   padding: 0 28rpx calc(48rpx + env(safe-area-inset-bottom));
   box-sizing: border-box;
@@ -500,21 +516,21 @@ function statusText(item: FridgeItem) {
   padding: 26rpx 24rpx;
   border: 2rpx solid var(--mrc-counter-line);
   border-radius: 34rpx;
-  background: linear-gradient(150deg, var(--mrc-counter-deep) 0%, var(--mrc-counter-mid) 72%, #6E4430 100%);
-  box-shadow: 0 16rpx 40rpx -14rpx rgba(61, 37, 25, .55);
+  background: linear-gradient(150deg, var(--mrc-counter-deep) 0%, var(--mrc-counter-mid) 72%, #3BA37F 100%);
+  box-shadow: 0 16rpx 40rpx -14rpx rgba(23, 74, 56, .45);
   overflow: hidden;
 }
 /* 台面反光：一圈极淡的弧线，只有一层，不堆玻璃效果 */
-.counter__glow { position: absolute; top: -150rpx; right: -110rpx; width: 330rpx; height: 330rpx; border: 2rpx solid rgba(255, 214, 176, .16); border-radius: 50%; }
+.counter__glow { position: absolute; top: -150rpx; right: -110rpx; width: 330rpx; height: 330rpx; border: 2rpx solid rgba(255, 255, 255, .18); border-radius: 50%; }
 .counter__gz { position: relative; z-index: 1; width: 142rpx; height: 142rpx; flex: 0 0 auto; margin: -14rpx -6rpx -14rpx -10rpx; }
 .counter__copy { position: relative; z-index: 1; display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 10rpx; }
-.counter__title { color: #FFF6EA; font-size: 37rpx; font-weight: 800; line-height: 1.15; letter-spacing: -.5rpx; }
-.counter__line { color: rgba(255, 236, 216, .68); font-size: 21rpx; line-height: 1.45; }
-.counter__dial { position: relative; z-index: 1; display: flex; width: 112rpx; height: 112rpx; flex: 0 0 auto; flex-direction: column; align-items: center; justify-content: center; border-radius: 50%; background: var(--mrc-primary); box-shadow: inset 0 0 0 6rpx rgba(61, 37, 25, .12); }
-.counter__dial.is-clear { background: rgba(255, 246, 234, .16); box-shadow: inset 0 0 0 2rpx rgba(255, 236, 216, .34); }
-.counter__num { color: var(--mrc-text-deep); font-size: 40rpx; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
-.counter__dial.is-clear .counter__num, .counter__dial.is-clear .counter__unit { color: #FFF6EA; }
-.counter__unit { margin-top: 6rpx; color: var(--mrc-text-deep); font-size: 17rpx; font-weight: 700; opacity: .72; }
+.counter__title { color: #F0FBF5; font-size: 37rpx; font-weight: 800; line-height: 1.15; letter-spacing: -.5rpx; }
+.counter__line { color: rgba(234, 250, 242, .72); font-size: 21rpx; line-height: 1.45; }
+.counter__dial { position: relative; z-index: 1; display: flex; width: 112rpx; height: 112rpx; flex: 0 0 auto; flex-direction: column; align-items: center; justify-content: center; border-radius: 50%; background: var(--mrc-mint); box-shadow: inset 0 0 0 6rpx rgba(255, 255, 255, .22); }
+.counter__dial.is-clear { background: rgba(255, 255, 255, .16); box-shadow: inset 0 0 0 2rpx rgba(255, 255, 255, .34); }
+.counter__num { color: #FFFFFF; font-size: 40rpx; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
+.counter__dial.is-clear .counter__num, .counter__dial.is-clear .counter__unit { color: #F0FBF5; }
+.counter__unit { margin-top: 6rpx; color: #FFFFFF; font-size: 17rpx; font-weight: 700; opacity: .82; }
 
 /* ===== 库存标题 ===== */
 .page-heading { display: flex; align-items: center; justify-content: space-between; gap: 18rpx; margin-bottom: 16rpx; }
@@ -539,7 +555,7 @@ function statusText(item: FridgeItem) {
 }
 .drawer-handle:active { transform: scale(.985); box-shadow: 0 3rpx 10rpx -6rpx rgba(176, 116, 74, .4); }
 /* 把手凹槽：一条内阴影，不是装饰线条 */
-.drawer-handle__grab { position: absolute; top: 22rpx; bottom: 22rpx; left: 0; width: 10rpx; background: linear-gradient(180deg, var(--mrc-primary) 0%, var(--mrc-accent) 100%); border-radius: 0 8rpx 8rpx 0; opacity: .85; }
+.drawer-handle__grab { position: absolute; top: 22rpx; bottom: 22rpx; left: 0; width: 10rpx; background: linear-gradient(180deg, var(--mrc-mint) 0%, #1C6B52 100%); border-radius: 0 8rpx 8rpx 0; opacity: .9; }
 .drawer-handle__gz { width: 104rpx; height: 104rpx; flex: 0 0 auto; }
 .drawer-handle__body { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 7rpx; }
 .drawer-handle__head { display: flex; align-items: center; gap: 12rpx; }
@@ -592,7 +608,7 @@ function statusText(item: FridgeItem) {
 .rake__go-badge { padding: 2rpx 10rpx; border-radius: 20rpx; background: var(--mrc-accent-soft); color: var(--mrc-accent); font-size: 16rpx; font-weight: 800; letter-spacing: 1rpx; }
 
 /* ===== 抽屉式表单 ===== */
-.form-mask { position: fixed; z-index: 50; inset: 0; display: flex; align-items: flex-end; background: rgba(61, 37, 25, .42); animation: mask-in 240ms ease-out both; }
+.form-mask { position: fixed; z-index: 50; inset: 0; display: flex; align-items: flex-end; background: rgba(16, 58, 44, .45); animation: mask-in 240ms ease-out both; }
 @keyframes mask-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes sheet-up { from { opacity: 0; transform: translateY(38rpx); } to { opacity: 1; transform: none; } }
 .form-sheet { width: 100%; max-height: 86vh; overflow-y: auto; padding: 16rpx 28rpx calc(28rpx + env(safe-area-inset-bottom)); border-radius: 36rpx 36rpx 0 0; background: var(--mrc-surface); box-shadow: 0 -14rpx 36rpx rgba(61, 37, 25, .2); box-sizing: border-box; animation: sheet-up 340ms cubic-bezier(.32, .86, .28, 1) both; }

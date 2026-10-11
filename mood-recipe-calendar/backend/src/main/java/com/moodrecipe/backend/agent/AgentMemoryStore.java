@@ -301,12 +301,12 @@ public class AgentMemoryStore {
                 cookingDays = split(item.value()).stream().map(this::parseIntOrNull)
                         .filter(Objects::nonNull).filter(day -> day >= 0 && day < 7).distinct().sorted().toList();
             } else if (KEY_SPICE.equals(key)) {
-                spice = item.value();
+                spice = normalizeSpice(item.value());
             } else if (KEY_HOUSEHOLD.equals(key)) {
                 elder = item.value().contains("老人");
                 child = item.value().contains("小孩");
             } else if (KEY_HEALTH_GOAL.equals(key)) {
-                healthGoal = item.value();
+                healthGoal = normalizeGoal(item.value());
             } else if (KEY_BUDGET.equals(key)) {
                 budget = item.value();
             } else if (KEY_CUISINE.equals(key)) {
@@ -323,8 +323,8 @@ public class AgentMemoryStore {
         }
 
         if (preference != null) {
-            if (spice == null && preference.getSpiceLevel() != null) spice = preference.getSpiceLevel();
-            if (healthGoal == null && preference.getHealthGoal() != null) healthGoal = preference.getHealthGoal();
+            if (spice == null && preference.getSpiceLevel() != null) spice = normalizeSpice(preference.getSpiceLevel());
+            if (healthGoal == null && preference.getHealthGoal() != null) healthGoal = normalizeGoal(preference.getHealthGoal());
             cuisines.addAll(split(preference.getFavoriteCuisines()));
         }
         if (people == null && preference != null) {
@@ -470,6 +470,36 @@ public class AgentMemoryStore {
         if (value == null || value.isBlank()) return List.of();
         return Arrays.stream(value.split("[,，、;；|]+"))
                 .map(String::trim).filter(text -> !text.isBlank()).distinct().toList();
+    }
+
+    /**
+     * 辣度归一：偏好页是 NONE/MILD/NORMAL/HOT 枚举，模型记忆里偶见英文自由文本。
+     * 对话/冲突判定（如「能吃辣」×家有小孩）用的是中文档位，入槽前统一翻译；
+     * 认不出的值原样保留，不吞掉用户真实表达。
+     */
+    private String normalizeSpice(String value) {
+        if (value == null || value.isBlank()) return value;
+        String key = value.trim().toUpperCase();
+        if (key.equals("NONE")) return "不辣";
+        if (key.equals("MILD") || key.contains("MILD")) return "微辣";
+        if (key.equals("NORMAL") || key.equals("MEDIUM") || key.equals("MEDIUM_SPICE")) return "中辣";
+        if (key.equals("HOT") || key.equals("SPICY") || key.contains("HOT")) return "能吃辣";
+        return value.trim();
+    }
+
+    /** 目标归一：白名单是 LEAN/FITNESS/BALANCED/DAILY/TREAT/SAVE，模型自由文本（如 mild_flavor）映射到最近档位。 */
+    private String normalizeGoal(String value) {
+        if (value == null || value.isBlank()) return value;
+        String key = value.trim().toUpperCase();
+        if (key.equals("LEAN") || key.contains("MILD") || key.contains("LIGHT") || key.contains("轻") || key.contains("清淡")) return "LEAN";
+        if (key.contains("FITNESS") || key.contains("健身")) return "FITNESS";
+        if (key.contains("BALANCE")) return "BALANCED";
+        if (key.contains("TREAT") || key.contains("RICH") || key.contains("丰盛")) return "TREAT";
+        if (key.contains("SAVE") || key.contains("CHEAP") || key.contains("省钱")) return "SAVE";
+        if (key.contains("DAILY") || key.contains("日常")) return "DAILY";
+        if (key.equals("FITNESS") || key.equals("LEAN") || key.equals("BALANCED")
+                || key.equals("DAILY") || key.equals("TREAT") || key.equals("SAVE")) return key;
+        return value.trim();
     }
 
     private Integer parseIntOrNull(String value) {

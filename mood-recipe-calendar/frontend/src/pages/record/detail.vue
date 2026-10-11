@@ -3,8 +3,10 @@ import { useImagePreview } from '@wot-ui/ui'
 import { computed, ref } from 'vue'
 import { deleteRecord, fetchRecord, type RecordItem } from '@/api/records'
 import { generateRecordPoster } from '@/api/recordPoster'
+import { exportRecordShare, saveShareImage } from '@/utils/albumShare'
 import EmptyState from '@/components/guozai/EmptyState.vue'
 import GuozaiButton from '@/components/guozai/GuozaiButton.vue'
+import GuozaiWotButton from '@/components/guozai/GuozaiWotButton.vue'
 import LoadingState from '@/components/guozai/LoadingState.vue'
 import { navBack } from '@/composables/useNavBar'
 import { ensureLogin } from '@/utils/login'
@@ -15,26 +17,30 @@ definePage({ name: 'record-detail', layout: 'default', style: { navigationStyle:
 
 import { onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 
-// 让微信胶囊「···」可转发 / 分享到朋友圈（标题带本餐内容、卡片带首图，更利于传播）
+// 让微信胶囊「···」可转发 / 分享到朋友圈（标题带本餐内容、卡片带图，更利于传播）
 // 注意：直接在本页写 onShareAppMessage，比用 useShare 组合式更可靠（组合式被抽成独立 chunk 时，个别 uni-app 构建下转发不会挂到本页）
+// 缩略图优先用已生成的回忆海报（savedPosterPath），未生成过则回落首张照片。
 onShareAppMessage(() => {
   const sharer = userStore.openid
   const path = `/pages/record/detail${sharer ? `?sharer=${encodeURIComponent(sharer)}` : ''}`
+  const thumb = savedPosterPath.value || photos.value[0]
   return {
     title: record.value
       ? `我记下了「${record.value.dishName}」，锅仔帮我留住这顿饭`
       : '锅仔 · 记录今天的食光',
     path,
-    ...(photos.value[0] ? { imageUrl: photos.value[0] } : {}),
+    ...(thumb ? { imageUrl: thumb } : {}),
   }
 })
 onShareTimeline(() => {
   const sharer = userStore.openid
+  const thumb = savedPosterPath.value || photos.value[0]
   return {
     title: record.value
       ? `我记下了「${record.value.dishName}」，锅仔帮我留住这顿饭`
       : '锅仔 · 记录今天的食光',
     query: sharer ? `sharer=${encodeURIComponent(sharer)}` : '',
+    ...(thumb ? { imageUrl: thumb } : {}),
   }
 })
 
@@ -47,6 +53,8 @@ const userStore = useUserStore()
 const posterMode = ref<'detail' | 'poster' | 'server'>('detail')
 const backendPosterUrl = ref('')
 const generatingPoster = ref(false)
+const exportingPoster = ref(false)
+const savedPosterPath = ref('')
 const isMember = computed(() => userStore.userInfo?.isMember === 1 && !!userStore.userInfo.memberExpire && new Date(userStore.userInfo.memberExpire).getTime() > Date.now())
 const photos = computed(() => record.value?.imageUrls?.length ? record.value.imageUrls : (record.value?.imageUrl ? [record.value.imageUrl] : []))
 const posterDate = computed(() => {
@@ -84,6 +92,59 @@ async function selectMode(mode: 'detail' | 'poster' | 'server') {
 function preview(index: number) {
   if (!photos.value.length) return
   previewImage({ images: photos.value, startPosition: index, closeOnClick: true, loop: photos.value.length > 1 })
+}
+
+/** 生成回忆海报长图（本地 Canvas，无需会员；返回临时路径）。 */
+async function buildPoster() {
+  if (!record.value) return ''
+  if (savedPosterPath.value) return savedPosterPath.value
+  return await exportRecordShare({
+    dishName: record.value.dishName,
+    moodTag: record.value.moodTag,
+    note: record.value.note,
+    recordDate: record.value.recordDate,
+    cookingTime: record.value.cookingTime,
+    photos: photos.value.filter(Boolean),
+  })
+}
+
+/** 保存已生成的海报：小程序写入相册，H5 下载。 */
+async function savePoster() {
+  if (!record.value || exportingPoster.value) return
+  exportingPoster.value = true
+  uni.showLoading({ title: '正在排版…', mask: true })
+  try {
+    const path = await buildPoster()
+    savedPosterPath.value = path
+    await saveShareImage(path, `${record.value.dishName}-食光.png`)
+    toastSuccess('海报已保存到相册')
+  }
+  catch (e: any) {
+    toastError(e, '海报保存失败，请授权相册后重试')
+  }
+  finally {
+    uni.hideLoading()
+    exportingPoster.value = false
+  }
+}
+
+/** 生成并进入系统分享菜单（保存后可从相册分享）。 */
+async function sharePoster() {
+  if (!record.value || exportingPoster.value) return
+  exportingPoster.value = true
+  uni.showLoading({ title: '正在生成…', mask: true })
+  try {
+    const path = await buildPoster()
+    savedPosterPath.value = path
+    uni.showShareImageMenu({ path })
+  }
+  catch (e: any) {
+    toastError(e, '海报生成失败')
+  }
+  finally {
+    uni.hideLoading()
+    exportingPoster.value = false
+  }
 }
 
 function edit() {
@@ -131,6 +192,7 @@ async function load() {
   try {
     record.value = await fetchRecord(id)
     backendPosterUrl.value = record.value.posterUrl || ''
+    savedPosterPath.value = ''
   }
   catch (e: any) { toastError(e, '记录加载失败') }
   finally { loading.value = false }
@@ -200,10 +262,15 @@ onShow(load)
         <view v-else class="record-detail__server-poster-error"><text>暂时没有生成成功</text><GuozaiButton variant="primary" @click="selectMode('server')">重新生成</GuozaiButton></view>
       </view>
       <view class="record-detail__actions">
-        <GuozaiButton variant="primary" aria-label="编辑这条记录" @click="edit">编辑这餐</GuozaiButton>
-        <GuozaiButton variant="ghost" aria-label="删除这条记录" @click="remove">删除记录</GuozaiButton>
+        <GuozaiWotButton type="primary" size="medium" block round icon="download" :loading="exportingPoster" @click="savePoster">保存海报</GuozaiWotButton>
+        <GuozaiWotButton type="primary" variant="plain" size="medium" block round icon="share-alt" :disabled="exportingPoster" @click="sharePoster">分享海报</GuozaiWotButton>
+        <view class="record-detail__actions-sub">
+          <GuozaiWotButton type="primary" variant="plain" size="medium" block round icon="edit" @click="edit">编辑这餐</GuozaiWotButton>
+          <GuozaiWotButton type="danger" variant="plain" size="medium" block round icon="delete" @click="remove">删除记录</GuozaiWotButton>
+        </view>
       </view>
     </template>
+    <canvas id="recordShareCanvas" type="2d" class="record-detail__share-canvas" />
     <wd-image-preview />
   </view>
 </template>
@@ -220,7 +287,8 @@ onShow(load)
 .record-detail__poster { overflow: hidden; border: 2rpx solid var(--mrc-border-light); border-radius: 34rpx; background: #fff9ef; box-shadow: 0 20rpx 44rpx rgba(88, 48, 31, .14); }.record-detail__poster-head { position: relative; padding: 32rpx 30rpx 26rpx; background: linear-gradient(135deg, #fffaf1 0%, #f6e2ce 100%); }.record-detail__poster-brand { display: flex; align-items: center; gap: 10rpx; color: var(--mrc-accent); font-size: 18rpx; font-weight: 900; letter-spacing: 3rpx; }.record-detail__poster-brand-line { width: 34rpx; height: 2rpx; background: var(--mrc-accent); }.record-detail__poster-folio { position: absolute; top: 30rpx; right: 28rpx; color: var(--mrc-text-sub); font-family: monospace; font-size: 18rpx; letter-spacing: 1rpx; }.record-detail__poster-kicker { display: block; margin-top: 48rpx; color: var(--mrc-text-sub); font-size: 19rpx; letter-spacing: 2rpx; }.record-detail__poster-mood { position: absolute; right: 26rpx; bottom: 28rpx; padding: 8rpx 16rpx; border: 2rpx solid var(--mrc-accent-soft); border-radius: 999rpx; color: var(--mrc-accent); background: rgba(255, 255, 255, .62); font-size: 18rpx; }.record-detail__poster-title { display: -webkit-box; max-width: 82%; margin-top: 12rpx; color: var(--mrc-text-strong); font-size: 52rpx; font-weight: var(--mrc-fw-heavy); line-height: 1.1; overflow: hidden; text-overflow: ellipsis; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }.record-detail__poster-meta { display: flex; gap: 12rpx; margin-top: 18rpx; color: var(--mrc-text-sub); font-size: 21rpx; }
 .record-detail__poster-grid { position: relative; display: grid; gap: 6rpx; margin: 0 18rpx; overflow: hidden; border-radius: 4rpx; background: var(--mrc-surface-2); }.record-detail__poster-grid image { width: 100%; height: 100%; min-height: 190rpx; background: var(--mrc-surface-2); }.record-detail__poster-grid--1 { grid-template-columns: 1fr; }.record-detail__poster-grid--1 image { min-height: 520rpx; }.record-detail__poster-grid--2 { grid-template-columns: repeat(2, 1fr); }.record-detail__poster-grid--2 image { min-height: 360rpx; }.record-detail__poster-grid--3 { grid-template-columns: 1.35fr 1fr; grid-template-rows: repeat(2, 220rpx); }.record-detail__poster-grid--3 image:first-child { grid-row: span 2; }.record-detail__poster-grid--4 { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 220rpx); }.record-detail__poster-grid--5, .record-detail__poster-grid--6, .record-detail__poster-grid--7, .record-detail__poster-grid--8, .record-detail__poster-grid--9 { grid-template-columns: repeat(3, 1fr); grid-auto-rows: 190rpx; }.record-detail__poster-count { position: absolute; right: 16rpx; bottom: 14rpx; padding: 8rpx 14rpx; border: 1rpx solid rgba(255,255,255,.55); border-radius: 999rpx; background: rgba(42, 31, 24, .62); color: #fff; font-size: 17rpx; letter-spacing: 1rpx; }.record-detail__poster-caption { display: flex; align-items: stretch; gap: 18rpx; margin: 22rpx 18rpx 16rpx; padding: 22rpx 22rpx 24rpx; border-top: 2rpx solid var(--mrc-border-light); border-bottom: 2rpx solid var(--mrc-border-light); background: rgba(255, 252, 246, .78); }.record-detail__poster-caption-rule { width: 6rpx; flex: 0 0 6rpx; border-radius: 999rpx; background: var(--mrc-accent); }.record-detail__poster-caption-label { display: block; color: var(--mrc-accent); font-size: 19rpx; font-weight: 800; }.record-detail__poster-caption-copy { display: block; margin-top: 8rpx; color: var(--mrc-text-deep); font-size: 24rpx; line-height: 1.55; }.record-detail__poster-caption-mark { align-self: flex-end; margin-left: auto; color: var(--mrc-text-sub); font-size: 17rpx; writing-mode: vertical-rl; letter-spacing: 2rpx; }.record-detail__poster-footer { display: flex; justify-content: space-between; padding: 0 30rpx 24rpx; color: var(--mrc-text-sub); font-family: monospace; font-size: 16rpx; letter-spacing: 1rpx; }
 .record-detail__server-poster { min-height: 720rpx; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 2rpx solid var(--mrc-border-light); border-radius: 34rpx; background: #fff9ef; box-shadow: 0 20rpx 44rpx rgba(88, 48, 31, .14); }.record-detail__server-poster-image { display: block; width: 100%; }.record-detail__server-poster-loading, .record-detail__server-poster-error { display: flex; flex-direction: column; align-items: center; gap: 18rpx; padding: 60rpx 38rpx; color: var(--mrc-text-strong); font-size: 28rpx; text-align: center; }.record-detail__server-poster-hint { color: var(--mrc-text-sub); font-size: 21rpx; line-height: 1.5; }.record-detail__server-poster-spinner { width: 54rpx; height: 54rpx; border: 5rpx solid var(--mrc-accent-soft); border-top-color: var(--mrc-accent); border-radius: 50%; animation: record-poster-spin 1s linear infinite; }.record-detail__server-poster-error :deep(.gz-btn) { min-width: 260rpx; }
-.record-detail__actions { display: flex; flex-direction: column; gap: 8rpx; margin-top: 28rpx; }.record-detail__actions :deep(.gz-btn) { min-height: 88rpx; }.record-detail__actions :deep(.gz-btn--ghost) { min-height: 68rpx; color: var(--mrc-color-danger); font-size: 22rpx; }
+.record-detail__actions { display: flex; flex-direction: column; gap: 20rpx; margin-top: 28rpx; }.record-detail__actions-sub { display: flex; gap: 20rpx; }
+.record-detail__share-canvas { position: fixed; left: -9999rpx; top: 0; width: 750rpx; height: 1330rpx; }
 @media (prefers-reduced-motion: reduce) { .record-detail__mode { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .record-detail__server-poster-spinner { animation: none; } }
 @keyframes record-poster-spin { to { transform: rotate(360deg); } }

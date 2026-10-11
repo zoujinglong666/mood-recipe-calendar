@@ -42,18 +42,39 @@ public class GuozaiPersona {
      * @param preference 用户口味偏好摘要（可为空）
      */
     public String recipePrompt(String mood, String userAnalysis, String preference) {
+        return recipePrompt(mood, userAnalysis, preference, null);
+    }
+
+    public String recipePrompt(String mood, String userAnalysis, String preference, String mealType) {
         String pref = preference == null || preference.isBlank() ? "无明确偏好" : preference;
         String analysis = userAnalysis == null || userAnalysis.isBlank() ? "暂无用户分析" : userAnalysis;
-        return "你是锅仔，正在为一位用户推荐今天的菜。以下是你对这位用户的主动观察分析：\n"
-                + analysis + "\n\n"
-                + "用户现在的心情是「" + mood + "」。\n"
-                + "用户的口味偏好是：「" + pref + "」。只在合理且安全的范围内遵循。\n"
-                + "请结合以上分析和心情，推荐一道适合此刻的中国家常菜。"
-                + "如果用户最近总吃类似的菜，可以适当换个口味；如果用户情绪低落，推荐暖胃治愈的菜。\n"
-                + "只返回一个合法 JSON 对象，不要 Markdown、不要解释。格式严格为：\n"
-                + "{\"name\":\"菜名\",\"description\":\"30字以内的治愈理由，要自然提到对用户的一个观察细节\",\"ingredients\":[\"食材及用量\"],"
-                + "\"steps\":[\"步骤\"],\"cookingTime\":30,\"difficulty\":\"简单\",\"moodTags\":\"" + mood + "\",\"season\":\"四季\"}\n"
-                + "规则：3-7 种常见食材；3-5 个步骤；20-45 分钟；食材用量明确；不虚构功效；食材名不要带撒、加入、切等动作；每步只做一个主要动作，不能重复同一种食材；使用普通中文，例如西兰花写掰成小朵，不写切朵；禁止英文、乱码、问号和生造词。";
+        StringBuilder prompt = new StringBuilder();
+        prompt.append("你是锅仔，正在为一位用户推荐今天的菜。以下是你对这位用户的主动观察分析：\n")
+                .append(analysis).append("\n\n")
+                .append("用户现在的心情是「").append(mood).append("」。\n")
+                .append("用户的口味偏好是：「").append(pref).append("」。只在合理且安全的范围内遵循。\n");
+        if (mealType != null && !mealType.isBlank()) {
+            prompt.append("这一餐的餐别是「").append(mealTypeLabel(mealType)).append("」，")
+                    .append("请只推荐适合该餐别的菜式，并贴合该餐的能量与营养结构（参考《中国居民膳食指南》的餐别搭配原则）。\n");
+        }
+        prompt.append("请结合以上分析和心情，推荐一道适合此刻的中国家常菜。")
+                .append("如果用户最近总吃类似的菜，可以适当换个口味；如果用户情绪低落，推荐暖胃治愈的菜。\n")
+                .append("只返回一个合法 JSON 对象，不要 Markdown、不要解释。格式严格为：\n")
+                .append("{\"name\":\"菜名\",\"description\":\"30字以内的治愈理由，要自然提到对用户的一个观察细节\",\"ingredients\":[\"食材及用量\"],")
+                .append("\"steps\":[\"步骤\"],\"cookingTime\":30,\"difficulty\":\"简单\",\"moodTags\":\"").append(mood).append("\",\"season\":\"四季\"}\n")
+                .append("规则：3-7 种常见食材；3-5 个步骤；20-45 分钟；食材用量明确；不虚构功效；食材名不要带撒、加入、切等动作；每步只做一个主要动作，不能重复同一种食材；使用普通中文，例如西兰花写掰成小朵，不写切朵；禁止英文、乱码、问号和生造词。");
+        return prompt.toString();
+    }
+
+    /** 把后端餐别枚举转成 prompt/展示用的中文标签；未知值原样返回。 */
+    public static String mealTypeLabel(String mealType) {
+        if (mealType == null) return "";
+        return switch (mealType.toUpperCase()) {
+            case "BREAKFAST" -> "早餐";
+            case "LUNCH" -> "午餐";
+            case "DINNER" -> "晚餐";
+            default -> mealType;
+        };
     }
 
     /**

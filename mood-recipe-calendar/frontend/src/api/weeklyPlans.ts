@@ -11,7 +11,8 @@ export interface PlanOutcomeAck { cuisineAffinity: Record<string, number>, skipQ
 export interface WeeklyPlanSummary { id: number, createdAt: string, favorite: boolean, days: PlanDay[] }
 export interface MealAgentState { people?: number, cookingDays?: number[], dishesPerDay?: number, healthGoal?: string, budget?: string, hasElder?: boolean, hasChild?: boolean, spiceLevel?: string, favoriteCuisine?: string, cuisineConfirmed?: boolean, mealContext?: string, requestedIngredients?: string[] }
 export interface MealAgentOption { label: string, value: string }
-export interface MealAgentHistoryMessage { role: 'agent' | 'user', text: string, tags?: string[], selected?: boolean }
+export interface MealAgentCard { type: string, title: string, description: string, options: MealAgentOption[] }
+export interface MealAgentHistoryMessage { role: 'agent' | 'user', text: string, tags?: string[], selected?: boolean, card?: MealAgentCard | null }
 export interface MealAgentTurn {
   reply: string
   action: string
@@ -104,8 +105,8 @@ export function getWeeklyPlanJob(jobId: string) {
 export function askMealAgent(message: string, nextQuestion: string) {
   return post<{ reply: string }>('/weekly-plans/agent-replies', { message, nextQuestion })
 }
-export function runMealAgentTurn(message: string, state: MealAgentState, conversationId?: string, history?: MealAgentHistoryMessage[], webSearch?: boolean) {
-  return post<MealAgentTurn>('/weekly-plans/agent-turns', { message, state, conversationId, requestId: requestId('turn'), history, ...(webSearch ? { webSearch } : {}) })
+export function runMealAgentTurn(message: string, state: MealAgentState, conversationId?: string, history?: MealAgentHistoryMessage[], webSearch?: boolean, preset?: string) {
+  return post<MealAgentTurn>('/weekly-plans/agent-turns', { message, state, conversationId, requestId: requestId('turn'), history, ...(webSearch ? { webSearch } : {}), ...(preset ? { preset } : {}) })
 }
 /** 会话评分：后端据此触发锅仔异步复盘，教训在之后的对话中生效 */
 export function rateAgentConversation(rating: string, comment?: string) {

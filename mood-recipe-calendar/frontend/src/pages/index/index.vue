@@ -68,10 +68,12 @@ import Icon from '../../components/common/Icon.vue'
 import { ensureLogin } from '../../utils/login'
 import { toastError } from '../../utils/toast'
 import { fetchCompanionMessage, fetchRecordsByMonth, type CompanionMessage, type RecordItem } from '../../api/records'
-import { fetchRecipeQuota, type UsageQuotaView } from '../../api/recipes'
+import { fetchRecipePool, fetchRecipeQuota, type RecipeItem, type UsageQuotaView } from '../../api/recipes'
 import { fetchDailyBoard, refreshDailyBoard, type DailyBoard } from '../../api/dailyMenu'
-import { fetchFridgeSummary, type FridgeSummary } from '../../api/fridge'
 import { saveCookingDraft } from '../../utils/cookingDraft'
+import GuozaiWheel from '../../components/guozai/GuozaiWheel.vue'
+import GuozaiNine from '../../components/guozai/GuozaiNine.vue'
+import GuozaiFlip from '../../components/guozai/GuozaiFlip.vue'
 import { useUserStore } from '../../stores/user'
 
 definePage({ name: 'home', layout: 'tabbar', style: { navigationStyle: 'custom', navigationBarTitleText: '首页' } })
@@ -113,14 +115,6 @@ function cycleHeroGuozai() {
 const monthRecords = ref<RecordItem[]>([])
 const companion = ref<CompanionMessage>(localCompanion(now.value.getHours()))
 const recipeQuota = ref<UsageQuotaView>()
-const fridgeSummary = ref<FridgeSummary>()
-const fridgeUrgency = computed(() => {
-  const summary = fridgeSummary.value
-  if (!summary) return { count: 0, label: '状态正常', tone: 'ok' }
-  if (summary.expired > 0) return { count: summary.expired, label: '已过期', tone: 'expired' }
-  if (summary.soon > 0) return { count: summary.soon, label: '临期', tone: 'soon' }
-  return { count: 0, label: '状态正常', tone: 'ok' }
-})
 const recipeQuotaText = computed(() => {
   const quota = recipeQuota.value
   if (!quota) return '抽一道今日治愈菜'
@@ -171,7 +165,6 @@ async function loadData() {
     // 不能因为任何一项 400 就把已加载的本月记录清空（曾经因 /recipes/quota 400 导致首页显示 0 个坐标）
     monthRecords.value = await fetchRecordsByMonth(currentMonth.value)
     fetchRecipeQuota().then((q) => { recipeQuota.value = q }).catch(() => {})
-    fetchFridgeSummary().then((value) => { fridgeSummary.value = value }).catch(() => {})
     loadCompanion().catch(() => {})
     loadTodayBoard().catch(() => {})
   } catch (e: any) {
@@ -211,7 +204,6 @@ async function loadCompanion() {
 }
 /** 今日菜单（TodayBoard）：打开即有的零输入答案；加载失败静默，不影响首屏其余内容。 */
 const todayBoard = ref<DailyBoard>()
-const boardRefreshing = ref(false)
 async function loadTodayBoard() {
   try {
     todayBoard.value = await fetchDailyBoard()
@@ -220,18 +212,152 @@ async function loadTodayBoard() {
     todayBoard.value = undefined
   }
 }
-async function refreshBoard() {
-  if (boardRefreshing.value) return
-  boardRefreshing.value = true
+
+/** 从菜池抽样：按菜名去重 + 同前缀（前 2 字）最多 2 道，避免「番茄炒蛋×3」这类刷屏；可排除某道菜（如中奖菜）。 */
+function sampleDiverseDishes(pool: RecipeItem[], count: number, excludeName = ''): RecipeItem[] {
+  const seen = new Set<string>()
+  const unique: RecipeItem[] = []
+  for (const item of pool) {
+    if (!item?.name || !item.image || item.name === excludeName || seen.has(item.name))
+      continue
+    seen.add(item.name)
+    unique.push(item)
+  }
+  const shuffled = [...unique].sort(() => Math.random() - 0.5)
+  const picked: RecipeItem[] = []
+  const prefixCount = new Map<string, number>()
+  for (const item of shuffled) {
+    const key = item.name.slice(0, 2)
+    const used = prefixCount.get(key) || 0
+    if (used >= 2)
+      continue
+    prefixCount.set(key, used + 1)
+    picked.push(item)
+    if (picked.length >= count)
+      break
+  }
+  // 多样性过滤后不够数（菜池太小时），用剩余去重菜补齐
+  for (const item of shuffled) {
+    if (picked.length >= count)
+      break
+    if (!picked.includes(item))
+      picked.push(item)
+  }
+  return picked
+}
+
+/** 锅仔转盘：扇区图源=全库 AI 推荐菜随机抽样；结果永远是真实接口返回的那道菜。 */
+const showWheel = ref(false)
+const wheelPool = ref<{ name: string, image?: string }[]>([])
+const wheelRef = ref<InstanceType<typeof GuozaiWheel>>()
+async function openWheel() {
+  showWheel.value = true
   try {
-    todayBoard.value = await refreshDailyBoard()
+    const pool = await fetchRecipePool()
+    // 当前这道菜固定占一格，其余 7 格去重 + 同类限流抽样
+    const current = todayBoard.value?.recipe
+    const others = sampleDiverseDishes(pool, 7, current?.name)
+    wheelPool.value = [
+      ...(current?.name ? [{ name: current.name, image: current.image }] : []),
+      ...others.map(item => ({ name: item.name, image: item.image })),
+    ]
+  }
+  catch {
+    wheelPool.value = []
+  }
+}
+async function onWheelSpin() {
+  try {
+    const board = await refreshDailyBoard()
+    todayBoard.value = board
+    wheelRef.value?.land(board.recipe.name, board.recipe.image)
   }
   catch (e: any) {
     toastError(e, '今天没有别的菜可换啦')
+    wheelRef.value?.fail()
   }
-  finally {
-    boardRefreshing.value = false
+}
+
+/** 锅仔九宫格（再来一道）：外圈 8 格=真实 AI 菜池抽样，停在即所得，「就做这道」直达做菜页。 */
+const showNine = ref(false)
+const nineItems = ref<{ name: string, image?: string }[]>([])
+const nineRecipes = ref<RecipeItem[]>([])
+const ninePick = ref<RecipeItem>()
+const nineRef = ref<InstanceType<typeof GuozaiNine>>()
+async function openNine() {
+  showNine.value = true
+  try {
+    const pool = await fetchRecipePool()
+    const sampled = sampleDiverseDishes(pool, 8)
+    nineRecipes.value = sampled
+    nineItems.value = sampled.map(item => ({ name: item.name, image: item.image }))
   }
+  catch {
+    nineRecipes.value = []
+    nineItems.value = []
+  }
+}
+function onNineStart() {
+  // 先定结果再驱动灯带：停在的格子就是真实可做的那道菜
+  if (!nineRecipes.value.length)
+    return
+  const index = Math.floor(Math.random() * nineRecipes.value.length)
+  ninePick.value = nineRecipes.value[index]
+  nineRef.value?.land(index)
+}
+function onNineCook(index: number) {
+  const recipe = ninePick.value && nineRecipes.value[index] === ninePick.value ? ninePick.value : nineRecipes.value[index]
+  if (!recipe) {
+    toastError(new Error('这一格是锅仔的彩蛋，再翻一次吧'), '翻到装饰格了')
+    return
+  }
+  showNine.value = false
+  saveCookingDraft(recipe, '满足')
+  router.push({ name: 'cooking' })
+}
+
+/** 锅仔翻牌（squarenine 复刻）：洗牌后任选一张，翻开的即真实抽中的那道菜。 */
+const showFlip = ref(false)
+const flipItems = ref<{ name: string, image?: string }[]>([])
+const flipPool = ref<RecipeItem[]>([])
+const flipPick = ref<RecipeItem>()
+const flipRef = ref<InstanceType<typeof GuozaiFlip>>()
+async function openFlip() {
+  showFlip.value = true
+  try {
+    const pool = await fetchRecipePool()
+    flipPool.value = pool
+    const sampled = sampleDiverseDishes(pool, 8)
+    flipItems.value = sampled.map(item => ({ name: item.name, image: item.image }))
+  }
+  catch {
+    flipPool.value = []
+    flipItems.value = []
+  }
+}
+function onFlipStart() {
+  // 先定中奖菜，再抽「其余 7 张」——排除中奖菜同名，保证全翻开后 8 格不重样
+  if (!flipPool.value.length)
+    return
+  const winners = sampleDiverseDishes(flipPool.value, 1)
+  const pick = winners[0]
+  if (!pick)
+    return
+  const others = sampleDiverseDishes(flipPool.value, 7, pick.name)
+  flipPick.value = pick
+  flipItems.value = [
+    ...others.map(item => ({ name: item.name, image: item.image })),
+    { name: '锅仔牌' },
+  ]
+  flipRef.value?.deal({ name: pick.name, image: pick.image })
+}
+function onFlipCook() {
+  const recipe = flipPick.value
+  if (!recipe)
+    return
+  showFlip.value = false
+  saveCookingDraft(recipe, '满足')
+  router.push({ name: 'cooking' })
 }
 function goCookToday() {
   const board = todayBoard.value
@@ -262,14 +388,20 @@ onShareTimeline(() => {
   }
 })
 const MOODS = ['开心', '平静', '疲惫', '焦虑', '难过', '嘴馋', '低落', '想家', '期待', '满足', '得意', '害羞']
-function gotoLucky() { router.push({ name: 'recipe', params: { mood: MOODS[Math.floor(Math.random() * MOODS.length)], random: '1' } }) }
+/** 「让锅仔替你决定」点击展开餐别选择器：选一顿后带上餐别去推荐页，让推荐有《膳食指南》可依 */
+const showMealSheet = ref(false)
+function openMealSheet() { showMealSheet.value = true }
+function pickMeal(type: 'BREAKFAST' | 'LUNCH' | 'DINNER') {
+  showMealSheet.value = false
+  const mood = MOODS[Math.floor(Math.random() * MOODS.length)]
+  router.push({ name: 'recipe', params: { mood }, query: { mood, mealType: type } })
+}
 const TABBAR_NAMES = ['home', 'record', 'profile']
 function goto(name: string, q?: Record<string, string>) {
   // tabBar 页必须用 switchTab(pushTab)，用 navigateTo(push) 会报 can not navigate to a tab bar page
   if (TABBAR_NAMES.includes(name)) router.pushTab({ name })
   else router.push({ name, query: q || {} })
 }
-function openFridge() { router.push({ name: 'fridge' }) }
 function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
   if (cell.records.length) router.push({ name: 'calendar', params: { day: String(cell.d) } })
   else router.pushTab({ name: 'record' })
@@ -301,63 +433,95 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
         <view class="home-hero__spark home-hero__spark--one" /><view class="home-hero__spark home-hero__spark--two" />
       </view>
 
-      <!-- 今日菜单（TodayBoard）：打开即有的零输入每日答案 -->
+      <!-- 今日菜单（TodayBoard）：今日菜牌——菜图右侧通栏出血，信息在左 -->
       <view v-if="todayBoard" class="home-entry home-board" role="button" :aria-label="`锅仔今天留了${todayBoard.recipe.name}，打开看做法`" @click="goCookToday">
         <view class="home-board__text">
-          <text class="home-board__eyebrow">锅仔今天给你留了</text>
+          <view class="home-board__eyebrow"><text class="home-board__eyebrow-dot" /><text>锅仔今天给你留了</text></view>
           <text class="home-board__name">{{ todayBoard.recipe.name }}</text>
-          <view class="home-board__footer">
-            <view class="home-board__meta">
-              <text v-if="todayBoard.recipe.cookingTime">{{ todayBoard.recipe.cookingTime }} 分钟</text>
-              <text v-if="todayBoard.recipe.difficulty">· {{ todayBoard.recipe.difficulty }}</text>
-            </view>
-            <view class="home-board__ops">
-              <view class="home-board__swap" role="button" aria-label="换一道" @click.stop="refreshBoard">
-                <text>{{ boardRefreshing ? '锅仔再想想…' : '换一道' }}</text>
-              </view>
-              <view class="home-board__cook" role="button" aria-label="去做这道菜" @click.stop="goCookToday">
-                <text>去做这道菜</text><text class="home-board__cook-arrow">›</text>
-              </view>
-            </view>
+          <view class="home-board__meta">
+            <text v-if="todayBoard.recipe.cookingTime" class="home-board__chip">{{ todayBoard.recipe.cookingTime }} 分钟</text>
+            <text v-if="todayBoard.recipe.difficulty" class="home-board__chip">{{ todayBoard.recipe.difficulty }}</text>
+          </view>
+          <view class="home-board__cook" role="button" aria-label="去做这道菜" @click.stop="goCookToday">
+            <text>去做这道菜</text><text class="home-board__cook-arrow">›</text>
           </view>
         </view>
-        <image v-if="todayBoard.recipe.image" class="home-board__img" :src="todayBoard.recipe.image" mode="aspectFill" />
-        <image v-else class="home-board__img home-board__img--fallback" :src="STATIC_BASE_URL + '/static/guozai/action_01_bowl.png'" mode="aspectFit" />
-      </view>
-
-      <view v-if="fridgeSummary" class="home-entry home-fridge" role="button" aria-label="打开我的冰箱" @click="openFridge">
-        <view class="home-fridge__copy"><text class="home-fridge__eyebrow">锅仔的新记忆</text><text class="home-fridge__title">冰箱里还有什么？</text><text class="home-fridge__sub">{{ fridgeSummary.expired ? `有 ${fridgeSummary.expired} 项已过期，请先处理` : fridgeSummary.soon ? `今天优先消耗 ${fridgeSummary.soon} 项食材` : `已记录 ${fridgeSummary.total} 项食材` }}</text></view>
-        <view class="home-fridge__right" :class="`home-fridge__right--${fridgeUrgency.tone}`"><text>{{ fridgeUrgency.count }}</text><text>{{ fridgeUrgency.label }}</text><text class="home-fridge__arrow">›</text></view>
-      </view>
-
-      <view class="home-entry home-lucky" role="button" aria-label="让锅仔随机推荐一道菜" @click="gotoLucky">
-        <view class="home-lucky__content">
-          <image class="home-lucky__guozai" :src="STATIC_BASE_URL + '/static/guozai/action_10_thinking.png'" mode="aspectFit" />
-          <view><text class="home-lucky__eyebrow">没想法的时候</text><text class="home-lucky__main">让锅仔替你决定</text><text class="home-lucky__sub">{{ recipeQuotaText }}</text></view>
-        </view>
-        <view class="home-lucky__arrow">›</view>
-      </view>
-
-      <view class="home-actions">
-        <swiper class="home-actions__feature" vertical circular autoplay :interval="4200" :duration="380" indicator-dots indicator-color="rgba(113, 63, 36, .2)" indicator-active-color="rgba(239, 90, 60, .85)">
-          <swiper-item>
-            <view class="home-actions__item home-actions__item--recipe" role="button" aria-label="查看今日三餐" @click="goto('daily-meal-plan')">
-              <view class="home-actions__text"><text class="home-actions__label">一日三餐</text><text class="home-actions__name">今天怎么吃</text></view>
-              <image class="home-actions__guozai" :src="STATIC_BASE_URL + '/static/guozai/action_01_bowl.png'" mode="aspectFit" />
-            </view>
-          </swiper-item>
-          <swiper-item>
-            <view class="home-actions__item home-actions__item--recipe" role="button" aria-label="再推荐一道菜" @click="gotoLucky">
-              <view class="home-actions__text"><text class="home-actions__label">今日菜单</text><text class="home-actions__name">再来一道</text></view>
-              <image class="home-actions__guozai" :src="STATIC_BASE_URL + '/static/guozai/action_02_soup.png'" mode="aspectFit" />
-            </view>
-          </swiper-item>
-        </swiper>
-        <view class="home-actions__item home-actions__item--record" role="button" aria-label="记录一餐" @click="router.pushTab({ name: 'record' })">
-          <view class="home-actions__text"><text class="home-actions__label">吃过什么</text><text class="home-actions__name">记录一餐</text></view>
-          <image class="home-actions__guozai home-actions__guozai--camera" :src="STATIC_BASE_URL + '/static/guozai/action_03_camera.png'" mode="aspectFit" />
+        <view class="home-board__media">
+          <image v-if="todayBoard.recipe.image" class="home-board__img" :src="todayBoard.recipe.image" mode="aspectFill" />
+          <image v-else class="home-board__img home-board__img--fallback" :src="STATIC_BASE_URL + '/static/guozai/action_01_bowl.png'" mode="aspectFit" />
+          <view class="home-board__stamp"><text>今</text><text>日</text></view>
         </view>
       </view>
+
+      <!-- 组件墙：入口分层（三餐主卡 / 抽奖小卡 / 双宽卡），HOT 标重点功能 -->
+      <view class="home-bento">
+        <view class="home-bento__card home-bento__card--guanfan" role="button" aria-label="打开锅仔管饭，查看今日三餐" @click="goto('daily-meal-plan')">
+          <view class="home-bento__hot">HOT</view>
+          <text class="home-bento__label">锅仔管饭</text>
+          <text class="home-bento__title">今天三餐</text>
+          <text class="home-bento__hint">锅仔替你搭配好</text>
+          <image class="home-bento__hero-img" :src="STATIC_BASE_URL + '/static/guozai/action_01_bowl.png'" mode="aspectFit" />
+        </view>
+        <view class="home-bento__card home-bento__card--wheel" role="button" aria-label="转盘抽一道菜" @click="openWheel">
+          <image class="home-bento__img" :src="STATIC_BASE_URL + '/static/guozai/action_08_peek.png'" mode="aspectFit" />
+          <text class="home-bento__name">转一转</text>
+        </view>
+        <view class="home-bento__card home-bento__card--nine" role="button" aria-label="九宫格跑马灯抽一道菜" @click="openNine">
+          <image class="home-bento__img" :src="STATIC_BASE_URL + '/static/guozai/action_09_celebrate.png'" mode="aspectFit" />
+          <text class="home-bento__name">跑一圈</text>
+        </view>
+        <view class="home-bento__card home-bento__card--flip" role="button" aria-label="翻牌抽一道菜" @click="openFlip">
+          <image class="home-bento__img" :src="STATIC_BASE_URL + '/static/guozai/action_02_soup.png'" mode="aspectFit" />
+          <text class="home-bento__name">翻一翻</text>
+        </view>
+        <view class="home-bento__card home-bento__card--agent" role="button" aria-label="打开锅仔对话，安排一周晚饭" @click="goto('meal-agent')">
+          <view class="home-bento__hot">HOT</view>
+          <image class="home-bento__img" :src="STATIC_BASE_URL + '/static/guozai/action_06_glasses.png'" mode="aspectFit" />
+          <text class="home-bento__name">锅仔对话</text>
+        </view>
+        <view class="home-bento__card home-bento__card--lucky" role="button" aria-label="让锅仔替你决定，选一顿" @click="openMealSheet">
+          <view class="home-bento__lucky-copy">
+            <text class="home-bento__lucky-main">让锅仔替你决定</text>
+            <text class="home-bento__lucky-sub">{{ recipeQuotaText }}</text>
+          </view>
+          <image class="home-bento__lucky-img" :src="STATIC_BASE_URL + '/static/guozai/action_10_thinking.png'" mode="aspectFit" />
+          <text class="home-bento__lucky-arrow">›</text>
+        </view>
+        <view class="home-bento__card home-bento__card--record" role="button" aria-label="记录一餐" @click="router.pushTab({ name: 'record' })">
+          <view class="home-bento__record-copy">
+            <text class="home-bento__name">吃过什么</text>
+            <text class="home-bento__sub">记录一餐</text>
+          </view>
+          <image class="home-bento__record-img" :src="STATIC_BASE_URL + '/static/guozai/action_03_camera.png'" mode="aspectFit" />
+        </view>
+      </view>
+
+      <wd-popup v-model="showMealSheet" position="bottom" :safe-area-inset-bottom="true" custom-style="border-radius: 40rpx 40rpx 0 0; overflow: hidden; background: var(--mrc-surface);">
+        <view class="meal-sheet">
+          <view class="meal-sheet__head">
+            <text class="meal-sheet__title">让锅仔替你决定</text>
+            <text class="meal-sheet__sub">选一顿，锅仔按《中国居民膳食指南》帮你搭配</text>
+          </view>
+          <view class="meal-sheet__options">
+            <button class="meal-option" @click="pickMeal('BREAKFAST')">
+              <text class="meal-option__emoji">🌅</text>
+              <text class="meal-option__name">早餐</text>
+              <text class="meal-option__desc">唤醒一天的元气</text>
+            </button>
+            <button class="meal-option" @click="pickMeal('LUNCH')">
+              <text class="meal-option__emoji">🍚</text>
+              <text class="meal-option__name">午餐</text>
+              <text class="meal-option__desc">给下午充好电</text>
+            </button>
+            <button class="meal-option" @click="pickMeal('DINNER')">
+              <text class="meal-option__emoji">🌙</text>
+              <text class="meal-option__name">晚餐</text>
+              <text class="meal-option__desc">好好收尾这一天</text>
+            </button>
+          </view>
+          <button class="meal-sheet__cancel" @click="showMealSheet = false">取消</button>
+        </view>
+      </wd-popup>
 
       <view class="home-cal">
         <view class="home-cal__header">
@@ -392,6 +556,9 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
         </view>
       </view>
       <view class="home-slogan"><view class="home-slogan__line" /><text class="home-slogan__text">好好吃饭，也好好生活</text><view class="home-slogan__line" /></view>
+    <GuozaiWheel ref="wheelRef" :visible="showWheel" :items="wheelPool" @spin="onWheelSpin" @close="showWheel = false" />
+    <GuozaiNine ref="nineRef" :visible="showNine" :items="nineItems" @start="onNineStart" @cook="onNineCook" @close="showNine = false" />
+    <GuozaiFlip ref="flipRef" :visible="showFlip" :items="flipItems" @start="onFlipStart" @cook="onFlipCook" @close="showFlip = false" />
   </view>
 </template>
 
@@ -422,29 +589,63 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
 .home-hero__profile image { width: 58rpx; height: 58rpx; }
 
 /* 三个首页入口共享同一高度和节奏，内容层级通过颜色区分。 */
-.home-entry { height: 168rpx; border-radius: 28rpx; box-sizing: border-box; }
-/* 今日菜单（TodayBoard）：白卡弱于 lucky 强 CTA，避免同屏抢眼；点击整卡进做法页。 */
-.home-board { display: flex; align-items: center; gap: 18rpx; margin-bottom: 16rpx; padding: 18rpx 22rpx; border: 2rpx solid var(--mrc-border-light); background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }
-.home-board__text { display: flex; flex: 1; min-width: 0; flex-direction: column; justify-content: center; }
-.home-board__eyebrow { color: var(--mrc-text-sub); font-size: 18rpx; }
-.home-board__name { margin-top: 4rpx; color: var(--mrc-text-deep); font-size: 30rpx; font-weight: 800; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.home-board__footer { display: flex; align-items: center; justify-content: space-between; gap: 10rpx; margin-top: 12rpx; }
-.home-board__meta { display: flex; min-width: 0; gap: 6rpx; color: var(--mrc-text-sub); font-size: 18rpx; white-space: nowrap; }
-.home-board__ops { display: flex; align-items: center; gap: 12rpx; flex: 0 0 auto; }
-.home-board__swap { padding: 6rpx 14rpx; border: 2rpx solid var(--mrc-border); border-radius: 999rpx; color: var(--mrc-text-deep); font-size: 19rpx; font-weight: 600; }
-.home-board__swap:active { opacity: 0.7; }
-.home-board__cook { display: flex; align-items: center; color: var(--mrc-primary); font-size: 20rpx; font-weight: 700; }
-.home-board__cook-arrow { margin-left: 4rpx; font-size: 30rpx; line-height: 20rpx; }
-.home-board__img { width: 128rpx; height: 128rpx; flex-shrink: 0; border-radius: 22rpx; background: var(--mrc-surface-2); }
-.home-board__img--fallback { background: var(--mrc-surface-peach); }
-.home-fridge { display: flex; align-items: center; justify-content: space-between; gap: 18rpx; margin: 0 0 16rpx; padding: 18rpx 22rpx; border: 2rpx solid var(--mrc-border-light); background: var(--mrc-surface-mint); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }.home-fridge__copy { display: flex; min-width: 0; flex-direction: column; gap: 5rpx; }.home-fridge__eyebrow { color: var(--mrc-mint); font-size: 18rpx; font-weight: 800; letter-spacing: 1px; }.home-fridge__title { color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 800; }.home-fridge__sub { color: var(--mrc-text-sub); font-size: 19rpx; }.home-fridge__right { display: flex; align-items: center; gap: 4rpx; flex: 0 0 auto; color: var(--mrc-mint); }.home-fridge__right--expired { color: var(--mrc-accent); }.home-fridge__right--soon { color: var(--mrc-accent); }.home-fridge__right text:first-child { font-size: 34rpx; font-weight: 800; }.home-fridge__right text:nth-child(2) { align-self: flex-end; margin-bottom: 8rpx; font-size: 18rpx; }.home-fridge__arrow { margin-left: 8rpx; font-size: 40rpx; line-height: 1; }.home-fridge:active { opacity: .78; transform: scale(.985); }
+.home-entry { border-radius: 30rpx; box-sizing: border-box; }
+/* 今日菜牌（TodayBoard）：图占满右侧全高、杂志式出血；左侧信息三级（眉标/菜名/标签），CTA 为实心药丸。 */
+.home-board { position: relative; display: flex; align-items: stretch; height: 228rpx; margin-bottom: 16rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 30rpx; background: linear-gradient(120deg, var(--mrc-surface-peach) 0%, var(--mrc-surface) 62%); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); overflow: hidden; }
+.home-board__text { display: flex; flex: 1; min-width: 0; flex-direction: column; justify-content: center; gap: 10rpx; padding: 22rpx 6rpx 22rpx 30rpx; }
+.home-board__eyebrow { display: flex; align-items: center; gap: 10rpx; color: var(--mrc-accent); font-size: 19rpx; font-weight: 800; letter-spacing: 2rpx; }
+.home-board__eyebrow-dot { flex: 0 0 auto; width: 10rpx; height: 10rpx; border-radius: 50%; background: var(--mrc-accent); box-shadow: 0 0 0 6rpx var(--mrc-accent-soft); }
+.home-board__name { color: var(--mrc-text-strong); font-size: 37rpx; font-weight: 800; line-height: 1.22; letter-spacing: -.5rpx; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+.home-board__meta { display: flex; flex-wrap: wrap; gap: 10rpx; }
+.home-board__chip { padding: 4rpx 16rpx; border: 1rpx solid var(--mrc-border-light); border-radius: 999rpx; background: rgba(255, 255, 255, .8); color: var(--mrc-text-sub); font-size: 18rpx; font-weight: 600; }
+.home-board__cook { align-self: flex-start; display: inline-flex; align-items: center; gap: 4rpx; margin-top: 2rpx; padding: 11rpx 26rpx; border-radius: 999rpx; background: var(--mrc-primary-deep); color: #fff; font-size: 21rpx; font-weight: 700; box-shadow: 0 6rpx 16rpx rgba(255, 107, 91, .32); transition: transform .15s ease; }
+.home-board__cook:active { transform: scale(.95); }
+.home-board__cook-arrow { font-size: 26rpx; line-height: 1; }
+.home-board__media { position: relative; display: flex; margin: 12rpx; width: 248rpx; flex: 0 0 248rpx; border-radius: 22rpx; overflow: hidden; box-shadow: 0 6rpx 18rpx rgba(96, 52, 28, .12); }
+.home-board__img { width: 100%; height: 100%; }
+.home-board__img--fallback { padding: 34rpx; box-sizing: border-box; background: #FFFFFF; }
+/* 朱红印章：竖排「今日」，微旋转的盖章感 */
+.home-board__stamp { position: absolute; top: 12rpx; left: 12rpx; display: flex; flex-direction: column; align-items: center; padding: 10rpx 9rpx 12rpx; border-radius: 10rpx; background: linear-gradient(160deg, #FF7A5C 0%, #E14E34 100%); color: #FFFFFF; font-size: 23rpx; font-weight: 800; line-height: 1.18; letter-spacing: 0; box-shadow: 0 4rpx 12rpx rgba(180, 52, 28, .38); transform: rotate(-5deg); }
+.home-board__stamp text { display: block; }
+/* 组件墙：4 列网格，入口分层——三餐主卡(2×2 HOT) / 抽奖小卡(1×1) / 双宽卡(2×1) */
+.home-bento { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: 158rpx; gap: 14rpx; margin: 24rpx 0 32rpx; }
+.home-bento__card { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8rpx; overflow: hidden; min-width: 0; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); box-sizing: border-box; transition: transform .15s ease; }
+.home-bento__card:active { transform: scale(.97); }
+.home-bento__hot { position: absolute; right: 12rpx; top: 12rpx; z-index: 2; padding: 3rpx 12rpx; border-radius: 999rpx; background: linear-gradient(135deg, #FFB98C, #EF5A3C); color: #fff; font-size: 17rpx; font-weight: 800; letter-spacing: 1rpx; box-shadow: 0 4rpx 10rpx rgba(239, 90, 60, 0.35); }
+.home-bento__card--guanfan { grid-column: span 2; grid-row: span 2; align-items: flex-start; justify-content: flex-start; gap: 9rpx; padding: 26rpx 28rpx; border-color: transparent; background: var(--mrc-primary-grad); box-shadow: var(--mrc-shadow-coral), var(--mrc-gloss); }
+.home-bento__card--guanfan .home-bento__label { margin-top: 14rpx; color: rgba(255, 255, 255, 0.82); font-size: 20rpx; }
+.home-bento__card--guanfan .home-bento__title { color: #fff; font-size: 40rpx; font-weight: 800; letter-spacing: 1rpx; }
+.home-bento__card--guanfan .home-bento__hint { color: rgba(255, 255, 255, 0.9); font-size: 20rpx; }
+.home-bento__hero-img { position: absolute; right: 0; bottom: 0; width: 172rpx; height: 172rpx; filter: drop-shadow(0 8rpx 14rpx rgba(120, 40, 20, 0.22)); }
+.home-bento__card--wheel { background: var(--mrc-surface-sun); }
+.home-bento__card--nine { background: var(--mrc-surface-peach); }
+.home-bento__card--flip { background: var(--mrc-surface-2); }
+.home-bento__card--agent { background: var(--mrc-surface); }
+.home-bento__img { width: 78rpx; height: 78rpx; filter: drop-shadow(0 4rpx 8rpx rgba(96, 52, 28, 0.10)); }
+.home-bento__name { color: var(--mrc-text-deep); font-size: 24rpx; font-weight: 800; }
+.home-bento__sub { color: var(--mrc-text-sub); font-size: 18rpx; }
+.home-bento__card--lucky { grid-column: span 2; flex-direction: row; justify-content: space-between; padding: 0 22rpx 0 26rpx; border-color: transparent; background: var(--mrc-primary-grad); box-shadow: var(--mrc-shadow-coral), var(--mrc-gloss); }
+.home-bento__lucky-copy { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; gap: 6rpx; }
+.home-bento__lucky-main { color: #fff; font-size: 27rpx; font-weight: 800; }
+.home-bento__lucky-sub { color: rgba(255, 255, 255, 0.85); font-size: 18rpx; }
+.home-bento__lucky-img { width: 88rpx; height: 88rpx; flex-shrink: 0; margin-right: 2rpx; filter: drop-shadow(0 4rpx 8rpx rgba(120, 40, 20, 0.18)); }
+.home-bento__lucky-arrow { flex-shrink: 0; color: rgba(255, 255, 255, 0.95); font-size: 44rpx; font-weight: 300; }
+.home-bento__card--record { grid-column: span 2; flex-direction: row; justify-content: space-between; padding: 0 20rpx 0 26rpx; background: var(--mrc-surface-mint); }
+.home-bento__record-copy { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; gap: 6rpx; }
+.home-bento__record-img { width: 92rpx; height: 92rpx; flex-shrink: 0; filter: drop-shadow(0 4rpx 8rpx rgba(96, 52, 28, 0.10)); }
 
-/* 唯一强 CTA，减少一页内互相抢眼的高饱和元素。 */
-.home-lucky { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0; padding: 20rpx 28rpx; background: var(--mrc-primary-grad); box-shadow: var(--mrc-shadow-coral), var(--mrc-gloss); }
-.home-lucky__content { display: flex; align-items: center; gap: 20rpx; }.home-lucky__guozai { width: 88rpx; height: 88rpx; flex-shrink: 0; filter: drop-shadow(0 4rpx 8rpx rgba(0,0,0,0.12)); }
-.home-lucky__eyebrow, .home-lucky__main, .home-lucky__sub { display: block; }.home-lucky__eyebrow { margin-bottom: 4rpx; color: rgba(255, 255, 255, 0.82); font-size: 20rpx; }.home-lucky__main { color: #fff; font-size: 32rpx; font-weight: 700; }.home-lucky__sub { margin-top: 4rpx; color: rgba(255, 255, 255, 0.9); font-size: 24rpx; }.home-lucky__arrow { margin-left: 12rpx; color: rgba(255, 255, 255, 0.95); font-size: 56rpx; font-weight: 300; }
-
-.home-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16rpx; margin: 24rpx 0 32rpx; }.home-actions__feature { width: 100%; height: 144rpx; overflow: hidden; border-radius: 28rpx; }.home-actions__feature swiper-item { height: 144rpx; }.home-actions__item { display: flex; align-items: center; justify-content: space-between; width: 100%; min-width: 0; min-height: 144rpx; padding: 18rpx 18rpx 18rpx 20rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); box-sizing: border-box; }.home-actions__item--recipe { background: var(--mrc-surface-peach); }.home-actions__item--record { overflow: hidden; background: var(--mrc-surface-mint); }.home-actions__text { z-index: 1; display: flex; min-width: 0; flex-direction: column; gap: 8rpx; }.home-actions__label { color: var(--mrc-text-sub); font-size: 21rpx; white-space: nowrap; }.home-actions__name { color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 700; line-height: 1.15; white-space: nowrap; }.home-actions__guozai { width: 96rpx; height: 96rpx; flex: 0 0 96rpx; margin: 0 -10rpx 0 4rpx; object-fit: contain; }
+.meal-sheet { padding: 28rpx 28rpx calc(28rpx + env(safe-area-inset-bottom)); }
+.meal-sheet__head { padding: 8rpx 8rpx 20rpx; }
+.meal-sheet__title { display: block; color: var(--mrc-text-strong); font-size: 30rpx; font-weight: 800; }
+.meal-sheet__sub { display: block; margin-top: 6rpx; color: var(--mrc-text-sub); font-size: 22rpx; }
+.meal-sheet__options { display: flex; flex-direction: column; gap: 14rpx; }
+.meal-option { display: flex; align-items: center; gap: 18rpx; width: 100%; min-height: 116rpx; padding: 18rpx 22rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 24rpx; background: var(--mrc-surface-2); box-shadow: var(--mrc-shadow-soft); box-sizing: border-box; text-align: left; line-height: 1.3; }
+.meal-option::after { border: none; }
+.meal-option__emoji { font-size: 44rpx; }
+.meal-option__name { color: var(--mrc-text-deep); font-size: 30rpx; font-weight: 800; }
+.meal-option__desc { margin-left: auto; color: var(--mrc-text-sub); font-size: 21rpx; }
+.meal-sheet__cancel { width: 100%; margin-top: 20rpx; min-height: 92rpx; border-radius: 24rpx; color: var(--mrc-text-sub); background: var(--mrc-surface-2); font-size: 27rpx; font-weight: 700; }
+.meal-sheet__cancel::after { border: none; }
 
 .home-cal { padding: 28rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 32rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }
 .home-cal__header { display: flex; align-items: center; justify-content: space-between; min-height: 96rpx; margin-bottom: 20rpx; }

@@ -4,7 +4,6 @@ import { ref } from 'vue'
 import MoodPicker from '../../components/guozai/MoodPicker.vue'
 import { fetchFoodPreference } from '../../api/preferences'
 import { ensureLogin } from '../../utils/login'
-import { toast, toastError, toastSuccess } from '../../utils/toast'
 
 definePage({
   name: 'mood',
@@ -29,22 +28,18 @@ const router = useRouter()
 const selected = ref('')
 
 async function onConfirm(m: { key: string }) {
-  if (uni.getStorageSync('mrc_preference_onboarded')) {
-    router.push({ name: 'recipe', params: { mood: m.key } })
-    return
-  }
-  try {
-    await ensureLogin()
-    const preference = await fetchFoodPreference()
-    if (preference.onboardingCompleted) {
-      uni.setStorageSync('mrc_preference_onboarded', '1')
-      router.push({ name: 'recipe', params: { mood: m.key } })
-    } else {
-      router.push({ name: 'preferences', params: { from: 'onboarding', mood: m.key } })
+  // 选心情的本意就是要推荐，绝不能被 onboarding 拦到「锅仔记忆」记忆管理页。
+  // 偏好收集改为非阻塞：仅在标记缺失时静默补查并落标记，任何失败都不阻断推荐跳转。
+  if (!uni.getStorageSync('mrc_preference_onboarded')) {
+    try {
+      await ensureLogin()
+      const preference = await fetchFoodPreference()
+      if (preference?.onboardingCompleted) uni.setStorageSync('mrc_preference_onboarded', '1')
+    } catch {
+      // 读取偏好失败不阻断推荐，用户可在「设置 → 锅仔记忆」里补
     }
-  } catch (e: any) {
-    toastError(e, '暂时无法读取锅仔记忆')
   }
+  router.push({ name: 'recipe', params: { mood: m.key } })
 }
 </script>
 

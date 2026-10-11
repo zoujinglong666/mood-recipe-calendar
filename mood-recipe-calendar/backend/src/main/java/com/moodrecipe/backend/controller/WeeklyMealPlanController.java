@@ -91,8 +91,13 @@ public class WeeklyMealPlanController {
         try {
             String conversationId = request == null ? null : request.conversationId();
             String previousAction = conversations.lastAction(openid, conversationId);
-            DialogueState.AgentState serverState = conversations.state(openid, conversationId,
-                    request == null ? null : request.state());
+            // 场景预设：一键带整套槽位进场（跳过逐项追问）；预设轮必须开新状态，
+            // 不能被 conversations.state() 的 DB 旧状态覆盖（那是反复旧提问的温床）。
+            DialogueState.AgentState serverState = presetState(request == null ? null : request.preset());
+            if (serverState == null) {
+                serverState = conversations.state(openid, conversationId,
+                        request == null ? null : request.state());
+            }
             DialogueState.Turn turn = mealAgent.turn(openid, request == null ? "" : request.message(), serverState,
                     previousAction, request == null ? null : request.history());
             conversations.save(openid, conversationId, turn, request == null ? null : request.history());
@@ -117,6 +122,32 @@ public class WeeklyMealPlanController {
     public record AgentReplyRequest(String message, String nextQuestion) {}
     public record AgentReply(String reply) {}
     public record AgentTurnRequest(String message, DialogueState.AgentState state, String conversationId,
-                                   String requestId, java.util.List<AgentConversationService.TranscriptMessage> history) {}
+                                   String requestId, String preset,
+                                   java.util.List<AgentConversationService.TranscriptMessage> history) {}
     public record AgentRatingRequest(String rating, String comment) {}
+
+    /**
+     * 场景预设 → 一整套初始槽位。字段填满让 gaps 为空，对话直接进 READY（生成入口），
+     * 用户仍可通过 chips 或对话微调单项。
+     * 冰箱清空不在此列：它走冰箱库存工具的专门问答路径，由前端发引导语触发。
+     */
+    private DialogueState.AgentState presetState(String preset) {
+        if (preset == null || preset.isBlank()) return null;
+        switch (preset.trim().toUpperCase()) {
+            case "SINGLE":
+                // 单人快煮：工作日晚饭，两道菜省钱不剩饭
+                return new DialogueState.AgentState(1, java.util.List.of(0, 1, 2, 3, 4), 2,
+                        "DAILY", "SAVE", false, false, "微辣", null, true, "一人食", java.util.List.of());
+            case "COUPLE":
+                // 情侣二人食：均衡搭配，三道菜有家常也有惊喜
+                return new DialogueState.AgentState(2, java.util.List.of(0, 1, 2, 3, 4), 3,
+                        "BALANCED", "DAILY", false, false, "微辣", null, true, "情侣二人食", java.util.List.of());
+            case "BANQUET":
+                // 宴席硬菜：周末一桌 10 道撑场面
+                return new DialogueState.AgentState(8, java.util.List.of(5, 6), 10,
+                        "TREAT", "TREAT", false, false, "能吃辣", null, true, "宴请", java.util.List.of());
+            default:
+                return null;
+        }
+    }
 }

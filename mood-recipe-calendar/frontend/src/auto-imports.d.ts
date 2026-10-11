@@ -77,7 +77,9 @@ declare global {
   const effectScope: typeof import('vue')['effectScope']
   const ensureLogin: typeof import('./utils/login')['ensureLogin']
   const exportAlbumShare: typeof import('./utils/albumShare')['exportAlbumShare']
+  const exportDailyMenuShare: typeof import('./utils/albumShare')['exportDailyMenuShare']
   const exportRecipeShare: typeof import('./utils/albumShare')['exportRecipeShare']
+  const exportRecordShare: typeof import('./utils/albumShare')['exportRecordShare']
   const extendRef: typeof import('@vueuse/core')['extendRef']
   const fetchAgentConversationQuota: typeof import('./api/weeklyPlans')['fetchAgentConversationQuota']
   const fetchAllRecipes: typeof import('./api/recipes')['fetchAllRecipes']
@@ -98,6 +100,7 @@ declare global {
   const fetchProducts: typeof import('./api/gallery')['fetchProducts']
   const fetchRecipeDetail: typeof import('./api/recipes')['fetchRecipeDetail']
   const fetchRecipeFeedback: typeof import('./api/recipes')['fetchRecipeFeedback']
+  const fetchRecipePool: typeof import('./api/recipes')['fetchRecipePool']
   const fetchRecipeQuota: typeof import('./api/recipes')['fetchRecipeQuota']
   const fetchRecipesByMood: typeof import('./api/recipes')['fetchRecipesByMood']
   const fetchRecommendationHistory: typeof import('./api/recipes')['fetchRecommendationHistory']
@@ -132,6 +135,7 @@ declare global {
   const getVirtualPaymentParams: typeof import('./api/virtualCommerce')['getVirtualPaymentParams']
   const getWeeklyPlan: typeof import('./api/weeklyPlans')['getWeeklyPlan']
   const getWeeklyPlanHistory: typeof import('./api/weeklyPlans')['getWeeklyPlanHistory']
+  const getWeeklyPlanJob: typeof import('./api/weeklyPlans')['getWeeklyPlanJob']
   const getWindowInfo: typeof import('./utils/wxSystem')['getWindowInfo']
   const h: typeof import('vue')['h']
   const hideLoading: typeof import('./utils/toast')['hideLoading']
@@ -566,7 +570,9 @@ declare module 'vue' {
     readonly effectScope: UnwrapRef<typeof import('vue')['effectScope']>
     readonly ensureLogin: UnwrapRef<typeof import('./utils/login')['ensureLogin']>
     readonly exportAlbumShare: UnwrapRef<typeof import('./utils/albumShare')['exportAlbumShare']>
+    readonly exportDailyMenuShare: UnwrapRef<typeof import('./utils/albumShare')['exportDailyMenuShare']>
     readonly exportRecipeShare: UnwrapRef<typeof import('./utils/albumShare')['exportRecipeShare']>
+    readonly exportRecordShare: UnwrapRef<typeof import('./utils/albumShare')['exportRecordShare']>
     readonly extendRef: UnwrapRef<typeof import('@vueuse/core')['extendRef']>
     readonly fetchAgentConversationQuota: UnwrapRef<typeof import('./api/weeklyPlans')['fetchAgentConversationQuota']>
     readonly fetchAllRecipes: UnwrapRef<typeof import('./api/recipes')['fetchAllRecipes']>
@@ -587,6 +593,7 @@ declare module 'vue' {
     readonly fetchProducts: UnwrapRef<typeof import('./api/gallery')['fetchProducts']>
     readonly fetchRecipeDetail: UnwrapRef<typeof import('./api/recipes')['fetchRecipeDetail']>
     readonly fetchRecipeFeedback: UnwrapRef<typeof import('./api/recipes')['fetchRecipeFeedback']>
+    readonly fetchRecipePool: UnwrapRef<typeof import('./api/recipes')['fetchRecipePool']>
     readonly fetchRecipeQuota: UnwrapRef<typeof import('./api/recipes')['fetchRecipeQuota']>
     readonly fetchRecipesByMood: UnwrapRef<typeof import('./api/recipes')['fetchRecipesByMood']>
     readonly fetchRecommendationHistory: UnwrapRef<typeof import('./api/recipes')['fetchRecommendationHistory']>
@@ -621,6 +628,7 @@ declare module 'vue' {
     readonly getVirtualPaymentParams: UnwrapRef<typeof import('./api/virtualCommerce')['getVirtualPaymentParams']>
     readonly getWeeklyPlan: UnwrapRef<typeof import('./api/weeklyPlans')['getWeeklyPlan']>
     readonly getWeeklyPlanHistory: UnwrapRef<typeof import('./api/weeklyPlans')['getWeeklyPlanHistory']>
+    readonly getWeeklyPlanJob: UnwrapRef<typeof import('./api/weeklyPlans')['getWeeklyPlanJob']>
     readonly getWindowInfo: UnwrapRef<typeof import('./utils/wxSystem')['getWindowInfo']>
     readonly h: UnwrapRef<typeof import('vue')['h']>
     readonly hideLoading: UnwrapRef<typeof import('./utils/toast')['hideLoading']>

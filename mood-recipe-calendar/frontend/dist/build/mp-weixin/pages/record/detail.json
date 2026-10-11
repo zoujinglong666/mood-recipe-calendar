@@ -6,6 +6,7 @@
     "wd-navbar": "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar",
     "empty-state": "../../components/guozai/EmptyState",
     "guozai-button": "../../components/guozai/GuozaiButton",
+    "guozai-wot-button": "../../components/guozai/GuozaiWotButton",
     "loading-state": "../../components/guozai/LoadingState"
   }
 }

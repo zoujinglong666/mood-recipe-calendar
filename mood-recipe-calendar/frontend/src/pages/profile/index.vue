@@ -11,6 +11,7 @@ import {toast, toastError} from '../../utils/toast'
 import SuccessModal from '../../components/guozai/SuccessModal.vue'
 import {fetchShareStatus, type ShareStatus} from '@/api/share'
 import {fetchCheckinStatus, doCheckin, type CheckinStatus} from '@/api/gallery'
+import {fetchFridgeSummary, type FridgeSummary} from '@/api/fridge'
 import {uploadFile} from '@/api/request'
 import {updateUserInfo} from '@/api/auth'
 import {chooseImageFile} from '@/utils/chooseImage'
@@ -53,6 +54,18 @@ const history = ref<RecordItem[]>([])
 const shareStatus = ref<ShareStatus>({ isSharer: false, sharedToday: false })
 const checkinStatus = ref<CheckinStatus | null>(null)
 const checkingIn = ref(false)
+const fridgeSummary = ref<FridgeSummary>()
+const fridgeSummaryText = computed(() => {
+  const s = fridgeSummary.value
+  if (!s) return '记下食材，锅仔帮你看着'
+  if (s.expired > 0) return `有 ${s.expired} 项已过期，请先处理`
+  if (s.soon > 0) return `今天优先消耗 ${s.soon} 项食材`
+  return `已记录 ${s.total} 项食材`
+})
+const fridgeHasAlert = computed(() => {
+  const s = fridgeSummary.value
+  return !!s && (s.expired > 0 || s.soon > 0)
+})
 const showCheckinModal = ref(false)
 const activeMembership = computed(() => userStore.userInfo?.isMember === 1
   && Boolean(userStore.userInfo?.memberExpire)
@@ -87,6 +100,7 @@ async function loadData() {
     // 分享家徽章与签到状态：失败静默，不阻塞主流程
     fetchShareStatus().then(s => { shareStatus.value = s }).catch(() => {})
     fetchCheckinStatus().then(s => { checkinStatus.value = s }).catch(() => {})
+    fetchFridgeSummary().then(s => { fridgeSummary.value = s }).catch(() => {})
   }
   catch (e: any) {
     stats.value = { totalRecords: 0, totalDays: 0, currentStreak: 0, topDishes: [] }
@@ -243,6 +257,9 @@ function openHistoryRecord(item: RecordItem) {
 }
 function goPreferences() {
   router.push({ name: 'preferences' })
+}
+function goFridge() {
+  router.push({ name: 'fridge' })
 }
 function goWeeklyPlan() {
   router.push({ name: 'meal-agent' })
@@ -431,6 +448,16 @@ function openStat(type: 'records' | 'days' | 'streak') {
       </view>
       <view class="profile-member__badge">{{ activeMembership ? '已开通' : '看权益' }}</view>
       <text class="profile-member__arrow">›</text>
+    </view>
+
+    <view class="profile-fridge" :class="{ 'profile-fridge--alert': fridgeHasAlert }" role="button" aria-label="打开我的冰箱" @click="goFridge">
+      <image :src="`${STATIC_BASE_URL}/static/guozai/action_07_empty.png`" class="profile-fridge__guozai" mode="aspectFit"/>
+      <view class="profile-fridge__main">
+        <text class="profile-fridge__eyebrow">锅仔的新记忆</text>
+        <text class="profile-fridge__title">我的冰箱</text>
+        <text class="profile-fridge__sub">{{ fridgeSummaryText }}</text>
+      </view>
+      <text class="profile-fridge__arrow">›</text>
     </view>
 
     <view class="profile-memory" role="button" aria-label="打开我的口味与忌口" @click="goPreferences">
@@ -820,6 +847,17 @@ function openStat(type: 'records' | 'days' | 'streak') {
 .profile-member__arrow { color: rgba(255, 245, 230, .55); font-size: 36rpx; }
 
 /* 锅仔形象馆入口 */
+.profile-fridge { display: flex; min-height: 138rpx; align-items: center; gap: 18rpx; padding: 22rpx 26rpx; box-sizing: border-box; margin-bottom: 16rpx; border: 2rpx solid var(--mrc-border); border-radius: 30rpx; background: linear-gradient(135deg, var(--mrc-surface-mint), var(--mrc-surface)); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }
+.profile-fridge:active { transform: scale(.98); }
+.profile-fridge--alert { background: linear-gradient(135deg, var(--mrc-surface-sun), var(--mrc-surface-peach)); }
+.profile-fridge--alert .profile-fridge__eyebrow { color: var(--mrc-accent); }
+.profile-fridge__guozai { width: 88rpx; height: 88rpx; flex-shrink: 0; }
+.profile-fridge__main { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 6rpx; }
+.profile-fridge__eyebrow { color: var(--mrc-mint); font-size: 20rpx; font-weight: 800; letter-spacing: 1px; }
+.profile-fridge__title { color: var(--mrc-text-deep); font-size: 30rpx; font-weight: 800; }
+.profile-fridge__sub { color: var(--mrc-text-sub); font-size: 21rpx; }
+.profile-fridge__arrow { flex-shrink: 0; color: var(--mrc-text-light); font-size: 40rpx; font-weight: 300; }
+
 .profile-memory { display: flex; min-height: 138rpx; align-items: center; gap: 18rpx; padding: 22rpx 26rpx; box-sizing: border-box; margin-bottom: 16rpx; border: 2rpx solid var(--mrc-border); border-radius: 30rpx; background: linear-gradient(135deg, var(--mrc-surface-sun), var(--mrc-surface-peach)); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }
 .profile-memory:active { transform: scale(.98); }
 .profile-memory__guozai { width: 88rpx; height: 88rpx; flex-shrink: 0; }

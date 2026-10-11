@@ -29,6 +29,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
     public void addInterceptors(org.springframework.web.servlet.config.annotation.InterceptorRegistry registry) {
         registry.addInterceptor(sessionAuthInterceptor)
             .addPathPatterns("/api/**")
-            .excludePathPatterns("/api/auth/login", "/api/health", "/api/wechat/virtual-payment/callback");
+            .excludePathPatterns("/api/auth/login", "/api/health", "/api/wechat/virtual-payment/callback",
+                    "/api/breakfast-pool/seed");
     }
 }

@@ -25,6 +25,8 @@ const router = useRouter()
 const userStore = useUserStore()
 const { previewImage } = useImagePreview()
 const mood = ref('开心')
+/** 餐别：BREAKFAST / LUNCH / DINNER，来自首页「让锅仔替你决定」选择器，用于联动《膳食指南》依据 */
+const mealType = ref('')
 /** 兼容跳转链接中经 encodeURIComponent 编码的 mood（如 %E5%BC%80%E5%BF%83），避免页面显示编码串 */
 function normalizeMood(raw: unknown): string {
   if (typeof raw !== 'string' || !raw)
@@ -132,6 +134,20 @@ const steps = computed(() => normalizeStepList(parseStringList(recipe.value?.ste
 const feedbackAvailable = computed(() => Number(recipe.value?.id) > 0 || Boolean(recipe.value?.exposureId))
 const recipeImageAvailable = computed(() => Boolean(recipe.value?.image) && !imageFailed.value)
 const healingText = computed(() => recipe.value?.recommendationReason?.trim() || HEALING_TEXTS[mood.value] || recipe.value?.description || '好好吃饭，锅仔会陪你慢慢找到喜欢的味道。')
+/** 把后端返回的《中国居民膳食指南》依据（JSON 串）解析为列表，用于「有迹可循」展示 */
+const guidelineList = computed<Array<{ title: string; content: string; source?: string }>>(() => {
+  const raw = recipe.value?.guidelineBasis
+  if (!raw)
+    return []
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  }
+  catch {
+    return []
+  }
+})
+const showGuideline = computed(() => guidelineList.value.length > 0)
 const primaryText = computed(() => steps.value.length ? '开始跟锅仔做' : '记下这顿')
 const toolTrace = computed(() => recommendationJob.value?.steps.filter(step => step.status !== 'WAITING') || [])
 
@@ -198,7 +214,7 @@ async function loadRecipe() {
         uni.removeStorageSync(ACTIVE_JOB_KEY)
       }
     }
-    const created = await createRecommendationJob(mood.value)
+    const created = await createRecommendationJob(mood.value, mealType.value)
     if (run !== pollRun)
       return
     recommendationJob.value = created
@@ -217,6 +233,7 @@ async function loadRecipe() {
 
 onLoad((query) => {
   mood.value = normalizeMood(query?.mood)
+  mealType.value = (query?.mealType as string) || ''
   linkedRecipeId.value = Number(query?.recipeId) || 0
   void loadRecipe()
 })
@@ -675,6 +692,17 @@ async function waitForDelivery(orderNo: string) {
               </text>
             </view>
           </view>
+          <view v-if="showGuideline" class="guozai-basis">
+            <view class="guozai-basis__head">
+              <text class="guozai-basis__badge">有据可依</text>
+              <text class="guozai-basis__title">这道菜的推荐依据 ·《中国居民膳食指南(2022)》</text>
+            </view>
+            <view v-for="(item, index) in guidelineList" :key="index" class="guozai-basis__item">
+              <text class="guozai-basis__item-title">{{ item.title }}</text>
+              <text class="guozai-basis__item-content">{{ item.content }}</text>
+              <text v-if="item.source" class="guozai-basis__item-source">来源：{{ item.source }}</text>
+            </view>
+          </view>
           <text v-if="recipe.description" class="dish-description">
             {{ recipe.description }}
           </text>
@@ -1024,6 +1052,15 @@ async function waitForDelivery(orderNo: string) {
 .guozai-note__bubble { flex: 1; min-width: 0; padding: 16rpx 20rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 8rpx 22rpx 22rpx; background: var(--mrc-surface-2); }
 .guozai-note__label { display: block; color: var(--mrc-accent); font-size: 20rpx; font-weight: 800; letter-spacing: 1rpx; }
 .guozai-note__text { display: block; margin-top: 6rpx; color: var(--mrc-text-deep); font-size: 24rpx; line-height: 1.45; }
+.guozai-basis { margin: 20rpx 24rpx 0; padding: 18rpx 20rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 22rpx; background: var(--mrc-surface-2); }
+.guozai-basis__head { display: flex; align-items: center; gap: 12rpx; margin-bottom: 8rpx; }
+.guozai-basis__badge { flex-shrink: 0; padding: 4rpx 12rpx; border-radius: 999rpx; color: #fff; font-size: 18rpx; font-weight: 800; background: linear-gradient(135deg, var(--mrc-primary), var(--mrc-primary-deep)); }
+.guozai-basis__title { color: var(--mrc-text-strong); font-size: 23rpx; font-weight: 800; }
+.guozai-basis__item { padding: 12rpx 0; border-top: 2rpx solid var(--mrc-border-light); }
+.guozai-basis__item:first-of-type { border-top: none; padding-top: 6rpx; }
+.guozai-basis__item-title { display: block; color: var(--mrc-accent); font-size: 22rpx; font-weight: 800; }
+.guozai-basis__item-content { display: block; margin-top: 4rpx; color: var(--mrc-text-deep); font-size: 23rpx; line-height: 1.5; }
+.guozai-basis__item-source { display: block; margin-top: 4rpx; color: var(--mrc-text-sub); font-size: 19rpx; }
 .dish-description { display: block; padding: 20rpx 28rpx 26rpx; color: var(--mrc-text-sub); font-size: 25rpx; line-height: 1.6; }
 .tool-trace { margin-top: 20rpx; overflow: hidden; border: 2rpx solid var(--mrc-border-light); border-radius: 26rpx; background: var(--mrc-surface); }
 .recommend-insight { margin-top: 20rpx; }

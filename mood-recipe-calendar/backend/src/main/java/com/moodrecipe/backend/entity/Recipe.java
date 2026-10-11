@@ -41,6 +41,11 @@ public class Recipe {
     @Transient
     private String recommendationReason;
 
+    /** 推荐依据：本次推荐检索到的《中国居民膳食指南》要点（JSON 串）。仅用于本次响应，不持久化。 */
+    @Transient
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
+    private String guidelineBasis;
+
     /** AI 临时推荐的反馈标识，不进入公共菜谱表。 */
     @Transient
     private String exposureId;

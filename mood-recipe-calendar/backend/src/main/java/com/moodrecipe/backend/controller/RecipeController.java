@@ -68,7 +68,7 @@ public class RecipeController {
         try { if (quotas != null) quotas.consume(openid, UsageQuotaService.Feature.HOME_RECOMMEND); }
         catch (IllegalStateException e) { return ApiResponse.error(403, e.getMessage()); }
         Recipe recipe;
-        try { recipe = recommendInternal(openid, mood, null); }
+        try { recipe = recommendInternal(openid, mood, null, null); }
         catch (RuntimeException e) { if (quotas != null) quotas.release(openid, UsageQuotaService.Feature.HOME_RECOMMEND); throw e; }
         if (recipe == null && quotas != null) quotas.release(openid, UsageQuotaService.Feature.HOME_RECOMMEND);
         return recipe == null
@@ -83,11 +83,12 @@ public class RecipeController {
             @RequestBody RecommendJobRequest request) {
             String mood = request == null || request.mood() == null || request.mood().isBlank()
                 ? "平静" : request.mood().trim();
+            String mealType = request == null ? null : request.mealType();
         try {
             return ApiResponse.ok(recommendationJobs.start(openid, mood,
                     () -> { }, progress -> {
             try {
-                Recipe recipe = recommendInternal(openid, mood, progress);
+                Recipe recipe = recommendInternal(openid, mood, mealType, progress);
                 if (recipe == null && quotas != null) quotas.release(openid, UsageQuotaService.Feature.HOME_RECOMMEND);
                 return recipe;
             } catch (RuntimeException e) {
@@ -141,8 +142,8 @@ public class RecipeController {
         }
     }
 
-    private Recipe recommendInternal(String openid, String mood, RecommendationJobService.Progress progress) {
-        return guozaiAgent.recommend(openid, mood, progress);
+    private Recipe recommendInternal(String openid, String mood, String mealType, RecommendationJobService.Progress progress) {
+        return guozaiAgent.recommend(openid, mood, mealType, progress);
     }
 
     @PostMapping("/{id}/feedback")
@@ -284,7 +285,7 @@ public class RecipeController {
     public record DeepRecommendRequest(String mood, String ingredients, String maxMinutes, String preference) { }
     public record RecipeFeedbackRequest(String action) { }
     public record FeedbackState(boolean liked, boolean disliked, boolean made) { }
-    public record RecommendJobRequest(String mood) { }
+    public record RecommendJobRequest(String mood, String mealType) { }
     public record RecipeHistoryItem(Long id, String name, String description, String image, String ingredients, String steps,
                                     Integer cookingTime, String difficulty, String source,
                                     java.time.LocalDateTime recommendedAt) { }

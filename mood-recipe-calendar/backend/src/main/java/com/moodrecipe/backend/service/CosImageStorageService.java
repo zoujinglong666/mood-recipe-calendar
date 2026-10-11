@@ -65,8 +65,9 @@ public class CosImageStorageService {
     /**
      * SSRF 防护：仅放行 https 链接，且解析后的 IP 不能是回环/私有/链路本地地址。
      * 不跟随重定向（HttpClient 已设为 NEVER），因此初始 URL 校验通过即安全。
+     * 对外开放，供图片代理端点复用同一套校验。
      */
-    private boolean isSafeSourceUrl(String url) {
+    public boolean isSafeSourceUrl(String url) {
         if (url == null || url.isBlank()) return false;
         URI uri;
         try {
@@ -88,6 +89,47 @@ public class CosImageStorageService {
         }
         return true;
     }
+
+    /**
+     * 图片代理：安全拉取外部图片字节（SSRF 已校验），返回 (字节, contentType)。
+     * 失败 / 非图片 / 超界（8MB）/ 非 2xx 均返回 empty，由调用方决定兜底。
+     */
+    public Optional<ImageProxyResult> proxyFetch(String sourceUrl) {
+        if (!isSafeSourceUrl(sourceUrl)) {
+            log.warn("图片代理拒绝非安全 URL（SSRF 防护）: {}", sourceUrl);
+            return Optional.empty();
+        }
+        try {
+            HttpRequest request = HttpRequest.newBuilder(URI.create(sourceUrl))
+                    .timeout(java.time.Duration.ofSeconds(30))
+                    .header("User-Agent", "Mozilla/5.0 (mood-recipe-backend)")
+                    .header("Referer", sourceUrl)
+                    .header("Accept", "image/avif,image/webp,image/png,image/jpeg,*/*")
+                    .GET().build();
+            HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                log.warn("图片代理拉取失败: status={} url={}", response.statusCode(), sourceUrl);
+                return Optional.empty();
+            }
+            byte[] data = response.body();
+            if (data.length == 0 || data.length > 8 * 1024 * 1024) {
+                log.warn("图片代理尺寸异常: {} bytes", data.length);
+                return Optional.empty();
+            }
+            String contentType = response.headers().firstValue("Content-Type").orElse("image/jpeg");
+            if (!contentType.startsWith("image/")) {
+                log.warn("图片代理返回非图片类型: {}", contentType);
+                return Optional.empty();
+            }
+            return Optional.of(new ImageProxyResult(data, contentType));
+        } catch (Exception ex) {
+            log.warn("图片代理拉取异常: {}", ex.toString());
+            return Optional.empty();
+        }
+    }
+
+    /** 图片代理结果载体 */
+    public record ImageProxyResult(byte[] data, String contentType) {}
 
     /**
      * 将外部图片 URL 转存到 COS（下载 → 上传 → 返回永久 URL）。
