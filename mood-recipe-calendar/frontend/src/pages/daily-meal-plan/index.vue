@@ -22,14 +22,20 @@
           <image class="cover-illu" :src="`${STATIC_BASE_URL}/static/guozai/action_01_bowl.png`" mode="aspectFill" />
         </view>
 
-        <!-- 今日营养结构 -->
+        <!-- 今日营养打卡：覆盖大类逐项打勾，缺项灰显 -->
         <view v-if="plan.nutrition" class="nutri-card">
-          <view class="nutri-label">今日营养结构</view>
+          <view class="nutri-label">今日营养打卡</view>
           <view class="nutri-headline">{{ plan.nutrition.headline }}</view>
-          <view v-if="plan.nutrition.tags?.length" class="nutri-tags">
-            <text v-for="(t, i) in plan.nutrition.tags" :key="i" class="tag">{{ t }}</text>
+          <view class="nutri-checklist">
+            <view v-for="item in nutritionChecklist" :key="item.key" class="nutri-check" :class="{ 'is-miss': !item.done }">
+              <text class="nutri-check__mark">{{ item.done ? '✓' : '○' }}</text>
+              <text class="nutri-check__text">{{ item.label }}</text>
+            </view>
           </view>
-          <view v-if="plan.nutrition.tip" class="nutri-tip">{{ plan.nutrition.tip }}</view>
+          <view v-if="plan.nutrition.tip" class="nutri-tip">
+            <text class="nutri-tip__tag">TIP · {{ plan.nutrition.goalTag || '均衡搭配' }}</text>
+            <text class="nutri-tip__text">{{ plan.nutrition.tip }}</text>
+          </view>
         </view>
 
         <!-- 三餐卡片：通栏大图 + 信息区 -->
@@ -39,8 +45,9 @@
             <view class="meal-badge">{{ mealLabel(i) }}</view>
           </view>
           <view class="meal-body">
-            <view class="meal-eyebrow">{{ meal.cookingTime || '--' }} 分钟 · {{ meal.difficulty || '家常' }}</view>
+            <view class="meal-eyebrow"><text class="meal-eyebrow__en">{{ MEAL_EN[i] || 'MEAL' }}</text><text class="meal-eyebrow__zh"> · {{ mealLabel(i) }} · {{ meal.cookingTime || '--' }} 分钟 · {{ meal.difficulty || '家常' }}</text></view>
             <view class="meal-name">{{ meal.name }}</view>
+            <view v-if="meal.description" class="meal-desc">{{ meal.description }}</view>
             <view class="meal-expand-btn" @click="toggle(i)">
               {{ expanded[i] ? '收起做法' : '查看食材 / 做法' }}
             </view>
@@ -130,7 +137,7 @@ const plan = ref<{
   meals: RecipeItem[]
   knowledgePackVersion: string
   guidelineBasis?: { title: string; content: string; source?: string }[]
-  nutrition?: { headline: string; tags: string[]; tip: string }
+  nutrition?: { headline: string; tags: string[]; tip: string; goalTag?: string }
 } | null>(null)
 const error = ref('')
 const expanded = reactive<boolean[]>([false, false, false])
@@ -145,10 +152,26 @@ function pulseSwap(i: number) {
 const sharing = ref(false)
 
 const MEAL_LABELS = ['早餐', '午餐', '晚餐']
+const MEAL_EN = ['BREAKFAST', 'LUNCH', 'DINNER']
 
 function mealLabel(i: number) {
   return MEAL_LABELS[i] || '餐'
 }
+
+/* 营养打卡清单：核心四类逐项打勾（tags 为后端启发式判定的已覆盖大类），额外大类命中也列出 */
+const CHECK_ITEMS = [
+  { key: '谷薯类', label: '主食粗细搭配了' },
+  { key: '优质蛋白', label: '蛋白质吃够了' },
+  { key: '蔬菜', label: '深色蔬菜上桌了' },
+  { key: '奶类', label: '奶或豆浆安排了' },
+]
+const nutritionChecklist = computed(() => {
+  const tags = plan.value?.nutrition?.tags || []
+  const rows = CHECK_ITEMS.map(item => ({ key: item.key, label: item.label, done: tags.includes(item.key) }))
+  if (tags.includes('大豆及制品')) rows.push({ key: '大豆及制品', label: '豆制品有一席', done: true })
+  if (tags.includes('水果')) rows.push({ key: '水果', label: '水果也安排了', done: true })
+  return rows
+})
 
 function mealImage(meal: RecipeItem): string {
   return meal.image || `${STATIC_BASE_URL}/static/guozai/action_01_bowl.png`
@@ -380,28 +403,15 @@ onShareTimeline(() => ({
   margin-top: 10rpx;
   line-height: 1.45;
 }
-.nutri-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12rpx;
-  margin-top: 18rpx;
-}
-.tag {
-  font-size: 22rpx;
-  color: var(--mrc-text-deep);
-  background: var(--mrc-surface-2);
-  border: 1rpx solid var(--mrc-border-light);
-  padding: 8rpx 18rpx;
-  border-radius: 999rpx;
-}
-.nutri-tip {
-  font-size: 22rpx;
-  color: var(--mrc-text-sub);
-  margin-top: 18rpx;
-  line-height: 1.5;
-  border-left: 6rpx solid var(--mrc-accent);
-  padding-left: 16rpx;
-}
+.nutri-checklist { display: flex; flex-direction: column; gap: 12rpx; margin-top: 18rpx; }
+.nutri-check { display: flex; align-items: center; gap: 12rpx; }
+.nutri-check__mark { display: flex; align-items: center; justify-content: center; width: 34rpx; height: 34rpx; flex: 0 0 34rpx; border-radius: 50%; background: var(--mrc-mint); color: #fff; font-size: 20rpx; font-weight: 800; }
+.nutri-check__text { color: var(--mrc-text-deep); font-size: 24rpx; font-weight: 700; }
+.nutri-check.is-miss .nutri-check__mark { background: transparent; border: 2rpx solid var(--mrc-border-strong); color: var(--mrc-text-light); }
+.nutri-check.is-miss .nutri-check__text { color: var(--mrc-text-light); font-weight: 500; }
+.nutri-tip { display: flex; flex-direction: column; gap: 8rpx; margin-top: 20rpx; padding: 18rpx 20rpx; border: 2rpx dashed var(--mrc-accent); border-radius: 18rpx; background: var(--mrc-accent-soft); }
+.nutri-tip__tag { color: var(--mrc-accent); font-size: 19rpx; font-weight: 800; letter-spacing: 1rpx; }
+.nutri-tip__text { color: var(--mrc-text-deep); font-size: 22rpx; line-height: 1.55; }
 
 .meal-card {
   margin: 24rpx 24rpx 0;
@@ -451,17 +461,32 @@ onShareTimeline(() => ({
   padding: 22rpx 28rpx 26rpx;
 }
 .meal-eyebrow {
-  font-size: 21rpx;
+  display: flex;
+  align-items: baseline;
+  font-size: 20rpx;
   color: var(--mrc-accent);
   font-weight: 800;
   letter-spacing: 1rpx;
 }
+.meal-eyebrow__en { font-size: 21rpx; letter-spacing: 2rpx; }
+.meal-eyebrow__zh { color: var(--mrc-text-sub); font-weight: 600; letter-spacing: 0; }
 .meal-name {
   font-size: 34rpx;
   font-weight: 800;
   color: var(--mrc-text-strong);
   margin-top: 10rpx;
   line-height: 1.35;
+}
+.meal-desc {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  margin-top: 8rpx;
+  color: var(--mrc-text-sub);
+  font-size: 23rpx;
+  line-height: 1.5;
 }
 .meal-expand-btn {
   margin-top: 18rpx;

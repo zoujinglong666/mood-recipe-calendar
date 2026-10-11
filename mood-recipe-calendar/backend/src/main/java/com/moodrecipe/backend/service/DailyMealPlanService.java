@@ -62,7 +62,7 @@ public class DailyMealPlanService {
             "优质蛋白", List.of("鸡", "牛", "猪", "羊", "鱼", "虾", "蟹", "蛋", "肉", "腿", "排"),
             "大豆及制品", List.of("豆", "腐", "浆", "豉", "纳"),
             "蔬菜", List.of("菜", "青", "白", "菠", "芹", "萝", "茄", "黄", "瓜", "葱", "蒜", "洋", "蘑", "菌", "椒", "笋", "藕", "番", "西蓝", "西兰"),
-            "奶类", List.of("奶", "乳", "酸", "酪", "芝"),
+            "奶类", List.of("奶", "乳", "酸", "酪", "芝", "豆浆", "豆奶"),
             "水果", List.of("果", "苹", "香", "橙", "橘", "莓", "桃", "梨", "葡", "西", "芒")
     );
 
@@ -344,7 +344,7 @@ public class DailyMealPlanService {
         } else {
             tip = "可补充" + String.join("、", missing) + "，《中国居民膳食指南》建议每餐有谷薯、优质蛋白与足量蔬菜。";
         }
-        return new NutritionSnapshot(headline, present, tip);
+        return new NutritionSnapshot(headline, present, tip, goalTag(missing));
     }
 
     private boolean hasRealImage(Recipe recipe) {
@@ -378,7 +378,20 @@ public class DailyMealPlanService {
 
     public record GuidelinePoint(String title, String content, String source) { }
 
-    public record NutritionSnapshot(String headline, List<String> tags, String tip) { }
+    public record NutritionSnapshot(String headline, List<String> tags, String tip, String goalTag) { }
+
+    /** 由缺失大类推导今日真实营养目标，给前端 TIP 标签用；齐了就是「均衡搭配」。 */
+    private String goalTag(List<String> missing) {
+        boolean missMilk = missing.contains("奶类");
+        boolean missVeg = missing.contains("蔬菜");
+        boolean missProtein = missing.contains("优质蛋白");
+        if (missMilk && missVeg) return "补钙与膳食纤维";
+        if (missMilk) return "补钙";
+        if (missVeg) return "多来点膳食纤维";
+        if (missProtein) return "蛋白质加量";
+        if (missing.contains("谷薯类")) return "主食别缺席";
+        return "均衡搭配";
+    }
 
     private record Enrichment(List<GuidelinePoint> guidelineBasis, NutritionSnapshot nutrition) { }
 
