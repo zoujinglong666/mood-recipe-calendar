@@ -1,5 +1,6 @@
 package com.moodrecipe.backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.moodrecipe.backend.config.AppClock;
 import jakarta.persistence.*;
 import lombok.Data;
@@ -27,12 +28,15 @@ public class User {
      * code2session 返回的 session_key，经服务端密钥加密后保存。
      * 仅用于生成微信虚拟支付的用户态签名，绝不下发给小程序。
      */
+    @JsonIgnore
     @Column(name = "session_key_encrypted", length = 512)
     private String sessionKeyEncrypted;
 
+    @JsonIgnore
     @Column(name = "session_token_hash", length = 64)
     private String sessionTokenHash;
 
+    @JsonIgnore
     @Column(name = "session_token_expires_at")
     private LocalDateTime sessionTokenExpiresAt;
 

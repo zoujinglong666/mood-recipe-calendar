@@ -12,6 +12,7 @@ import java.util.Optional;
 
 @Service
 public class AgentConversationService {
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(AgentConversationService.class);
     private final AgentConversationRepository conversations;
     private final ObjectMapper json;
 
@@ -89,8 +90,9 @@ public class AgentConversationService {
             conversation.setLastAction(turn.action());
             conversation.setTurnCount(conversation.getTurnCount() + 1);
             conversations.save(conversation);
-        } catch (Exception ignored) {
-            // The turn result remains usable; persistence failure must not break the chat response.
+        } catch (Exception e) {
+            // 降级不打断聊天响应，但会话状态/记录丢失必须留痕可查（线上"刷新后少了半轮"的定位依据）
+            log.error("[agent-conversation] 会话持久化失败 openid={} conversationId={}", openid, conversationId, e);
         }
     }
 

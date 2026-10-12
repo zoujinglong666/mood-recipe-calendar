@@ -3,6 +3,7 @@
   "navigationBarTitleText": "这一餐的食光",
   "usingComponents": {
     "wd-image-preview": "../../node-modules/@wot-ui/ui/components/wd-image-preview/wd-image-preview",
+    "wd-icon": "../../node-modules/@wot-ui/ui/components/wd-icon/wd-icon",
     "wd-navbar": "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar",
     "empty-state": "../../components/guozai/EmptyState",
     "guozai-button": "../../components/guozai/GuozaiButton",

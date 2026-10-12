@@ -42,6 +42,8 @@ const allergens = ref('')
 const behavior = ref<FoodMemoryBehavior | null>(null)
 const learnedFacts = ref<AgentMemoryFact[]>([])
 const personalizationEnabled = ref(true)
+/** 折叠面板展开项（name = 记忆分类）；空数组 = 默认全部折叠 */
+const collapsedFacts = ref<string[]>([])
 
 const CATEGORY_LABELS: Record<AgentMemoryFact['category'], string> = {
   EXPLICIT_PREFERENCE: '你主动告诉锅仔的',
@@ -104,13 +106,14 @@ function toggleFavorite(tag: string) {
     : [...favoriteTags.value, tag]
 }
 
-async function togglePersonalization(event: any) {
-  const enabled = !!event.detail?.value
+/** 个性化开关：wd-switch 的 v-model 已即时切换，这里负责落库；失败回滚。 */
+async function onPersonalizationChange(payload: any) {
+  const next = typeof payload?.value === 'boolean' ? payload.value : !!payload?.detail?.value
   try {
-    personalizationEnabled.value = (await setAgentPersonalization(enabled)).enabled
+    personalizationEnabled.value = (await setAgentPersonalization(next)).enabled
   }
   catch (error) {
-    personalizationEnabled.value = !enabled
+    personalizationEnabled.value = !next
     toastError(error, '个性化设置失败')
   }
 }
@@ -287,28 +290,34 @@ function clearMemory() {
             </text><text class="memory-section__hint">
               每条都有来源，不想留着可以让锅仔忘掉。
             </text>
-          </view><switch :checked="personalizationEnabled" color="#EF5A3C" @change="togglePersonalization" />
+          </view><wd-switch v-model="personalizationEnabled" :size="32" active-color="#EF5A3C" custom-class="memory-switch" @change="onPersonalizationChange" />
         </view>
         <text v-if="!groupedFacts.length" class="memory-section__hint">
           目前还没有长期记忆。
         </text>
-        <view v-for="group in groupedFacts" :key="group.category" class="memory-fact-group">
-          <text class="memory-fact-group__title">
-            {{ group.label }}
-          </text><view v-for="fact in group.facts" :key="fact.key" class="memory-fact">
-            <view>
-              <text class="memory-fact__label">
-                {{ memoryKeyLabel(fact.key) }}
-              </text><text class="memory-fact__value">
+        <wd-collapse v-else v-model="collapsedFacts" custom-class="memory-facts">
+          <wd-collapse-item v-for="group in groupedFacts" :key="group.category" :name="group.category" :border="false" custom-class="memory-facts__item">
+            <template #title>
+              <view class="memory-facts__title">
+                <text>{{ group.label }}</text>
+                <text class="memory-facts__count">{{ group.facts.length }} 条</text>
+              </view>
+            </template>
+            <view v-for="fact in group.facts" :key="fact.key" class="memory-fact">
+              <view>
+                <text class="memory-fact__label">
+                  {{ memoryKeyLabel(fact.key) }}
+                </text><text class="memory-fact__value">
                 {{ humanizeMemoryValue(fact.key, fact.value) }}
               </text><text class="memory-fact__reason">
                 {{ sourceLabel(fact) }}
               </text>
-            </view><text class="memory-fact__delete" @click="forgetFact(fact.key)">
-              忘掉这条
-            </text>
-          </view>
-        </view>
+              </view><text class="memory-fact__delete" @click="forgetFact(fact.key)">
+                忘掉这条
+              </text>
+            </view>
+          </wd-collapse-item>
+        </wd-collapse>
       </view>
 
       <view class="memory-section">
@@ -503,7 +512,13 @@ function clearMemory() {
 .memory-summary__foot { margin-top: 16rpx; color: var(--mrc-text-light); font-size: 20rpx; line-height: 1.5; }
 .memory-section { padding: 28rpx; margin-bottom: 20rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); }
 .memory-section--warning { border-color: var(--mrc-border); }
-.memory-facts__head,.memory-fact{display:flex;align-items:center;justify-content:space-between;gap:20rpx}.memory-fact-group{margin-top:24rpx}.memory-fact-group__title{display:block;color:var(--mrc-accent);font-size:22rpx;font-weight:800}.memory-fact{padding:20rpx 0;border-bottom:2rpx solid var(--mrc-border-light)}.memory-fact>view{min-width:0;flex:1}.memory-fact__value,.memory-fact__reason{display:block}.memory-fact__label{display:block;color:var(--mrc-text-sub);font-size:21rpx;font-weight:600}.memory-fact__value{margin-top:4rpx;color:var(--mrc-text-deep);font-size:27rpx;font-weight:700}.memory-fact__reason{margin-top:6rpx;color:var(--mrc-text-light);font-size:21rpx;line-height:1.45}.memory-fact__delete{flex-shrink:0;color:var(--mrc-danger,#a54235);font-size:23rpx}
+/* 折叠面板：卡片化，与全站 mrc 风格统一（原分类标题进折叠栏，带条数徽章） */
+.memory-facts { --wot-collapse-bg: transparent; --wot-collapse-item-title-color: var(--mrc-text-deep); --wot-collapse-item-header-padding: 24rpx 26rpx; --wot-collapse-item-body-padding: 0 26rpx 12rpx; }
+.memory-facts__item { margin-top: 14rpx; overflow: hidden; border: 2rpx solid var(--mrc-border-light); border-radius: 22rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); }
+.memory-switch { flex-shrink: 0; }
+.memory-facts__title { display: flex; flex: 1; align-items: center; justify-content: space-between; gap: 16rpx; }
+.memory-facts__count { flex-shrink: 0; padding: 2rpx 14rpx; border-radius: 999rpx; background: var(--mrc-accent-soft); color: var(--mrc-accent); font-size: 18rpx; font-weight: 700; }
+.memory-fact-group{margin-top:24rpx}.memory-fact-group__title{display:block;color:var(--mrc-accent);font-size:22rpx;font-weight:800}.memory-fact{padding:20rpx 0;border-bottom:2rpx solid var(--mrc-border-light)}.memory-fact>view{min-width:0;flex:1}.memory-fact__value,.memory-fact__reason{display:block}.memory-fact__label{display:block;color:var(--mrc-text-sub);font-size:21rpx;font-weight:600}.memory-fact__value{margin-top:4rpx;color:var(--mrc-text-deep);font-size:27rpx;font-weight:700}.memory-fact__reason{margin-top:6rpx;color:var(--mrc-text-light);font-size:21rpx;line-height:1.45}.memory-fact__delete{flex-shrink:0;color:var(--mrc-danger,#a54235);font-size:23rpx}
 .memory-section__title, .memory-section__hint { display: block; }
 .memory-section__title { color: var(--mrc-text-deep); font-size: 31rpx; font-weight: 800; }
 .memory-section__hint { margin-top: 8rpx; color: var(--mrc-text-sub); font-size: 23rpx; line-height: 1.55; }
