@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
+import type { TourStep } from '@wot-ui/ui/components/wd-tour/types'
 import { createFridgeItem, consumeFridgeItem, deleteFridgeItem, fetchFridgeItems, fetchFridgeSummary, fetchStorageAdvice, notifyFridgeExpiring, recognizeFridgeImage, updateFridgeItem, type FridgeItem, type FridgeSummary, type RecognizedItem } from '@/api/fridge'
 import GuozaiButton from '@/components/guozai/GuozaiButton.vue'
 import { navBack } from '@/composables/useNavBar'
@@ -224,6 +225,28 @@ async function sendExpiryNotice() {
   }
 }
 
+/* ===== 首次引导：库存分区 / 拍照识别 / 临期提醒 ===== */
+const FRIDGE_TOUR_KEY = 'mrc-tour-fridge-version'
+const FRIDGE_TOUR_VERSION = 1
+const showFridgeTour = ref(false)
+const fridgeTourCurrent = ref(0)
+const fridgeTourSteps: TourStep[] = [
+  { element: '#tour-fridge-stock', content: '食材按「已过期 / 优先消耗 / 其他」分区摆，快坏的永远排在最前面。', placement: 'bottom' },
+  { element: '#tour-fridge-vision', content: '对着冰箱拍一张，锅仔自动认食材、算保质期，不用一个个手输。', placement: 'bottom' },
+  { element: '#tour-fridge-expiry', content: '有食材快过期时，这里会出现提醒，点「提醒我」让锅仔盯着。', placement: 'top' },
+]
+
+function startFridgeTour() {
+  if (loading.value || showFridgeTour.value || Number(uni.getStorageSync(FRIDGE_TOUR_KEY)) >= FRIDGE_TOUR_VERSION)
+    return
+  fridgeTourCurrent.value = 0
+  nextTick(() => { showFridgeTour.value = true })
+}
+function finishFridgeTour() {
+  uni.setStorageSync(FRIDGE_TOUR_KEY, FRIDGE_TOUR_VERSION)
+  showFridgeTour.value = false
+}
+
 async function load() {
   loading.value = true
   error.value = ''
@@ -244,7 +267,10 @@ async function load() {
   }
 }
 
-onShow(load)
+onShow(() => {
+  load()
+  setTimeout(startFridgeTour, 600)
+})
 
 function openCreate() {
   editingId.value = undefined
@@ -351,12 +377,12 @@ function statusText(item: FridgeItem) {
       </view>
 
       <view class="page-heading">
-        <view><text class="page-heading__title">冰箱库存</text><text class="page-heading__sub">{{ summary.total }} 项食材 · 吃过就划掉，别让它烂在里面</text></view>
+        <view id="tour-fridge-stock"><text class="page-heading__title">冰箱库存</text><text class="page-heading__sub">{{ summary.total }} 项食材 · 吃过就划掉</text></view>
         <GuozaiButton variant="secondary" :block="false" aria-label="添加食材" @click="openCreate">＋ 添加</GuozaiButton>
       </view>
 
       <!-- 抽屉把手：锅仔举着相机拉出识别，整条都是触点，不再是两张并排白卡 -->
-      <view class="drawer-handle" role="button" aria-label="拍照识别食材" @click="startRecognize">
+      <view id="tour-fridge-vision" class="drawer-handle" role="button" aria-label="拍照识别食材" @click="startRecognize">
         <view class="drawer-handle__grab" />
         <image class="drawer-handle__gz" :src="GZ_CAMERA" mode="aspectFit" aria-label="举相机的锅仔" />
         <view class="drawer-handle__body">
@@ -403,7 +429,7 @@ function statusText(item: FridgeItem) {
         </view>
 
         <!-- 临期提醒：只在真的有临期食材时出现，位置在提醒最该呆的地方——食材旁边 -->
-        <view v-if="soonItems.length" class="rake">
+        <view v-if="soonItems.length" id="tour-fridge-expiry" class="rake">
           <view class="rake__copy">
             <text class="rake__title">这些要不要提醒你一下</text>
             <text class="rake__sub">{{ soonItems.map(i => i.name).join('、') }}</text>
@@ -469,6 +495,22 @@ function statusText(item: FridgeItem) {
         <GuozaiButton :loading="saving" aria-label="保存食材" @click="save">保存食材</GuozaiButton>
       </view>
     </view>
+
+    <wd-tour
+      v-model="showFridgeTour"
+      v-model:current="fridgeTourCurrent"
+      :steps="fridgeTourSteps"
+      :padding="10"
+      :border-radius="18"
+      :z-index="1200"
+      custom-nav
+      missing-strategy="skip"
+      skip-text="不再提示"
+      finish-text="知道啦"
+      custom-style="--wot-tour-popover-bg: var(--mrc-surface); --wot-tour-info-color: var(--mrc-text); --wot-tour-popover-radius: 16px; --wot-tour-popover-padding: 18px;"
+      @finish="finishFridgeTour"
+      @skip="finishFridgeTour"
+    />
   </view>
 </template>
 

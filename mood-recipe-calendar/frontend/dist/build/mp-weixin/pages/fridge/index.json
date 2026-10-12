@@ -2,6 +2,7 @@
   "navigationStyle": "custom",
   "navigationBarTitleText": "我的冰箱",
   "usingComponents": {
+    "wd-tour": "../../node-modules/@wot-ui/ui/components/wd-tour/wd-tour",
     "wd-navbar": "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar",
     "guozai-button": "../../components/guozai/GuozaiButton"
   }

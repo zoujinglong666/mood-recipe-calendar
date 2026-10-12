@@ -2,7 +2,8 @@
 import {useImagePreview} from '@wot-ui/ui'
 import {navBack} from '@/composables/useNavBar'
 import {STATIC_BASE_URL} from '@/utils/assets'
-import {computed, ref} from 'vue'
+import {computed, nextTick, ref} from 'vue'
+import type {TourStep} from '@wot-ui/ui/components/wd-tour/types'
 import LoadingState from '../../components/guozai/LoadingState.vue'
 import EmptyState from '../../components/guozai/EmptyState.vue'
 import {ensureLogin} from '../../utils/login'
@@ -55,6 +56,11 @@ function monthYear(month: string) {
   return /^\d{4}-\d{2}$/.test(month) ? `${month.slice(0, 4)} 年` : month
 }
 
+/** 是否来自做菜/菜谱流程的记录：带 recipeId 的是真菜谱；随手记（自由文本，如「石榴可甜了」）不是菜，文案与时长都要区分。 */
+function isDishRecord(item: RecordItem | { recipeId?: number | string }) {
+  return Number(item.recipeId) > 0
+}
+
 function dayNumber(date?: string) {
   return date?.slice(8, 10) || '--'
 }
@@ -70,6 +76,27 @@ function guozaiSticker(index: number) {
     ? STATIC_BASE_URL + '/static/guozai/action_10_thinking.png'
     : STATIC_BASE_URL + '/static/guozai/action_08_peek.png'
 }
+/* ===== 首次引导：时间倒带手势 + 卡片点击 ===== */
+const TIMELINE_TOUR_KEY = 'mrc-tour-timeline-version'
+const TIMELINE_TOUR_VERSION = 1
+const showTimelineTour = ref(false)
+const timelineTourCurrent = ref(0)
+const timelineTourSteps: TourStep[] = [
+  { element: '#tour-timeline-hero', content: '食光正在倒带：越往下滚，看到的是越早以前的日子。', placement: 'bottom' },
+  { element: '#tour-timeline-chip', content: '点任意一张卡片，就能翻开那一天的完整记录。', placement: 'bottom' },
+]
+
+function startTimelineTour() {
+  if (loading.value || !records.value.length || showTimelineTour.value || Number(uni.getStorageSync(TIMELINE_TOUR_KEY)) >= TIMELINE_TOUR_VERSION)
+    return
+  timelineTourCurrent.value = 0
+  nextTick(() => { showTimelineTour.value = true })
+}
+function finishTimelineTour() {
+  uni.setStorageSync(TIMELINE_TOUR_KEY, TIMELINE_TOUR_VERSION)
+  showTimelineTour.value = false
+}
+
 async function load() {
   loading.value = true
   try {
@@ -77,7 +104,11 @@ async function load() {
     records.value = await fetchRecords()
   }
   catch (e: any) { toastError(e, '时光机加载失败，请重试') }
-  finally { loading.value = false }
+  finally {
+    loading.value = false
+    // 数据渲染后再开首次引导；空列表不开（没有可引导的内容）
+    nextTick(startTimelineTour)
+  }
 }
 
 // 「查看详情」：打开时光机自带的内联详情弹层（大图+备注+查看菜谱/再做一次/删除），
@@ -164,7 +195,7 @@ function previewRecordImage(record: RecordItem, index: number) {
     <LoadingState v-if="loading" text="锅仔正在翻找你的餐桌回忆…" />
     <EmptyState v-else-if="!records.length" :image="`${STATIC_BASE_URL}/static/guozai/action_07_empty.png`" title="时光机还是空的" text="记录第一餐，让锅仔替你把今天收好。" action-text="去记录" @action="router.pushTab({ name: 'record' })" />
     <scroll-view v-else scroll-y enhanced :show-scrollbar="false" class="timeline-scroll" @scroll="onScroll">
-      <view class="timeline-hero">
+      <view id="tour-timeline-hero" class="timeline-hero">
         <view class="timeline-hero__copy">
           <text class="timeline-kicker">GUOZAI TIME MACHINE</text>
           <text class="timeline-title">食光，正在倒带</text>
@@ -174,7 +205,7 @@ function previewRecordImage(record: RecordItem, index: number) {
         <view class="timeline-hero__orbit" aria-hidden="true" />
         <image class="timeline-hero__img" :src="`${STATIC_BASE_URL}/static/guozai/action_04_calendar.png`" mode="aspectFit" aria-label="抱着日历的锅仔" />
       </view>
-      <view class="today-chip" :class="{ 'today-chip--active': nearToday }"><view class="today-chip__dot" /><text>{{ nearToday ? '此刻 · 今天' : '时间正在向过去流动' }}</text></view>
+      <view id="tour-timeline-chip" class="today-chip" :class="{ 'today-chip--active': nearToday }"><view class="today-chip__dot" /><text>{{ nearToday ? '此刻 · 今天' : '时间正在向过去流动' }}</text></view>
       <view v-for="group in grouped" :key="group.month" class="timeline-group">
         <view class="timeline-month">
           <text class="timeline-month__number">{{ monthNumber(group.month) }}</text>
@@ -189,14 +220,14 @@ function previewRecordImage(record: RecordItem, index: number) {
               <image v-for="(image, imageIndex) in item.imageUrls || [item.imageUrl]" :key="image" class="timeline-card__img" :src="image" mode="aspectFill" lazy-load :aria-label="item.dishName" @click.stop="previewRecordImage(item, imageIndex)" />
               <view class="timeline-card__shade" />
               <view class="timeline-card__caption">
-                <text class="timeline-card__eyebrow">{{ item.moodTag }}时，吃了</text>
+                <text class="timeline-card__eyebrow">{{ item.moodTag }}时，{{ isDishRecord(item) ? '吃了' : '记下了' }}</text>
                 <text class="timeline-card__dish">{{ item.dishName }}</text>
-                <text class="timeline-card__meta">{{ item.cookingTime || 30 }} 分钟 · 点击翻开</text>
+                <text class="timeline-card__meta">{{ isDishRecord(item) ? `${item.cookingTime || 30} 分钟 · 点击翻开` : '随手一记 · 点击翻开' }}</text>
               </view>
               <image class="timeline-card__sticker" :src="guozaiSticker(itemIndex)" mode="aspectFit" aria-hidden="true" />
             </view>
             <view v-if="item.note" class="timeline-card__story"><text>“</text><text>{{ item.note }}</text></view>
-            <view class="timeline-card__footer"><text>这一餐，锅仔替你收好了</text><text>查看详情</text></view>
+            <view class="timeline-card__footer"><text>{{ isDishRecord(item) ? '这一餐，锅仔替你收好了' : '这一味，锅仔替你收好了' }}</text><text>查看详情</text></view>
           </view>
         </view>
       </view>
@@ -205,9 +236,25 @@ function previewRecordImage(record: RecordItem, index: number) {
         <text>再往下，就是更久以前的你啦。</text>
       </view>
     </scroll-view>
-    <view v-if="selected" class="detail-mask" @click="selected = null"><view class="detail-sheet" @click.stop><view class="detail-grabber" /><view class="detail-photo"><image :src="selected.imageUrl" mode="aspectFill" :aria-label="`查看${selected.dishName}的大图`" role="button" @click="previewRecordPhoto(selected)"/><view class="detail-photo__date"><text>{{ dayNumber(selected.recordDate) }}</text><text>{{ weekday(selected.recordDate) }}</text></view></view><text class="detail-kicker">锅仔的食光存档</text><text class="detail-title">{{selected.dishName}}</text><text class="detail-meta">{{selected.recordDate}} · {{selected.moodTag}} · {{ selected.cookingTime || 30 }} 分钟</text><text v-if="selected.note" class="detail-note">“{{selected.note}}”</text><view v-if="Number(selected.recipeId)" class="detail-recipe-actions"><view class="detail-recipe detail-recipe--secondary pressable" role="button" aria-label="查看关联菜谱" @click="openLinkedRecipe(false)">查看菜谱</view><view class="detail-recipe detail-recipe--primary pressable" role="button" aria-label="重新做这道菜" @click="openLinkedRecipe(true)">{{ openingRecipe ? '正在打开…' : '再做一次' }}</view></view><view class="detail-edit pressable" role="button" aria-label="编辑这条记录" @click="editSelected">编辑记录</view><view class="detail-delete pressable" role="button" aria-label="删除这条记录" @click="removeSelected">删除这条记录</view><view class="detail-close pressable" role="button" aria-label="收起记录详情" @click="selected=null">收起</view></view></view>
+    <view v-if="selected" class="detail-mask" @click="selected = null"><view class="detail-sheet" @click.stop><view class="detail-grabber" /><view class="detail-photo"><image :src="selected.imageUrl" mode="aspectFill" :aria-label="`查看${selected.dishName}的大图`" role="button" @click="previewRecordPhoto(selected)"/><view class="detail-photo__date"><text>{{ dayNumber(selected.recordDate) }}</text><text>{{ weekday(selected.recordDate) }}</text></view></view><text class="detail-kicker">锅仔的食光存档</text><text class="detail-title">{{selected.dishName}}</text><text class="detail-meta">{{selected.recordDate}} · {{selected.moodTag}}{{ isDishRecord(selected) ? ` · ${selected.cookingTime || 30} 分钟` : ' · 随手一记' }}</text><text v-if="selected.note" class="detail-note">“{{selected.note}}”</text><view v-if="Number(selected.recipeId)" class="detail-recipe-actions"><view class="detail-recipe detail-recipe--secondary pressable" role="button" aria-label="查看关联菜谱" @click="openLinkedRecipe(false)">查看菜谱</view><view class="detail-recipe detail-recipe--primary pressable" role="button" aria-label="重新做这道菜" @click="openLinkedRecipe(true)">{{ openingRecipe ? '正在打开…' : '再做一次' }}</view></view><view class="detail-edit pressable" role="button" aria-label="编辑这条记录" @click="editSelected">编辑记录</view><view class="detail-delete pressable" role="button" aria-label="删除这条记录" @click="removeSelected">删除这条记录</view><view class="detail-close pressable" role="button" aria-label="收起记录详情" @click="selected=null">收起</view></view></view>
     <wd-image-preview />
   </view>
+
+  <wd-tour
+    v-model="showTimelineTour"
+    v-model:current="timelineTourCurrent"
+    :steps="timelineTourSteps"
+    :padding="10"
+    :border-radius="18"
+    :z-index="1200"
+    custom-nav
+    missing-strategy="skip"
+    skip-text="不再提示"
+    finish-text="知道啦"
+    custom-style="--wot-tour-popover-bg: var(--mrc-surface); --wot-tour-info-color: var(--mrc-text); --wot-tour-popover-radius: 16px; --wot-tour-popover-padding: 18px;"
+    @finish="finishTimelineTour"
+    @skip="finishTimelineTour"
+  />
 </template>
 
 <style lang="scss" scoped>

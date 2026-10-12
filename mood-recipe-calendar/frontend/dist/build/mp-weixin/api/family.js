@@ -1,0 +1,1 @@
+"use strict";const e=require("./request.js");exports.createFamily=function(){return e.post("/family")},exports.fetchFamily=function(){return e.get("/family")},exports.joinFamily=function(t){return e.post("/family/join",{code:t})},exports.leaveFamily=function(){return e.post("/family/leave")};

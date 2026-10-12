@@ -1,6 +1,6 @@
 {
   "navigationStyle": "custom",
-  "navigationBarTitleText": "心情日历",
+  "navigationBarTitleText": "食光日历",
   "usingComponents": {
     "wd-image-preview": "../../node-modules/@wot-ui/ui/components/wd-image-preview/wd-image-preview",
     "wd-navbar": "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar",

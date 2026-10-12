@@ -17,19 +17,24 @@ type _LocationUrl =
   "/pages/meal-agent/index" |
   "/pages/membership/index" |
   "/pages/mood/index" |
+  "/pages/nutrition-report/index" |
   "/pages/preferences/index" |
   "/pages/privacy/index" |
   "/pages/profile/index" |
   "/pages/recipe/index" |
+  "/pages/recipe-library/index" |
   "/pages/recommendation-history/index" |
   "/pages/record/detail" |
   "/pages/record/edit" |
   "/pages/record/index" |
   "/pages/report/index" |
   "/pages/settings/index" |
+  "/pages/theme-albums/detail" |
+  "/pages/theme-albums/index" |
   "/pages/timeline/index" |
   "/pages/weekly-plan/detail" |
-  "/pages/weekly-plan/index";
+  "/pages/weekly-plan/index" |
+  "/pages/wishlist/index";
 
 interface NavigateToOptions {
   url: _LocationUrl;

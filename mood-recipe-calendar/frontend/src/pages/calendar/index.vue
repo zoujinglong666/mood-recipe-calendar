@@ -20,7 +20,7 @@ definePage({
   layout: 'default',
   style: {
     navigationStyle: 'custom',
-    navigationBarTitleText: '心情日历',
+    navigationBarTitleText: '食光日历',
   },
 })
 

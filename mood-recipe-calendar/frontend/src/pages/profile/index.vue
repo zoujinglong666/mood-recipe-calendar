@@ -8,6 +8,7 @@ import Icon from '../../components/common/Icon.vue'
 import {useUserStore} from '../../stores/user'
 import {refreshUserInfo, navigateToLogin} from '../../utils/login'
 import {toast, toastError} from '../../utils/toast'
+import { useWishlist } from '@/composables/useWishlist'
 import SuccessModal from '../../components/guozai/SuccessModal.vue'
 import {fetchShareStatus, type ShareStatus} from '@/api/share'
 import {fetchCheckinStatus, doCheckin, type CheckinStatus} from '@/api/gallery'
@@ -27,6 +28,7 @@ definePage({
 
 const router = useRouter()
 const userStore = useUserStore()
+const { favorites, syncFromServer: syncWishlist } = useWishlist()
 /** 转发给好友/群：必须定义 onShareAppMessage 胶囊「···」里的转发才可用 */
 onShareAppMessage(() => {
   const sharer = userStore.openid
@@ -114,6 +116,7 @@ async function loadData() {
 
 onShow(() => {
   loadData()
+  syncWishlist()
 })
 
 async function handleIdentityCard() {
@@ -236,6 +239,9 @@ function goTimeline() {
 }
 function goRecommendationHistory() {
   router.push({ name: 'recommendation-history' })
+}
+function goWishlist() {
+  router.push({ name: 'wishlist' })
 }
 
 // 节流 + 失败兜底：router.push 是异步的，页面栈满 / 路由超时会 reject，
@@ -526,7 +532,7 @@ function openStat(type: 'records' | 'days' | 'streak') {
     >
       <view class="profile-checkin__main">
         <text class="profile-checkin__title">
-          {{ checkinStatus?.checkedIn ? '今日已签到' : '每日签到 · 领 3 次对话' }}
+          {{ checkinStatus?.checkedIn ? '今日已签到' : '每日签到 · 领 3 轮对话' }}
         </text>
         <text class="profile-checkin__sub">
           {{ checkinStatus?.checkedIn ? `已连续 ${checkinStatus.streak} 天，明天再来` : '签到后今天可和锅仔聊 3 轮' }}
@@ -544,7 +550,7 @@ function openStat(type: 'records' | 'days' | 'streak') {
     <SuccessModal
       :visible="showCheckinModal"
       title="签到成功！"
-      :subtitle="`今日锅仔对话 +3 次，已连续签到 ${checkinStatus?.streak ?? 1} 天`"
+      :subtitle="`今日锅仔对话 +3 轮，已连续签到 ${checkinStatus?.streak ?? 1} 天`"
       confirm-text="好的"
       @confirm="showCheckinModal = false"
     />
@@ -573,7 +579,18 @@ function openStat(type: 'records' | 'days' | 'streak') {
           </text>
         </view>
       </view>
-      <view class="profile-action profile-action--wide" role="button" aria-label="打开推荐记录" @click="goRecommendationHistory">
+      <view class="profile-action" role="button" aria-label="打开我的想吃清单" @click="goWishlist">
+        <image :src="`${STATIC_BASE_URL}/static/guozai/action_08_peek.png`" class="profile-action__guozai"
+               mode="aspectFit"/>
+        <view class="profile-action__copy">
+          <text class="profile-action__text">
+            想吃清单
+          </text><text class="profile-action__sub">
+            {{ favorites.length ? `已收藏 ${favorites.length} 道` : '以后想做的菜' }}
+          </text>
+        </view>
+      </view>
+      <view class="profile-action" role="button" aria-label="打开推荐记录" @click="goRecommendationHistory">
         <image :src="`${STATIC_BASE_URL}/static/guozai/action_02_soup.png`" class="profile-action__guozai" mode="aspectFit" />
         <view class="profile-action__copy"><text class="profile-action__text">推荐记录</text><text class="profile-action__sub">找回锅仔推荐过的菜</text></view>
       </view>

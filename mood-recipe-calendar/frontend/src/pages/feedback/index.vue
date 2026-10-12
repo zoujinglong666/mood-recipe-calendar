@@ -211,7 +211,7 @@ onShow(loadHistory)
         </view>
         <view class="follow-switch" :class="{ active: wantFollow }" @click="wantFollow = !wantFollow">
           <view class="follow-switch-mark" />
-          <text>{{ wantFollow ? '开启跟进，我会回来看' : '暂时不用，先记下来就好' }}</text>
+          <text>{{ wantFollow ? '开启跟进，锅仔会在这里同步进度' : '暂时不用，先记下来就好' }}</text>
         </view>
         <view v-if="wantFollow" class="follow-panel">
           <view

@@ -178,7 +178,7 @@ async function loadData() {
 function localCompanion(hour: number): CompanionMessage {
   if (hour >= 5 && hour < 11) return { greeting: '早上好，先把自己照顾好', message: '早饭不用复杂，热乎顺口就很好。', insight: '锅仔会慢慢记住你的口味', actionText: '告诉我现在的心情' }
   if (hour < 15) return { greeting: '到饭点了，别让肚子等太久', message: '忙归忙，午饭还是要认真吃。', insight: '每次选择，都让我更懂你', actionText: '告诉我现在的心情' }
-  if (hour < 18) return { greeting: '下午好，想想今晚吃什么', message: '提前选好，饿的时候就不用匆忙决定。', insight: '锅仔正在学习你的饭点', actionText: '看看今天吃什么' }
+  if (hour < 18) return { greeting: '下午好，想想今晚吃什么', message: '提前选好，饿的时候就不用匆忙决定。', insight: '锅仔正在学习你的饭点', actionText: '让锅仔替你挑一道' }
   if (hour < 22) return { greeting: '晚上好，今天辛苦啦', message: '先用一顿合胃口的饭，把自己稳稳接住。', insight: '你的口味和忌口，我都会记得', actionText: '告诉我现在的心情' }
   return { greeting: '夜深了，吃点轻松温暖的', message: '选点清淡省事的，吃完也早点休息。', insight: '晚睡的时候，锅仔也在', actionText: '看看适合夜晚的菜' }
 }
@@ -455,12 +455,12 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
 
       <!-- 组件墙：入口分层（三餐主卡 / 抽奖小卡 / 双宽卡），HOT 标重点功能 -->
       <view class="home-bento">
-        <view class="home-bento__card home-bento__card--guanfan" role="button" aria-label="打开锅仔管饭，查看今日三餐" @click="goto('daily-meal-plan')">
+        <view class="home-bento__card home-bento__card--guanfan" role="button" aria-label="今天吃什么，选一顿让锅仔推荐" @click="openMealSheet">
           <view class="home-bento__hot">HOT</view>
-          <text class="home-bento__label">锅仔管饭</text>
-          <text class="home-bento__title">今天三餐</text>
-          <text class="home-bento__hint">锅仔替你搭配好</text>
-          <image class="home-bento__hero-img" :src="STATIC_BASE_URL + '/static/guozai/action_01_bowl.png'" mode="aspectFit" />
+          <text class="home-bento__label">锅仔推荐</text>
+          <text class="home-bento__title">今天吃什么</text>
+          <text class="home-bento__hint">{{ recipeQuotaText }}</text>
+          <image class="home-bento__hero-img" :src="STATIC_BASE_URL + '/static/guozai/action_10_thinking.png'" mode="aspectFit" />
         </view>
         <view class="home-bento__card home-bento__card--wheel" role="button" aria-label="转盘抽一道菜" @click="openWheel">
           <image class="home-bento__img" :src="STATIC_BASE_URL + '/static/guozai/action_08_peek.png'" mode="aspectFit" />
@@ -474,32 +474,33 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
           <image class="home-bento__img" :src="STATIC_BASE_URL + '/static/guozai/action_02_soup.png'" mode="aspectFit" />
           <text class="home-bento__name">翻一翻</text>
         </view>
-        <view class="home-bento__card home-bento__card--agent" role="button" aria-label="打开锅仔对话，安排一周晚饭" @click="goto('meal-agent')">
+        <view class="home-bento__card home-bento__card--agent" role="button" aria-label="打开锅仔管饭，对话式安排一整周" @click="goto('meal-agent')">
           <view class="home-bento__hot">HOT</view>
           <image class="home-bento__img" :src="STATIC_BASE_URL + '/static/guozai/action_06_glasses.png'" mode="aspectFit" />
-          <text class="home-bento__name">锅仔对话</text>
+          <text class="home-bento__name">锅仔管饭</text>
+          <text class="home-bento__hint">安排一整周</text>
         </view>
-        <view class="home-bento__card home-bento__card--lucky" role="button" aria-label="让锅仔替你决定，选一顿" @click="openMealSheet">
-          <view class="home-bento__lucky-copy">
-            <text class="home-bento__lucky-main">让锅仔替你决定</text>
-            <text class="home-bento__lucky-sub">{{ recipeQuotaText }}</text>
-          </view>
-          <image class="home-bento__lucky-img" :src="STATIC_BASE_URL + '/static/guozai/action_10_thinking.png'" mode="aspectFit" />
-          <text class="home-bento__lucky-arrow">›</text>
-        </view>
-        <view class="home-bento__card home-bento__card--record" role="button" aria-label="记录一餐" @click="router.pushTab({ name: 'record' })">
+        <view class="home-bento__card home-bento__card--library" role="button" aria-label="打开菜谱库，搜索和分类浏览菜谱" @click="goto('recipe-library')">
           <view class="home-bento__record-copy">
-            <text class="home-bento__name">吃过什么</text>
-            <text class="home-bento__sub">记录一餐</text>
+            <text class="home-bento__name">菜谱库</text>
+            <text class="home-bento__sub">搜菜·按心情挑</text>
           </view>
-          <image class="home-bento__record-img" :src="STATIC_BASE_URL + '/static/guozai/action_03_camera.png'" mode="aspectFit" />
+          <image class="home-bento__record-img" :src="STATIC_BASE_URL + '/static/guozai/action_06_glasses.png'" mode="aspectFit" />
+        </view>
+        <view class="home-bento__card home-bento__card--lucky" role="button" aria-label="打开今日三餐，查看锅仔搭配" @click="goto('daily-meal-plan')">
+          <view class="home-bento__lucky-copy">
+            <text class="home-bento__lucky-main">今日三餐</text>
+            <text class="home-bento__lucky-sub">锅仔替你搭配好</text>
+          </view>
+          <image class="home-bento__lucky-img" :src="STATIC_BASE_URL + '/static/guozai/action_01_bowl.png'" mode="aspectFit" />
+          <text class="home-bento__lucky-arrow">›</text>
         </view>
       </view>
 
       <wd-popup v-model="showMealSheet" position="bottom" :safe-area-inset-bottom="true" custom-style="border-radius: 40rpx 40rpx 0 0; overflow: hidden; background: var(--mrc-surface);">
         <view class="meal-sheet">
           <view class="meal-sheet__head">
-            <text class="meal-sheet__title">让锅仔替你决定</text>
+            <text class="meal-sheet__title">今天吃什么</text>
             <text class="meal-sheet__sub">选一顿，锅仔按《中国居民膳食指南》帮你搭配</text>
           </view>
           <view class="meal-sheet__options">
@@ -617,13 +618,14 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
 .home-bento__card--guanfan .home-bento__title { color: #fff; font-size: 40rpx; font-weight: 800; letter-spacing: 1rpx; }
 .home-bento__card--guanfan .home-bento__hint { color: rgba(255, 255, 255, 0.9); font-size: 20rpx; }
 .home-bento__hero-img { position: absolute; right: 0; bottom: 0; width: 172rpx; height: 172rpx; filter: drop-shadow(0 8rpx 14rpx rgba(120, 40, 20, 0.22)); }
-.home-bento__card--wheel { background: var(--mrc-surface-sun); }
-.home-bento__card--nine { background: var(--mrc-surface-peach); }
-.home-bento__card--flip { background: var(--mrc-surface-2); }
-.home-bento__card--agent { background: var(--mrc-surface); }
+.home-bento__card--wheel { background: var(--mrc-surface); }
+.home-bento__card--nine { background: var(--mrc-surface); }
+.home-bento__card--flip { background: var(--mrc-surface); }
+.home-bento__card--agent { border-color: transparent; background: linear-gradient(135deg, var(--mrc-surface-mint), var(--mrc-surface)); }
 .home-bento__img { width: 78rpx; height: 78rpx; filter: drop-shadow(0 4rpx 8rpx rgba(96, 52, 28, 0.10)); }
 .home-bento__name { color: var(--mrc-text-deep); font-size: 24rpx; font-weight: 800; }
 .home-bento__sub { color: var(--mrc-text-sub); font-size: 18rpx; }
+.home-bento__hint { color: var(--mrc-text-sub); font-size: 18rpx; line-height: 1.3; }
 .home-bento__card--lucky { grid-column: span 2; flex-direction: row; justify-content: space-between; padding: 0 22rpx 0 26rpx; border-color: transparent; background: var(--mrc-primary-grad); box-shadow: var(--mrc-shadow-coral), var(--mrc-gloss); }
 .home-bento__lucky-copy { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; gap: 6rpx; }
 .home-bento__lucky-main { color: #fff; font-size: 27rpx; font-weight: 800; }
@@ -631,6 +633,9 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
 .home-bento__lucky-img { width: 88rpx; height: 88rpx; flex-shrink: 0; margin-right: 2rpx; filter: drop-shadow(0 4rpx 8rpx rgba(120, 40, 20, 0.18)); }
 .home-bento__lucky-arrow { flex-shrink: 0; color: rgba(255, 255, 255, 0.95); font-size: 44rpx; font-weight: 300; }
 .home-bento__card--record { grid-column: span 2; flex-direction: row; justify-content: space-between; padding: 0 20rpx 0 26rpx; background: var(--mrc-surface-mint); }
+.home-bento__card--library { grid-column: span 2; flex-direction: row; justify-content: space-between; padding: 0 20rpx 0 26rpx; border-color: transparent; background: linear-gradient(135deg, var(--mrc-surface-sun), var(--mrc-surface-peach)); }
+/* 与右侧今日三餐宽卡对齐标题字号字重（通用 name 24rpx 是给小卡用的） */
+.home-bento__card--library .home-bento__name { font-size: 27rpx; }
 .home-bento__record-copy { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; gap: 6rpx; }
 .home-bento__record-img { width: 92rpx; height: 92rpx; flex-shrink: 0; filter: drop-shadow(0 4rpx 8rpx rgba(96, 52, 28, 0.10)); }
 

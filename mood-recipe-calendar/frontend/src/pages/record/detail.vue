@@ -76,7 +76,7 @@ async function selectMode(mode: 'detail' | 'poster' | 'server') {
     return
   }
   if (!isMember.value) {
-    uni.showModal({ title: '会员专享模式', content: '海报+后端由锅仔为你生成可保存分享的海报，开通会员后即可使用。', confirmText: '查看会员', success: ({ confirm }) => { if (confirm) router.push({ name: 'membership' }) } })
+    uni.showModal({ title: '会员专享模式', content: '精装海报由锅仔为你排版生成，可保存分享，开通会员后即可使用。', confirmText: '查看会员', success: ({ confirm }) => { if (confirm) router.push({ name: 'membership' }) } })
     return
   }
   posterMode.value = 'server'
@@ -210,7 +210,7 @@ onShow(load)
       <view class="record-detail__mode-switch" role="tablist" aria-label="食光展示模式">
         <view class="record-detail__mode" :class="{ 'is-active': posterMode === 'detail' }" role="tab" :aria-selected="posterMode === 'detail'" @click="selectMode('detail')">默认</view>
         <view class="record-detail__mode" :class="{ 'is-active': posterMode === 'poster' }" role="tab" :aria-selected="posterMode === 'poster'" @click="selectMode('poster')">海报</view>
-        <view v-if="isMember" class="record-detail__mode record-detail__mode--member" :class="{ 'is-active': posterMode === 'server' }" role="tab" :aria-selected="posterMode === 'server'" @click="selectMode('server')">海报 + 后端</view>
+        <view v-if="isMember" class="record-detail__mode record-detail__mode--member" :class="{ 'is-active': posterMode === 'server' }" role="tab" :aria-selected="posterMode === 'server'" @click="selectMode('server')">精装海报</view>
       </view>
       <template v-if="posterMode === 'detail'">
         <view class="record-detail__intro">
@@ -263,10 +263,13 @@ onShow(load)
       </view>
       <view class="record-detail__actions">
         <GuozaiWotButton type="primary" size="medium" block round icon="download" :loading="exportingPoster" @click="savePoster">保存海报</GuozaiWotButton>
-        <GuozaiWotButton type="primary" variant="plain" size="medium" block round icon="share-alt" :disabled="exportingPoster" @click="sharePoster">分享海报</GuozaiWotButton>
-        <view class="record-detail__actions-sub">
+        <view class="record-detail__actions-row">
+          <GuozaiWotButton type="primary" variant="plain" size="medium" block round icon="share-alt" :disabled="exportingPoster" @click="sharePoster">分享海报</GuozaiWotButton>
           <GuozaiWotButton type="primary" variant="plain" size="medium" block round icon="edit" @click="edit">编辑这餐</GuozaiWotButton>
-          <GuozaiWotButton type="danger" variant="plain" size="medium" block round icon="delete" @click="remove">删除记录</GuozaiWotButton>
+        </view>
+        <view class="record-detail__delete" role="button" aria-label="删除记录" @click="remove">
+          <wd-icon name="delete" size="22rpx" color="#B3A296" />
+          <text>删除记录</text>
         </view>
       </view>
     </template>
@@ -287,7 +290,8 @@ onShow(load)
 .record-detail__poster { overflow: hidden; border: 2rpx solid var(--mrc-border-light); border-radius: 34rpx; background: #fff9ef; box-shadow: 0 20rpx 44rpx rgba(88, 48, 31, .14); }.record-detail__poster-head { position: relative; padding: 32rpx 30rpx 26rpx; background: linear-gradient(135deg, #fffaf1 0%, #f6e2ce 100%); }.record-detail__poster-brand { display: flex; align-items: center; gap: 10rpx; color: var(--mrc-accent); font-size: 18rpx; font-weight: 900; letter-spacing: 3rpx; }.record-detail__poster-brand-line { width: 34rpx; height: 2rpx; background: var(--mrc-accent); }.record-detail__poster-folio { position: absolute; top: 30rpx; right: 28rpx; color: var(--mrc-text-sub); font-family: monospace; font-size: 18rpx; letter-spacing: 1rpx; }.record-detail__poster-kicker { display: block; margin-top: 48rpx; color: var(--mrc-text-sub); font-size: 19rpx; letter-spacing: 2rpx; }.record-detail__poster-mood { position: absolute; right: 26rpx; bottom: 28rpx; padding: 8rpx 16rpx; border: 2rpx solid var(--mrc-accent-soft); border-radius: 999rpx; color: var(--mrc-accent); background: rgba(255, 255, 255, .62); font-size: 18rpx; }.record-detail__poster-title { display: -webkit-box; max-width: 82%; margin-top: 12rpx; color: var(--mrc-text-strong); font-size: 52rpx; font-weight: var(--mrc-fw-heavy); line-height: 1.1; overflow: hidden; text-overflow: ellipsis; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }.record-detail__poster-meta { display: flex; gap: 12rpx; margin-top: 18rpx; color: var(--mrc-text-sub); font-size: 21rpx; }
 .record-detail__poster-grid { position: relative; display: grid; gap: 6rpx; margin: 0 18rpx; overflow: hidden; border-radius: 4rpx; background: var(--mrc-surface-2); }.record-detail__poster-grid image { width: 100%; height: 100%; min-height: 190rpx; background: var(--mrc-surface-2); }.record-detail__poster-grid--1 { grid-template-columns: 1fr; }.record-detail__poster-grid--1 image { min-height: 520rpx; }.record-detail__poster-grid--2 { grid-template-columns: repeat(2, 1fr); }.record-detail__poster-grid--2 image { min-height: 360rpx; }.record-detail__poster-grid--3 { grid-template-columns: 1.35fr 1fr; grid-template-rows: repeat(2, 220rpx); }.record-detail__poster-grid--3 image:first-child { grid-row: span 2; }.record-detail__poster-grid--4 { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 220rpx); }.record-detail__poster-grid--5, .record-detail__poster-grid--6, .record-detail__poster-grid--7, .record-detail__poster-grid--8, .record-detail__poster-grid--9 { grid-template-columns: repeat(3, 1fr); grid-auto-rows: 190rpx; }.record-detail__poster-count { position: absolute; right: 16rpx; bottom: 14rpx; padding: 8rpx 14rpx; border: 1rpx solid rgba(255,255,255,.55); border-radius: 999rpx; background: rgba(42, 31, 24, .62); color: #fff; font-size: 17rpx; letter-spacing: 1rpx; }.record-detail__poster-caption { display: flex; align-items: stretch; gap: 18rpx; margin: 22rpx 18rpx 16rpx; padding: 22rpx 22rpx 24rpx; border-top: 2rpx solid var(--mrc-border-light); border-bottom: 2rpx solid var(--mrc-border-light); background: rgba(255, 252, 246, .78); }.record-detail__poster-caption-rule { width: 6rpx; flex: 0 0 6rpx; border-radius: 999rpx; background: var(--mrc-accent); }.record-detail__poster-caption-label { display: block; color: var(--mrc-accent); font-size: 19rpx; font-weight: 800; }.record-detail__poster-caption-copy { display: block; margin-top: 8rpx; color: var(--mrc-text-deep); font-size: 24rpx; line-height: 1.55; }.record-detail__poster-caption-mark { align-self: flex-end; margin-left: auto; color: var(--mrc-text-sub); font-size: 17rpx; writing-mode: vertical-rl; letter-spacing: 2rpx; }.record-detail__poster-footer { display: flex; justify-content: space-between; padding: 0 30rpx 24rpx; color: var(--mrc-text-sub); font-family: monospace; font-size: 16rpx; letter-spacing: 1rpx; }
 .record-detail__server-poster { min-height: 720rpx; display: flex; align-items: center; justify-content: center; overflow: hidden; border: 2rpx solid var(--mrc-border-light); border-radius: 34rpx; background: #fff9ef; box-shadow: 0 20rpx 44rpx rgba(88, 48, 31, .14); }.record-detail__server-poster-image { display: block; width: 100%; }.record-detail__server-poster-loading, .record-detail__server-poster-error { display: flex; flex-direction: column; align-items: center; gap: 18rpx; padding: 60rpx 38rpx; color: var(--mrc-text-strong); font-size: 28rpx; text-align: center; }.record-detail__server-poster-hint { color: var(--mrc-text-sub); font-size: 21rpx; line-height: 1.5; }.record-detail__server-poster-spinner { width: 54rpx; height: 54rpx; border: 5rpx solid var(--mrc-accent-soft); border-top-color: var(--mrc-accent); border-radius: 50%; animation: record-poster-spin 1s linear infinite; }.record-detail__server-poster-error :deep(.gz-btn) { min-width: 260rpx; }
-.record-detail__actions { display: flex; flex-direction: column; gap: 20rpx; margin-top: 28rpx; }.record-detail__actions-sub { display: flex; gap: 20rpx; }
+.record-detail__actions { display: flex; flex-direction: column; gap: 20rpx; margin-top: 28rpx; }.record-detail__actions-row { display: flex; gap: 20rpx; }
+.record-detail__delete { display: flex; align-items: center; justify-content: center; gap: 10rpx; min-height: 72rpx; color: var(--mrc-text-light); font-size: 23rpx; transition: opacity .15s ease; }.record-detail__delete:active { opacity: .55; }
 .record-detail__share-canvas { position: fixed; left: -9999rpx; top: 0; width: 750rpx; height: 1330rpx; }
 @media (prefers-reduced-motion: reduce) { .record-detail__mode { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .record-detail__server-poster-spinner { animation: none; } }

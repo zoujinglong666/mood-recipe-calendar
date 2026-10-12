@@ -283,6 +283,34 @@ async function replaceDay(index: number) {
   }
 }
 
+/** 复制采购清单：去超市或美团时直接粘贴，不用照着屏幕挨个找。 */
+function copyShoppingList() {
+  const items = plan.value?.shopping || []
+  if (!items.length) {
+    toastError(null, '清单是空的')
+    return
+  }
+  const text = items.map(i => `${i.name} ${i.quantity}`).join('\n')
+  uni.setClipboardData({
+    data: `本周采购清单：\n${text}`,
+    success: () => toastSuccess('清单已复制'),
+  })
+}
+
+/**
+ * 一键买齐：食材箱供应链筹备中，当前先复制清单应急（去美团/超市），
+ * 微信小店商品就绪后在此处接跳转，交互位置不变。
+ */
+function buyAllIngredients() {
+  const pending = (plan.value?.shopping || []).filter(i => !i.purchased)
+  if (!pending.length) {
+    toastSuccess('都买齐了，真棒')
+    return
+  }
+  copyShoppingList()
+  setTimeout(() => toast('食材箱正在筹备中，清单已复制，先去美团或超市买齐'), 400)
+}
+
 async function toggle(name: string) {
   if (!plan.value)
     return
@@ -335,10 +363,10 @@ async function shareDay(day: PlanDay, index: number) {
 
 <template>
   <view class="detail-page">
-    <wd-navbar title="这一周的晚餐" left-arrow safe-area-inset-top custom-style="background-color: transparent !important;" @click-left="navBack" />
+    <wd-navbar title="这一周吃什么" left-arrow safe-area-inset-top custom-style="background-color: transparent !important;" @click-left="navBack" />
 
     <view v-if="loading" class="loading" aria-live="polite">
-      锅仔正在翻开备餐小本…
+      锅仔正在翻开这一周的菜单…
     </view>
 
     <ErrorState v-else-if="error" :message="error" @retry="load" />
@@ -348,7 +376,7 @@ async function shareDay(day: PlanDay, index: number) {
         <image :src="`${STATIC_BASE_URL}/static/guozai/action_09_celebrate.png`" mode="aspectFit" aria-label="庆祝的锅仔" />
         <view>
           <text class="eyebrow">
-            锅仔的一周备餐本
+            锅仔的一周菜单
           </text>
           <text class="hero-title">
             一周安排好啦
@@ -593,6 +621,14 @@ async function shareDay(day: PlanDay, index: number) {
               </text>
             </view>
           </view>
+          <view class="shopping-actions">
+            <view class="shopping-action" role="button" aria-label="复制采购清单" @click="copyShoppingList">
+              复制清单
+            </view>
+            <view class="shopping-action shopping-action--primary" role="button" aria-label="一键买齐食材" @click="buyAllIngredients">
+              一键买齐
+            </view>
+          </view>
         </view>
       </view>
     </template>
@@ -695,6 +731,10 @@ async function shareDay(day: PlanDay, index: number) {
 .shopping-toggle { min-height: 112rpx; padding: 16rpx 26rpx; box-sizing: border-box; transition: transform 160ms ease-out, opacity 160ms ease-out; }
 .shopping-title { color: var(--mrc-text-strong); font-size: 27rpx; font-weight: 800; }
 .shopping-list { padding: 0 26rpx 26rpx; border-top: 2rpx solid var(--mrc-border-light); }
+.shopping-actions { display: flex; gap: 16rpx; margin-top: 22rpx; }
+.shopping-action { flex: 1; display: flex; min-height: 72rpx; align-items: center; justify-content: center; border: 2rpx solid var(--mrc-border-light); border-radius: 999rpx; background: var(--mrc-surface-2); color: var(--mrc-text-deep); font-size: 24rpx; font-weight: 700; transition: transform .15s ease; }
+.shopping-action--primary { border-color: transparent; background: var(--mrc-primary-grad); color: #fff; box-shadow: var(--mrc-shadow-coral); }
+.shopping-action:active { transform: scale(.97); }
 .shopping-group + .shopping-group { margin-top: 18rpx; }
 .group-title { margin: 22rpx 0 6rpx; }
 .shop-item { min-height: 84rpx; gap: 16rpx; border-bottom: 2rpx solid var(--mrc-border-light); transition: transform 160ms ease-out, opacity 160ms ease-out; }

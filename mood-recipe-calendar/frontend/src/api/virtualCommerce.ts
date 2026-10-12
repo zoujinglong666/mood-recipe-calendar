@@ -4,6 +4,7 @@ import { get, post } from './request'
 export const ALBUM_PRODUCT_SKU = 'ALBUM_HD_EXPORT'
 export const ALBUM_ENTITLEMENT_CODE = 'ALBUM_HD_EXPORT'
 export const MEMBER_PRODUCT_SKU = 'GUOZAI_MEMBER_30D'
+export const MEMBER_YEAR_SKU = 'GUOZAI_MEMBER_365D'
 
 export interface VirtualProduct {
   sku: string

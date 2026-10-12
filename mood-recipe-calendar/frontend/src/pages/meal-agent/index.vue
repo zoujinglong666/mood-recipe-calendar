@@ -665,7 +665,7 @@ async function generate() {
     stopProgress()
     activeStep.value = agentSteps.length
     completed.value = true
-    generatedPlanId.value = plan.id
+    generatedPlanId.value = plan.planId
     persistConversation()
   }
   catch (error) {
@@ -786,7 +786,7 @@ onShareTimeline(() => {
 
       <view v-if="canUseAgent && (generating || completed)" class="tool-panel" aria-live="polite">
         <view class="tool-panel__head">
-          <text>{{ completed ? '这一周已经排好' : (isMember ? '锅仔正在调用工具' : '正在生成简单菜单') }}</text><text>{{ completed ? '完成' : `${Math.min(activeStep + 1, agentSteps.length)}/${agentSteps.length}` }}</text>
+          <text>{{ completed ? '这一周已经排好' : (isMember ? '锅仔正在安排这一周' : '正在生成基础菜单') }}</text><text>{{ completed ? '完成' : `${Math.min(activeStep + 1, agentSteps.length)}/${agentSteps.length}` }}</text>
         </view>
         <view v-for="(step, index) in agentSteps" :key="step.title" class="tool-step" :class="{ 'tool-step--done': completed || index < activeStep, 'tool-step--active': !completed && index === activeStep }">
           <view class="tool-step__state">
@@ -824,7 +824,7 @@ onShareTimeline(() => {
       <view v-if="canUseAgent && (generating || completed)" class="composer composer--fixed">
         <input v-model="composerText" :disabled="agentBusy || agentTyping" confirm-type="send" placeholder="还想补充什么？直接告诉锅仔" aria-label="告诉锅仔你的安排" @confirm="submitComposer">
         <GuozaiButton class="composer__send" variant="primary" :block="false" :disabled="agentBusy || agentTyping || !composerText.trim()" :loading="agentBusy || agentTyping" :aria-label="agentBusy || agentTyping ? '锅仔正在思考' : '发送'" @click="submitComposer">
-          <text v-if="!agentBusy && !agentTyping" class="composer__send-text">发送</text>
+          <Icon v-if="!agentBusy && !agentTyping" name="send" :size="30" color="#fff" />
           <text v-else class="composer__send-loading">…</text>
         </GuozaiButton>
       </view>
@@ -986,7 +986,7 @@ onShareTimeline(() => {
           </view>
           <input v-model="composerText" :disabled="agentBusy || agentTyping || !canUseAgent" inputmode="text" confirm-type="send" placeholder="也可以直接说：周三不做饭，想减脂" aria-label="告诉锅仔你的安排" @confirm="submitComposer">
           <GuozaiButton class="composer__send" variant="primary" :block="false" :disabled="agentBusy || agentTyping || !canUseAgent || !composerText.trim()" :loading="agentBusy || agentTyping" :aria-label="agentBusy || agentTyping ? '锅仔正在思考' : '发送'" @click="submitComposer">
-            <text v-if="!agentBusy && !agentTyping" class="composer__send-text">发送</text>
+            <Icon v-if="!agentBusy && !agentTyping" name="send" :size="30" color="#fff" />
             <text v-else class="composer__send-loading">…</text>
           </GuozaiButton>
         </view>
@@ -999,14 +999,14 @@ onShareTimeline(() => {
       </view>
 
       <view v-else class="simple-plan">
-        <view class="simple-plan__tag">每日签到 · 送 3 次锅仔对话</view>
-        <text class="simple-plan__title">手动选好，生成简单周菜单</text>
+        <view class="simple-plan__tag">每日签到 · 送 3 轮锅仔对话</view>
+        <text class="simple-plan__title">手动选好，生成基础周菜单</text>
         <text class="simple-plan__copy">锅仔会按人数、做饭天数和菜数，避开你的忌口，整理出一份基础菜单和买菜清单。</text>
-        <text class="simple-plan__gift">去「锅仔形象馆」签到，今天就能和锅仔聊 3 轮；一次签到对应 3 个多轮对话。</text>
+        <text class="simple-plan__gift">去「锅仔形象馆」签到，今天就能和锅仔聊 3 轮。</text>
         <button class="simple-plan__checkin" @click="openGallery">去签到领锅仔对话</button>
         <view class="simple-plan__section"><text>几个人吃</text><view><button v-for="value in [1, 2, 3, 4]" :key="value" :class="{ selected: people === value }" @click="people = value">{{ value }} 人</button></view></view>
         <view class="simple-plan__section"><text>每天几道菜</text><view><button v-for="value in [1, 2, 3]" :key="value" :class="{ selected: dishesPerDay === value }" @click="dishesPerDay = value">{{ value }} 道</button></view></view>
-        <button class="simple-plan__generate" :disabled="generating" @click="generate">生成本周简单菜单</button>
+        <button class="simple-plan__generate" :disabled="generating" @click="generate">生成本周基础菜单</button>
         <view class="simple-plan__divider" />
         <text class="simple-plan__member-title">开通会员，交给锅仔来安排</text>
         <text class="simple-plan__member-copy">每日 20 次首页推荐，专享对话式周菜单和随时重排。</text>
@@ -1091,15 +1091,14 @@ onShareTimeline(() => {
 .fridge-picker__hint { margin: -4rpx 2rpx 14rpx; color: var(--mrc-text-sub); font-size: 20rpx; line-height: 1.45; }.fridge-picker__grid { grid-template-columns: repeat(2, 1fr); }.fridge-picker__grid button { position: relative; min-height: 82rpx; padding-right: 34rpx; }.fridge-picker__grid button.selected { border-color: var(--mrc-accent); background: var(--mrc-accent-soft); color: var(--mrc-accent); }.fridge-picker__grid .selection-mark { position: absolute; top: 10rpx; right: 10rpx; display: flex; width: 28rpx; height: 28rpx; align-items: center; justify-content: center; border: 2rpx solid var(--mrc-border); border-radius: 50%; color: transparent; font-size: 18rpx; }.fridge-picker__grid button.selected .selection-mark { border-color: var(--mrc-accent); background: var(--mrc-accent); color: #fff; }
 .weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8rpx; }.weekdays view { display: flex; min-height: 76rpx; align-items: center; justify-content: center; border: 2rpx solid var(--mrc-border); border-radius: 18rpx; color: var(--mrc-text-sub); font-size: 22rpx; }.weekdays view.selected { border-color: var(--mrc-accent); background: var(--mrc-accent-soft); color: var(--mrc-accent); font-weight: 800; }.choice-confirm { min-height: 88rpx; margin: 18rpx 0 0; border: 0; border-radius: 22rpx; background: var(--mrc-text-deep); color: #fff; font-size: 25rpx; font-weight: 750; }
 .plan-confirm__summary { display: flex; justify-content: space-between; padding: 4rpx 4rpx 18rpx; color: var(--mrc-text-deep); font-size: 24rpx; font-weight: 750; }.plan-confirm__summary text:last-child { color: var(--mrc-accent); font-size: 21rpx; }.generate-button { display: flex; min-height: 98rpx; align-items: center; justify-content: space-between; margin: 0; padding: 0 26rpx; border: 0; border-radius: 24rpx; background: var(--mrc-primary-grad); color: #fff; box-shadow: var(--mrc-shadow-coral); line-height: 1.2; }.generate-button:active { transform: scale(.98); }.generate-button { font-size: 28rpx; font-weight: 800; }.generate-button text { font-size: 19rpx; font-weight: 500; opacity: .86; }.restart-button { min-height: 72rpx; margin: 8rpx 0 0; border: 0; background: transparent; color: var(--mrc-text-sub); font-size: 21rpx; }
-.composer { display: flex; align-items: center; gap: 10rpx; min-height: 96rpx; margin-top: 18rpx; padding: 10rpx 12rpx 10rpx 22rpx; border: 2rpx solid var(--mrc-border); border-radius: 28rpx; background: var(--mrc-surface); box-sizing: border-box; }.composer--fixed { position: fixed; z-index: 20; right: 28rpx; bottom: calc(18rpx + env(safe-area-inset-bottom)); left: 28rpx; margin: 0; box-shadow: 0 12rpx 40rpx rgba(69, 37, 24, .16); }.composer input { min-width: 0; flex: 1; color: var(--mrc-text-deep); font-size: 23rpx; }.composer input[disabled] { opacity: .58; }
+.composer { display: flex; align-items: center; gap: 10rpx; min-height: 88rpx; margin-top: 18rpx; padding: 10rpx 12rpx 10rpx 22rpx; border: 2rpx solid var(--mrc-border); border-radius: 28rpx; background: var(--mrc-surface); box-sizing: border-box; }.composer--fixed { position: fixed; z-index: 20; right: 28rpx; bottom: calc(18rpx + env(safe-area-inset-bottom)); left: 28rpx; margin: 0; box-shadow: 0 12rpx 40rpx rgba(69, 37, 24, .16); }.composer input { min-width: 0; flex: 1; color: var(--mrc-text-deep); font-size: 23rpx; }.composer input[disabled] { opacity: .58; }
 .composer__web { display: flex; align-items: center; gap: 6rpx; padding: 10rpx 16rpx; border-radius: 999rpx; background: var(--mrc-surface-sun); border: 2rpx solid var(--mrc-border-light); color: var(--mrc-accent); font-size: 20rpx; font-weight: 800; flex: 0 0 auto; }
 .composer__web.is-on { background: var(--mrc-primary-grad); border-color: transparent; color: #fff; }
 .composer__web.is-locked { color: #B9A99C; }
 .composer__web-text { line-height: 1; }
 .composer__web-lock { padding: 1rpx 8rpx; border-radius: 16rpx; background: var(--mrc-accent-soft); color: var(--mrc-accent); font-size: 15rpx; }
-/* 发送按钮：胶囊形文字按钮（文字天然居中，避免图标基线偏移）；禁用态改成暖灰 */
-.composer__send { display: flex; flex: 0 0 auto; align-items: center; justify-content: center; min-width: 136rpx;  padding: 0 32rpx !important; border-radius: 999rpx !important; }
-.composer__send-text { color: #fff; font-size: 26rpx; font-weight: 800; line-height: 1; }
+/* 发送按钮：70rpx 圆形图标钮，与 other-input__send 同款（原来 136rpx 文字大钮太胖，挤压输入区） */
+.composer__send { display: flex; width: 70rpx; height: 70rpx; min-width: 70rpx; min-height: 70rpx; flex: 0 0 auto; align-items: center; justify-content: center; padding: 0 !important; border-radius: 50% !important; }
 .composer__send.is-disabled { background: var(--mrc-surface-sun) !important; color: #C9B7A8 !important; box-shadow: none !important; text-shadow: none !important; opacity: 1; }
 .composer__send.is-disabled .composer__send-text { color: #C9B7A8; }
 .composer__send-loading { color: #fff; font-size: 30rpx; font-weight: 800; line-height: 1; }

@@ -154,7 +154,9 @@ defineExpose({ land, fail })
         <view class="gw__lights" aria-hidden="true">
           <view v-for="i in 16" :key="i" class="gw__light" :class="{ 'is-even': i % 2 === 0 }" :style="{ transform: `rotate(${(i - 1) * 22.5}deg) translateY(-318rpx)` }" />
         </view>
-        <view class="gw__pointer" aria-hidden="true" />
+        <view class="gw__pointer" :style="{ transform: `translate(-50%, -50%) rotate(${rotation}deg)` }" aria-hidden="true">
+          <view class="gw__pointer-needle" />
+        </view>
         <view class="gw__disc" :class="{ 'is-landed': phase === 'landed' }" :style="{ background: discBg, transform: `rotate(${rotation}deg)` }" @transitionend="onSpinEnd">
           <view v-for="(slot, i) in slots" :key="i" class="gw__seg" :style="{ transform: `rotate(${segAngle(i)}deg)` }">
             <view v-if="slot.image" class="gw__seg-img">
@@ -195,18 +197,22 @@ defineExpose({ land, fail })
 .gw__sub { min-height: 34rpx; color: var(--mrc-text-sub); font-size: 22rpx; }
 
 .gw__stage { position: relative; width: 600rpx; height: 600rpx; }
-.gw__pointer { position: absolute; z-index: 3; top: -10rpx; left: 50%; width: 0; height: 0; border: 20rpx solid transparent; border-top-width: 44rpx; border-bottom-width: 0; border-top-color: var(--mrc-accent); transform: translateX(-50%); filter: drop-shadow(0 6rpx 10rpx rgba(120, 50, 20, 0.3)); }
+/* 指针：盘正中心一根随盘同步旋转的细针，停下即指向中奖扇区（不再是盘顶突兀大红三角） */
+.gw__pointer { position: absolute; z-index: 6; top: 50%; left: 50%; width: 0; height: 0; }
+.gw__pointer-needle { position: absolute; left: -3rpx; bottom: 0; width: 6rpx; height: 74rpx; border-radius: 999rpx; background: linear-gradient(180deg, var(--mrc-primary-deep) 0%, var(--mrc-accent) 100%); box-shadow: 0 2rpx 8rpx rgba(120, 50, 20, 0.28); }
+.gw__pointer-needle::after { content: ''; position: absolute; top: -13rpx; left: 50%; transform: translateX(-50%); border: 10rpx solid transparent; border-top-width: 0; border-bottom-color: var(--mrc-primary-deep); }
 .gw__disc { position: absolute; inset: 0; border: 14rpx solid #fff; border-radius: 50%; box-shadow: 0 16rpx 40rpx rgba(88, 48, 31, 0.18), var(--mrc-gloss); transition: transform 4.2s cubic-bezier(0.16, 0.84, 0.24, 1); will-change: transform; }
 .gw__disc.is-landed { animation: gw-land 0.5s ease; }
 @keyframes gw-land { 0% { scale: 1; } 40% { scale: 1.04; } 100% { scale: 1; } }
 .gw__seg { position: absolute; inset: 0; }
 .gw__seg-img { position: absolute; top: 26rpx; left: 50%; width: 84rpx; height: 84rpx; margin-left: -42rpx; overflow: hidden; border: 4rpx solid #fff; border-radius: 50%; background: var(--mrc-surface-2); box-shadow: 0 4rpx 10rpx rgba(88, 48, 31, 0.16); }
 .gw__seg-img image { width: 100%; height: 100%; }
-.gw__seg-text { position: absolute; top: 122rpx; left: 50%; width: 160rpx; margin-left: -80rpx; color: var(--mrc-text-deep); font-size: 22rpx; font-weight: 700; line-height: 1.2; text-align: center; }
-.gw__hub { position: absolute; z-index: 4; top: 50%; left: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2rpx; width: 172rpx; height: 172rpx; border: 8rpx solid #fff; border-radius: 50%; background: var(--mrc-primary-grad); box-shadow: 0 10rpx 26rpx rgba(200, 70, 30, 0.35); transform: translate(-50%, -50%); }
+/* 扇区文字：放在弧宽更充裕的中段（r146-200），两行截断，避免相邻扇区文字互相层叠 */
+.gw__seg-text { position: absolute; top: 146rpx; left: 50%; width: 124rpx; margin-left: -62rpx; color: var(--mrc-text-deep); font-size: 20rpx; font-weight: 700; line-height: 1.3; text-align: center; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+.gw__hub { position: absolute; z-index: 4; top: 50%; left: 50%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2rpx; width: 196rpx; height: 196rpx; padding-bottom: 18rpx; border: 8rpx solid #fff; border-radius: 50%; background: var(--mrc-primary-grad); box-shadow: 0 10rpx 26rpx rgba(200, 70, 30, 0.35); transform: translate(-50%, -50%); }
 .gw__hub.is-waiting { animation: gw-shake 0.5s ease infinite; }
 @keyframes gw-shake { 0%, 100% { transform: translate(-50%, -50%) rotate(0); } 30% { transform: translate(-50%, -50%) rotate(-7deg); } 70% { transform: translate(-50%, -50%) rotate(7deg); } }
-.gw__hub-img { width: 84rpx; height: 84rpx; }
+.gw__hub-img { width: 72rpx; height: 72rpx; }
 .gw__hub-text { color: #fff; font-size: 22rpx; font-weight: 800; }
 /* 外圈灯泡环（NutUI-Bingo turntable 的经典装饰）：静止不随盘转，交替慢闪 */
 .gw__lights { position: absolute; inset: 0; z-index: 2; pointer-events: none; }

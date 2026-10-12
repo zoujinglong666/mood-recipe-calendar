@@ -86,11 +86,31 @@ const hint = computed(() => {
   return `就吃「${prize.value.name}」！`
 })
 
-/** 原地波浪洗牌：每张卡依次轻跳，涟漪扫过（不做位移，卡片不出宫格） */
-function waveStyle(index: number) {
+interface WaveSeed { x: number, r: number, s: number }
+const waveSeeds = ref<WaveSeed[]>([])
+
+/** 洗牌前掷一份随机种子：每张卡的横向漂移、倾角、放大都不同，避免整组像鼓点一样整齐呆滞 */
+function rollWaves() {
+  waveSeeds.value = Array.from({ length: 8 }, () => ({
+    x: Math.round(Math.random() * 34 - 17),
+    r: Math.round((Math.random() * 9 - 4.5) * 10) / 10,
+    s: 1 + 0.03 + Math.random() * 0.04,
+  }))
+}
+
+/** 原地波浪洗牌：逐张延迟 + 随机横向漂移/倾角/缩放，卡片不出宫格 */
+function waveStyle(index: number): Record<string, string> {
   if (phase.value !== 'dealing')
     return {}
-  return { animationDelay: `${index * 80}ms` }
+  const seed = waveSeeds.value[index]
+  if (!seed)
+    return { animationDelay: `${index * 70}ms` }
+  return {
+    animationDelay: `${index * 70}ms`,
+    '--wave-x': `${seed.x}rpx`,
+    '--wave-r': `${seed.r}deg`,
+    '--wave-s': String(seed.s),
+  }
 }
 
 function pressCenter() {
@@ -99,6 +119,7 @@ function pressCenter() {
   if (phase.value === 'revealed') {
     reset()
   }
+  rollWaves()
   phase.value = 'dealing'
   emit('start')
 }
@@ -108,7 +129,8 @@ function deal(winner: FlipSlot) {
   if (phase.value !== 'dealing')
     return
   prize.value = winner
-  later(() => { phase.value = 'ready' }, 1700)
+  // 1900ms 覆盖最慢一张卡的动画（490ms 延迟 + 2×650ms），避免洗牌没演完就进入选牌
+  later(() => { phase.value = 'ready' }, 1900)
 }
 
 /** 用户点开一张牌：所点卡立即翻出中奖菜，1.2s 后全部翻开。 */
@@ -223,18 +245,24 @@ defineExpose({ deal })
 .gnf__cellbox { perspective: 700rpx; }
 .gnf__flip { position: relative; width: 100%; height: 170rpx; transform-style: preserve-3d; transition: transform 0.7s cubic-bezier(0.35, 0.1, 0.25, 1.05); }
 .gnf__flip.is-flipped { transform: rotateY(180deg); }
-/* 原地波浪洗牌：轻跳 + 微转，逐张推进，卡片不出宫格 */
-.gnf__flip.is-waving { animation: gnf-wave 0.6s ease-in-out 2; }
-@keyframes gnf-wave { 0%, 100% { transform: none; } 50% { transform: translateY(-12rpx) rotate(1.5deg) scale(1.04); } }
+/* 原地波浪洗牌：随机横向漂移 + 倾角 + 缩放，逐张推进，卡片不出宫格 */
+.gnf__flip.is-waving { animation: gnf-wave 0.65s ease-in-out 2; }
+@keyframes gnf-wave {
+  0% { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); }
+  50% { transform: translate3d(var(--wave-x, 0), -20rpx, 0) rotate(var(--wave-r, 4deg)) scale(var(--wave-s, 1.06)); }
+  100% { transform: translate3d(0, 0, 0) rotate(0deg) scale(1); }
+}
 .gnf__face { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8rpx; overflow: hidden; border: 2rpx solid rgba(255, 255, 255, 0.75); border-radius: 22rpx; box-sizing: border-box; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
 .gnf__face--front { background: linear-gradient(150deg, #FFF6EC 0%, #FFE3CC 100%); box-shadow: inset 0 0 0 6rpx rgba(255, 255, 255, 0.55); }
 .gnf__face-logo { width: 76rpx; height: 76rpx; opacity: 0.9; }
 .gnf__face-mark { color: var(--mrc-accent); font-size: 20rpx; font-weight: 800; letter-spacing: 4rpx; }
-.gnf__face--back { background: #FFF9F0; transform: rotateY(180deg); }
-.gnf__card-img { width: 92rpx; height: 84rpx; overflow: hidden; border-radius: 16rpx; background: var(--mrc-surface-2); }
+/* 牌背：手账便签风——通栏大图 + 虚线分隔 + 菜名条，替代原来上下挤在一起的小图小字 */
+.gnf__face--back { padding: 10rpx 10rpx 0; background: linear-gradient(170deg, #FFFDF7 0%, #FFF3E2 100%); transform: rotateY(180deg); }
+.gnf__face--back::after { content: ''; position: absolute; top: 124rpx; left: 14rpx; right: 14rpx; border-top: 2rpx dashed var(--mrc-border-strong); opacity: .45; }
+.gnf__card-img { width: 100%; height: 102rpx; overflow: hidden; border: 4rpx solid #fff; border-radius: 16rpx; background: var(--mrc-surface-2); box-shadow: 0 4rpx 10rpx rgba(88, 48, 31, 0.14); }
 .gnf__card-img image { width: 100%; height: 100%; }
 .gnf__card-img--blank { display: flex; align-items: center; justify-content: center; background: var(--mrc-surface-peach); color: var(--mrc-accent); font-size: 32rpx; font-weight: 800; }
-.gnf__card-name { max-width: 100%; padding: 0 8rpx; color: var(--mrc-text-deep); font-size: 20rpx; font-weight: 700; text-align: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; box-sizing: border-box; }
+.gnf__card-name { max-width: 100%; margin-top: 10rpx; padding: 0 6rpx; color: var(--mrc-text-deep); font-size: 21rpx; font-weight: 800; text-align: center; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; box-sizing: border-box; }
 
 .gnf__center { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4rpx; min-height: 170rpx; border-radius: 22rpx; background: var(--mrc-primary-grad); box-shadow: 0 6rpx 18rpx rgba(200, 70, 30, 0.4); }
 .gnf__center.is-dealing { animation: gnf-shake 0.5s ease infinite; }

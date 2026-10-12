@@ -20,6 +20,9 @@ public class UsageQuotaService {
     private final UserRepository users;
     private final CheckinRepository checkins;
     private final ShareRecordRepository shareRecords;
+    /** 家庭共享穿透：字段注入，避免破坏既有测试用的多个构造器；为空时退回本人判定。 */
+    @Autowired(required = false)
+    private MemberAccessService memberAccess;
 
     public UsageQuotaService(UsageQuotaRepository quotas, UserRepository users) {
         this(quotas, users, null, null);
@@ -36,7 +39,11 @@ public class UsageQuotaService {
         this.checkins = checkins;
         this.shareRecords = shareRecords;
     }
-    public boolean member(String openid) { return users.findByOpenid(openid).filter(u -> Integer.valueOf(1).equals(u.getIsMember()) && u.getMemberExpire() != null && u.getMemberExpire().isAfter(AppClock.now())).isPresent(); }
+    /** 会员判定：本人会员，或所在家庭的创建者是会员（家庭共享）。 */
+    public boolean member(String openid) {
+        if (memberAccess != null) return memberAccess.isActive(openid);
+        return users.findByOpenid(openid).filter(u -> Integer.valueOf(1).equals(u.getIsMember()) && u.getMemberExpire() != null && u.getMemberExpire().isAfter(AppClock.now())).isPresent();
+    }
     @Transactional public View consume(String openid, Feature feature) {
         return consume(openid, feature, null, null);
     }

@@ -366,7 +366,7 @@ onUnload(() => {
             <text>没做好也能救</text><text>{{ currentGuide.rescue }}</text>
           </view>
           <text v-if="guide?.degraded" class="step-coach__degraded">
-            当前为基础指导 · {{ guide.degradeReason === 'NO_EVIDENCE' ? '知识库暂无匹配依据' : '智能教学暂时降级' }}
+            当前为基础指导 · {{ guide.degradeReason === 'NO_EVIDENCE' ? '锅仔还在学这道菜' : '先看基础做法' }}
           </text>
         </view>
       </view>
@@ -477,7 +477,7 @@ onUnload(() => {
 
             <view v-if="guide?.sources?.length" class="evidence-card">
               <view class="evidence-card__head pressable" role="button" :aria-expanded="sourcesOpen" @click="sourcesOpen = !sourcesOpen">
-                <view><text>这次依据</text><text>{{ guide.sources.length }} 条已审核知识</text></view><text>{{ sourcesOpen ? '收起' : '查看' }}</text>
+                <view><text>这次依据</text><text>{{ guide.sources.length }} 条可靠依据</text></view><text>{{ sourcesOpen ? '收起' : '查看' }}</text>
               </view>
               <view v-if="sourcesOpen" class="evidence-list">
                 <view v-for="source in guide.sources" :key="source.id" class="evidence-item pressable" role="button" :aria-label="`复制来源：${source.title}`" @click="copySource(source.sourceUrl)">
@@ -486,7 +486,7 @@ onUnload(() => {
               </view>
             </view>
             <view v-else-if="guide" class="no-evidence">
-              这次没有命中已审核知识，回答会保持保守，不会伪造来源。
+              这次没找到可靠依据，锅仔会答得保守一些。
             </view>
 
             <view class="learning-card">

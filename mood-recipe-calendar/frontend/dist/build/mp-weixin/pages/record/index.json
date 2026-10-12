@@ -1,6 +1,6 @@
 {
   "navigationStyle": "custom",
-  "navigationBarTitleText": "记录今日伙食",
+  "navigationBarTitleText": "记一笔今天",
   "usingComponents": {
     "wd-navbar": "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar",
     "icon": "../../components/common/Icon",

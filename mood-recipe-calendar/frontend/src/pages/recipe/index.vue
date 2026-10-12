@@ -156,7 +156,7 @@ function stepStatusText(step: RecommendationStep) {
     WAITING: '等待中',
     RUNNING: '进行中',
     COMPLETED: '已完成',
-    DEGRADED: '已降级',
+    DEGRADED: '已简化',
     FAILED: '未完成',
   }[step.status]
 }
@@ -287,7 +287,7 @@ function applyJob(job: RecommendationJob, run: number) {
     recipe.value = job.recipe || null
     loading.value = false
     if (!job.recipe)
-      error.value = '推荐已经完成，但菜谱内容暂时不可用'
+      error.value = '推荐好了，菜谱内容暂时打不开'
     else
       void loadFeedbackState()
     return
@@ -300,7 +300,7 @@ function applyJob(job: RecommendationJob, run: number) {
   }
   if (Date.now() - pollStartedAt >= POLL_TIMEOUT) {
     loading.value = false
-    error.value = '这次推荐等得有点久，任务已停止自动查询'
+    error.value = '这次推荐等得有点久，先去看看别的吧'
     return
   }
   pollTimer = setTimeout(() => pollRecommendation(job.jobId, run), POLL_INTERVAL)
@@ -605,7 +605,7 @@ async function waitForDelivery(orderNo: string) {
 
 <template>
   <view class="recipe-page">
-    <wd-navbar title="锅仔食谱推荐" left-arrow safe-area-inset-top custom-style="background-color: transparent !important;" @click-left="navBack" />
+    <wd-navbar title="今日推荐" left-arrow safe-area-inset-top custom-style="background-color: transparent !important;" @click-left="navBack" />
     <view v-if="loading" class="thinking-card" aria-label="锅仔正在推荐菜谱" aria-live="polite">
       <view class="thinking-card__hero">
         <view class="thinking-card__halo" />
@@ -695,7 +695,7 @@ async function waitForDelivery(orderNo: string) {
           <view v-if="showGuideline" class="guozai-basis">
             <view class="guozai-basis__head">
               <text class="guozai-basis__badge">有据可依</text>
-              <text class="guozai-basis__title">这道菜的推荐依据 ·《中国居民膳食指南(2022)》</text>
+              <text class="guozai-basis__title">推荐依据 ·《中国居民膳食指南(2022)》</text>
             </view>
             <view v-for="(item, index) in guidelineList" :key="index" class="guozai-basis__item">
               <text class="guozai-basis__item-title">{{ item.title }}</text>
@@ -755,6 +755,20 @@ async function waitForDelivery(orderNo: string) {
             aria-label="告诉锅仔这道菜是否合胃口"
             @select="selectRecipeFeedback"
           />
+        </view>
+
+        <view class="custom-entry pressable" role="button" aria-label="打开主题专辑" @click="router.push({ name: 'theme-albums' })">
+          <image class="custom-entry__image" :src="`${STATIC_BASE_URL}/static/guozai/action_09_celebrate.png`" mode="aspectFit" />
+          <view class="custom-entry__copy">
+            <text class="custom-entry__title">
+              主题专辑
+            </text><text class="custom-entry__subtitle">
+              减脂 21 天 · 一人食 30 道 · 过年家宴，一次购买长期可看
+            </text>
+          </view>
+          <text class="custom-entry__link">
+            去逛专辑
+          </text>
         </view>
 
         <view class="custom-entry pressable" role="button" aria-label="打开按食材定制菜单" @click="openAiPanel">

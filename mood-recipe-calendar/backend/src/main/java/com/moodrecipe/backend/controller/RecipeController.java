@@ -54,10 +54,23 @@ public class RecipeController {
         this.quotas = quotas;
     }
 
-    /** 全部菜谱 */
+    /** 全部菜谱（按菜名去重，同名保留最早入库的一条） */
     @GetMapping
     public ApiResponse<List<Recipe>> list() {
-        return ApiResponse.ok(repository.findAiWithImages());
+        return ApiResponse.ok(dedupeByName(repository.findAiWithImages()));
+    }
+
+    /**
+     * 同名菜去重：AI 推荐落库与种子菜谱存在同名多行，
+     * 列表浏览与转盘/九宫格/翻牌抽样都不该出现两道同名菜。保留 id 最小（最早入库）的一条。
+     */
+    private List<Recipe> dedupeByName(List<Recipe> recipes) {
+        Map<String, Recipe> picked = new LinkedHashMap<>();
+        recipes.stream()
+                .filter(r -> r.getName() != null)
+                .sorted(Comparator.comparing(Recipe::getId, Comparator.nullsLast(Comparator.naturalOrder())))
+                .forEach(r -> picked.putIfAbsent(r.getName(), r));
+        return new ArrayList<>(picked.values());
     }
 
     /** 基础推荐：优先 AI 真实生成，失败回退到数据库菜谱（排除拒绝与最近看过，按反馈排序）。 */
@@ -269,8 +282,8 @@ public class RecipeController {
     /** 按心情列表 */
     @GetMapping("/by-mood")
     public ApiResponse<List<Recipe>> byMood(@RequestParam String mood) {
-        return ApiResponse.ok(repository.findAiWithImages().stream()
-                .filter(r -> r.getMoodTags() != null && r.getMoodTags().contains(mood)).toList());
+        return ApiResponse.ok(dedupeByName(repository.findAiWithImages().stream()
+                .filter(r -> r.getMoodTags() != null && r.getMoodTags().contains(mood)).toList()));
     }
 
     /** 菜谱详情 */

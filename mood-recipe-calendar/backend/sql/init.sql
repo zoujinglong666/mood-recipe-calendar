@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS user_records (
   client_request_id VARCHAR(64) COMMENT '客户端重试标识，用于幂等去重',
   cooking_time INT           COMMENT '烹饪分钟数',
   record_date  VARCHAR(20)   COMMENT '记录日期 YYYY-MM-DD',
+  poster_url   TEXT          COMMENT '会员精装海报URL（record-detail 海报+后端模式）',
   created_at   DATETIME,
   updated_at   DATETIME,
   INDEX idx_openid_date (openid, record_date),
@@ -253,6 +254,16 @@ CREATE TABLE IF NOT EXISTS recipe_interactions (
   INDEX idx_recipe_interaction_user_recipe (openid, recipe_id),
   INDEX idx_recipe_interaction_user_time (openid, created_at)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='菜谱交互行为';
+
+-- ---------- 想吃清单（菜谱收藏） ----------
+CREATE TABLE IF NOT EXISTS recipe_favorites (
+  id         BIGINT AUTO_INCREMENT PRIMARY KEY,
+  openid     VARCHAR(64) NOT NULL COMMENT '微信 openid',
+  recipe_id  BIGINT NOT NULL COMMENT '菜谱ID',
+  created_at DATETIME NOT NULL,
+  UNIQUE KEY uk_recipe_favorite_user_recipe (openid, recipe_id),
+  INDEX idx_recipe_favorite_user_time (openid, created_at)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='用户想吃清单（菜谱收藏）';
 
 -- ---------- 用户反馈 ----------
 CREATE TABLE IF NOT EXISTS user_feedback (
@@ -642,7 +653,127 @@ INSERT IGNORE INTO virtual_products
 VALUES
   ('AI_MENU_7D', NULL, '锅仔私人菜单 7 天包', '7 天内可使用 21 次按食材、时长和口味生成的菜谱。', 690, 'AI_DEEP_RECOMMEND', 21, 7, 1, 1, NOW()),
   ('ALBUM_HD_EXPORT', 'YDHC_1124', '月度画册收藏版', '解锁 1 次高清无水印导出与收藏版排版。', 490, 'ALBUM_HD_EXPORT', 1, 0, 1, 2, NOW()),
-  ('GUOZAI_MEMBER_30D', 'GZHY_30D', '锅仔会员 30 天', '30 天内畅享锅仔管饭、AI 私人菜单与月度画册高清导出。', 990, 'MEMBER', 0, 30, 1, 3, NOW());
+  ('GUOZAI_MEMBER_30D', 'GZHY_30D', '锅仔会员 30 天', '30 天内畅享锅仔管饭、AI 私人菜单与月度画册高清导出。', 990, 'MEMBER', 0, 30, 1, 3, NOW()),
+  ('THEME_FATLOSS_21D', NULL, '减脂 21 天', '21 道清淡低卡快手菜，一次购买长期可看。', 190, NULL, 'THEME_FATLOSS_21D', 0, 0, 1, 4, NOW()),
+  ('THEME_SOLO_COMFORT_30', NULL, '一人食治愈 30 道', '30 道小份治愈家常菜，一次购买长期可看。', 290, NULL, 'THEME_SOLO_COMFORT_30', 0, 0, 1, 5, NOW()),
+  ('THEME_NEW_YEAR_FEAST_18', NULL, '过年家宴 18 道', '18 道镇得住场面的宴客菜，一次购买长期可看。', 490, NULL, 'THEME_NEW_YEAR_FEAST_18', 0, 0, 1, 6, NOW());
+
+-- ---------- 主题菜谱专辑（内容编排层，购买走 virtual_products） ----------
+CREATE TABLE IF NOT EXISTS theme_albums (
+  sku           VARCHAR(64) PRIMARY KEY COMMENT '对应 virtual_products.sku',
+  title         VARCHAR(100) NOT NULL COMMENT '专辑标题',
+  subtitle      VARCHAR(200) COMMENT '副标题',
+  cover         VARCHAR(500) COMMENT '封面图（/static 相对路径）',
+  description   TEXT COMMENT '专辑介绍',
+  recipe_ids    TEXT COMMENT '菜谱ID JSON 数组',
+  preview_count INT NOT NULL DEFAULT 3 COMMENT '未购买可预览道数',
+  sort_order    INT NOT NULL DEFAULT 0,
+  active        TINYINT NOT NULL DEFAULT 1,
+  created_at    DATETIME
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='主题菜谱专辑（内容编排层）';
+
+INSERT IGNORE INTO theme_albums (sku, title, subtitle, cover, description, preview_count, sort_order, active, created_at) VALUES
+('THEME_FATLOSS_21D', '减脂 21 天', '清淡、低卡、不挨饿', '/static/guozai/action_07_empty.png', '锅仔按减脂餐的常见思路挑出 21 道快手清淡菜：多蒸煮、少红烧，简单到不需要意志力。一次购买，长期可看。', 3, 1, 1, NOW()),
+('THEME_SOLO_COMFORT_30', '一人食治愈 30 道', '一碗热汤，接住一整天的疲惫', '/static/guozai/action_02_soup.png', '一个人也要好好吃饭。30 道小份量的家常治愈菜，有面有汤有一锅炖，10 分钟也能吃得踏实。一次购买，长期可看。', 3, 2, 1, NOW()),
+('THEME_NEW_YEAR_FEAST_18', '过年家宴 18 道', '镇得住一桌子人', '/static/guozai/action_09_celebrate.png', '18 道拿得出手的宴客菜：蒸鱼、油焖大虾、梅菜扣肉……按家宴节奏排好，提前一天照着备料就行。一次购买，长期可看。', 3, 3, 1, NOW());
+
+-- 按菜名从菜谱库编排（同名菜只取最早入库的一个 id）
+UPDATE theme_albums SET recipe_ids = (
+  SELECT JSON_ARRAYAGG(id) FROM (
+    SELECT MIN(id) AS id FROM recipes WHERE name IN
+    ('蒜蓉西兰花','清蒸鲈鱼','凉拌黄瓜','番茄炒蛋','青椒炒蛋','黄瓜炒鸡蛋','酸辣土豆丝','蒸蛋羹','小葱拌豆腐','白菜炖豆腐','皮蛋豆腐','鲫鱼豆腐汤','香菇滑鸡','洋葱炒蛋','蛋炒饭','葱花鸡蛋面','苦瓜炒蛋','荷包蛋烧豆腐','木耳炒肉','青椒肉丝','鱼香豆腐')
+    GROUP BY name
+  ) t
+) WHERE sku = 'THEME_FATLOSS_21D';
+
+UPDATE theme_albums SET recipe_ids = (
+  SELECT JSON_ARRAYAGG(id) FROM (
+    SELECT MIN(id) AS id FROM recipes WHERE name IN
+    ('葱花鸡蛋面','番茄牛腩汤','银耳莲子羹','咖喱鸡肉饭','黄焖鸡米饭','蒸蛋羹','蛋炒饭','麻婆豆腐','酸辣土豆丝','可乐鸡翅','糖醋里脊','蒜蓉粉丝蒸虾','宫保鸡丁','鱼香肉丝','回锅肉','小炒肉','蒜苔炒肉','青椒炒蛋','黄瓜炒鸡蛋','洋葱炒蛋','虎皮鸡蛋','荷包蛋烧豆腐','白菜炖豆腐','鲫鱼豆腐汤','皮蛋豆腐','小葱拌豆腐','红烧豆腐','家常豆腐','客家酿豆腐','冻豆腐炖白菜')
+    GROUP BY name
+  ) t
+) WHERE sku = 'THEME_SOLO_COMFORT_30';
+
+UPDATE theme_albums SET recipe_ids = (
+  SELECT JSON_ARRAYAGG(id) FROM (
+    SELECT MIN(id) AS id FROM recipes WHERE name IN
+    ('红烧肉','糖醋排骨','清蒸鲈鱼','油焖大虾','蒜蓉粉丝蒸虾','可乐鸡翅','红烧排骨','黄焖鸡米饭','梅菜扣肉','东坡肉','锅包肉','咕咾肉','京酱肉丝','回锅肉','辣子鸡','糖醋里脊','宫保鸡丁','鱼香肉丝')
+    GROUP BY name
+  ) t
+) WHERE sku = 'THEME_NEW_YEAR_FEAST_18';
+
+-- ---------- 家庭共享 ----------
+CREATE TABLE IF NOT EXISTS family_groups (
+  id           BIGINT AUTO_INCREMENT PRIMARY KEY,
+  owner_openid VARCHAR(64) NOT NULL COMMENT '创建者 openid',
+  name         VARCHAR(50) NOT NULL DEFAULT '锅仔家庭' COMMENT '家庭名称',
+  invite_code  VARCHAR(16) NOT NULL COMMENT '邀请码',
+  created_at   DATETIME NOT NULL,
+  UNIQUE KEY uk_family_invite_code (invite_code)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='家庭共享组';
+
+CREATE TABLE IF NOT EXISTS family_members (
+  id        BIGINT AUTO_INCREMENT PRIMARY KEY,
+  group_id  BIGINT NOT NULL COMMENT '家庭组ID',
+  openid    VARCHAR(64) NOT NULL COMMENT '成员 openid',
+  role      VARCHAR(16) NOT NULL DEFAULT 'MEMBER' COMMENT 'OWNER/MEMBER',
+  joined_at DATETIME NOT NULL,
+  UNIQUE KEY uk_family_member_openid (openid),
+  INDEX idx_family_member_group (group_id)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='家庭成员';
+
+-- ---------- 会员年卡（锚定） ----------
+INSERT IGNORE INTO virtual_products
+  (sku, platform_item_id, title, description, price_fen, benefits, entitlement_code, entitlement_amount, valid_days, active, sort_order, created_at)
+VALUES
+  ('GUOZAI_MEMBER_365D', NULL, '锅仔会员年卡', '365 天家庭共享：全家共用一份会员，含本月营养月报。', 3900, NULL, 'MEMBER', 0, 365, 1, 0, NOW());
+
+UPDATE virtual_products SET benefits = JSON_ARRAY(
+  JSON_OBJECT('group','MEAL','groupTitle','每天吃什么，锅仔替你想','icon','✦','title','锅仔智能体不限次对话','value','免费用户仅签到送 1 次，会员不限次','detail','想换菜、想调整、想问怎么做，随时开口；结合人数、预算、忌口和不做饭的日期。'),
+  JSON_OBJECT('group','MEAL','groupTitle','每天吃什么，锅仔替你想','icon','▤','title','周菜单不限次生成与重排','value','免费用户每周 1 次，会员不限次','detail','安排整周晚餐、一键生成购物清单；哪天不合适，直接让锅仔换一道。'),
+  JSON_OBJECT('group','MEAL','groupTitle','每天吃什么，锅仔替你想','icon','600','title','首页推荐每天 20 次','value','免费用户每天 3 次','detail','按你的心情、口味和忌口推荐，量足到可以任性挑；额度每天刷新。'),
+  JSON_OBJECT('group','MEAL','groupTitle','每天吃什么，锅仔替你想','icon','◇','title','AI 私人菜单深度定制','value','一次给到贴合你的整份菜单','detail','输入心情和现有食材，生成一份完整可用、带做法的私人菜单，不用逐项凑。'),
+  JSON_OBJECT('group','FAMILY','groupTitle','一家人，共用一份会员','icon','❋','title','家庭共享权益','value','全家人共用这一份会员','detail','创建家庭、把邀请码发给家人；家人的会员权益全部通用，一份钱全家用。'),
+  JSON_OBJECT('group','FAMILY','groupTitle','一家人，共用一份会员','icon','✉','title','本月营养月报','value','每月一期，锅仔写给你的一封信','detail','把这个月的记录、心情和最常做的菜，写成锅仔的一封信，附上你的饮食小洞察。'),
+  JSON_OBJECT('group','FRIDGE','groupTitle','冰箱里有什么，拍一张就知道','icon','◉','title','冰箱拍照识别食材','value','拍一张，自动认食材、算保质期','detail','对着冰箱拍一张，锅仔自动认出食材并估算保质期，确认后一键入库，不用一个个手输。'),
+  JSON_OBJECT('group','FRIDGE','groupTitle','冰箱里有什么，拍一张就知道','icon','⏱','title','食材临期提醒','value','快过期时提醒你，别浪费','detail','临期或过期的食材会主动提醒，并告诉你哪些其实不该放冰箱、该怎么存。'),
+  JSON_OBJECT('group','MEMORY','groupTitle','认真吃过的每一餐，都替你收好','icon','▣','title','高清无水印月度画册','value','把这一个月认真收藏下来','detail','将当月真实记录、心情和锅仔寄语整理成无水印收藏图，随时保存、分享。'),
+  JSON_OBJECT('group','MEMORY','groupTitle','认真吃过的每一餐，都替你收好','icon','↗','title','锅仔联网搜索','value','问到库外知识也能答','detail','时令食材、食材挑选、某道菜的多样做法，锅仔可以联网帮你查，并注明来源。')
+) WHERE sku = 'GUOZAI_MEMBER_365D';
+
+-- ---------- 膳食指南 RAG 知识块 / 分享记录 / 每日活跃（实体已存在，补 DDL） ----------
+CREATE TABLE IF NOT EXISTS guideline_chunks (
+  id             BIGINT AUTO_INCREMENT PRIMARY KEY,
+  page           INT NOT NULL COMMENT '来源PDF页码',
+  section        VARCHAR(120) COMMENT '章节名',
+  category       VARCHAR(40) NOT NULL COMMENT '知识分类',
+  title          VARCHAR(300) NOT NULL COMMENT '知识点标题',
+  content        LONGTEXT NOT NULL COMMENT '改写后的知识点正文',
+  tags           VARCHAR(400) COMMENT '逗号分隔关键词',
+  source_name    VARCHAR(120) NOT NULL COMMENT '来源名称',
+  source_url     VARCHAR(400) COMMENT '来源链接',
+  embedding_json LONGTEXT COMMENT '向量JSON浮点数组',
+  enabled        TINYINT(1) NOT NULL DEFAULT 1,
+  created_at     DATETIME NOT NULL,
+  reviewed_at    DATETIME NOT NULL,
+  INDEX idx_guideline_chunk_category (category, enabled)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='膳食指南RAG知识块';
+
+CREATE TABLE IF NOT EXISTS share_records (
+  id         BIGINT AUTO_INCREMENT PRIMARY KEY,
+  openid     VARCHAR(64) NOT NULL COMMENT '微信 openid',
+  scene      VARCHAR(32) NOT NULL COMMENT 'recipe/album/meal-agent',
+  share_date DATE NOT NULL COMMENT '分享日期（按天去重）',
+  created_at DATETIME,
+  INDEX idx_share_record_openid_date (openid, share_date)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='分享记录';
+
+CREATE TABLE IF NOT EXISTS daily_active_users (
+  id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+  active_date DATE NOT NULL COMMENT '活跃日期',
+  openid      VARCHAR(64) NOT NULL COMMENT '微信 openid',
+  UNIQUE KEY uk_dau_date_openid (active_date, openid)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='每日活跃用户去重表';
 
 -- 修补已初始化库：月度画册道具 ID 曾为空，补全为微信虚拟支付后台同名道具。
 UPDATE virtual_products SET platform_item_id = 'YDHC_1124' WHERE sku = 'ALBUM_HD_EXPORT' AND (platform_item_id IS NULL OR platform_item_id = '');

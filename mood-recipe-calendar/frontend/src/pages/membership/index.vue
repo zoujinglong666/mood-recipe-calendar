@@ -10,8 +10,10 @@ import {
   fetchVirtualProducts,
   getVirtualPaymentParams,
   MEMBER_PRODUCT_SKU,
+  MEMBER_YEAR_SKU,
   requestWechatVirtualPayment,
 } from '../../api/virtualCommerce'
+import { createFamily, fetchFamily, joinFamily, leaveFamily, type FamilyInfo } from '../../api/family'
 import { useUserStore } from '../../stores/user'
 import { ensureLogin, navigateToLogin, refreshUserInfo, refreshWechatLoginForPayment } from '../../utils/login'
 import { toast, toastError, toastSuccess } from '../../utils/toast'
@@ -32,9 +34,15 @@ const router = useRouter()
 const nav = useNavBar()
 const userStore = useUserStore()
 const loading = ref(true)
-const paying = ref(false)
+const paying = ref('')
 const product = ref<VirtualProduct | null>(null)
+const yearProduct = ref<VirtualProduct | null>(null)
 const error = ref('')
+// 家庭共享
+const family = ref<FamilyInfo | null>(null)
+const familyLoaded = ref(false)
+const joinCode = ref('')
+const familyBusy = ref(false)
 let paymentSupported = false
 // #ifdef MP-WEIXIN
 paymentSupported = typeof (uni as any).requestVirtualPayment === 'function'
@@ -53,7 +61,7 @@ const FALLBACK_GROUPS: { key: string, eyebrow: string, title: string, items: Ben
     eyebrow: 'MEAL',
     title: '每天吃什么，锅仔替你想',
     items: [
-      { icon: '✦', title: '锅仔智能体不限次对话', value: '免费用户仅签到送 3 次，会员不限次', detail: '想换菜、想调整、想问怎么做，随时开口；结合人数、预算、忌口和不做饭的日期。' },
+      { icon: '✦', title: '锅仔智能体不限次对话', value: '免费用户仅签到送 3 轮，会员不限次', detail: '想换菜、想调整、想问怎么做，随时开口；结合人数、预算、忌口和不做饭的日期。' },
       { icon: '▤', title: '周菜单不限次生成与重排', value: '免费用户每周 1 次，会员不限次', detail: '安排整周晚餐、一键生成购物清单；哪天不合适，直接让锅仔换一道。' },
       { icon: '600', title: '首页推荐每天 20 次', value: '免费用户每天 3 次', detail: '按你的心情、口味和忌口推荐，量足到可以任性挑；额度每天刷新。' },
       { icon: '◇', title: 'AI 私人菜单深度定制', value: '一次给到贴合你的整份菜单', detail: '输入心情和现有食材，生成一份完整可用、带做法的私人菜单，不用逐项凑。' },
@@ -115,7 +123,10 @@ onMounted(async () => {
 const active = computed(() => userStore.isActiveMember)
 const expireText = computed(() => userStore.userInfo?.memberExpire?.slice(0, 10) || '')
 const price = computed(() => ((product.value?.priceFen || 990) / 100).toFixed(2))
+const yearPrice = computed(() => ((yearProduct.value?.priceFen || 3900) / 100).toFixed(2))
+const yearDailyPrice = computed(() => ((yearProduct.value?.priceFen || 3900) / 100 / 365).toFixed(2))
 const purchasable = computed(() => paymentSupported && Boolean(product.value?.paymentAvailable))
+const yearPurchasable = computed(() => paymentSupported && Boolean(yearProduct.value?.paymentAvailable))
 const actionText = computed(() => {
   if (active.value)
     return `会员有效至 ${expireText.value}`
@@ -134,8 +145,11 @@ async function load() {
   try {
     await ensureLogin()
     // 会员商品是页面核心；刷新用户信息失败不应阻断商品展示
-    product.value = (await fetchVirtualProducts()).find(item => item.sku === MEMBER_PRODUCT_SKU) || null
+    const products = await fetchVirtualProducts()
+    product.value = products.find(item => item.sku === MEMBER_PRODUCT_SKU) || null
+    yearProduct.value = products.find(item => item.sku === MEMBER_YEAR_SKU) || null
     refreshUserInfo(true).catch(() => {})
+    loadFamily()
   }
   catch (e: any) {
     error.value = e?.message === 'NOT_LOGGED_IN' ? '' : (e?.message || '权益加载失败')
@@ -147,24 +161,108 @@ async function load() {
 
 onShow(load)
 
-async function purchase() {
+/** 家庭共享：拉取我的家庭（未登录/无家庭静默）。 */
+async function loadFamily() {
+  try {
+    family.value = await fetchFamily()
+  }
+  catch {
+    family.value = null
+  }
+  finally {
+    familyLoaded.value = true
+  }
+}
+
+async function onCreateFamily() {
+  if (familyBusy.value)
+    return
+  familyBusy.value = true
+  try {
+    family.value = await createFamily()
+    toastSuccess('家庭已创建，把邀请码发给家人吧')
+  }
+  catch (e: any) {
+    toastError(e, '创建家庭失败')
+  }
+  finally {
+    familyBusy.value = false
+  }
+}
+
+async function onJoinFamily() {
+  const code = joinCode.value.trim()
+  if (!code) {
+    toast('先输入家人的邀请码')
+    return
+  }
+  if (familyBusy.value)
+    return
+  familyBusy.value = true
+  try {
+    family.value = await joinFamily(code)
+    joinCode.value = ''
+    toastSuccess('已加入家庭')
+  }
+  catch (e: any) {
+    toastError(e, '加入家庭失败')
+  }
+  finally {
+    familyBusy.value = false
+  }
+}
+
+async function onLeaveFamily() {
+  if (familyBusy.value)
+    return
+  familyBusy.value = true
+  try {
+    await leaveFamily()
+    family.value = null
+    toast('已退出家庭')
+  }
+  catch (e: any) {
+    toastError(e, '退出家庭失败')
+  }
+  finally {
+    familyBusy.value = false
+  }
+}
+
+function copyInviteCode() {
+  if (!family.value)
+    return
+  uni.setClipboardData({
+    data: family.value.inviteCode,
+    success: () => toast('邀请码已复制，发给家人'),
+  })
+}
+
+function goNutritionReport() {
+  router.push({ name: 'nutrition-report' })
+}
+
+/** 购买指定 SKU 的会员（月卡/年卡）。 */
+async function purchase(sku: string) {
+  const target = sku === MEMBER_YEAR_SKU ? yearProduct.value : product.value
   if (active.value || paying.value)
     return
   if (!userStore.isLoggedIn) {
     navigateToLogin()
     return
   }
-  if (!product.value || !purchasable.value) {
+  const ok = sku === MEMBER_YEAR_SKU ? yearPurchasable.value : purchasable.value
+  if (!target || !ok) {
     toast(paymentSupported
-      ? (product.value?.paymentUnavailableMsg || '会员暂不可开通')
+      ? (target?.paymentUnavailableMsg || '会员暂不可开通')
       : '请在微信小程序内开通')
     return
   }
-  paying.value = true
+  paying.value = sku
   let checking = false
   try {
     const openid = await refreshWechatLoginForPayment()
-    const order = await createVirtualOrder(openid, product.value.sku)
+    const order = await createVirtualOrder(openid, target.sku)
     const params = await getVirtualPaymentParams(openid, order.orderNo)
     await requestWechatVirtualPayment(params)
     checking = true
@@ -175,7 +273,8 @@ async function purchase() {
       return
     }
     await refreshUserInfo(true)
-    toastSuccess('锅仔会员已开通')
+    loadFamily()
+    toastSuccess(sku === MEMBER_YEAR_SKU ? '年卡已开通，全家都能用了' : '锅仔会员已开通')
   }
   catch (e: any) {
     toastError(e, '暂时无法开通会员')
@@ -183,7 +282,7 @@ async function purchase() {
   finally {
     if (checking)
       uni.hideLoading()
-    paying.value = false
+    paying.value = ''
   }
 }
 
@@ -280,22 +379,115 @@ async function waitForDelivery(orderNo: string) {
     <view v-if="error" class="member-error" role="button" @click="load">
       {{ error }} · 点击重试
     </view>
+    <!-- 家庭共享：一份会员，全家人用 -->
+    <view v-if="familyLoaded" class="member-family">
+      <view class="member-family__head">
+        <text class="member-family__eyebrow">FAMILY</text>
+        <text class="member-family__title">一家人，共用一份会员</text>
+      </view>
+
+      <template v-if="!family">
+        <text class="member-family__copy">
+          创建家庭，把邀请码发给家人。家人的会员权益全部通用，一份钱全家用。
+        </text>
+        <view class="member-family__actions">
+          <view class="member-family__btn member-family__btn--primary" :class="{ 'is-disabled': familyBusy }" role="button" aria-label="创建家庭" @click="onCreateFamily">
+            {{ familyBusy ? '创建中…' : '创建家庭' }}
+          </view>
+          <view class="member-family__join">
+            <input v-model="joinCode" class="member-family__input" placeholder="输入家人邀请码" placeholder-class="member-family__ph" :maxlength="16" />
+            <view class="member-family__btn" :class="{ 'is-disabled': familyBusy }" role="button" aria-label="加入家庭" @click="onJoinFamily">
+              加入
+            </view>
+          </view>
+        </view>
+      </template>
+
+      <template v-else>
+        <view class="member-family__code" role="button" aria-label="复制邀请码" @click="copyInviteCode">
+          <text class="member-family__code-label">邀请码</text>
+          <text class="member-family__code-value">{{ family.inviteCode }}</text>
+          <text class="member-family__code-copy">复制</text>
+        </view>
+        <view class="member-family__status" :class="{ 'is-on': family.myAccessActive }">
+          {{ family.myAccessActive ? (family.myRole === 'OWNER' ? '你的会员权益生效中' : '你正在使用家人的会员权益') : '家庭创建者暂未开通会员，权益未生效' }}
+        </view>
+        <view class="member-family__members">
+          <view v-for="m in family.members" :key="m.openid" class="member-family__member">
+            <image class="member-family__avatar" :src="m.avatarUrl || `${STATIC_BASE_URL}/static/guozai/mood_01_happy.png`" mode="aspectFill" />
+            <text class="member-family__name">{{ m.nickname }}</text>
+            <text v-if="m.role === 'OWNER'" class="member-family__role">创建者</text>
+            <text v-else-if="m.openid === userStore.openid" class="member-family__role member-family__role--me">我</text>
+          </view>
+        </view>
+        <view class="member-family__leave" role="button" aria-label="退出家庭" @click="onLeaveFamily">
+          {{ family.myRole === 'OWNER' ? '解散家庭' : '退出家庭' }}
+        </view>
+      </template>
+    </view>
+
+    <!-- 本月营养月报入口（会员专享） -->
+    <view v-if="active" class="member-report-entry" role="button" aria-label="查看本月营养月报" @click="goNutritionReport">
+      <image class="member-report-entry__img" :src="`${STATIC_BASE_URL}/static/guozai/action_02_soup.png`" mode="aspectFit" />
+      <view class="member-report-entry__copy">
+        <text class="member-report-entry__title">本月营养月报</text>
+        <text class="member-report-entry__sub">锅仔写给你的一封信，每月一期</text>
+      </view>
+      <text class="member-report-entry__arrow">›</text>
+    </view>
+
     <view class="member-note">
       基础推荐和饮食记录继续免费；会员购买的是更深度、更省心的持续服务。
       <text class="member-note__legal">
-        ¥{{ price }} / 30 天，非自动续费。虚拟权益一经使用不支持无理由退款；未使用或到账异常请通过「我的-联系客服」申请处理。
+        ¥{{ price }} / 30 天，非自动续费；虚拟权益已使用不支持无理由退款，到账异常请通过「反馈建议」联系我们。
       </text>
     </view>
     <view class="member-safe-space" />
 
     <view class="member-footer">
-      <view class="member-footer__price">
-        <text>{{ active ? '已包含全部权益' : `¥${price}` }}</text>
-        <text>{{ active ? '续费后有效期顺延' : '30 天权益包 · 非自动续费' }}</text>
-      </view>
-      <view class="member-footer__button" :class="{ 'is-disabled': active || loading || paying || !purchasable }" role="button" :aria-label="actionText" @click="purchase">
-        {{ paying ? '确认中…' : actionText }}
-      </view>
+      <template v-if="active">
+        <view class="member-footer__price">
+          <text>已包含全部权益</text>
+          <text>续费后有效期顺延</text>
+        </view>
+        <view class="member-footer__button is-disabled" role="button" :aria-label="actionText">
+          {{ actionText }}
+        </view>
+      </template>
+      <template v-else>
+        <view class="member-footer__plans">
+          <view
+            class="member-plan member-plan--year"
+            :class="{ 'is-disabled': !yearPurchasable }"
+            role="button"
+            aria-label="开通会员年卡"
+            @click="purchase(MEMBER_YEAR_SKU)"
+          >
+            <view class="member-plan__tag">全家共享 · 最划算</view>
+            <view class="member-plan__price">
+              <text class="member-plan__currency">¥</text>
+              <text class="member-plan__amount">{{ yearPrice }}</text>
+              <text class="member-plan__unit">/ 365 天</text>
+            </view>
+            <view class="member-plan__note">低至 ¥{{ yearDailyPrice }}/天 · 含家庭共享与营养月报</view>
+          </view>
+          <view
+            class="member-plan member-plan--month"
+            :class="{ 'is-disabled': !purchasable }"
+            role="button"
+            aria-label="开通会员月卡"
+            @click="purchase(MEMBER_PRODUCT_SKU)"
+          >
+            <view class="member-plan__price">
+              <text class="member-plan__currency">¥</text>
+              <text class="member-plan__amount">{{ price }}</text>
+              <text class="member-plan__unit">/ 30 天</text>
+            </view>
+            <view class="member-plan__note">先试试</view>
+          </view>
+        </view>
+        <view v-if="paying" class="member-footer__paying">确认中…</view>
+      </template>
     </view>
   </view>
 </template>
@@ -350,4 +542,58 @@ async function waitForDelivery(orderNo: string) {
 .member-footer__button { display: flex; min-height: 86rpx; flex: 1; align-items: center; justify-content: center; padding: 0 24rpx; border-radius: 28rpx; background: linear-gradient(135deg, #f0b45f, #e96b4a); color: #fff; font-size: 25rpx; font-weight: 850; box-shadow: 0 12rpx 24rpx rgba(219, 92, 61, .22); text-align: center; }
 .member-footer__button.is-disabled { opacity: .62; box-shadow: none; }
 @media (prefers-reduced-motion: reduce) { .member-footer__button { transition: none; } }
+
+/* 家庭共享 */
+.member-family { margin: 24rpx 0 8rpx; padding: 26rpx 28rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 32rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }
+.member-family__head { display: flex; align-items: baseline; gap: 12rpx; margin-bottom: 14rpx; }
+.member-family__eyebrow { color: var(--mrc-accent); font-size: 18rpx; font-weight: 800; letter-spacing: 2rpx; }
+.member-family__title { color: var(--mrc-text-strong); font-size: 30rpx; font-weight: 800; }
+.member-family__copy { color: var(--mrc-text-sub); font-size: 22rpx; line-height: 1.55; }
+.member-family__actions { display: flex; flex-direction: column; gap: 16rpx; margin-top: 18rpx; }
+.member-family__btn { display: flex; min-height: 80rpx; align-items: center; justify-content: center; padding: 0 28rpx; border-radius: 22rpx; background: var(--mrc-surface-2); color: var(--mrc-text-deep); font-size: 26rpx; font-weight: 700; }
+.member-family__btn--primary { background: var(--mrc-primary-grad); color: #fff; box-shadow: var(--mrc-shadow-coral); }
+.member-family__btn.is-disabled { opacity: .6; pointer-events: none; }
+.member-family__join { display: flex; align-items: center; gap: 14rpx; }
+.member-family__input { flex: 1; height: 80rpx; padding: 0 22rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 22rpx; background: var(--mrc-surface-2); color: var(--mrc-text-deep); font-size: 26rpx; letter-spacing: 4rpx; text-transform: uppercase; }
+.member-family__ph { color: var(--mrc-text-light); letter-spacing: 0; }
+.member-family__code { display: flex; align-items: center; gap: 16rpx; margin-top: 6rpx; padding: 18rpx 24rpx; border: 2rpx dashed var(--mrc-border-strong); border-radius: 22rpx; background: var(--mrc-surface-sun); }
+.member-family__code-label { color: var(--mrc-text-sub); font-size: 22rpx; }
+.member-family__code-value { flex: 1; color: var(--mrc-text-strong); font-size: 36rpx; font-weight: 800; letter-spacing: 6rpx; }
+.member-family__code-copy { color: var(--mrc-accent); font-size: 22rpx; font-weight: 700; }
+.member-family__status { margin-top: 14rpx; padding: 12rpx 20rpx; border-radius: 16rpx; background: var(--mrc-surface-2); color: var(--mrc-text-sub); font-size: 21rpx; }
+.member-family__status.is-on { background: var(--mrc-accent-soft); color: var(--mrc-accent); font-weight: 700; }
+.member-family__members { display: flex; flex-wrap: wrap; gap: 20rpx; margin-top: 18rpx; }
+.member-family__member { display: flex; flex-direction: column; align-items: center; gap: 6rpx; width: 108rpx; }
+.member-family__avatar { width: 84rpx; height: 84rpx; border-radius: 50%; border: 3rpx solid var(--mrc-surface-peach); background: var(--mrc-surface-2); }
+.member-family__name { max-width: 104rpx; overflow: hidden; color: var(--mrc-text-deep); font-size: 20rpx; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.member-family__role { padding: 2rpx 12rpx; border-radius: 999rpx; background: var(--mrc-surface-sun); color: var(--mrc-accent); font-size: 16rpx; font-weight: 700; }
+.member-family__role--me { background: var(--mrc-surface-2); color: var(--mrc-text-sub); }
+.member-family__leave { margin-top: 16rpx; color: var(--mrc-text-light); font-size: 21rpx; text-align: center; }
+
+/* 营养月报入口 */
+.member-report-entry { display: flex; align-items: center; gap: 20rpx; margin: 20rpx 0 8rpx; padding: 22rpx 26rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; background: linear-gradient(135deg, var(--mrc-surface-mint), var(--mrc-surface)); box-shadow: var(--mrc-shadow-soft); }
+.member-report-entry:active { transform: scale(.98); }
+.member-report-entry__img { width: 80rpx; height: 80rpx; flex-shrink: 0; }
+.member-report-entry__copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6rpx; }
+.member-report-entry__title { color: var(--mrc-text-deep); font-size: 30rpx; font-weight: 800; }
+.member-report-entry__sub { color: var(--mrc-text-sub); font-size: 21rpx; }
+.member-report-entry__arrow { color: var(--mrc-text-light); font-size: 40rpx; }
+
+/* 底部双 SKU */
+.member-footer__plans { display: flex; flex: 1; align-items: stretch; gap: 16rpx; }
+.member-plan { position: relative; display: flex; flex-direction: column; justify-content: center; padding: 14rpx 20rpx; border-radius: 24rpx; background: var(--mrc-surface-2); }
+.member-plan--year { flex: 1.4; background: linear-gradient(135deg, #f0b45f, #e96b4a); box-shadow: 0 12rpx 24rpx rgba(219, 92, 61, .22); }
+.member-plan--month { flex: 1; }
+.member-plan__tag { align-self: flex-start; margin-bottom: 6rpx; padding: 3rpx 12rpx; border-radius: 999rpx; background: rgba(255, 255, 255, .9); color: #c2532f; font-size: 16rpx; font-weight: 800; }
+.member-plan__price { display: flex; align-items: baseline; gap: 4rpx; }
+.member-plan__currency { color: #fff; font-size: 24rpx; font-weight: 700; }
+.member-plan__amount { color: #fff; font-size: 46rpx; font-weight: 900; line-height: 1; }
+.member-plan__unit { color: rgba(255, 255, 255, .85); font-size: 20rpx; }
+.member-plan--month .member-plan__currency { color: var(--mrc-text-deep); }
+.member-plan--month .member-plan__amount { color: var(--mrc-text-deep); }
+.member-plan--month .member-plan__unit { color: var(--mrc-text-sub); }
+.member-plan__note { margin-top: 6rpx; color: rgba(255, 255, 255, .9); font-size: 17rpx; }
+.member-plan--month .member-plan__note { color: var(--mrc-text-sub); }
+.member-plan.is-disabled { opacity: .6; pointer-events: none; }
+.member-footer__paying { flex: 1; text-align: center; color: var(--mrc-text-sub); font-size: 24rpx; }
 </style>

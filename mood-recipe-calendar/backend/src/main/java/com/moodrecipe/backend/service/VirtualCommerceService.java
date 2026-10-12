@@ -11,6 +11,7 @@ import com.moodrecipe.backend.repository.UserRepository;
 import com.moodrecipe.backend.repository.VirtualOrderRepository;
 import com.moodrecipe.backend.repository.VirtualProductRepository;
 import jakarta.transaction.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -33,7 +34,9 @@ public class VirtualCommerceService {
     private final UserEntitlementRepository entitlementRepository;
     private final UserRepository userRepository;
     private final ObjectMapper mapper;
+    private final MemberAccessService memberAccess;
 
+    /** 兼容既有测试的直构（无家庭穿透，退回本人判定）。 */
     public VirtualCommerceService(
             VirtualProductRepository productRepository,
             VirtualOrderRepository orderRepository,
@@ -41,11 +44,24 @@ public class VirtualCommerceService {
             UserRepository userRepository,
             ObjectMapper mapper
     ) {
+        this(productRepository, orderRepository, entitlementRepository, userRepository, mapper, null);
+    }
+
+    @Autowired
+    public VirtualCommerceService(
+            VirtualProductRepository productRepository,
+            VirtualOrderRepository orderRepository,
+            UserEntitlementRepository entitlementRepository,
+            UserRepository userRepository,
+            ObjectMapper mapper,
+            MemberAccessService memberAccess
+    ) {
         this.productRepository = productRepository;
         this.orderRepository = orderRepository;
         this.entitlementRepository = entitlementRepository;
         this.userRepository = userRepository;
         this.mapper = mapper;
+        this.memberAccess = memberAccess;
     }
 
     public List<VirtualProduct> listProducts() {
@@ -116,7 +132,9 @@ public class VirtualCommerceService {
                 .toList();
     }
 
+    /** 会员判定（含家庭共享穿透）：本人会员，或所在家庭的创建者是会员。 */
     public boolean isActiveMember(String openid) {
+        if (memberAccess != null) return memberAccess.isActive(openid);
         LocalDateTime now = AppClock.now();
         return userRepository.findByOpenid(openid)
                 .filter(user -> Integer.valueOf(1).equals(user.getIsMember()))
@@ -184,7 +202,9 @@ public class VirtualCommerceService {
 
     private void grantEntitlement(VirtualOrder order, VirtualProduct product, LocalDateTime now) {
         if (product.isMemberPass()) {
-            User user = userRepository.findByOpenid(order.getOpenid())
+            // 行锁串行化：同一用户两笔并发支付时，第二笔必须读到第一笔已累加的到期时间，
+            // 否则 read-modify-write 互相覆盖，其中一笔时长直接丢失。
+            User user = userRepository.findByOpenidForUpdate(order.getOpenid())
                     .orElseThrow(() -> new IllegalStateException("用户不存在，无法发放会员"));
             LocalDateTime base = user.getMemberExpire() != null && user.getMemberExpire().isAfter(now)
                     ? user.getMemberExpire() : now;

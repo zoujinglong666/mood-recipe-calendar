@@ -24,7 +24,7 @@ definePage({
   layout: 'tabbar',
   style: {
     navigationStyle: 'custom',
-    navigationBarTitleText: '记录今日伙食',
+    navigationBarTitleText: '记一笔今天',
   },
 })
 
@@ -205,10 +205,6 @@ async function loadForEdit(id: number) {
 async function publish() {
   if (submitting.value)
     return
-  if (!photos.value.length) {
-    toast('请先上传菜品照片')
-    return
-  }
   if (uploading.value) {
     toast('图片上传中，请稍候')
     return
@@ -309,7 +305,7 @@ function chooseCookingTime() {
 
 <template>
   <view class="record-page mrc-hero">
-    <wd-navbar title="记录今日伙食" safe-area-inset-top custom-style="background-color: transparent !important;" />
+    <wd-navbar title="记一笔今天" safe-area-inset-top custom-style="background-color: transparent !important;" />
 
     <view class="record-intro">
       <view class="record-intro__copy">

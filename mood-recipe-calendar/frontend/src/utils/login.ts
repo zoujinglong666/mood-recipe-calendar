@@ -9,7 +9,8 @@ import { useUserStore } from '../stores/user'
 function normalizeLoginError(e: unknown): string {
   const msg = e instanceof Error ? e.message : String(e)
   if (/invalid code/i.test(msg)) {
-    return '微信登录失败：code 无效（invalid code）。请确认：\n1) 微信开发者工具已用真实微信账号登录（非游客模式）；\n2) manifest.json 的 mp-weixin.appid 已填写为真实小程序 appid；\n3) 后端 code2Session 使用的 appid / secret 与该 appid 一致。'
+    console.error('[login] invalid code —— 排查：开发者工具需用真实微信账号登录（非游客模式）；manifest 的 mp-weixin.appid 须为真实 appid；后端 code2Session 的 appid/secret 须一致。\n', e)
+    return '微信登录连接不上，请稍后重试'
   }
   return msg || '微信登录失败'
 }

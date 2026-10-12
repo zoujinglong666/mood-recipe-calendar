@@ -14,12 +14,14 @@ declare global {
   const CommonUtil: typeof import('@wot-ui/ui')['CommonUtil']
   const EffectScope: typeof import('vue')['EffectScope']
   const MEMBER_PRODUCT_SKU: typeof import('./api/virtualCommerce')['MEMBER_PRODUCT_SKU']
+  const MEMBER_YEAR_SKU: typeof import('./api/virtualCommerce')['MEMBER_YEAR_SKU']
   const MOOD_COLOR: typeof import('./utils/albumLayout')['MOOD_COLOR']
   const MOOD_EMOJI: typeof import('./utils/albumLayout')['MOOD_EMOJI']
   const MRC_EVENTS: typeof import('./utils/bus')['MRC_EVENTS']
   const RECORD_DRAFT_KEY: typeof import('./utils/cookingDraft')['RECORD_DRAFT_KEY']
   const STATIC_BASE_URL: typeof import('./utils/assets')['STATIC_BASE_URL']
   const acceptHMRUpdate: typeof import('pinia')['acceptHMRUpdate']
+  const addFavorite: typeof import('./api/favorites')['addFavorite']
   const askMealAgent: typeof import('./api/weeklyPlans')['askMealAgent']
   const assetUrl: typeof import('./utils/assets')['assetUrl']
   const asyncComputed: typeof import('@vueuse/core')['asyncComputed']
@@ -48,6 +50,7 @@ declare global {
   const cookingAgentTurn: typeof import('./api/cookingAgent')['cookingAgentTurn']
   const createApp: typeof import('vue')['createApp']
   const createEventHook: typeof import('@vueuse/core')['createEventHook']
+  const createFamily: typeof import('./api/family')['createFamily']
   const createFridgeItem: typeof import('./api/fridge')['createFridgeItem']
   const createGlobalState: typeof import('@vueuse/core')['createGlobalState']
   const createInjectionState: typeof import('@vueuse/core')['createInjectionState']
@@ -89,6 +92,8 @@ declare global {
   const fetchDailyBoard: typeof import('./api/dailyMenu')['fetchDailyBoard']
   const fetchDailyMealPlan: typeof import('./api/dailyMealPlan')['fetchDailyMealPlan']
   const fetchEntitlements: typeof import('./api/virtualCommerce')['fetchEntitlements']
+  const fetchFamily: typeof import('./api/family')['fetchFamily']
+  const fetchFavorites: typeof import('./api/favorites')['fetchFavorites']
   const fetchFoodMemory: typeof import('./api/preferences')['fetchFoodMemory']
   const fetchFoodPreference: typeof import('./api/preferences')['fetchFoodPreference']
   const fetchFridgeItems: typeof import('./api/fridge')['fetchFridgeItems']
@@ -96,6 +101,7 @@ declare global {
   const fetchMemberBenefits: typeof import('./api/virtualCommerce')['fetchMemberBenefits']
   const fetchMonthAlbum: typeof import('./api/albums')['fetchMonthAlbum']
   const fetchMyFeedback: typeof import('./api/feedback')['fetchMyFeedback']
+  const fetchNutritionReport: typeof import('./api/nutritionReport')['fetchNutritionReport']
   const fetchOrders: typeof import('./api/gallery')['fetchOrders']
   const fetchProducts: typeof import('./api/gallery')['fetchProducts']
   const fetchRecipeDetail: typeof import('./api/recipes')['fetchRecipeDetail']
@@ -111,6 +117,8 @@ declare global {
   const fetchShareStatus: typeof import('./api/share')['fetchShareStatus']
   const fetchStats: typeof import('./api/records')['fetchStats']
   const fetchStorageAdvice: typeof import('./api/fridge')['fetchStorageAdvice']
+  const fetchThemeAlbumDetail: typeof import('./api/themeAlbums')['fetchThemeAlbumDetail']
+  const fetchThemeAlbums: typeof import('./api/themeAlbums')['fetchThemeAlbums']
   const fetchVirtualOrder: typeof import('./api/virtualCommerce')['fetchVirtualOrder']
   const fetchVirtualOrders: typeof import('./api/virtualCommerce')['fetchVirtualOrders']
   const fetchVirtualProducts: typeof import('./api/virtualCommerce')['fetchVirtualProducts']
@@ -152,6 +160,8 @@ declare global {
   const isReadonly: typeof import('vue')['isReadonly']
   const isRef: typeof import('vue')['isRef']
   const isSafetyMemory: typeof import('./utils/memoryLabels')['isSafetyMemory']
+  const joinFamily: typeof import('./api/family')['joinFamily']
+  const leaveFamily: typeof import('./api/family')['leaveFamily']
   const loadCookingDraft: typeof import('./utils/cookingDraft')['loadCookingDraft']
   const login: typeof import('./api/auth')['login']
   const logout: typeof import('./api/auth')['logout']
@@ -236,6 +246,7 @@ declare global {
   const refreshNavMetrics: typeof import('./composables/useNavBar')['refreshNavMetrics']
   const refreshUserInfo: typeof import('./utils/login')['refreshUserInfo']
   const refreshWechatLoginForPayment: typeof import('./utils/login')['refreshWechatLoginForPayment']
+  const removeFavorite: typeof import('./api/favorites')['removeFavorite']
   const replaceDailyMealPlanMeal: typeof import('./api/dailyMealPlan')['replaceDailyMealPlanMeal']
   const replacePlanDay: typeof import('./api/weeklyPlans')['replacePlanDay']
   const reportPlanDishOutcome: typeof import('./api/weeklyPlans')['reportPlanDishOutcome']
@@ -462,6 +473,7 @@ declare global {
   const useVModels: typeof import('@vueuse/core')['useVModels']
   const useVibrate: typeof import('@vueuse/core')['useVibrate']
   const useVirtualList: typeof import('@vueuse/core')['useVirtualList']
+  const useVirtualPurchase: typeof import('./composables/useVirtualPurchase')['useVirtualPurchase']
   const useWakeLock: typeof import('@vueuse/core')['useWakeLock']
   const useWebNotification: typeof import('@vueuse/core')['useWebNotification']
   const useWebSocket: typeof import('@vueuse/core')['useWebSocket']
@@ -470,6 +482,7 @@ declare global {
   const useWindowFocus: typeof import('@vueuse/core')['useWindowFocus']
   const useWindowScroll: typeof import('@vueuse/core')['useWindowScroll']
   const useWindowSize: typeof import('@vueuse/core')['useWindowSize']
+  const useWishlist: typeof import('./composables/useWishlist')['useWishlist']
   const watch: typeof import('vue')['watch']
   const watchArray: typeof import('@vueuse/core')['watchArray']
   const watchAtMost: typeof import('@vueuse/core')['watchAtMost']
@@ -507,12 +520,14 @@ declare module 'vue' {
     readonly CommonUtil: UnwrapRef<typeof import('@wot-ui/ui')['CommonUtil']>
     readonly EffectScope: UnwrapRef<typeof import('vue')['EffectScope']>
     readonly MEMBER_PRODUCT_SKU: UnwrapRef<typeof import('./api/virtualCommerce')['MEMBER_PRODUCT_SKU']>
+    readonly MEMBER_YEAR_SKU: UnwrapRef<typeof import('./api/virtualCommerce')['MEMBER_YEAR_SKU']>
     readonly MOOD_COLOR: UnwrapRef<typeof import('./utils/albumLayout')['MOOD_COLOR']>
     readonly MOOD_EMOJI: UnwrapRef<typeof import('./utils/albumLayout')['MOOD_EMOJI']>
     readonly MRC_EVENTS: UnwrapRef<typeof import('./utils/bus')['MRC_EVENTS']>
     readonly RECORD_DRAFT_KEY: UnwrapRef<typeof import('./utils/cookingDraft')['RECORD_DRAFT_KEY']>
     readonly STATIC_BASE_URL: UnwrapRef<typeof import('./utils/assets')['STATIC_BASE_URL']>
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>
+    readonly addFavorite: UnwrapRef<typeof import('./api/favorites')['addFavorite']>
     readonly askMealAgent: UnwrapRef<typeof import('./api/weeklyPlans')['askMealAgent']>
     readonly assetUrl: UnwrapRef<typeof import('./utils/assets')['assetUrl']>
     readonly asyncComputed: UnwrapRef<typeof import('@vueuse/core')['asyncComputed']>
@@ -541,6 +556,7 @@ declare module 'vue' {
     readonly cookingAgentTurn: UnwrapRef<typeof import('./api/cookingAgent')['cookingAgentTurn']>
     readonly createApp: UnwrapRef<typeof import('vue')['createApp']>
     readonly createEventHook: UnwrapRef<typeof import('@vueuse/core')['createEventHook']>
+    readonly createFamily: UnwrapRef<typeof import('./api/family')['createFamily']>
     readonly createFridgeItem: UnwrapRef<typeof import('./api/fridge')['createFridgeItem']>
     readonly createGlobalState: UnwrapRef<typeof import('@vueuse/core')['createGlobalState']>
     readonly createInjectionState: UnwrapRef<typeof import('@vueuse/core')['createInjectionState']>
@@ -582,6 +598,8 @@ declare module 'vue' {
     readonly fetchDailyBoard: UnwrapRef<typeof import('./api/dailyMenu')['fetchDailyBoard']>
     readonly fetchDailyMealPlan: UnwrapRef<typeof import('./api/dailyMealPlan')['fetchDailyMealPlan']>
     readonly fetchEntitlements: UnwrapRef<typeof import('./api/virtualCommerce')['fetchEntitlements']>
+    readonly fetchFamily: UnwrapRef<typeof import('./api/family')['fetchFamily']>
+    readonly fetchFavorites: UnwrapRef<typeof import('./api/favorites')['fetchFavorites']>
     readonly fetchFoodMemory: UnwrapRef<typeof import('./api/preferences')['fetchFoodMemory']>
     readonly fetchFoodPreference: UnwrapRef<typeof import('./api/preferences')['fetchFoodPreference']>
     readonly fetchFridgeItems: UnwrapRef<typeof import('./api/fridge')['fetchFridgeItems']>
@@ -589,6 +607,7 @@ declare module 'vue' {
     readonly fetchMemberBenefits: UnwrapRef<typeof import('./api/virtualCommerce')['fetchMemberBenefits']>
     readonly fetchMonthAlbum: UnwrapRef<typeof import('./api/albums')['fetchMonthAlbum']>
     readonly fetchMyFeedback: UnwrapRef<typeof import('./api/feedback')['fetchMyFeedback']>
+    readonly fetchNutritionReport: UnwrapRef<typeof import('./api/nutritionReport')['fetchNutritionReport']>
     readonly fetchOrders: UnwrapRef<typeof import('./api/gallery')['fetchOrders']>
     readonly fetchProducts: UnwrapRef<typeof import('./api/gallery')['fetchProducts']>
     readonly fetchRecipeDetail: UnwrapRef<typeof import('./api/recipes')['fetchRecipeDetail']>
@@ -604,6 +623,8 @@ declare module 'vue' {
     readonly fetchShareStatus: UnwrapRef<typeof import('./api/share')['fetchShareStatus']>
     readonly fetchStats: UnwrapRef<typeof import('./api/records')['fetchStats']>
     readonly fetchStorageAdvice: UnwrapRef<typeof import('./api/fridge')['fetchStorageAdvice']>
+    readonly fetchThemeAlbumDetail: UnwrapRef<typeof import('./api/themeAlbums')['fetchThemeAlbumDetail']>
+    readonly fetchThemeAlbums: UnwrapRef<typeof import('./api/themeAlbums')['fetchThemeAlbums']>
     readonly fetchVirtualOrder: UnwrapRef<typeof import('./api/virtualCommerce')['fetchVirtualOrder']>
     readonly fetchVirtualOrders: UnwrapRef<typeof import('./api/virtualCommerce')['fetchVirtualOrders']>
     readonly fetchVirtualProducts: UnwrapRef<typeof import('./api/virtualCommerce')['fetchVirtualProducts']>
@@ -645,6 +666,8 @@ declare module 'vue' {
     readonly isReadonly: UnwrapRef<typeof import('vue')['isReadonly']>
     readonly isRef: UnwrapRef<typeof import('vue')['isRef']>
     readonly isSafetyMemory: UnwrapRef<typeof import('./utils/memoryLabels')['isSafetyMemory']>
+    readonly joinFamily: UnwrapRef<typeof import('./api/family')['joinFamily']>
+    readonly leaveFamily: UnwrapRef<typeof import('./api/family')['leaveFamily']>
     readonly loadCookingDraft: UnwrapRef<typeof import('./utils/cookingDraft')['loadCookingDraft']>
     readonly login: UnwrapRef<typeof import('./api/auth')['login']>
     readonly logout: UnwrapRef<typeof import('./api/auth')['logout']>
@@ -729,6 +752,7 @@ declare module 'vue' {
     readonly refreshNavMetrics: UnwrapRef<typeof import('./composables/useNavBar')['refreshNavMetrics']>
     readonly refreshUserInfo: UnwrapRef<typeof import('./utils/login')['refreshUserInfo']>
     readonly refreshWechatLoginForPayment: UnwrapRef<typeof import('./utils/login')['refreshWechatLoginForPayment']>
+    readonly removeFavorite: UnwrapRef<typeof import('./api/favorites')['removeFavorite']>
     readonly replaceDailyMealPlanMeal: UnwrapRef<typeof import('./api/dailyMealPlan')['replaceDailyMealPlanMeal']>
     readonly replacePlanDay: UnwrapRef<typeof import('./api/weeklyPlans')['replacePlanDay']>
     readonly reportPlanDishOutcome: UnwrapRef<typeof import('./api/weeklyPlans')['reportPlanDishOutcome']>
@@ -955,6 +979,7 @@ declare module 'vue' {
     readonly useVModels: UnwrapRef<typeof import('@vueuse/core')['useVModels']>
     readonly useVibrate: UnwrapRef<typeof import('@vueuse/core')['useVibrate']>
     readonly useVirtualList: UnwrapRef<typeof import('@vueuse/core')['useVirtualList']>
+    readonly useVirtualPurchase: UnwrapRef<typeof import('./composables/useVirtualPurchase')['useVirtualPurchase']>
     readonly useWakeLock: UnwrapRef<typeof import('@vueuse/core')['useWakeLock']>
     readonly useWebNotification: UnwrapRef<typeof import('@vueuse/core')['useWebNotification']>
     readonly useWebSocket: UnwrapRef<typeof import('@vueuse/core')['useWebSocket']>
@@ -963,6 +988,7 @@ declare module 'vue' {
     readonly useWindowFocus: UnwrapRef<typeof import('@vueuse/core')['useWindowFocus']>
     readonly useWindowScroll: UnwrapRef<typeof import('@vueuse/core')['useWindowScroll']>
     readonly useWindowSize: UnwrapRef<typeof import('@vueuse/core')['useWindowSize']>
+    readonly useWishlist: UnwrapRef<typeof import('./composables/useWishlist')['useWishlist']>
     readonly watch: UnwrapRef<typeof import('vue')['watch']>
     readonly watchArray: UnwrapRef<typeof import('@vueuse/core')['watchArray']>
     readonly watchAtMost: UnwrapRef<typeof import('@vueuse/core')['watchAtMost']>

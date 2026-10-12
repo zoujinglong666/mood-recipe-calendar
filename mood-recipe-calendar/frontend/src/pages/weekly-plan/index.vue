@@ -8,7 +8,7 @@ import { STATIC_BASE_URL } from '@/utils/assets'
 import { toastError } from '@/utils/toast'
 import { getWindowInfo } from '@/utils/wxSystem'
 
-definePage({ name: 'weekly-plan', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '锅仔备餐小本' } })
+definePage({ name: 'weekly-plan', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '锅仔管饭' } })
 
 import { onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 
@@ -40,7 +40,7 @@ const history = ref<WeeklyPlanSummary[]>([])
 const WEEKLY_PLAN_TOUR_KEY = 'mrc-weekly-plan-tour-version'
 const WEEKLY_PLAN_TOUR_VERSION = 1
 const tourSteps: TourStep[] = [
-  { element: '#weekly-plan-cover', content: '先认识锅仔的备餐本：它会记住口味、忌口和最近的状态，替你少想七次晚餐。', placement: 'bottom' },
+  { element: '#weekly-plan-cover', content: '先认识锅仔管饭：它记得你的口味和忌口，替你少想七次晚餐。', placement: 'bottom' },
   { element: '#weekly-plan-tabs', content: '本周菜单和旧菜单分开放。想照着做看本周，想找收藏过的组合去备餐档案。', placement: 'bottom' },
   { element: '#weekly-plan-current-action', content: '从这里打开本周菜单；不满意也能重新编排。锅仔会一步一步陪你开饭。', placement: 'top' },
 ]
@@ -129,8 +129,8 @@ async function generate() {
   if (currentPlan.value) {
     const confirmed = await new Promise<boolean>((resolve) => {
       uni.showModal({
-        title: '重新生成周计划',
-        content: '将消耗一次 AI 生成，并覆盖当前这册晚餐单，确定继续吗？',
+        title: '重新生成一周菜单',
+        content: '将消耗一次 AI 生成，并覆盖当前一周菜单，确定继续吗？',
         confirmText: '重新生成',
         cancelText: '再想想',
         success: res => resolve(res.confirm),
@@ -146,7 +146,7 @@ async function generate() {
     const job = await generateWeeklyPlan({ people: people.value, days: cookingDays.value.length, cookingDays: cookingDays.value, healthGoal: healthGoal.value, sendNotification: notify, dishesPerDay: dishesPerDay.value })
     const planId = await pollWeeklyPlanJob(job.jobId)
     if (planId != null) router.replace({ name: 'weekly-plan-detail', params: { id: String(planId) } })
-    else toastError(null, '锅仔还在努力排这周，稍后在备餐小本里看结果')
+    else toastError(null, '锅仔还在努力排这周，稍后在锅仔管饭里看结果')
   }
   catch (error) {
     toastError(error, '锅仔暂时没排好这一周，请重试')
@@ -192,7 +192,7 @@ const toggleFavorite = throttleClick(async (id: number) => {
 
 <template>
   <view class="plan-page" :class="{ 'plan-page--peek': showPeek }">
-    <wd-navbar title="锅仔备餐小本" left-arrow safe-area-inset-top custom-style="background-color: transparent !important;" @click-left="navBack" />
+    <wd-navbar title="锅仔管饭" left-arrow safe-area-inset-top custom-style="background-color: transparent !important;" @click-left="navBack" />
 
     <view id="weekly-plan-cover" class="menu-cover">
       <view class="menu-cover__topline">
@@ -213,14 +213,14 @@ const toggleFavorite = throttleClick(async (id: number) => {
         </view>
       </view>
       <view class="menu-cover__footer">
-        <text>07 DAYS · DINNER ONLY</text><view class="tour-replay" role="button" aria-label="重新查看备餐本使用引导" @click.stop="startTour(true)">
+        <text>07 DAYS · DINNER ONLY</text><view class="tour-replay" role="button" aria-label="重新查看使用引导" @click.stop="startTour(true)">
           使用帮助 ›
         </view>
       </view>
     </view>
 
     <view v-if="loading" class="loading" aria-live="polite">
-      锅仔正在翻找你的备餐本…
+      锅仔正在翻看这一周的安排…
     </view>
 
     <template v-else>
@@ -234,7 +234,7 @@ const toggleFavorite = throttleClick(async (id: number) => {
         >
           <wd-tab title="本周菜单" name="current">
             <view class="plan-tab-panel">
-              <view v-if="currentPlan" id="weekly-plan-current-action" class="active-menu" role="button" aria-label="查看当前周计划" @click="openPlan()">
+              <view v-if="currentPlan" id="weekly-plan-current-action" class="active-menu" role="button" aria-label="查看本周菜单" @click="openPlan()">
                 <view class="active-menu__paper">
                   <view class="active-menu__paper-head">
                     <text>锅仔的本周菜单</text><text>{{ dateLabel(currentPlan.createdAt) }} 起</text>
@@ -244,7 +244,7 @@ const toggleFavorite = throttleClick(async (id: number) => {
                       <text class="active-menu__eyebrow">
                         今晚先吃这组
                       </text><text class="active-menu__dish">
-                        {{ currentPlan.days[0]?.dishName || '这一周的晚餐' }}
+                        {{ currentPlan.days[0]?.dishName || '一周菜单' }}
                       </text><text class="active-menu__copy">
                         {{ currentPlan.days.length }} 天、每天 {{ dishesOf(currentPlan.days[0]).length }} 道菜。锅仔已经替你把这一桌想好了。
                       </text>
@@ -302,7 +302,7 @@ const toggleFavorite = throttleClick(async (id: number) => {
                         <text>{{ dateLabel(item.createdAt) }}</text><text>{{ item.days.reduce((total, day) => total + dishesOf(day).length, 0) }} 道菜</text>
                       </view>
                       <text class="archive-card__dish">
-                        {{ item.days[0]?.dishName || '一周晚餐计划' }}
+                        {{ item.days[0]?.dishName || '一周菜单' }}
                       </text><text class="archive-card__copy">
                         {{ item.days.slice(1, 3).map(day => day.dishName).join(' · ') }}
                       </text>

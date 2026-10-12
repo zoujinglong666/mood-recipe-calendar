@@ -1,6 +1,6 @@
 {
   "navigationStyle": "custom",
-  "navigationBarTitleText": "锅仔备餐小本",
+  "navigationBarTitleText": "锅仔管饭",
   "usingComponents": {
     "wd-tour": "../../node-modules/@wot-ui/ui/components/wd-tour/wd-tour",
     "wd-floating-panel": "../../node-modules/@wot-ui/ui/components/wd-floating-panel/wd-floating-panel",

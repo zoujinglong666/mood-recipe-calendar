@@ -1,0 +1,1 @@
+"use strict";const e=require("./request.js");exports.fetchThemeAlbumDetail=function(t){return e.get(`/theme-albums/${encodeURIComponent(t)}`)},exports.fetchThemeAlbums=function(){return e.get("/theme-albums")};

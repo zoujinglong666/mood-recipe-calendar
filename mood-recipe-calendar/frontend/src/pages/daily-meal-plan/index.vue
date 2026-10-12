@@ -87,7 +87,8 @@
       <!-- 底部操作栏 -->
       <view class="action-bar">
         <view class="btn btn-outline" @click="reshuffle">{{ generating ? '规划中…' : '换一整天' }}</view>
-        <view class="btn btn-solid" @click="share">{{ sharing ? '生成中…' : '生成分享图' }}</view>
+        <view class="btn btn-ghost" @click="talkToGuozai">和锅仔聊聊</view>
+        <view class="btn btn-solid" @click="share">{{ sharing ? '生成中…' : '分享图' }}</view>
       </view>
     </template>
 
@@ -295,6 +296,11 @@ async function share() {
     sharing.value = false
     hideLoading()
   }
+}
+
+/** 不满意今天的搭配？把用户引流到锅仔对话，按需重新安排一整周（普通用户不一定知道去 meal-agent 调整） */
+function talkToGuozai() {
+  uni.navigateTo({ url: '/pages/meal-agent/index' })
 }
 
 onLoad(() => load())
@@ -641,6 +647,11 @@ onShareTimeline(() => ({
   background: var(--mrc-primary-deep);
   color: #fff;
   box-shadow: var(--mrc-shadow-coral);
+}
+.btn-ghost {
+  background: var(--mrc-surface);
+  color: var(--mrc-text-deep);
+  border: 2rpx solid var(--mrc-border-strong);
 }
 
 .state {

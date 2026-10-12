@@ -281,7 +281,7 @@ function onBuy() {}
         </view>
         <view v-if="orders.length === 0" class="gallery-empty">
           <image class="gallery-empty__img" :src="STATIC_BASE_URL + '/static/guozai/action_07_empty.png'" mode="aspectFit" />
-          <text class="gallery-empty__text">还没有订单，去菜谱页解锁锅仔的数字权益吧～</text>
+          <text class="gallery-empty__text">还没有订单，去「今日推荐」解锁锅仔的数字权益吧～</text>
         </view>
         <view v-for="o in orders" :key="o.orderNo" class="order-card">
           <image class="order-card__img" :src="STATIC_BASE_URL + '/static/guozai/mood_01_happy.png'" mode="aspectFill" />
@@ -356,7 +356,7 @@ function onBuy() {}
     <SuccessModal
       :visible="showCheckinModal"
       title="签到成功！"
-      :subtitle="`今日锅仔对话 +3 次，已连续签到 ${checkin.streak} 天`"
+      :subtitle="`今日锅仔对话 +3 轮，已连续签到 ${checkin.streak} 天`"
       confirm-text="好的"
       @confirm="showCheckinModal = false"
     />
