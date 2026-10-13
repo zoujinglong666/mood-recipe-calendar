@@ -63,10 +63,13 @@ function buildSegments() {
 }
 
 const discBg = computed(() => {
-  const stops = Array.from({ length: SEG }, (_, i) => {
-    const color = i % 2 ? '#FFF3E6' : '#FFDDBF'
-    return `${color} ${SEG_DEG * i}deg ${SEG_DEG * (i + 1)}deg`
-  })
+  // 极浅暖色阶交替 + 扇区边界 1° 白分隔带：三层以内的装饰语言，不再堆叠
+  const stops: string[] = []
+  for (let i = 0; i < SEG; i++) {
+    const color = i % 2 ? 'var(--mrc-surface-sun)' : 'var(--mrc-surface)'
+    stops.push(`${color} ${SEG_DEG * i}deg ${SEG_DEG * (i + 1) - 1}deg`)
+    stops.push(`#fff ${SEG_DEG * (i + 1) - 1}deg ${SEG_DEG * (i + 1)}deg`)
+  }
   return `conic-gradient(${stops.join(', ')})`
 })
 
@@ -81,6 +84,13 @@ const hubText = computed(() => (phase.value === 'landed' ? '再转' : '转'))
 
 function segAngle(i: number) {
   return SEG_DEG * i + SEG_DEG / 2
+}
+
+/** 扇区图挂了就地清空：退化为纯文字扇区，绝不留空框破图 */
+function onSegImgError(i: number) {
+  const next = [...slots.value]
+  next[i] = { name: next[i].name }
+  slots.value = next
 }
 
 function tapHub() {
@@ -150,19 +160,21 @@ defineExpose({ land, fail })
         <text class="gw__title">锅仔转一转</text>
         <text class="gw__sub">{{ hint }}</text>
       </view>
-      <view class="gw__stage">
+      <view class="gw__stage" :class="{ 'is-spinning': phase === 'spinning' || phase === 'waiting' }">
         <view class="gw__lights" aria-hidden="true">
-          <view v-for="i in 16" :key="i" class="gw__light" :class="{ 'is-even': i % 2 === 0 }" :style="{ transform: `rotate(${(i - 1) * 22.5}deg) translateY(-318rpx)` }" />
+          <view v-for="i in 12" :key="i" class="gw__light" :class="{ 'is-even': i % 2 === 0 }" :style="{ transform: `rotate(${(i - 1) * 30}deg) translateY(-316rpx)` }" />
         </view>
-        <view class="gw__pointer" :style="{ transform: `translate(-50%, -50%) rotate(${rotation}deg)` }" aria-hidden="true">
-          <view class="gw__pointer-needle" />
+        <view class="gw__pointer" aria-hidden="true">
+          <view class="gw__pointer-pin" />
         </view>
         <view class="gw__disc" :class="{ 'is-landed': phase === 'landed' }" :style="{ background: discBg, transform: `rotate(${rotation}deg)` }" @transitionend="onSpinEnd">
           <view v-for="(slot, i) in slots" :key="i" class="gw__seg" :style="{ transform: `rotate(${segAngle(i)}deg)` }">
-            <view v-if="slot.image" class="gw__seg-img">
-              <image :src="slot.image" mode="aspectFill" />
+            <view class="gw__seg-item" :class="{ 'is-text-only': !slot.image }">
+              <view v-if="slot.image" class="gw__seg-img">
+                <image :src="slot.image" mode="aspectFill" @error="onSegImgError(i)" />
+              </view>
+              <text class="gw__seg-text">{{ slot.name }}</text>
             </view>
-            <text class="gw__seg-text">{{ slot.name }}</text>
           </view>
         </view>
         <view class="gw__hub" :class="{ 'is-waiting': phase === 'waiting' }" role="button" :aria-label="phase === 'landed' ? '再转一次' : '转一转换道菜'" @click="tapHub">
@@ -171,7 +183,7 @@ defineExpose({ land, fail })
         </view>
       </view>
       <view v-if="phase === 'landed' && resultName" class="gw__result" role="status">
-        <image v-if="resultImage" class="gw__result-img" :src="resultImage" mode="aspectFill" />
+        <image v-if="resultImage" class="gw__result-img" :src="resultImage" mode="aspectFill" @error="resultImage = ''" />
         <view class="gw__result-copy">
           <text class="gw__result-label">转到了</text>
           <text class="gw__result-name">{{ resultName }}</text>
@@ -197,28 +209,32 @@ defineExpose({ land, fail })
 .gw__sub { min-height: 34rpx; color: var(--mrc-text-sub); font-size: 22rpx; }
 
 .gw__stage { position: relative; width: 600rpx; height: 600rpx; }
-/* 指针：盘正中心一根随盘同步旋转的细针，停下即指向中奖扇区（不再是盘顶突兀大红三角） */
-.gw__pointer { position: absolute; z-index: 6; top: 50%; left: 50%; width: 0; height: 0; }
-.gw__pointer-needle { position: absolute; left: -3rpx; bottom: 0; width: 6rpx; height: 74rpx; border-radius: 999rpx; background: linear-gradient(180deg, var(--mrc-primary-deep) 0%, var(--mrc-accent) 100%); box-shadow: 0 2rpx 8rpx rgba(120, 50, 20, 0.28); }
-.gw__pointer-needle::after { content: ''; position: absolute; top: -13rpx; left: 50%; transform: translateX(-50%); border: 10rpx solid transparent; border-top-width: 0; border-bottom-color: var(--mrc-primary-deep); }
-.gw__disc { position: absolute; inset: 0; border: 14rpx solid #fff; border-radius: 50%; box-shadow: 0 16rpx 40rpx rgba(88, 48, 31, 0.18), var(--mrc-gloss); transition: transform 4.2s cubic-bezier(0.16, 0.84, 0.24, 1); will-change: transform; }
+/* 指针：单元素泪滴定位针（border-radius pin 旋转 45°，尖朝下）——
+   一个元素天然对称，不再有圆头+三角双元素在真机上错位脱节的问题 */
+.gw__pointer { position: absolute; z-index: 7; top: -26rpx; left: 50%; width: 64rpx; height: 64rpx; margin-left: -32rpx; pointer-events: none; }
+.gw__pointer-pin { width: 64rpx; height: 64rpx; box-sizing: border-box; border: 6rpx solid #fff; border-radius: 50% 50% 50% 0; background: var(--mrc-primary-grad); transform: rotate(-45deg); box-shadow: 0 6rpx 16rpx rgba(120, 50, 20, 0.32); }
+.gw__disc { position: absolute; inset: 0; border: 10rpx solid #fff; border-radius: 50%; box-shadow: 0 16rpx 40rpx rgba(88, 48, 31, 0.18), var(--mrc-gloss); transition: transform 4.2s cubic-bezier(0.16, 0.84, 0.24, 1); will-change: transform; }
 .gw__disc.is-landed { animation: gw-land 0.5s ease; }
 @keyframes gw-land { 0% { scale: 1; } 40% { scale: 1.04; } 100% { scale: 1; } }
-.gw__seg { position: absolute; inset: 0; }
-.gw__seg-img { position: absolute; top: 26rpx; left: 50%; width: 84rpx; height: 84rpx; margin-left: -42rpx; overflow: hidden; border: 4rpx solid #fff; border-radius: 50%; background: var(--mrc-surface-2); box-shadow: 0 4rpx 10rpx rgba(88, 48, 31, 0.16); }
+/* 扇区 item：图上文下（NutUI 布局）；无图退化为纯文字，绝不留空框 */
+.gw__seg { position: absolute; inset: 0; display: flex; justify-content: center; align-items: flex-start; }
+.gw__seg-item { display: flex; flex-direction: column; align-items: center; gap: 10rpx; margin-top: 118rpx; width: 150rpx; }
+.gw__seg-item.is-text-only { margin-top: 152rpx; }
+.gw__seg-img { width: 76rpx; height: 76rpx; overflow: hidden; border-radius: 18rpx; box-shadow: 0 4rpx 10rpx rgba(88, 48, 31, 0.14); }
 .gw__seg-img image { width: 100%; height: 100%; }
-/* 扇区文字：放在弧宽更充裕的中段（r146-200），两行截断，避免相邻扇区文字互相层叠 */
-.gw__seg-text { position: absolute; top: 146rpx; left: 50%; width: 124rpx; margin-left: -62rpx; color: var(--mrc-text-deep); font-size: 20rpx; font-weight: 700; line-height: 1.3; text-align: center; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
-.gw__hub { position: absolute; z-index: 4; top: 50%; left: 50%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2rpx; width: 196rpx; height: 196rpx; padding-bottom: 18rpx; border: 8rpx solid #fff; border-radius: 50%; background: var(--mrc-primary-grad); box-shadow: 0 10rpx 26rpx rgba(200, 70, 30, 0.35); transform: translate(-50%, -50%); }
+.gw__seg-text { display: block; max-width: 150rpx; overflow: hidden; color: var(--mrc-text-deep); font-size: 22rpx; font-weight: 700; line-height: 1.2; text-align: center; white-space: nowrap; text-overflow: ellipsis; }
+.gw__hub { position: absolute; z-index: 4; top: 50%; left: 50%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2rpx; width: 176rpx; height: 176rpx; padding-bottom: 16rpx; border: 8rpx solid #fff; border-radius: 50%; background: var(--mrc-primary-grad); box-shadow: 0 10rpx 26rpx rgba(200, 70, 30, 0.35); transform: translate(-50%, -50%); }
 .gw__hub.is-waiting { animation: gw-shake 0.5s ease infinite; }
 @keyframes gw-shake { 0%, 100% { transform: translate(-50%, -50%) rotate(0); } 30% { transform: translate(-50%, -50%) rotate(-7deg); } 70% { transform: translate(-50%, -50%) rotate(7deg); } }
 .gw__hub-img { width: 72rpx; height: 72rpx; }
 .gw__hub-text { color: #fff; font-size: 22rpx; font-weight: 800; }
-/* 外圈灯泡环（NutUI-Bingo turntable 的经典装饰）：静止不随盘转，交替慢闪 */
+/* 外圈灯带：12 颗暖点，待机/旋转时跑马交替闪（NutUI turntable 的灯带节奏） */
 .gw__lights { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
-.gw__light { position: absolute; top: 50%; left: 50%; width: 14rpx; height: 14rpx; margin: -7rpx 0 0 -7rpx; border-radius: 50%; background: #FFD93D; box-shadow: 0 0 8rpx rgba(255, 200, 60, 0.9); }
-.gw__light.is-even { background: #FFF3B8; animation: gw-blink 1.4s ease-in-out infinite; }
-@keyframes gw-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.gw__light { position: absolute; top: 50%; left: 50%; width: 12rpx; height: 12rpx; margin: -6rpx 0 0 -6rpx; border-radius: 50%; background: #FFD93D; }
+.gw__light.is-even { background: #FFE9A8; }
+.gw__stage.is-spinning .gw__light { animation: gw-blink 0.45s ease-in-out infinite; }
+.gw__stage.is-spinning .gw__light.is-even { animation-delay: 0.22s; }
+@keyframes gw-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
 
 /* 中奖结果条：图 + 名 + 确认 CTA */
 .gw__result { display: flex; align-items: center; gap: 20rpx; width: 100%; margin-top: 30rpx; padding: 18rpx 22rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; background: var(--mrc-surface-sun); box-sizing: border-box; animation: gw-pop 0.4s cubic-bezier(0.22, 0.9, 0.3, 1.3) both; }
@@ -235,6 +251,6 @@ defineExpose({ land, fail })
 
 @media (prefers-reduced-motion: reduce) {
   .gw__disc { transition-duration: 0.6s; }
-  .gw__hub.is-waiting, .gw__disc.is-landed, .gw__panel, .gw__light.is-even, .gw__result { animation: none; }
+  .gw__hub.is-waiting, .gw__disc.is-landed, .gw__panel, .gw__result, .gw__stage.is-spinning .gw__light { animation: none; }
 }
 </style>
