@@ -1,0 +1,9 @@
+{
+  "component": true,
+  "usingComponents": {
+    "wd-config-provider": "../node-modules/@wot-ui/ui/components/wd-config-provider/wd-config-provider",
+    "wd-tabbar": "../node-modules/@wot-ui/ui/components/wd-tabbar/wd-tabbar",
+    "wd-tabbar-item": "../node-modules/@wot-ui/ui/components/wd-tabbar-item/wd-tabbar-item",
+    "wd-gap": "../node-modules/@wot-ui/ui/components/wd-gap/wd-gap"
+  }
+}

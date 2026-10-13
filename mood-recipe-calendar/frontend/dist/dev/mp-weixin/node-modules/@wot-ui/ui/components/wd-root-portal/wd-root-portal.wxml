@@ -1,0 +1,1 @@
+<root-portal><view class="{{[a, 'wd-root-portal']}}" style="{{b}}"><slot/></view></root-portal>

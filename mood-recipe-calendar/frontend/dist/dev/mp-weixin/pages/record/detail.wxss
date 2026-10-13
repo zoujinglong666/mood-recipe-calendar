@@ -1,0 +1,441 @@
+/**
+ * 这里是uni-app内置的常用样式变量
+ *
+ * uni-app 官方扩展插件及插件市场（https://ext.dcloud.net.cn）上很多三方插件均使用了这些样式变量
+ * 如果你是插件开发者，建议你使用scss预处理，并在插件代码中直接使用这些变量（无需 import 这个文件），方便用户通过搭积木的方式开发整体风格一致的App
+ *
+ */
+/**
+ * 如果你是App开发者（插件使用者），你可以通过修改这些变量来定制自己的插件主题，实现自定义主题功能
+ *
+ * 如果你的项目同样使用了scss预处理，你也可以直接在你的 scss 代码中使用如下变量，同时无需 import 这个文件
+ */
+/* 颜色变量 */
+/* 行为相关颜色 */
+/* 文字基本颜色 */
+/* 背景颜色 */
+/* 边框颜色 */
+/* 尺寸变量 */
+/* 文字尺寸 */
+/* 图片尺寸 */
+/* Border Radius */
+/* 水平间距 */
+/* 垂直间距 */
+/* 透明度 */
+/* 文章场景相关 */
+.record-detail-page.data-v-ab99db5b {
+  min-height: 100vh;
+  padding: 0 28rpx calc(56rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+.record-detail__mode-switch.data-v-ab99db5b {
+  display: flex;
+  width: -moz-fit-content;
+  width: fit-content;
+  margin: 6rpx auto 22rpx;
+  padding: 4rpx;
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 999rpx;
+  background: rgba(255, 250, 243, 0.72);
+  box-shadow: 0 8rpx 20rpx rgba(88, 48, 31, 0.06);
+}
+.record-detail__mode.data-v-ab99db5b {
+  min-width: 112rpx;
+  min-height: 64rpx;
+  padding: 0 18rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999rpx;
+  color: var(--mrc-text-sub);
+  font-size: 22rpx;
+  font-weight: 700;
+  transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+.record-detail__mode--member.data-v-ab99db5b {
+  min-width: 188rpx;
+  color: var(--mrc-accent);
+}
+.record-detail__mode.is-active.data-v-ab99db5b {
+  color: var(--mrc-text-strong);
+  background: var(--mrc-surface);
+  box-shadow: 0 4rpx 12rpx rgba(88, 48, 31, 0.12);
+}
+.record-detail__intro.data-v-ab99db5b {
+  margin: 14rpx 4rpx 24rpx;
+}
+.record-detail__intro-top.data-v-ab99db5b {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.record-detail__eyebrow.data-v-ab99db5b {
+  color: var(--mrc-accent);
+  font-size: 19rpx;
+  font-weight: 800;
+  letter-spacing: 2.5rpx;
+}
+.record-detail__mood.data-v-ab99db5b {
+  padding: 8rpx 14rpx;
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 999rpx;
+  background: var(--mrc-surface);
+  color: var(--mrc-text-sub);
+  font-size: 19rpx;
+}
+.record-detail__title.data-v-ab99db5b {
+  display: block;
+  margin-top: 18rpx;
+  color: var(--mrc-text-strong);
+  font-size: 52rpx;
+  font-weight: var(--mrc-fw-heavy);
+  letter-spacing: -1rpx;
+  line-height: 1.15;
+}
+.record-detail__meta.data-v-ab99db5b {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-top: 16rpx;
+  color: var(--mrc-text-sub);
+  font-size: 22rpx;
+}
+.record-detail__meta-dot.data-v-ab99db5b {
+  color: var(--mrc-accent);
+  font-weight: 800;
+}
+.record-detail__photos.data-v-ab99db5b {
+  position: relative;
+  display: grid;
+  gap: 8rpx;
+  overflow: hidden;
+  border-radius: 32rpx;
+  background: var(--mrc-surface-2);
+  box-shadow: 0 18rpx 40rpx rgba(88, 48, 31, 0.16);
+}
+.record-detail__photos image.data-v-ab99db5b {
+  width: 100%;
+  height: 100%;
+  min-height: 210rpx;
+  background: var(--mrc-surface-2);
+}
+.record-detail__photos--1.data-v-ab99db5b {
+  grid-template-columns: 1fr;
+}
+.record-detail__photos--1 image.data-v-ab99db5b {
+  min-height: 430rpx;
+}
+.record-detail__photos--2.data-v-ab99db5b {
+  grid-template-columns: repeat(2, 1fr);
+}
+.record-detail__photos--2 image.data-v-ab99db5b {
+  min-height: 300rpx;
+}
+.record-detail__photos--3.data-v-ab99db5b, .record-detail__photos--4.data-v-ab99db5b {
+  grid-template-columns: repeat(2, 1fr);
+}
+.record-detail__photos--3 image.data-v-ab99db5b:first-child {
+  grid-row: span 2;
+}
+.record-detail__photos--5.data-v-ab99db5b, .record-detail__photos--6.data-v-ab99db5b, .record-detail__photos--7.data-v-ab99db5b, .record-detail__photos--8.data-v-ab99db5b, .record-detail__photos--9.data-v-ab99db5b {
+  grid-template-columns: repeat(3, 1fr);
+}
+.record-detail__photo-count.data-v-ab99db5b {
+  position: absolute;
+  right: 18rpx;
+  bottom: 18rpx;
+  padding: 8rpx 14rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.5);
+  border-radius: 999rpx;
+  background: rgba(42, 31, 24, 0.58);
+  color: #fff;
+  font-size: 18rpx;
+}
+.record-detail__note.data-v-ab99db5b {
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+  margin-top: 22rpx;
+  padding: 24rpx 26rpx;
+  border-left: 6rpx solid var(--mrc-accent);
+  border-radius: 4rpx 24rpx 24rpx 4rpx;
+  background: var(--mrc-surface);
+  box-shadow: var(--mrc-shadow-soft);
+}
+.record-detail__note-label.data-v-ab99db5b {
+  color: var(--mrc-accent);
+  font-size: 19rpx;
+  font-weight: 800;
+  letter-spacing: 1rpx;
+}
+.record-detail__note-copy.data-v-ab99db5b {
+  color: var(--mrc-text-deep);
+  font-size: 25rpx;
+  line-height: 1.55;
+}
+.record-detail__note--empty.data-v-ab99db5b {
+  background: var(--mrc-surface-sun);
+}
+.record-detail__note--empty .record-detail__note-copy.data-v-ab99db5b {
+  color: var(--mrc-text-sub);
+  font-size: 22rpx;
+}
+.record-detail__poster.data-v-ab99db5b {
+  overflow: hidden;
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 34rpx;
+  background: #fff9ef;
+  box-shadow: 0 20rpx 44rpx rgba(88, 48, 31, 0.14);
+}
+.record-detail__poster-head.data-v-ab99db5b {
+  position: relative;
+  padding: 32rpx 30rpx 26rpx;
+  background: linear-gradient(135deg, #fffaf1 0%, #f6e2ce 100%);
+}
+.record-detail__poster-brand.data-v-ab99db5b {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  color: var(--mrc-accent);
+  font-size: 18rpx;
+  font-weight: 900;
+  letter-spacing: 3rpx;
+}
+.record-detail__poster-brand-line.data-v-ab99db5b {
+  width: 34rpx;
+  height: 2rpx;
+  background: var(--mrc-accent);
+}
+.record-detail__poster-folio.data-v-ab99db5b {
+  position: absolute;
+  top: 30rpx;
+  right: 28rpx;
+  color: var(--mrc-text-sub);
+  font-family: monospace;
+  font-size: 18rpx;
+  letter-spacing: 1rpx;
+}
+.record-detail__poster-kicker.data-v-ab99db5b {
+  display: block;
+  margin-top: 48rpx;
+  color: var(--mrc-text-sub);
+  font-size: 19rpx;
+  letter-spacing: 2rpx;
+}
+.record-detail__poster-mood.data-v-ab99db5b {
+  position: absolute;
+  right: 26rpx;
+  bottom: 28rpx;
+  padding: 8rpx 16rpx;
+  border: 2rpx solid var(--mrc-accent-soft);
+  border-radius: 999rpx;
+  color: var(--mrc-accent);
+  background: rgba(255, 255, 255, 0.62);
+  font-size: 18rpx;
+}
+.record-detail__poster-title.data-v-ab99db5b {
+  display: -webkit-box;
+  max-width: 82%;
+  margin-top: 12rpx;
+  color: var(--mrc-text-strong);
+  font-size: 52rpx;
+  font-weight: var(--mrc-fw-heavy);
+  line-height: 1.1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.record-detail__poster-meta.data-v-ab99db5b {
+  display: flex;
+  gap: 12rpx;
+  margin-top: 18rpx;
+  color: var(--mrc-text-sub);
+  font-size: 21rpx;
+}
+.record-detail__poster-grid.data-v-ab99db5b {
+  position: relative;
+  display: grid;
+  gap: 6rpx;
+  margin: 0 18rpx;
+  overflow: hidden;
+  border-radius: 4rpx;
+  background: var(--mrc-surface-2);
+}
+.record-detail__poster-grid image.data-v-ab99db5b {
+  width: 100%;
+  height: 100%;
+  min-height: 190rpx;
+  background: var(--mrc-surface-2);
+}
+.record-detail__poster-grid--1.data-v-ab99db5b {
+  grid-template-columns: 1fr;
+}
+.record-detail__poster-grid--1 image.data-v-ab99db5b {
+  min-height: 520rpx;
+}
+.record-detail__poster-grid--2.data-v-ab99db5b {
+  grid-template-columns: repeat(2, 1fr);
+}
+.record-detail__poster-grid--2 image.data-v-ab99db5b {
+  min-height: 360rpx;
+}
+.record-detail__poster-grid--3.data-v-ab99db5b {
+  grid-template-columns: 1.35fr 1fr;
+  grid-template-rows: repeat(2, 220rpx);
+}
+.record-detail__poster-grid--3 image.data-v-ab99db5b:first-child {
+  grid-row: span 2;
+}
+.record-detail__poster-grid--4.data-v-ab99db5b {
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 220rpx);
+}
+.record-detail__poster-grid--5.data-v-ab99db5b, .record-detail__poster-grid--6.data-v-ab99db5b, .record-detail__poster-grid--7.data-v-ab99db5b, .record-detail__poster-grid--8.data-v-ab99db5b, .record-detail__poster-grid--9.data-v-ab99db5b {
+  grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: 190rpx;
+}
+.record-detail__poster-count.data-v-ab99db5b {
+  position: absolute;
+  right: 16rpx;
+  bottom: 14rpx;
+  padding: 8rpx 14rpx;
+  border: 1rpx solid rgba(255, 255, 255, 0.55);
+  border-radius: 999rpx;
+  background: rgba(42, 31, 24, 0.62);
+  color: #fff;
+  font-size: 17rpx;
+  letter-spacing: 1rpx;
+}
+.record-detail__poster-caption.data-v-ab99db5b {
+  display: flex;
+  align-items: stretch;
+  gap: 18rpx;
+  margin: 22rpx 18rpx 16rpx;
+  padding: 22rpx 22rpx 24rpx;
+  border-top: 2rpx solid var(--mrc-border-light);
+  border-bottom: 2rpx solid var(--mrc-border-light);
+  background: rgba(255, 252, 246, 0.78);
+}
+.record-detail__poster-caption-rule.data-v-ab99db5b {
+  width: 6rpx;
+  flex: 0 0 6rpx;
+  border-radius: 999rpx;
+  background: var(--mrc-accent);
+}
+.record-detail__poster-caption-label.data-v-ab99db5b {
+  display: block;
+  color: var(--mrc-accent);
+  font-size: 19rpx;
+  font-weight: 800;
+}
+.record-detail__poster-caption-copy.data-v-ab99db5b {
+  display: block;
+  margin-top: 8rpx;
+  color: var(--mrc-text-deep);
+  font-size: 24rpx;
+  line-height: 1.55;
+}
+.record-detail__poster-caption-mark.data-v-ab99db5b {
+  align-self: flex-end;
+  margin-left: auto;
+  color: var(--mrc-text-sub);
+  font-size: 17rpx;
+  writing-mode: vertical-rl;
+  letter-spacing: 2rpx;
+}
+.record-detail__poster-footer.data-v-ab99db5b {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 30rpx 24rpx;
+  color: var(--mrc-text-sub);
+  font-family: monospace;
+  font-size: 16rpx;
+  letter-spacing: 1rpx;
+}
+.record-detail__server-poster.data-v-ab99db5b {
+  min-height: 720rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 34rpx;
+  background: #fff9ef;
+  box-shadow: 0 20rpx 44rpx rgba(88, 48, 31, 0.14);
+}
+.record-detail__server-poster-image.data-v-ab99db5b {
+  display: block;
+  width: 100%;
+}
+.record-detail__server-poster-loading.data-v-ab99db5b, .record-detail__server-poster-error.data-v-ab99db5b {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18rpx;
+  padding: 60rpx 38rpx;
+  color: var(--mrc-text-strong);
+  font-size: 28rpx;
+  text-align: center;
+}
+.record-detail__server-poster-hint.data-v-ab99db5b {
+  color: var(--mrc-text-sub);
+  font-size: 21rpx;
+  line-height: 1.5;
+}
+.record-detail__server-poster-spinner.data-v-ab99db5b {
+  width: 54rpx;
+  height: 54rpx;
+  border: 5rpx solid var(--mrc-accent-soft);
+  border-top-color: var(--mrc-accent);
+  border-radius: 50%;
+  animation: record-poster-spin-ab99db5b 1s linear infinite;
+}
+.record-detail__server-poster-error.data-v-ab99db5b .gz-btn {
+  min-width: 260rpx;
+}
+.record-detail__actions.data-v-ab99db5b {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+  margin-top: 28rpx;
+}
+.record-detail__actions-row.data-v-ab99db5b {
+  display: flex;
+  gap: 20rpx;
+}
+.record-detail__delete.data-v-ab99db5b {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  min-height: 72rpx;
+  color: var(--mrc-text-light);
+  font-size: 23rpx;
+  transition: opacity 0.15s ease;
+}
+.record-detail__delete.data-v-ab99db5b:active {
+  opacity: 0.55;
+}
+.record-detail__share-canvas.data-v-ab99db5b {
+  position: fixed;
+  left: -9999rpx;
+  top: 0;
+  width: 750rpx;
+  height: 1330rpx;
+}
+@media (prefers-reduced-motion: reduce) {
+.record-detail__mode.data-v-ab99db5b {
+    transition: none;
+}
+}
+@media (prefers-reduced-motion: reduce) {
+.record-detail__server-poster-spinner.data-v-ab99db5b {
+    animation: none;
+}
+}
+@keyframes record-poster-spin-ab99db5b {
+to {
+    transform: rotate(360deg);
+}
+}

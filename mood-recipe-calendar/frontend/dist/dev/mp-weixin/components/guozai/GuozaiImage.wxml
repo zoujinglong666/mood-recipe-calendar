@@ -1,0 +1,1 @@
+<image wx:if="{{a}}" class="guozai-image data-v-88378a1c" src="{{b}}" mode="{{c}}" aria-label="{{d}}" role="img" binderror="{{e}}" bindload="{{f}}" bindtap="{{g}}"/><view wx:else class="{{['guozai-image', 'guozai-image--placeholder', 'data-v-88378a1c', i]}}" aria-label="{{j}}" role="img" bindtap="{{k}}"><text class="guozai-image__emoji data-v-88378a1c">{{h}}</text></view>

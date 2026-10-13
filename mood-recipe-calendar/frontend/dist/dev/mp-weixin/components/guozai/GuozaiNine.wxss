@@ -1,0 +1,293 @@
+/**
+ * 这里是uni-app内置的常用样式变量
+ *
+ * uni-app 官方扩展插件及插件市场（https://ext.dcloud.net.cn）上很多三方插件均使用了这些样式变量
+ * 如果你是插件开发者，建议你使用scss预处理，并在插件代码中直接使用这些变量（无需 import 这个文件），方便用户通过搭积木的方式开发整体风格一致的App
+ *
+ */
+/**
+ * 如果你是App开发者（插件使用者），你可以通过修改这些变量来定制自己的插件主题，实现自定义主题功能
+ *
+ * 如果你的项目同样使用了scss预处理，你也可以直接在你的 scss 代码中使用如下变量，同时无需 import 这个文件
+ */
+/* 颜色变量 */
+/* 行为相关颜色 */
+/* 文字基本颜色 */
+/* 背景颜色 */
+/* 边框颜色 */
+/* 尺寸变量 */
+/* 文字尺寸 */
+/* 图片尺寸 */
+/* Border Radius */
+/* 水平间距 */
+/* 垂直间距 */
+/* 透明度 */
+/* 文章场景相关 */
+.gn.data-v-ead2bddb {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gn__mask.data-v-ead2bddb {
+  position: absolute;
+  inset: 0;
+  background: rgba(43, 24, 14, 0.55);
+}
+.gn__panel.data-v-ead2bddb {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 640rpx;
+  padding: 44rpx 30rpx calc(40rpx + env(safe-area-inset-bottom));
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 44rpx;
+  background: var(--mrc-surface);
+  box-shadow: 0 30rpx 70rpx rgba(60, 30, 14, 0.35);
+  animation: gn-in-ead2bddb 0.32s cubic-bezier(0.22, 0.9, 0.3, 1.2) both;
+}
+@keyframes gn-in-ead2bddb {
+from {
+    opacity: 0;
+    transform: scale(0.86) translateY(40rpx);
+}
+to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+}
+}
+.gn__close.data-v-ead2bddb {
+  position: absolute;
+  top: 24rpx;
+  right: 28rpx;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background: var(--mrc-surface-2);
+  color: var(--mrc-text-sub);
+  font-size: 26rpx;
+}
+.gn__head.data-v-ead2bddb {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+  margin-bottom: 30rpx;
+}
+.gn__eyebrow.data-v-ead2bddb {
+  color: var(--mrc-accent);
+  font-size: 18rpx;
+  font-weight: 800;
+  letter-spacing: 3rpx;
+}
+.gn__title.data-v-ead2bddb {
+  color: var(--mrc-text-strong);
+  font-size: 40rpx;
+  font-weight: 800;
+}
+.gn__sub.data-v-ead2bddb {
+  min-height: 34rpx;
+  color: var(--mrc-text-sub);
+  font-size: 22rpx;
+}
+.gn__grid.data-v-ead2bddb {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14rpx;
+  width: 100%;
+  padding: 22rpx;
+  border: 4rpx solid #FFD93D;
+  border-radius: 32rpx;
+  background: var(--mrc-primary-grad);
+  box-shadow: var(--mrc-shadow-coral);
+  box-sizing: border-box;
+}
+.gn__cell.data-v-ead2bddb {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  min-height: 170rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.7);
+  border-radius: 22rpx;
+  background: #FFF9F0;
+  box-sizing: border-box;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+}
+.gn__cell.is-dim.data-v-ead2bddb {
+  filter: saturate(0.6) brightness(0.96);
+}
+.gn__cell.is-run.data-v-ead2bddb {
+  transform: scale(1.05);
+  border-color: #FFD93D;
+  box-shadow: 0 0 18rpx rgba(255, 200, 60, 0.85);
+}
+.gn__cell.is-win.data-v-ead2bddb {
+  transform: scale(1.08);
+  border-color: #F2542D;
+  background: #FFF0E4;
+  box-shadow: 0 0 24rpx rgba(242, 84, 45, 0.45);
+  animation: gn-win-ead2bddb 0.55s ease;
+}
+@keyframes gn-win-ead2bddb {
+0% {
+    transform: scale(1.2);
+}
+60% {
+    transform: scale(1.02);
+}
+100% {
+    transform: scale(1.08);
+}
+}
+.gn__cell-img.data-v-ead2bddb {
+  width: 92rpx;
+  height: 92rpx;
+  overflow: hidden;
+  border-radius: 18rpx;
+  background: var(--mrc-surface-2);
+}
+.gn__cell-img image.data-v-ead2bddb {
+  width: 100%;
+  height: 100%;
+}
+.gn__cell-img--blank.data-v-ead2bddb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--mrc-surface-peach);
+  color: var(--mrc-accent);
+  font-size: 34rpx;
+  font-weight: 800;
+}
+.gn__cell-name.data-v-ead2bddb {
+  max-width: 100%;
+  padding: 0 8rpx;
+  color: var(--mrc-text-deep);
+  font-size: 20rpx;
+  font-weight: 700;
+  text-align: center;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  box-sizing: border-box;
+}
+.gn__center.data-v-ead2bddb {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4rpx;
+  border-radius: 22rpx;
+  background: var(--mrc-primary-grad);
+  box-shadow: 0 6rpx 18rpx rgba(200, 70, 30, 0.4);
+  min-height: 170rpx;
+}
+.gn__center.is-running.data-v-ead2bddb {
+  animation: gn-shake-ead2bddb 0.5s ease infinite;
+}
+@keyframes gn-shake-ead2bddb {
+0%, 100% {
+    transform: rotate(0);
+}
+30% {
+    transform: rotate(-4deg);
+}
+70% {
+    transform: rotate(4deg);
+}
+}
+.gn__center-img.data-v-ead2bddb {
+  width: 92rpx;
+  height: 92rpx;
+  filter: drop-shadow(0 4rpx 8rpx rgba(0, 0, 0, 0.15));
+}
+.gn__center-text.data-v-ead2bddb {
+  color: #fff;
+  font-size: 22rpx;
+  font-weight: 800;
+}
+.gn__result.data-v-ead2bddb {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  width: 100%;
+  margin-top: 30rpx;
+  padding: 18rpx 22rpx;
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 28rpx;
+  background: var(--mrc-surface-sun);
+  box-sizing: border-box;
+  animation: gn-pop-ead2bddb 0.4s cubic-bezier(0.22, 0.9, 0.3, 1.3) both;
+}
+@keyframes gn-pop-ead2bddb {
+from {
+    opacity: 0;
+    transform: translateY(24rpx) scale(0.94);
+}
+to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+}
+.gn__result-img.data-v-ead2bddb {
+  width: 84rpx;
+  height: 84rpx;
+  flex: 0 0 84rpx;
+  overflow: hidden;
+  border-radius: 20rpx;
+  background: var(--mrc-surface-2);
+}
+.gn__result-copy.data-v-ead2bddb {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 4rpx;
+}
+.gn__result-label.data-v-ead2bddb {
+  color: var(--mrc-text-sub);
+  font-size: 19rpx;
+}
+.gn__result-name.data-v-ead2bddb {
+  color: var(--mrc-text-deep);
+  font-size: 27rpx;
+  font-weight: 800;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.gn__result-btn.data-v-ead2bddb {
+  flex: 0 0 auto;
+  padding: 14rpx 30rpx;
+  border-radius: 999rpx;
+  background: var(--mrc-primary-grad);
+  color: #fff;
+  font-size: 24rpx;
+  font-weight: 800;
+  box-shadow: var(--mrc-shadow-coral);
+}
+.gn__result-btn.data-v-ead2bddb:active {
+  transform: scale(0.95);
+}
+.gn__foot.data-v-ead2bddb {
+  margin-top: 30rpx;
+}
+.gn__foot-text.data-v-ead2bddb {
+  color: var(--mrc-text-light);
+  font-size: 20rpx;
+}
+@media (prefers-reduced-motion: reduce) {
+.gn__center.is-running.data-v-ead2bddb, .gn__cell.is-win.data-v-ead2bddb, .gn__panel.data-v-ead2bddb, .gn__result.data-v-ead2bddb {
+    animation: none;
+}
+}

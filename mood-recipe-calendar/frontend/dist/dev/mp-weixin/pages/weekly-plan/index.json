@@ -1,0 +1,11 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "锅仔管饭",
+  "usingComponents": {
+    "wd-tour": "../../node-modules/@wot-ui/ui/components/wd-tour/wd-tour",
+    "wd-floating-panel": "../../node-modules/@wot-ui/ui/components/wd-floating-panel/wd-floating-panel",
+    "wd-tabs": "../../node-modules/@wot-ui/ui/components/wd-tabs/wd-tabs",
+    "wd-tab": "../../node-modules/@wot-ui/ui/components/wd-tab/wd-tab",
+    "wd-navbar": "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar"
+  }
+}

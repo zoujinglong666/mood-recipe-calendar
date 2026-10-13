@@ -1,0 +1,8 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "隐私政策",
+  "usingComponents": {
+    "wd-navbar": "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar",
+    "icon": "../../components/common/Icon"
+  }
+}

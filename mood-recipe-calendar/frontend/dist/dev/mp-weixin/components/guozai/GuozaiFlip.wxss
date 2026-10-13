@@ -1,0 +1,338 @@
+/**
+ * 这里是uni-app内置的常用样式变量
+ *
+ * uni-app 官方扩展插件及插件市场（https://ext.dcloud.net.cn）上很多三方插件均使用了这些样式变量
+ * 如果你是插件开发者，建议你使用scss预处理，并在插件代码中直接使用这些变量（无需 import 这个文件），方便用户通过搭积木的方式开发整体风格一致的App
+ *
+ */
+/**
+ * 如果你是App开发者（插件使用者），你可以通过修改这些变量来定制自己的插件主题，实现自定义主题功能
+ *
+ * 如果你的项目同样使用了scss预处理，你也可以直接在你的 scss 代码中使用如下变量，同时无需 import 这个文件
+ */
+/* 颜色变量 */
+/* 行为相关颜色 */
+/* 文字基本颜色 */
+/* 背景颜色 */
+/* 边框颜色 */
+/* 尺寸变量 */
+/* 文字尺寸 */
+/* 图片尺寸 */
+/* Border Radius */
+/* 水平间距 */
+/* 垂直间距 */
+/* 透明度 */
+/* 文章场景相关 */
+.gnf.data-v-60591660 {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.gnf__mask.data-v-60591660 {
+  position: absolute;
+  inset: 0;
+  background: rgba(43, 24, 14, 0.55);
+}
+.gnf__panel.data-v-60591660 {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 640rpx;
+  padding: 44rpx 30rpx calc(40rpx + env(safe-area-inset-bottom));
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 44rpx;
+  background: var(--mrc-surface);
+  box-shadow: 0 30rpx 70rpx rgba(60, 30, 14, 0.35);
+  animation: gnf-in-60591660 0.32s cubic-bezier(0.22, 0.9, 0.3, 1.2) both;
+}
+@keyframes gnf-in-60591660 {
+from {
+    opacity: 0;
+    transform: scale(0.86) translateY(40rpx);
+}
+to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+}
+}
+.gnf__close.data-v-60591660 {
+  position: absolute;
+  top: 24rpx;
+  right: 28rpx;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background: var(--mrc-surface-2);
+  color: var(--mrc-text-sub);
+  font-size: 26rpx;
+}
+.gnf__head.data-v-60591660 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+  margin-bottom: 30rpx;
+}
+.gnf__eyebrow.data-v-60591660 {
+  color: var(--mrc-accent);
+  font-size: 18rpx;
+  font-weight: 800;
+  letter-spacing: 3rpx;
+}
+.gnf__title.data-v-60591660 {
+  color: var(--mrc-text-strong);
+  font-size: 40rpx;
+  font-weight: 800;
+}
+.gnf__sub.data-v-60591660 {
+  min-height: 34rpx;
+  color: var(--mrc-text-sub);
+  font-size: 22rpx;
+}
+.gnf__grid.data-v-60591660 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14rpx;
+  width: 100%;
+  padding: 22rpx;
+  border: 4rpx solid #FFD93D;
+  border-radius: 32rpx;
+  background: var(--mrc-primary-grad);
+  box-shadow: var(--mrc-shadow-coral);
+  box-sizing: border-box;
+}
+.gnf__cellbox.data-v-60591660 {
+  perspective: 700rpx;
+}
+.gnf__flip.data-v-60591660 {
+  position: relative;
+  width: 100%;
+  height: 170rpx;
+  transform-style: preserve-3d;
+  transition: transform 0.7s cubic-bezier(0.35, 0.1, 0.25, 1.05);
+}
+.gnf__flip.is-flipped.data-v-60591660 {
+  transform: rotateY(180deg);
+}
+
+/* 原地波浪洗牌：随机横向漂移 + 倾角 + 缩放，逐张推进，卡片不出宫格 */
+.gnf__flip.is-waving.data-v-60591660 {
+  animation: gnf-wave-60591660 0.65s ease-in-out 2;
+}
+@keyframes gnf-wave-60591660 {
+0% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+}
+50% {
+    transform: translate3d(var(--wave-x, 0), -20rpx, 0) rotate(var(--wave-r, 4deg)) scale(var(--wave-s, 1.06));
+}
+100% {
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+}
+}
+.gnf__face.data-v-60591660 {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  overflow: hidden;
+  border: 2rpx solid rgba(255, 255, 255, 0.75);
+  border-radius: 22rpx;
+  box-sizing: border-box;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.gnf__face--front.data-v-60591660 {
+  background: linear-gradient(150deg, #FFF6EC 0%, #FFE3CC 100%);
+  box-shadow: inset 0 0 0 6rpx rgba(255, 255, 255, 0.55);
+}
+.gnf__face-logo.data-v-60591660 {
+  width: 76rpx;
+  height: 76rpx;
+  opacity: 0.9;
+}
+.gnf__face-mark.data-v-60591660 {
+  color: var(--mrc-accent);
+  font-size: 20rpx;
+  font-weight: 800;
+  letter-spacing: 4rpx;
+}
+
+/* 牌背：手账便签风——通栏大图 + 虚线分隔 + 菜名条，替代原来上下挤在一起的小图小字 */
+.gnf__face--back.data-v-60591660 {
+  padding: 10rpx 10rpx 0;
+  background: linear-gradient(170deg, #FFFDF7 0%, #FFF3E2 100%);
+  transform: rotateY(180deg);
+}
+.gnf__face--back.data-v-60591660::after {
+  content: "";
+  position: absolute;
+  top: 124rpx;
+  left: 14rpx;
+  right: 14rpx;
+  border-top: 2rpx dashed var(--mrc-border-strong);
+  opacity: 0.45;
+}
+.gnf__card-img.data-v-60591660 {
+  width: 100%;
+  height: 102rpx;
+  overflow: hidden;
+  border: 4rpx solid #fff;
+  border-radius: 16rpx;
+  background: var(--mrc-surface-2);
+  box-shadow: 0 4rpx 10rpx rgba(88, 48, 31, 0.14);
+}
+.gnf__card-img image.data-v-60591660 {
+  width: 100%;
+  height: 100%;
+}
+.gnf__card-img--blank.data-v-60591660 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--mrc-surface-peach);
+  color: var(--mrc-accent);
+  font-size: 32rpx;
+  font-weight: 800;
+}
+.gnf__card-name.data-v-60591660 {
+  max-width: 100%;
+  margin-top: 10rpx;
+  padding: 0 6rpx;
+  color: var(--mrc-text-deep);
+  font-size: 21rpx;
+  font-weight: 800;
+  text-align: center;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  box-sizing: border-box;
+}
+.gnf__center.data-v-60591660 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4rpx;
+  min-height: 170rpx;
+  border-radius: 22rpx;
+  background: var(--mrc-primary-grad);
+  box-shadow: 0 6rpx 18rpx rgba(200, 70, 30, 0.4);
+}
+.gnf__center.is-dealing.data-v-60591660 {
+  animation: gnf-shake-60591660 0.5s ease infinite;
+}
+@keyframes gnf-shake-60591660 {
+0%, 100% {
+    transform: rotate(0);
+}
+30% {
+    transform: rotate(-4deg);
+}
+70% {
+    transform: rotate(4deg);
+}
+}
+.gnf__center-img.data-v-60591660 {
+  width: 88rpx;
+  height: 88rpx;
+  filter: drop-shadow(0 4rpx 8rpx rgba(0, 0, 0, 0.15));
+}
+.gnf__center-text.data-v-60591660 {
+  color: #fff;
+  font-size: 22rpx;
+  font-weight: 800;
+}
+.gnf__result.data-v-60591660 {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  width: 100%;
+  margin-top: 30rpx;
+  padding: 18rpx 22rpx;
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 28rpx;
+  background: var(--mrc-surface-sun);
+  box-sizing: border-box;
+  animation: gnf-pop-60591660 0.4s cubic-bezier(0.22, 0.9, 0.3, 1.3) both;
+}
+@keyframes gnf-pop-60591660 {
+from {
+    opacity: 0;
+    transform: translateY(24rpx) scale(0.94);
+}
+to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+}
+.gnf__result-img.data-v-60591660 {
+  width: 84rpx;
+  height: 84rpx;
+  flex: 0 0 84rpx;
+  overflow: hidden;
+  border-radius: 20rpx;
+  background: var(--mrc-surface-2);
+}
+.gnf__result-copy.data-v-60591660 {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 4rpx;
+}
+.gnf__result-label.data-v-60591660 {
+  color: var(--mrc-text-sub);
+  font-size: 19rpx;
+}
+.gnf__result-name.data-v-60591660 {
+  color: var(--mrc-text-deep);
+  font-size: 27rpx;
+  font-weight: 800;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.gnf__result-btn.data-v-60591660 {
+  flex: 0 0 auto;
+  padding: 14rpx 30rpx;
+  border-radius: 999rpx;
+  background: var(--mrc-primary-grad);
+  color: #fff;
+  font-size: 24rpx;
+  font-weight: 800;
+  box-shadow: var(--mrc-shadow-coral);
+}
+.gnf__result-btn.data-v-60591660:active {
+  transform: scale(0.95);
+}
+.gnf__foot.data-v-60591660 {
+  margin-top: 30rpx;
+}
+.gnf__foot-text.data-v-60591660 {
+  color: var(--mrc-text-light);
+  font-size: 20rpx;
+}
+@media (prefers-reduced-motion: reduce) {
+.gnf__flip.data-v-60591660 {
+    transition-duration: 0.25s;
+}
+.gnf__flip.is-waving.data-v-60591660 {
+    animation: none;
+}
+.gnf__center.is-dealing.data-v-60591660, .gnf__panel.data-v-60591660, .gnf__result.data-v-60591660 {
+    animation: none;
+}
+}

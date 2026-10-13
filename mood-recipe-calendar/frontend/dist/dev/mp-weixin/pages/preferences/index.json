@@ -1,0 +1,10 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "锅仔记忆",
+  "usingComponents": {
+    "wd-collapse": "../../node-modules/@wot-ui/ui/components/wd-collapse/wd-collapse",
+    "wd-collapse-item": "../../node-modules/@wot-ui/ui/components/wd-collapse-item/wd-collapse-item",
+    "wd-switch": "../../node-modules/@wot-ui/ui/components/wd-switch/wd-switch",
+    "wd-navbar": "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar"
+  }
+}

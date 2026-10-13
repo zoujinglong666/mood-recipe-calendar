@@ -1,0 +1,7 @@
+{
+  "component": true,
+  "usingComponents": {
+    "icon": "../common/Icon",
+    "mood-picker": "../guozai/MoodPicker"
+  }
+}

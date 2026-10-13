@@ -1,0 +1,8 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "编辑这顿饭",
+  "usingComponents": {
+    "wd-navbar": "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar",
+    "record-editor-form": "../../components/record/RecordEditorForm"
+  }
+}

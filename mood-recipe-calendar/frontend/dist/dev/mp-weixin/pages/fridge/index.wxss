@@ -1,0 +1,699 @@
+/**
+ * 这里是uni-app内置的常用样式变量
+ *
+ * uni-app 官方扩展插件及插件市场（https://ext.dcloud.net.cn）上很多三方插件均使用了这些样式变量
+ * 如果你是插件开发者，建议你使用scss预处理，并在插件代码中直接使用这些变量（无需 import 这个文件），方便用户通过搭积木的方式开发整体风格一致的App
+ *
+ */
+/**
+ * 如果你是App开发者（插件使用者），你可以通过修改这些变量来定制自己的插件主题，实现自定义主题功能
+ *
+ * 如果你的项目同样使用了scss预处理，你也可以直接在你的 scss 代码中使用如下变量，同时无需 import 这个文件
+ */
+/* 颜色变量 */
+/* 行为相关颜色 */
+/* 文字基本颜色 */
+/* 背景颜色 */
+/* 边框颜色 */
+/* 尺寸变量 */
+/* 文字尺寸 */
+/* 图片尺寸 */
+/* Border Radius */
+/* 水平间距 */
+/* 垂直间距 */
+/* 透明度 */
+/* 文章场景相关 */
+/* finesse · register=h5 · morph=A.1-daily-desk · A=warm-cream+coral+deep-cocoa
+ * B=heavy-800/regular · C=counter-panel+drawer-handle+marked-rows · D=R1-css-only
+ * E=kitchen-counter-woodgrain · SOUL=7 SPECTACLE=3 DENSITY=5 */
+/* 页面局部令牌：全部由主题变量推导，不新增硬编码色板 */
+.fridge-page.data-v-f26f7345 {
+  --mrc-counter-deep: #1C6B52;
+  --mrc-counter-mid: #2E8B6C;
+  --mrc-counter-line: rgba(255, 255, 255, .16);
+  /* 冰箱页整体换淡青体系：页内卡面/次级面/描边全部映射到薄荷青，不再漏暖色 */
+  --mrc-bg: var(--mrc-surface-mint);
+  --mrc-surface: #FFFFFF;
+  --mrc-surface-2: #E6F4EC;
+  --mrc-surface-3: #D7EDE1;
+  --mrc-surface-peach: #E1F3E9;
+  --mrc-surface-sun: #EAF7F0;
+  --mrc-border: #C9E5D8;
+  --mrc-border-light: #D8EDE2;
+  --mrc-border-strong: #AED4C3;
+  --mrc-text-light: #8FB3A4;
+  /* 按钮主色也换薄荷：GuozaiButton 的主 CTA 在页内自动变绿；警示/会员徽章仍走珊瑚 accent */
+  --mrc-primary: #58CFA8;
+  --mrc-color-primary: #1C8B66;
+  --mrc-color-on-primary: #FFFFFF;
+  --mrc-shadow-coral: 0 12rpx 26rpx rgba(28, 139, 102, .35);
+  min-height: 100vh;
+  padding: 0 28rpx calc(48rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  color: var(--mrc-text);
+  background: var(--mrc-bg);
+}
+.eyebrow.data-v-f26f7345 {
+  display: block;
+  color: var(--mrc-accent);
+  font-size: 18rpx;
+  font-weight: 800;
+  letter-spacing: 2rpx;
+}
+
+/* ===== 顶部吧台面板：角色 + 一句结论 + 一个数字 ===== */
+.counter.data-v-f26f7345 {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin: 8rpx 0 26rpx;
+  padding: 26rpx 24rpx;
+  border: 2rpx solid var(--mrc-counter-line);
+  border-radius: 34rpx;
+  background: linear-gradient(150deg, var(--mrc-counter-deep) 0%, var(--mrc-counter-mid) 72%, #3BA37F 100%);
+  box-shadow: 0 16rpx 40rpx -14rpx rgba(23, 74, 56, 0.45);
+  overflow: hidden;
+}
+
+/* 台面反光：一圈极淡的弧线，只有一层，不堆玻璃效果 */
+.counter__glow.data-v-f26f7345 {
+  position: absolute;
+  top: -150rpx;
+  right: -110rpx;
+  width: 330rpx;
+  height: 330rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.18);
+  border-radius: 50%;
+}
+.counter__gz.data-v-f26f7345 {
+  position: relative;
+  z-index: 1;
+  width: 142rpx;
+  height: 142rpx;
+  flex: 0 0 auto;
+  margin: -14rpx -6rpx -14rpx -10rpx;
+}
+.counter__copy.data-v-f26f7345 {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 10rpx;
+}
+.counter__title.data-v-f26f7345 {
+  color: #F0FBF5;
+  font-size: 37rpx;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.5rpx;
+}
+.counter__line.data-v-f26f7345 {
+  color: rgba(234, 250, 242, 0.72);
+  font-size: 21rpx;
+  line-height: 1.45;
+}
+.counter__dial.data-v-f26f7345 {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: 112rpx;
+  height: 112rpx;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--mrc-mint);
+  box-shadow: inset 0 0 0 6rpx rgba(255, 255, 255, 0.22);
+}
+.counter__dial.is-clear.data-v-f26f7345 {
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 0 0 2rpx rgba(255, 255, 255, 0.34);
+}
+.counter__num.data-v-f26f7345 {
+  color: #FFFFFF;
+  font-size: 40rpx;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.counter__dial.is-clear .counter__num.data-v-f26f7345, .counter__dial.is-clear .counter__unit.data-v-f26f7345 {
+  color: #F0FBF5;
+}
+.counter__unit.data-v-f26f7345 {
+  margin-top: 6rpx;
+  color: #FFFFFF;
+  font-size: 17rpx;
+  font-weight: 700;
+  opacity: 0.82;
+}
+
+/* ===== 库存标题 ===== */
+.page-heading.data-v-f26f7345 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18rpx;
+  margin-bottom: 16rpx;
+}
+.page-heading__title.data-v-f26f7345 {
+  display: block;
+  color: var(--mrc-text-deep);
+  font-size: 31rpx;
+  font-weight: 800;
+}
+.page-heading__sub.data-v-f26f7345 {
+  display: block;
+  margin-top: 6rpx;
+  color: var(--mrc-text-sub);
+  font-size: 20rpx;
+}
+.page-heading .gz-btn.data-v-f26f7345 {
+  min-height: 70rpx;
+  padding: 0 20rpx;
+  font-size: 21rpx;
+}
+
+/* ===== 木质抽屉把手：锅仔举相机，整条可点 ===== */
+.drawer-handle.data-v-f26f7345 {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  margin-bottom: 22rpx;
+  padding: 22rpx 24rpx 22rpx 20rpx;
+  border-radius: 28rpx;
+  border: 2rpx solid var(--mrc-border);
+  background: linear-gradient(135deg, var(--mrc-surface-2) 0%, var(--mrc-surface) 62%);
+  box-shadow: 0 6rpx 20rpx -8rpx rgba(176, 116, 74, 0.34);
+  overflow: hidden;
+  transition: transform var(--mrc-motion-fast), box-shadow var(--mrc-motion-fast);
+}
+.drawer-handle.data-v-f26f7345:active {
+  transform: scale(0.985);
+  box-shadow: 0 3rpx 10rpx -6rpx rgba(176, 116, 74, 0.4);
+}
+
+/* 把手凹槽：一条内阴影，不是装饰线条 */
+.drawer-handle__grab.data-v-f26f7345 {
+  position: absolute;
+  top: 22rpx;
+  bottom: 22rpx;
+  left: 0;
+  width: 10rpx;
+  background: linear-gradient(180deg, var(--mrc-mint) 0%, #1C6B52 100%);
+  border-radius: 0 8rpx 8rpx 0;
+  opacity: 0.9;
+}
+.drawer-handle__gz.data-v-f26f7345 {
+  width: 104rpx;
+  height: 104rpx;
+  flex: 0 0 auto;
+}
+.drawer-handle__body.data-v-f26f7345 {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 7rpx;
+}
+.drawer-handle__head.data-v-f26f7345 {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.drawer-handle__title.data-v-f26f7345 {
+  color: var(--mrc-text-deep);
+  font-size: 28rpx;
+  font-weight: 800;
+}
+.drawer-handle__badge.data-v-f26f7345 {
+  padding: 2rpx 12rpx;
+  border-radius: 20rpx;
+  background: var(--mrc-accent-soft);
+  color: var(--mrc-accent);
+  font-size: 17rpx;
+  font-weight: 800;
+  letter-spacing: 1rpx;
+}
+.drawer-handle__sub.data-v-f26f7345 {
+  color: var(--mrc-text-sub);
+  font-size: 20rpx;
+  line-height: 1.45;
+}
+.drawer-handle__arrow.data-v-f26f7345 {
+  flex: 0 0 auto;
+  color: var(--mrc-text-light);
+  font-size: 40rpx;
+  font-weight: 300;
+  line-height: 1;
+}
+.recognizing-card.data-v-f26f7345 {
+  margin-bottom: 18rpx;
+  padding: 34rpx 28rpx;
+  border: 2rpx dashed var(--mrc-accent);
+  border-radius: 26rpx;
+  background: var(--mrc-surface-peach);
+  color: var(--mrc-accent);
+  font-size: 23rpx;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* ===== 分区与食材行 ===== */
+.state-card.data-v-f26f7345, .empty-card.data-v-f26f7345, .inventory-section.data-v-f26f7345 {
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 28rpx;
+  background: var(--mrc-surface);
+  box-shadow: var(--mrc-shadow-soft);
+}
+.state-card.data-v-f26f7345 {
+  padding: 100rpx 28rpx;
+  text-align: center;
+  color: var(--mrc-text-sub);
+  font-size: 24rpx;
+}
+.state-card--error.data-v-f26f7345 {
+  color: var(--mrc-accent);
+}
+.empty-card.data-v-f26f7345 {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  padding: 38rpx 28rpx;
+  text-align: center;
+}
+.empty-card__title.data-v-f26f7345 {
+  color: var(--mrc-text-deep);
+  font-size: 30rpx;
+  font-weight: 800;
+}
+.empty-card__copy.data-v-f26f7345 {
+  color: var(--mrc-text-sub);
+  font-size: 22rpx;
+  line-height: 1.55;
+}
+.inventory-section.data-v-f26f7345 {
+  overflow: hidden;
+  margin-bottom: 18rpx;
+}
+.section-title.data-v-f26f7345 {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14rpx;
+  padding: 22rpx 24rpx;
+  border-bottom: 2rpx solid var(--mrc-border-light);
+  color: var(--mrc-text-deep);
+  font-size: 25rpx;
+  font-weight: 800;
+}
+.section-title text.data-v-f26f7345:last-child {
+  flex: 0 0 auto;
+  color: var(--mrc-text-sub);
+  font-size: 18rpx;
+  font-weight: 500;
+}
+.food-row.data-v-f26f7345 {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+  min-height: 104rpx;
+  padding: 16rpx 24rpx;
+  border-bottom: 2rpx solid var(--mrc-border-light);
+  transition: opacity 220ms ease-out;
+}
+.food-row.data-v-f26f7345:last-child {
+  border-bottom: 0;
+}
+
+/* 被划掉的一道：临期行左侧的记号，像真的在清单上划了一笔 */
+.food-row__mark.data-v-f26f7345 {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 7rpx;
+  height: 46rpx;
+  margin-top: -23rpx;
+  border-radius: 0 6rpx 6rpx 0;
+  background: var(--mrc-accent);
+}
+.food-row__main.data-v-f26f7345 {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 7rpx;
+}
+.food-row__name.data-v-f26f7345 {
+  color: var(--mrc-text-deep);
+  font-size: 27rpx;
+  font-weight: 800;
+}
+.food-row__meta.data-v-f26f7345 {
+  color: var(--mrc-text-sub);
+  font-size: 20rpx;
+  font-variant-numeric: tabular-nums;
+}
+.food-row--soon .food-row__meta.data-v-f26f7345 {
+  color: var(--mrc-accent);
+  font-weight: 700;
+}
+.food-row--expired .food-row__name.data-v-f26f7345 {
+  color: var(--mrc-text-sub);
+  text-decoration: line-through;
+}
+.food-row--expired .food-row__meta.data-v-f26f7345 {
+  color: var(--mrc-text-light);
+}
+
+/* 动作按主次排：主动作是一枚药丸，编辑退成安静文字 */
+.food-row__actions.data-v-f26f7345 {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8rpx;
+}
+.food-row__act.data-v-f26f7345 {
+  display: flex;
+  min-height: 62rpx;
+  align-items: center;
+  justify-content: center;
+  padding: 0 20rpx;
+  border-radius: 999rpx;
+  color: var(--mrc-text);
+  font-size: 20rpx;
+  font-weight: 750;
+}
+.food-row__act.is-primary.data-v-f26f7345 {
+  background: var(--mrc-accent-soft);
+  color: var(--mrc-accent);
+}
+.food-row__act.is-quiet.data-v-f26f7345 {
+  padding: 0 12rpx;
+  color: var(--mrc-text-light);
+  font-weight: 600;
+}
+.food-row--expired .food-row__act.data-v-f26f7345 {
+  color: var(--mrc-text-sub);
+}
+.food-row__act.data-v-f26f7345:active {
+  opacity: 0.6;
+}
+
+/* ===== 临期提醒：出现在食材旁边，而不是页面顶部 ===== */
+.rake.data-v-f26f7345 {
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  margin-bottom: 18rpx;
+  padding: 22rpx 24rpx;
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 28rpx;
+  background: var(--mrc-surface-warn, #FDF3E0);
+  box-shadow: var(--mrc-shadow-soft);
+}
+.rake__copy.data-v-f26f7345 {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 6rpx;
+}
+.rake__title.data-v-f26f7345 {
+  color: var(--mrc-text-deep);
+  font-size: 24rpx;
+  font-weight: 800;
+}
+.rake__sub.data-v-f26f7345 {
+  color: var(--mrc-text-sub);
+  font-size: 20rpx;
+  line-height: 1.4;
+}
+.rake__go.data-v-f26f7345 {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8rpx;
+  min-height: 72rpx;
+  padding: 0 22rpx 0 10rpx;
+  border-radius: 999rpx;
+  background: var(--mrc-surface);
+  border: 2rpx solid var(--mrc-border);
+}
+.rake__go.data-v-f26f7345:active {
+  transform: scale(0.97);
+}
+.rake__gz.data-v-f26f7345 {
+  width: 56rpx;
+  height: 56rpx;
+}
+.rake__go-text.data-v-f26f7345 {
+  color: var(--mrc-accent);
+  font-size: 21rpx;
+  font-weight: 800;
+}
+.rake__go-badge.data-v-f26f7345 {
+  padding: 2rpx 10rpx;
+  border-radius: 20rpx;
+  background: var(--mrc-accent-soft);
+  color: var(--mrc-accent);
+  font-size: 16rpx;
+  font-weight: 800;
+  letter-spacing: 1rpx;
+}
+
+/* ===== 抽屉式表单 ===== */
+.form-mask.data-v-f26f7345 {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(16, 58, 44, 0.45);
+  animation: mask-in-f26f7345 240ms ease-out both;
+}
+@keyframes mask-in-f26f7345 {
+from {
+    opacity: 0;
+}
+to {
+    opacity: 1;
+}
+}
+@keyframes sheet-up-f26f7345 {
+from {
+    opacity: 0;
+    transform: translateY(38rpx);
+}
+to {
+    opacity: 1;
+    transform: none;
+}
+}
+.form-sheet.data-v-f26f7345 {
+  width: 100%;
+  max-height: 86vh;
+  overflow-y: auto;
+  padding: 16rpx 28rpx calc(28rpx + env(safe-area-inset-bottom));
+  border-radius: 36rpx 36rpx 0 0;
+  background: var(--mrc-surface);
+  box-shadow: 0 -14rpx 36rpx rgba(61, 37, 25, 0.2);
+  box-sizing: border-box;
+  animation: sheet-up-f26f7345 340ms cubic-bezier(0.32, 0.86, 0.28, 1) both;
+}
+
+/* 抓取把手：让用户知道这个抽屉能拉下来 */
+.form-sheet__grab.data-v-f26f7345 {
+  width: 76rpx;
+  height: 8rpx;
+  margin: 0 auto 20rpx;
+  border-radius: 999rpx;
+  background: var(--mrc-border-strong);
+  opacity: 0.6;
+}
+.form-sheet__head.data-v-f26f7345 {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-bottom: 22rpx;
+}
+.form-sheet__title.data-v-f26f7345 {
+  display: block;
+  margin-top: 7rpx;
+  color: var(--mrc-text-deep);
+  font-size: 31rpx;
+  font-weight: 800;
+}
+.sheet-close.data-v-f26f7345 {
+  display: flex;
+  width: 64rpx;
+  height: 64rpx;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--mrc-surface-2);
+}
+.sheet-close text.data-v-f26f7345 {
+  color: var(--mrc-text-sub);
+  font-size: 38rpx;
+  line-height: 1;
+}
+.sheet-close.data-v-f26f7345:active {
+  transform: scale(0.92);
+}
+.form-line.data-v-f26f7345 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14rpx;
+}
+.form-field.data-v-f26f7345 {
+  display: flex;
+  flex-direction: column;
+  gap: 9rpx;
+  margin-bottom: 16rpx;
+  color: var(--mrc-text-deep);
+  font-size: 21rpx;
+  font-weight: 700;
+}
+.form-field input.data-v-f26f7345, .date-field.data-v-f26f7345 {
+  width: 100%;
+  min-height: 76rpx;
+  padding: 0 18rpx;
+  border: 2rpx solid var(--mrc-border);
+  border-radius: 18rpx;
+  background: var(--mrc-bg);
+  color: var(--mrc-text-deep);
+  font-size: 22rpx;
+  box-sizing: border-box;
+}
+.date-field.data-v-f26f7345 {
+  display: flex;
+  align-items: center;
+  font-weight: 500;
+}
+.form-error.data-v-f26f7345 {
+  display: block;
+  margin: -4rpx 0 14rpx;
+  color: var(--mrc-color-danger);
+  font-size: 20rpx;
+}
+
+/* 识别确认清单 */
+.recognize-hint.data-v-f26f7345 {
+  display: block;
+  margin-bottom: 18rpx;
+  color: var(--mrc-text-sub);
+  font-size: 21rpx;
+  line-height: 1.5;
+}
+.recognize-empty.data-v-f26f7345 {
+  padding: 48rpx 0;
+  color: var(--mrc-text-sub);
+  font-size: 23rpx;
+  text-align: center;
+}
+.draft-row.data-v-f26f7345 {
+  display: flex;
+  align-items: flex-start;
+  gap: 18rpx;
+  padding: 18rpx 0;
+  border-bottom: 2rpx solid var(--mrc-border-light);
+}
+.draft-row.data-v-f26f7345:last-of-type {
+  margin-bottom: 20rpx;
+}
+.draft-row__check.data-v-f26f7345 {
+  display: flex;
+  width: 48rpx;
+  height: 48rpx;
+  margin-top: 6rpx;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 2rpx solid var(--mrc-border-strong);
+  border-radius: 15rpx;
+  transition: transform 160ms ease-out;
+}
+.draft-row__check.is-on.data-v-f26f7345 {
+  border-color: var(--mrc-accent);
+  background: var(--mrc-accent);
+}
+.draft-row__check.is-on text.data-v-f26f7345 {
+  color: #fff;
+  font-size: 26rpx;
+  font-weight: 800;
+}
+.draft-row__check.data-v-f26f7345:active {
+  transform: scale(0.9);
+}
+.draft-row__body.data-v-f26f7345 {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 7rpx;
+}
+.draft-row__line.data-v-f26f7345 {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.draft-row__name.data-v-f26f7345 {
+  min-width: 0;
+  flex: 1;
+  min-height: 62rpx;
+  padding: 0 16rpx;
+  border: 2rpx solid var(--mrc-border);
+  border-radius: 16rpx;
+  background: var(--mrc-bg);
+  color: var(--mrc-text-deep);
+  font-size: 25rpx;
+  font-weight: 750;
+  box-sizing: border-box;
+}
+.draft-row__life.data-v-f26f7345 {
+  flex: 0 0 auto;
+  color: var(--mrc-accent);
+  font-size: 21rpx;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.draft-row__meta.data-v-f26f7345 {
+  color: var(--mrc-text-sub);
+  font-size: 19rpx;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 不宜冷藏提醒（识别清单 + 手动表单共用） */
+.warn-chip.data-v-f26f7345 {
+  display: flex;
+  flex-direction: column;
+  gap: 5rpx;
+  margin-top: 8rpx;
+  padding: 14rpx 18rpx;
+  border-radius: 18rpx;
+  background: var(--mrc-surface-warn, #FDF3E0);
+  box-shadow: inset 6rpx 0 0 var(--mrc-warning, #E0A020);
+}
+.warn-chip.is-worse.data-v-f26f7345 {
+  background: var(--mrc-surface-danger, #FDECEC);
+  box-shadow: inset 6rpx 0 0 var(--mrc-color-danger, #D64545);
+}
+.warn-chip__title.data-v-f26f7345 {
+  color: var(--mrc-text-deep);
+  font-size: 21rpx;
+  font-weight: 800;
+}
+.warn-chip__tip.data-v-f26f7345 {
+  color: var(--mrc-text-sub);
+  font-size: 19rpx;
+  line-height: 1.45;
+}

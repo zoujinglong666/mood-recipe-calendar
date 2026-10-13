@@ -1,0 +1,7 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "反馈建议",
+  "usingComponents": {
+    "wd-navbar": "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar"
+  }
+}

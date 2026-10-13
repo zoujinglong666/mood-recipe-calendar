@@ -1,0 +1,6 @@
+{
+  "component": true,
+  "usingComponents": {
+    "wd-config-provider": "../node-modules/@wot-ui/ui/components/wd-config-provider/wd-config-provider"
+  }
+}

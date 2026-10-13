@@ -1,0 +1,8 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "今日三餐",
+  "usingComponents": {
+    "wd-loading": "../../node-modules/@wot-ui/ui/components/wd-loading/wd-loading",
+    "wd-button": "../../node-modules/@wot-ui/ui/components/wd-button/wd-button"
+  }
+}

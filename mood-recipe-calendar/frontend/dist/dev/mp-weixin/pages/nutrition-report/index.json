@@ -1,0 +1,7 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "本月营养月报",
+  "usingComponents": {
+    "wd-navbar": "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar"
+  }
+}

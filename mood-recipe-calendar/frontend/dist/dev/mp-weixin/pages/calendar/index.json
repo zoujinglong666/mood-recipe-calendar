@@ -1,0 +1,11 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "食光日历",
+  "usingComponents": {
+    "wd-image-preview": "../../node-modules/@wot-ui/ui/components/wd-image-preview/wd-image-preview",
+    "wd-navbar": "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar",
+    "error-state": "../../components/guozai/ErrorState",
+    "loading-state": "../../components/guozai/LoadingState",
+    "guozai-image": "../../components/guozai/GuozaiImage"
+  }
+}

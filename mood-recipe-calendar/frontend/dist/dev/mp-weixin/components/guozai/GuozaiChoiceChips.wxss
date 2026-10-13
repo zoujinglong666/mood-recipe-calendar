@@ -1,0 +1,69 @@
+/**
+ * 这里是uni-app内置的常用样式变量
+ *
+ * uni-app 官方扩展插件及插件市场（https://ext.dcloud.net.cn）上很多三方插件均使用了这些样式变量
+ * 如果你是插件开发者，建议你使用scss预处理，并在插件代码中直接使用这些变量（无需 import 这个文件），方便用户通过搭积木的方式开发整体风格一致的App
+ *
+ */
+/**
+ * 如果你是App开发者（插件使用者），你可以通过修改这些变量来定制自己的插件主题，实现自定义主题功能
+ *
+ * 如果你的项目同样使用了scss预处理，你也可以直接在你的 scss 代码中使用如下变量，同时无需 import 这个文件
+ */
+/* 颜色变量 */
+/* 行为相关颜色 */
+/* 文字基本颜色 */
+/* 背景颜色 */
+/* 边框颜色 */
+/* 尺寸变量 */
+/* 文字尺寸 */
+/* 图片尺寸 */
+/* Border Radius */
+/* 水平间距 */
+/* 垂直间距 */
+/* 透明度 */
+/* 文章场景相关 */
+.guozai-choice.data-v-56cdbac0 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--mrc-space-sm);
+}
+.guozai-choice__item.data-v-56cdbac0 {
+  min-height: 88rpx;
+  padding: 0 24rpx;
+  display: inline-flex;
+  align-items: center;
+  gap: 10rpx;
+  box-sizing: border-box;
+  border: 2rpx solid var(--mrc-border);
+  border-radius: var(--mrc-radius-pill);
+  background: var(--mrc-surface);
+  color: var(--mrc-text-deep);
+  font-size: var(--mrc-fs-sub);
+  font-weight: var(--mrc-fw-semibold);
+  transition: transform 150ms ease, opacity 150ms ease;
+}
+.guozai-choice__item.is-selected.data-v-56cdbac0 {
+  border-color: var(--mrc-primary-deep);
+  background: var(--mrc-accent-soft);
+  color: var(--mrc-accent);
+}
+.guozai-choice__item.is-disabled.data-v-56cdbac0 {
+  opacity: 0.5;
+  pointer-events: none;
+}
+.guozai-choice__item--pressed.data-v-56cdbac0 {
+  transform: scale(0.97);
+  opacity: 0.82;
+}
+.guozai-choice__mark.data-v-56cdbac0 {
+  width: 30rpx;
+  height: 30rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--mrc-surface-sun);
+  font-size: 20rpx;
+  font-weight: var(--mrc-fw-heavy);
+}
