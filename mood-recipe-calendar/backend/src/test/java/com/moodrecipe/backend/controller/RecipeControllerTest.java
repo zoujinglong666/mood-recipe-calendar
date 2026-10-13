@@ -50,7 +50,7 @@ class RecipeControllerTest {
         Recipe expected = new Recipe();
         expected.setId(1L);
         expected.setName("番茄炒蛋");
-        when(agent.recommend(anyString(), anyString(), any())).thenReturn(expected);
+        when(agent.recommend(anyString(), anyString(), any(), any())).thenReturn(expected);
 
         RecipeController controller = buildController(agent);
         Recipe result = controller.recommend("user-1", "平静").getData();

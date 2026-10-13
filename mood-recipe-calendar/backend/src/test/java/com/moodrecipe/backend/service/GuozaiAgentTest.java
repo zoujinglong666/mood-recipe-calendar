@@ -114,7 +114,7 @@ class GuozaiAgentTest {
         when(exposures.recordShown(anyString(), any(Recipe.class), anyString())).thenReturn("exposure-1");
         return new GuozaiAgent(ai, memory, persona, recipes, interactions, preferences, events, exposures,
                 new WechatContentSafetyService(new com.fasterxml.jackson.databind.ObjectMapper(), "", "", false, false),
-                new RecipePool(recipes));
+                new RecipePool(recipes), null);
     }
 
     @Test

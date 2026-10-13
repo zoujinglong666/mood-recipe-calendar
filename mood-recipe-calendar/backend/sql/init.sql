@@ -223,6 +223,7 @@ CREATE TABLE IF NOT EXISTS plan_dish_outcomes (
   cooked      TINYINT(1) COMMENT '是否做了 null=未反馈',
   leftover    TINYINT(1) COMMENT '是否剩了很多',
   too_hard    TINYINT(1) COMMENT '是否太难做',
+  mood_after   VARCHAR(16) COMMENT '做后的心情',
   created_at  DATETIME     NOT NULL,
   updated_at  DATETIME     NOT NULL,
   UNIQUE KEY uk_plan_dish (openid, plan_id, day_index, dish_index),

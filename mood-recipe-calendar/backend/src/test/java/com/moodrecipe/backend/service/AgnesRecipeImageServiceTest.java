@@ -28,7 +28,7 @@ class AgnesRecipeImageServiceTest {
         assertEquals("4:3", body.get("ratio"));
         assertEquals(Map.of("response_format", "url"), body.get("extra_body"));
         assertTrue(body.get("prompt").toString().contains("番茄牛腩"));
-        assertTrue(body.get("prompt").toString().contains("只出现完成后的菜品"));
+        assertTrue(body.get("prompt").toString().contains("只出现完成后的这道菜"));
         assertTrue(!body.get("prompt").toString().contains("牛腩 500克"));
         assertTrue(!body.get("prompt").toString().contains("番茄 3个"));
         assertEquals("https://cdn.example.com/dish.png",

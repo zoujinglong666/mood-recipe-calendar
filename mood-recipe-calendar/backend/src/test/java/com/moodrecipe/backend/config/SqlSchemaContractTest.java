@@ -99,13 +99,13 @@ class SqlSchemaContractTest {
 
     private String columnType(String tableBody, String column) {
         Matcher matcher = Pattern.compile("(?im)(?:^|,)\\s*`?" + Pattern.quote(column)
-                + "`?\\s+(BIGINT|INT|TINYINT|VARCHAR|TEXT|DATE|DATETIME|DECIMAL|DOUBLE|BOOLEAN)\\b")
+                + "`?\\s+(BIGINT|INT|TINYINT|VARCHAR|TEXT|LONGTEXT|DATE|DATETIME|DECIMAL|DOUBLE|BOOLEAN)\\b")
                 .matcher(tableBody);
         return matcher.find() ? matcher.group(1).toUpperCase(Locale.ROOT) : null;
     }
 
     private boolean compatible(Class<?> javaType, String sqlType) {
-        if (javaType == String.class) return sqlType.equals("VARCHAR") || sqlType.equals("TEXT");
+        if (javaType == String.class) return sqlType.equals("VARCHAR") || sqlType.equals("TEXT") || sqlType.equals("LONGTEXT");
         if (javaType == Long.class || javaType == long.class) return sqlType.equals("BIGINT");
         if (javaType == Integer.class || javaType == int.class) {
             return sqlType.equals("INT") || sqlType.equals("TINYINT");

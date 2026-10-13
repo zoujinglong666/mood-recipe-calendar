@@ -137,17 +137,25 @@ class AgentLiveAcceptanceTest {
         AgentLearningService learning = new AgentLearningService(mock(PlanDishOutcomeRepository.class),
                 store, records, mock(RecipeInteractionRepository.class), recipes);
 
+        com.moodrecipe.backend.service.IngredientSynonymService synonyms = mock(com.moodrecipe.backend.service.IngredientSynonymService.class);
+        com.moodrecipe.backend.service.RecipePool recipePool = mock(com.moodrecipe.backend.service.RecipePool.class);
+        com.moodrecipe.backend.service.search.SearchClient search = mock(com.moodrecipe.backend.service.search.SearchClient.class);
+
         ToolRegistry registry = new ToolRegistry(List.of(
                 new RecallProfileTool(store), new RememberFactTool(store), new CheckDietaryConflictsTool(store),
-                new ScoreMenuTool(store), new SearchRecipeTool(recipes),
+                new ScoreMenuTool(store), new SearchRecipeTool(recipes, synonyms, recipePool),
                 new CheckRecentHistoryTool(records, mock(RecipeInteractionRepository.class), recipes),
-                new ConsolidateIngredientsTool()));
+                new ConsolidateIngredientsTool(synonyms)));
         AgentLoop loop = new AgentLoop(llm, registry, json);
-        MenuPlannerAgent planner = new MenuPlannerAgent(llm, store, recipes, json);
+        MenuPlannerAgent planner = new MenuPlannerAgent(llm, store, recipes, json, search, recipePool);
 
         return new Wiring(json, loop, registry, store, planner,
                 new AgentAcceptanceService(llm, registry, planner, store, json),
-                new DialogueAgent(llm, store, mock(UserFoodPreferenceRepository.class), learning, json));
+                new DialogueAgent(llm, store, mock(UserFoodPreferenceRepository.class), learning,
+                        mock(com.moodrecipe.backend.agent.AgentReflectionService.class),
+                        mock(com.moodrecipe.backend.agent.AgentContextCompactor.class),
+                        mock(com.moodrecipe.backend.agent.AgentOutputGate.class),
+                        loop, json));
     }
 
     private static String env(String name, String fallback) {
