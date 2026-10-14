@@ -44,4 +44,15 @@ public class DailyMealPlanController {
                     .orElseGet(() -> ApiResponse.error(422, "暂时没有符合条件的替换菜，请稍后再试"));
         } catch (DateTimeParseException e) { return ApiResponse.error(400, "日期格式应为 YYYY-MM-DD"); }
     }
+
+    /** 三餐卡封面懒生成：该餐没有真实图时补拍专属封面并回写（与周计划的 ensureCover 同套路）。 */
+    @PostMapping("/{mealIndex}/cover")
+    public ApiResponse<?> cover(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
+                                @PathVariable int mealIndex, @RequestParam(required = false) String date) {
+        try {
+            LocalDate target = date == null || date.isBlank() ? AppClock.today() : LocalDate.parse(date);
+            return plans.ensureCover(openid, target, mealIndex).map(ApiResponse::ok)
+                    .orElseGet(() -> ApiResponse.error(404, "这道餐暂时不需要补图"));
+        } catch (DateTimeParseException e) { return ApiResponse.error(400, "日期格式应为 YYYY-MM-DD"); }
+    }
 }

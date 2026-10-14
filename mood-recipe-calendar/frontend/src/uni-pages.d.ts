@@ -34,7 +34,9 @@ type _LocationUrl =
   "/pages/timeline/index" |
   "/pages/weekly-plan/detail" |
   "/pages/weekly-plan/index" |
-  "/pages/wishlist/index";
+  "/pages/wishlist/index" |
+  "/pages/admin/recipes/edit" |
+  "/pages/admin/recipes/index";
 
 interface NavigateToOptions {
   url: _LocationUrl;

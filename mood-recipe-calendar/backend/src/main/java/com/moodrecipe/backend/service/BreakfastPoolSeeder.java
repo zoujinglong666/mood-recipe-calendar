@@ -70,6 +70,7 @@ public class BreakfastPoolSeeder implements ApplicationRunner {
             try {
                 int saved = seedIfNeeded(TARGET_POOL_SIZE);
                 if (saved > 0) log.info("早餐池补齐完成，本轮新增 {} 道", saved);
+                backfillMissingCovers(3);
             } catch (Exception ex) {
                 log.warn("早餐池启动补齐失败（可在服务可用后手动触发）: {}", ex.toString());
             }
@@ -105,6 +106,27 @@ public class BreakfastPoolSeeder implements ApplicationRunner {
         }
         log.info("早餐池生成落库 {} 道（AI 返回 {} 道候选）", saved, generated.size());
         return saved;
+    }
+
+    /**
+     * 历史落库但无图（生成失败 / doubaocdn 死链被清理）的早餐组合，启动时限量补拍专属封面。
+     * 限量是为了不让启动后台任务被 30-60s/张 的文生图拖垮；剩余的下轮启动继续补。
+     */
+    private void backfillMissingCovers(int limit) {
+        List<Recipe> missing = recipes.findAiWithMissingImage(BREAKFAST_TAG);
+        if (missing.isEmpty()) return;
+        int fixed = 0;
+        for (Recipe recipe : missing) {
+            if (fixed >= limit) break;
+            Optional<String> cover = imageService.generateCover(recipe)
+                    .flatMap(url -> cosImageStorage.transferFromUrl(url, "recipes/"));
+            if (cover.isPresent()) {
+                recipe.setImage(cover.get());
+                recipes.save(recipe);
+                fixed++;
+            }
+        }
+        log.info("早餐池封面补拍完成 {} 张（待补 {} 张）", fixed, Math.max(0, missing.size() - fixed));
     }
 
     public long breakfastPoolSize() {

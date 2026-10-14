@@ -29,6 +29,20 @@ function generateWeeklyPlan(data) {
 function getWeeklyPlanJob(jobId) {
   return api_request.get(`/weekly-plans/generate/jobs/${jobId}`);
 }
+async function pollWeeklyPlanJob(jobId, timeoutMs = 9e4, interval = 2e3, isCancelled) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (isCancelled == null ? void 0 : isCancelled())
+      return null;
+    const job = await getWeeklyPlanJob(jobId);
+    if (job.status === "SUCCEEDED")
+      return job.planId ?? null;
+    if (job.status === "FAILED")
+      throw new Error(job.message || "生成失败");
+    await new Promise((resolve) => setTimeout(resolve, interval));
+  }
+  return null;
+}
 function runMealAgentTurn(message, state, conversationId, history, webSearch, preset) {
   return api_request.post("/weekly-plans/agent-turns", { message, state, conversationId, requestId: requestId("turn"), history, ...webSearch ? { webSearch } : {}, ...preset ? { preset } : {} });
 }
@@ -36,6 +50,7 @@ function rateAgentConversation(rating, comment) {
   return api_request.post("/weekly-plans/agent-feedback", { rating, ...{} });
 }
 const WEEKLY_PLAN_TEMPLATE_ID = "h00FlM2Xf_X64sXln5WoYGnbvtJBjasdEraRPjs4NOg";
+const SCHEDULE_TEMPLATE_ID = "FvYwk2LwZ3ztd7myzrEJKNcXnIpXW0OvaSMCtl1iwgU";
 function requestWeeklyPlanCompletionNotice() {
   return new Promise((resolve) => {
     const requestSubscribeMessage = common_vendor.index.requestSubscribeMessage;
@@ -43,8 +58,9 @@ function requestWeeklyPlanCompletionNotice() {
       resolve(false);
       return;
     }
+    const tmplIds = [WEEKLY_PLAN_TEMPLATE_ID, SCHEDULE_TEMPLATE_ID];
     requestSubscribeMessage({
-      tmplIds: [WEEKLY_PLAN_TEMPLATE_ID],
+      tmplIds,
       success: (result) => resolve(["accept", "acceptWithAudio"].includes(result[WEEKLY_PLAN_TEMPLATE_ID])),
       fail: () => resolve(false)
     });
@@ -72,7 +88,7 @@ exports.generateWeeklyPlan = generateWeeklyPlan;
 exports.getCurrentPlan = getCurrentPlan;
 exports.getWeeklyPlan = getWeeklyPlan;
 exports.getWeeklyPlanHistory = getWeeklyPlanHistory;
-exports.getWeeklyPlanJob = getWeeklyPlanJob;
+exports.pollWeeklyPlanJob = pollWeeklyPlanJob;
 exports.rateAgentConversation = rateAgentConversation;
 exports.replacePlanDay = replacePlanDay;
 exports.reportPlanDishOutcome = reportPlanDishOutcome;

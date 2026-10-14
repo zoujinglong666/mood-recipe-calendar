@@ -5,6 +5,7 @@ const utils_assets = require("../../utils/assets.js");
 const utils_login = require("../../utils/login.js");
 const utils_toast = require("../../utils/toast.js");
 const api_gallery = require("../../api/gallery.js");
+const api_achievements = require("../../api/achievements.js");
 const api_virtualCommerce = require("../../api/virtualCommerce.js");
 const __unplugin_components_0 = () => "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar.js";
 if (!Array) {
@@ -41,6 +42,21 @@ const _sfc_defineComponent = common_vendor.defineComponent({
     const checkin = common_vendor.ref({ checkedIn: false, streak: 0, exchangeReady: false, daysToExchange: 30, totalDays: 0 });
     const checking = common_vendor.ref(false);
     const showCheckinModal = common_vendor.ref(false);
+    const achievements = common_vendor.ref(null);
+    const achievementPct = common_vendor.computed(() => {
+      const a = achievements.value;
+      if (!a || !a.total)
+        return 0;
+      return Math.min(100, Math.round(a.unlockedCount / a.total * 100));
+    });
+    function showAchievement(item) {
+      common_vendor.index.showModal({
+        title: `${item.emoji} ${item.name}`,
+        content: `${item.unlocked ? "已解锁 · " : "还没解锁 · "}${item.desc}`,
+        showCancel: false,
+        confirmText: item.unlocked ? "真棒" : "加油"
+      });
+    }
     const STICKER_GROUPS = [
       {
         title: "心情表情",
@@ -85,12 +101,14 @@ const _sfc_defineComponent = common_vendor.defineComponent({
       error.value = "";
       try {
         await utils_login.ensureLogin();
-        const [ck, prods, vOrders] = await Promise.all([
+        const [ck, prods, vOrders, achv] = await Promise.all([
           api_gallery.fetchCheckinStatus(),
           api_virtualCommerce.fetchVirtualProducts().catch(() => []),
-          api_virtualCommerce.fetchVirtualOrders().catch(() => [])
+          api_virtualCommerce.fetchVirtualOrders().catch(() => []),
+          api_achievements.fetchAchievements().catch(() => null)
         ]);
         checkin.value = ck;
+        achievements.value = achv;
         productTitleMap.value = Object.fromEntries(prods.map((p) => [p.sku, p.title]));
         orders.value = vOrders.map((o) => ({
           orderNo: o.orderNo,
@@ -106,7 +124,34 @@ const _sfc_defineComponent = common_vendor.defineComponent({
       }
     }
     common_vendor.onShow(() => {
+      var _a;
+      common_vendor.index.removeStorageSync("mrc_achv_unread");
       loadData();
+      const pages = getCurrentPages();
+      const query = ((_a = pages[pages.length - 1]) == null ? void 0 : _a.options) || {};
+      if (query.focus === "achievements") {
+        setTimeout(() => {
+          common_vendor.index.pageScrollTo({ selector: "#achvSection", duration: 300 });
+        }, 360);
+      }
+      api_achievements.checkAchievements().then((res) => {
+        const codes = (res == null ? void 0 : res.newlyUnlocked) || [];
+        if (!codes.length || !achievements.value)
+          return;
+        const names = codes.map((code) => {
+          var _a2;
+          return (_a2 = achievements.value) == null ? void 0 : _a2.achievements.find((item) => item.code === code);
+        }).filter(Boolean).map((item) => `${item.emoji} ${item.name}`);
+        if (!names.length)
+          return;
+        common_vendor.index.showModal({
+          title: "锅仔播报",
+          content: `解锁新成就：${names.join("、")}！去成就墙看看吧`,
+          showCancel: false,
+          confirmText: "好耶"
+        });
+      }).catch(() => {
+      });
     });
     const orderStatusText = {
       PENDING: "待支付",
@@ -172,8 +217,24 @@ const _sfc_defineComponent = common_vendor.defineComponent({
         l: checkin.value.checkedIn ? 1 : "",
         m: checkin.value.exchangeReady ? 1 : "",
         n: common_vendor.o(onCheckin),
-        o: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/mood_06_hungry.png",
-        p: common_vendor.f(STICKER_GROUPS, (group, k0, i0) => {
+        o: achievements.value
+      }, achievements.value ? {
+        p: common_vendor.t(achievements.value.unlockedCount),
+        q: common_vendor.t(achievements.value.total),
+        r: achievementPct.value + "%",
+        s: common_vendor.f(achievements.value.achievements, (item, k0, i0) => {
+          return {
+            a: common_vendor.t(item.unlocked ? item.emoji : "🔒"),
+            b: common_vendor.t(item.name),
+            c: item.code,
+            d: !item.unlocked ? 1 : "",
+            e: `${item.name}，${item.unlocked ? "已解锁" : "未解锁"}，${item.desc}`,
+            f: common_vendor.o(($event) => showAchievement(item), item.code)
+          };
+        })
+      } : {}, {
+        t: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/mood_06_hungry.png",
+        v: common_vendor.f(STICKER_GROUPS, (group, k0, i0) => {
           return {
             a: common_vendor.t(group.title),
             b: common_vendor.f(group.items, (s, k1, i1) => {
@@ -188,11 +249,11 @@ const _sfc_defineComponent = common_vendor.defineComponent({
           };
         })
       }, {}, {
-        t: orders.value.length === 0
+        z: orders.value.length === 0
       }, orders.value.length === 0 ? {
-        v: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_07_empty.png"
+        A: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_07_empty.png"
       } : {}, {
-        w: common_vendor.f(orders.value, (o, k0, i0) => {
+        B: common_vendor.f(orders.value, (o, k0, i0) => {
           return {
             a: common_vendor.t(o.title),
             b: common_vendor.t(o.orderNo),
@@ -202,13 +263,13 @@ const _sfc_defineComponent = common_vendor.defineComponent({
             f: o.orderNo
           };
         }),
-        x: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/mood_01_happy.png",
-        y: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/mood_02_calm.png"
+        C: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/mood_01_happy.png",
+        D: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/mood_02_calm.png"
       }), {
         e: error.value
       }, {}, {
-        Q: common_vendor.o(($event) => showCheckinModal.value = false),
-        R: common_vendor.p({
+        V: common_vendor.o(($event) => showCheckinModal.value = false),
+        W: common_vendor.p({
           visible: showCheckinModal.value,
           title: "签到成功！",
           subtitle: `今日锅仔对话 +3 轮，已连续签到 ${checkin.value.streak} 天`,

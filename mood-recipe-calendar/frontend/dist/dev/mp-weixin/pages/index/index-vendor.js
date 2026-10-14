@@ -2,6 +2,7 @@
 const common_vendor = require("../../common/vendor.js");
 const utils_login = require("../../utils/login.js");
 const utils_toast = require("../../utils/toast.js");
+const api_share = require("../../api/share.js");
 const api_records = require("../../api/records.js");
 const api_recipes = require("../../api/recipes.js");
 const api_dailyMenu = require("../../api/dailyMenu.js");
@@ -177,6 +178,7 @@ const _sfc_defineComponent = common_vendor.defineComponent({
         });
         loadTodayBoard().catch(() => {
         });
+        void preloadRecipePool();
       } catch (e) {
         if ((e == null ? void 0 : e.message) !== "NOT_LOGGED_IN")
           utils_toast.toastError(e, "加载失败，请稍后重试");
@@ -218,9 +220,55 @@ const _sfc_defineComponent = common_vendor.defineComponent({
     async function loadTodayBoard() {
       try {
         todayBoard.value = await api_dailyMenu.fetchDailyBoard();
+        backfillBoardCover();
       } catch {
         todayBoard.value = void 0;
       }
+    }
+    async function backfillBoardCover() {
+      var _a, _b;
+      if (!((_a = todayBoard.value) == null ? void 0 : _a.recipe) || todayBoard.value.recipe.image)
+        return;
+      try {
+        const board = await api_dailyMenu.generateDailyMenuCover();
+        if ((_b = board == null ? void 0 : board.recipe) == null ? void 0 : _b.image)
+          todayBoard.value = board;
+      } catch {
+      }
+    }
+    const boardNameParts = common_vendor.computed(() => {
+      var _a, _b;
+      return api_dailyMenu.splitComboDishName(((_b = (_a = todayBoard.value) == null ? void 0 : _a.recipe) == null ? void 0 : _b.name) || "");
+    });
+    const recipePoolCache = common_vendor.ref([]);
+    const recipePoolAt = common_vendor.ref(0);
+    const RECIPE_POOL_TTL = 5 * 60 * 1e3;
+    let poolPreloading = false;
+    async function preloadRecipePool(force = false) {
+      if (poolPreloading)
+        return;
+      if (!force && recipePoolCache.value.length && Date.now() - recipePoolAt.value < RECIPE_POOL_TTL)
+        return;
+      poolPreloading = true;
+      try {
+        const pool = await api_recipes.fetchRecipePool();
+        recipePoolCache.value = pool;
+        recipePoolAt.value = Date.now();
+        pool.slice(0, 24).forEach((item) => {
+          if (!item.image)
+            return;
+          common_vendor.index.getImageInfo({ src: item.image, fail: () => {
+          } });
+        });
+      } catch {
+      } finally {
+        poolPreloading = false;
+      }
+    }
+    function recipePool() {
+      if (recipePoolCache.value.length && Date.now() - recipePoolAt.value < RECIPE_POOL_TTL)
+        return Promise.resolve(recipePoolCache.value);
+      return preloadRecipePool().then(() => recipePoolCache.value);
     }
     function sampleDiverseDishes(pool, count, excludeName = "") {
       const seen = /* @__PURE__ */ new Set();
@@ -259,7 +307,7 @@ const _sfc_defineComponent = common_vendor.defineComponent({
       var _a;
       showWheel.value = true;
       try {
-        const pool = await api_recipes.fetchRecipePool();
+        const pool = await recipePool();
         const current = (_a = todayBoard.value) == null ? void 0 : _a.recipe;
         const others = sampleDiverseDishes(pool, 7, current == null ? void 0 : current.name);
         wheelPool.value = [
@@ -289,7 +337,7 @@ const _sfc_defineComponent = common_vendor.defineComponent({
     async function openNine() {
       showNine.value = true;
       try {
-        const pool = await api_recipes.fetchRecipePool();
+        const pool = await recipePool();
         const sampled = sampleDiverseDishes(pool, 8);
         nineRecipes.value = sampled;
         nineItems.value = sampled.map((item) => ({ name: item.name, image: item.image }));
@@ -324,30 +372,54 @@ const _sfc_defineComponent = common_vendor.defineComponent({
     async function openFlip() {
       showFlip.value = true;
       try {
-        const pool = await api_recipes.fetchRecipePool();
+        const pool = await recipePool();
         flipPool.value = pool;
-        const sampled = sampleDiverseDishes(pool, 8);
-        flipItems.value = sampled.map((item) => ({ name: item.name, image: item.image }));
+        flipItems.value = flipBoardItems(pool);
       } catch {
         flipPool.value = [];
         flipItems.value = [];
       }
     }
-    function onFlipStart() {
-      var _a;
-      if (!flipPool.value.length)
-        return;
+    function flipBoardItems(pool) {
+      const sampled = sampleDiverseDishes(pool, 8);
+      const items = sampled.map((item) => ({ name: item.name, image: item.image }));
+      for (const item of pool) {
+        if (items.length >= 8)
+          break;
+        if ((item == null ? void 0 : item.name) && !items.some((f) => f.name === item.name))
+          items.push({ name: item.name, image: item.image });
+      }
+      return items;
+    }
+    async function onFlipStart() {
+      var _a, _b, _c;
+      if (!flipPool.value.length) {
+        try {
+          flipPool.value = await recipePool();
+        } catch {
+          flipPool.value = [];
+        }
+        if (!flipPool.value.length) {
+          utils_toast.toastError(new Error("菜谱还没备好，稍后再来试试"), "翻一翻");
+          (_a = flipRef.value) == null ? void 0 : _a.fail();
+          return;
+        }
+        flipItems.value = flipBoardItems(flipPool.value);
+      }
       const winners = sampleDiverseDishes(flipPool.value, 1);
-      const pick = winners[0];
-      if (!pick)
+      const pick = winners[0] || flipPool.value.find((item) => (item == null ? void 0 : item.name) && item.name !== "锅仔牌");
+      if (!pick) {
+        utils_toast.toastError(new Error("菜谱还没备好，稍后再来试试"), "翻一翻");
+        (_b = flipRef.value) == null ? void 0 : _b.fail();
         return;
+      }
       const others = sampleDiverseDishes(flipPool.value, 7, pick.name);
       flipPick.value = pick;
       flipItems.value = [
         ...others.map((item) => ({ name: item.name, image: item.image })),
         { name: "锅仔牌" }
       ];
-      (_a = flipRef.value) == null ? void 0 : _a.deal({ name: pick.name, image: pick.image });
+      (_c = flipRef.value) == null ? void 0 : _c.deal({ name: pick.name, image: pick.image });
     }
     function onFlipCook() {
       const recipe = flipPick.value;
@@ -365,14 +437,40 @@ const _sfc_defineComponent = common_vendor.defineComponent({
       utils_cookingDraft.saveCookingDraft(board.recipe, "满足");
       router.push({ name: "cooking" });
     }
+    const friendDish = common_vendor.ref("");
+    const inviteBonus = common_vendor.ref(false);
+    common_vendor.onLoad((query) => {
+      const sharer = String((query == null ? void 0 : query.sharer) || "");
+      const dish = String((query == null ? void 0 : query.dish) || "");
+      if (dish)
+        friendDish.value = dish;
+      if (!sharer || sharer === userStore.openid)
+        return;
+      api_share.acceptShareInvite(sharer).then((res) => {
+        if (res == null ? void 0 : res.grantedBonus) {
+          inviteBonus.value = true;
+          utils_toast.toastSuccess("好友分享的福利：今日对话 +1 次");
+        }
+      }).catch(() => {
+      });
+    });
     common_vendor.onShow(() => {
       now.value = /* @__PURE__ */ new Date();
       loadData();
     });
     common_vendor.onShareAppMessage(() => {
+      var _a, _b;
       const sharer = userStore.openid;
-      const path = `/pages/index/index${sharer ? `?sharer=${encodeURIComponent(sharer)}` : ""}`;
-      return { title: "锅仔 · 按心情帮你决定今天吃什么", path };
+      const dish = ((_b = (_a = todayBoard.value) == null ? void 0 : _a.recipe) == null ? void 0 : _b.name) || "";
+      const params = [
+        sharer ? `sharer=${encodeURIComponent(sharer)}` : "",
+        dish ? `dish=${encodeURIComponent(dish)}` : ""
+      ].filter(Boolean).join("&");
+      const path = `/pages/index/index${params ? `?${params}` : ""}`;
+      const title = dish ? `我用锅仔安排了「${dish}」，也替你留了一份` : "锅仔 · 按心情帮你决定今天吃什么";
+      void api_share.recordShare("home").catch(() => {
+      });
+      return { title, path };
     });
     common_vendor.onShareTimeline(() => {
       const sharer = userStore.openid;
@@ -428,63 +526,75 @@ const _sfc_defineComponent = common_vendor.defineComponent({
         p: companion.value.scene && companion.value.scene !== "DAILY" ? 1 : "",
         q: companion.value.actionText,
         r: common_vendor.o(bounceGuozai),
-        s: todayBoard.value
+        s: friendDish.value || inviteBonus.value
+      }, friendDish.value || inviteBonus.value ? common_vendor.e({
+        t: friendDish.value
+      }, friendDish.value ? {
+        v: common_vendor.t(friendDish.value)
+      } : {}, {
+        w: inviteBonus.value
+      }, inviteBonus.value ? {} : {}) : {}, {
+        x: todayBoard.value
       }, todayBoard.value ? common_vendor.e({
-        t: common_vendor.t(todayBoard.value.recipe.name),
-        v: todayBoard.value.recipe.cookingTime
+        y: common_vendor.t(boardNameParts.value.main),
+        z: boardNameParts.value.drink
+      }, boardNameParts.value.drink ? {
+        A: common_vendor.t(boardNameParts.value.drink)
+      } : {}, {
+        B: todayBoard.value.recipe.cookingTime
       }, todayBoard.value.recipe.cookingTime ? {
-        w: common_vendor.t(todayBoard.value.recipe.cookingTime)
+        C: common_vendor.t(todayBoard.value.recipe.cookingTime)
       } : {}, {
-        x: todayBoard.value.recipe.difficulty
+        D: todayBoard.value.recipe.difficulty
       }, todayBoard.value.recipe.difficulty ? {
-        y: common_vendor.t(todayBoard.value.recipe.difficulty)
+        E: common_vendor.t(todayBoard.value.recipe.difficulty)
       } : {}, {
-        z: common_vendor.o(goCookToday),
-        A: todayBoard.value.recipe.image
+        F: common_vendor.o(goCookToday),
+        G: todayBoard.value.recipe.image
       }, todayBoard.value.recipe.image ? {
-        B: todayBoard.value.recipe.image
+        H: todayBoard.value.recipe.image
       } : {
-        C: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_01_bowl.png"
+        I: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_01_bowl.png"
       }, {
-        D: `锅仔今天留了${todayBoard.value.recipe.name}，打开看做法`,
-        E: common_vendor.o(goCookToday)
+        J: `锅仔今天留了${todayBoard.value.recipe.name}，打开看做法`,
+        K: common_vendor.o(goCookToday)
       }) : {}, {
-        F: common_vendor.t(recipeQuotaText.value),
-        G: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_10_thinking.png",
-        H: common_vendor.o(openMealSheet),
-        I: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_08_peek.png",
-        J: common_vendor.o(openWheel),
-        K: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_09_celebrate.png",
-        L: common_vendor.o(openNine),
-        M: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_02_soup.png",
-        N: common_vendor.o(openFlip),
-        O: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_06_glasses.png",
-        P: common_vendor.o(($event) => goto("meal-agent")),
-        Q: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_06_glasses.png",
-        R: common_vendor.o(($event) => goto("recipe-library")),
-        S: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_01_bowl.png",
-        T: common_vendor.o(($event) => goto("daily-meal-plan")),
-        U: common_vendor.o(($event) => pickMeal("BREAKFAST")),
-        V: common_vendor.o(($event) => pickMeal("LUNCH")),
-        W: common_vendor.o(($event) => pickMeal("DINNER")),
-        X: common_vendor.o(($event) => showMealSheet.value = false),
-        Y: common_vendor.o(($event) => showMealSheet.value = $event),
-        Z: common_vendor.p({
+        L: common_vendor.t(recipeQuotaText.value),
+        M: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_10_thinking.png",
+        N: common_vendor.o(openMealSheet),
+        O: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_08_peek.png",
+        P: common_vendor.o(openWheel),
+        Q: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_09_celebrate.png",
+        R: common_vendor.o(openNine),
+        S: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_02_soup.png",
+        T: common_vendor.o(openFlip),
+        U: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_06_glasses.png",
+        V: common_vendor.o(($event) => goto("meal-agent")),
+        W: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_06_glasses.png",
+        X: common_vendor.o(($event) => goto("recipe-library")),
+        Y: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_01_bowl.png",
+        Z: common_vendor.o(($event) => goto("daily-meal-plan")),
+        aa: common_vendor.o(($event) => pickMeal("BREAKFAST")),
+        ab: common_vendor.o(($event) => pickMeal("LUNCH")),
+        ac: common_vendor.o(($event) => pickMeal("DINNER")),
+        ad: common_vendor.o(($event) => showMealSheet.value = false),
+        ae: common_vendor.o(($event) => showMealSheet.value = $event),
+        af: common_vendor.p({
           position: "bottom",
           ["safe-area-inset-bottom"]: true,
           ["custom-style"]: "border-radius: 40rpx 40rpx 0 0; overflow: hidden; background: var(--mrc-surface);",
           modelValue: showMealSheet.value
         }),
-        aa: common_vendor.t(currentMonthLabel.value),
-        ab: common_vendor.t(monthRecordMap.value.size),
-        ac: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_08_peek.png",
-        ad: common_vendor.f(weekCN, (w, k0, i0) => {
+        ag: common_vendor.t(currentMonthLabel.value),
+        ah: common_vendor.t(monthRecordMap.value.size),
+        ai: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_08_peek.png",
+        aj: common_vendor.f(weekCN, (w, k0, i0) => {
           return {
             a: common_vendor.t(w),
             b: w
           };
         }),
-        ae: common_vendor.f(calCells.value, (c, i, i0) => {
+        ak: common_vendor.f(calCells.value, (c, i, i0) => {
           var _a, _b;
           return common_vendor.e({
             a: c
@@ -508,35 +618,35 @@ const _sfc_defineComponent = common_vendor.defineComponent({
             l: i
           });
         }),
-        af: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_12_heart.png",
-        ag: common_vendor.t(calendarMemory.value),
-        ah: common_vendor.o(($event) => goto("calendar")),
-        ai: common_vendor.sr(wheelRef, "83a5a03c-3,83a5a03c-0", {
+        al: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_12_heart.png",
+        am: common_vendor.t(calendarMemory.value),
+        an: common_vendor.o(($event) => goto("calendar")),
+        ao: common_vendor.sr(wheelRef, "83a5a03c-3,83a5a03c-0", {
           "k": "wheelRef"
         }),
-        aj: common_vendor.o(onWheelSpin),
-        ak: common_vendor.o(($event) => showWheel.value = false),
-        al: common_vendor.p({
+        ap: common_vendor.o(onWheelSpin),
+        aq: common_vendor.o(($event) => showWheel.value = false),
+        ar: common_vendor.p({
           visible: showWheel.value,
           items: wheelPool.value
         }),
-        am: common_vendor.sr(nineRef, "83a5a03c-4,83a5a03c-0", {
+        as: common_vendor.sr(nineRef, "83a5a03c-4,83a5a03c-0", {
           "k": "nineRef"
         }),
-        an: common_vendor.o(onNineStart),
-        ao: common_vendor.o(onNineCook),
-        ap: common_vendor.o(($event) => showNine.value = false),
-        aq: common_vendor.p({
+        at: common_vendor.o(onNineStart),
+        av: common_vendor.o(onNineCook),
+        aw: common_vendor.o(($event) => showNine.value = false),
+        ax: common_vendor.p({
           visible: showNine.value,
           items: nineItems.value
         }),
-        ar: common_vendor.sr(flipRef, "83a5a03c-5,83a5a03c-0", {
+        ay: common_vendor.sr(flipRef, "83a5a03c-5,83a5a03c-0", {
           "k": "flipRef"
         }),
-        as: common_vendor.o(onFlipStart),
-        at: common_vendor.o(onFlipCook),
-        av: common_vendor.o(($event) => showFlip.value = false),
-        aw: common_vendor.p({
+        az: common_vendor.o(onFlipStart),
+        aA: common_vendor.o(onFlipCook),
+        aB: common_vendor.o(($event) => showFlip.value = false),
+        aC: common_vendor.p({
           visible: showFlip.value,
           items: flipItems.value
         })

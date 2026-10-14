@@ -24,6 +24,8 @@ public class AgentContextCompactor {
 
     /** 旧消息至少有这么多条才值得摘要：低于这个数直接全文给出更划算。 */
     private static final int MIN_OLD_MESSAGES = 6;
+    /** 增量摘要步长：新落入「旧消息」区的内容不足一批时沿用上次摘要，避免长会话每轮都重算。 */
+    private static final int COMPACT_BATCH = 12;
     /** 缓存上限：摘要很小，但避免极端情况下无限增长。 */
     private static final int CACHE_LIMIT = 2000;
 
@@ -51,8 +53,14 @@ public class AgentContextCompactor {
         if (cached != null && cached.coveredCount() >= oldCount && !cached.summary().isBlank()) {
             return cached.summary();
         }
+        // 增量压缩：新增的「旧消息」不足一批时直接沿用上次摘要（模型侧始终是 摘要+最近原文，不重算）
+        if (cached != null && !cached.summary().isBlank() && oldCount - cached.coveredCount() < COMPACT_BATCH) {
+            return cached.summary();
+        }
         String previous = cached == null ? "" : cached.summary();
-        String summary = summarize(previous, history.subList(0, oldCount));
+        // 只把上次未覆盖的增量喂给模型合并，摘要成本与会话长度解耦——对话可以无限延续
+        int from = cached == null ? 0 : Math.min(cached.coveredCount(), oldCount);
+        String summary = summarize(previous, history.subList(from, oldCount));
         if (summary.isBlank()) return previous;
         if (cache.size() >= CACHE_LIMIT) cache.clear();
         cache.put(openid, new Compaction(oldCount, summary));

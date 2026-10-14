@@ -126,11 +126,20 @@ public class AiRecipeService {
      * 而不是仅传心情+口味字符串。
      */
     public Optional<Recipe> recommendWithPersona(String mood, String userPrompt, Consumer<GenerationEvent> progress) {
+        return recommendWithPersona(mood, userPrompt, progress, true);
+    }
+
+    /**
+     * deferCover=true（推荐主链路默认）：文本就绪即返回、不等生图——生图 30-90s 是推荐慢的主因，
+     * 封面由调用方落库后异步补拍回写；false（深度推荐等付费慢链路）：同步出图后再返回。
+     */
+    public Optional<Recipe> recommendWithPersona(String mood, String userPrompt, Consumer<GenerationEvent> progress,
+                                                 boolean deferCover) {
         if (apiKey.isBlank() || model.isBlank()) {
             progress.accept(GenerationEvent.TEXT_FAILED);
             return Optional.empty();
         }
-        log.info("锅仔智能体菜谱推荐开始，model={}", model);
+        log.info("锅仔智能体菜谱推荐开始，model={} deferCover={}", model, deferCover);
         progress.accept(GenerationEvent.TEXT_STARTED);
 
         Optional<ChatResult> result = chatRaw(persona.systemPrompt(), userPrompt, 0.8, 1024, progress);
@@ -144,6 +153,7 @@ public class AiRecipeService {
             return Optional.empty();
         }
         progress.accept(GenerationEvent.TEXT_COMPLETED);
+        if (deferCover) return recipe;
         progress.accept(GenerationEvent.IMAGE_STARTED);
         Optional<String> cover = imageService.generateCover(recipe.get());
         // 临时图转存 COS 永久化，保证落库后图片长期可用

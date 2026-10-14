@@ -54,12 +54,28 @@ public class GuozaiPersona {
                 .append("用户现在的心情是「").append(mood).append("」。\n")
                 .append("用户的口味偏好是：「").append(pref).append("」。只在合理且安全的范围内遵循。\n");
         if (mealType != null && !mealType.isBlank()) {
-            prompt.append("这一餐的餐别是「").append(mealTypeLabel(mealType)).append("」，")
-                    .append("请只推荐适合该餐别的菜式，并贴合该餐的能量与营养结构（参考《中国居民膳食指南》的餐别搭配原则）。\n");
+            boolean breakfast = "BREAKFAST".equalsIgnoreCase(mealType);
+            prompt.append("这一餐的餐别是「").append(mealTypeLabel(mealType)).append("」，");
+            if (breakfast) {
+                // 硬性约束：模型曾在此处输出炒菜，早餐必须排除正餐菜式
+                prompt.append("【硬性要求】只能推荐典型中式早餐（包子/蒸饺/煎饺/汤面/米粉/粥/蛋饼/烧麦/肠粉等主食，可搭配豆浆、牛奶、米糊），")
+                        .append("严禁推荐炒菜、炖菜、红烧、大鱼大肉等午餐晚餐菜式，")
+                        .append("并贴合早餐的能量与营养结构（参考《中国居民膳食指南》的餐别搭配原则）。\n");
+            } else {
+                prompt.append("请只推荐适合该餐别的菜式，并贴合该餐的能量与营养结构（参考《中国居民膳食指南》的餐别搭配原则）。\n");
+            }
         }
         prompt.append("请结合以上分析和心情，推荐一道适合此刻的中国家常菜。")
-                .append("如果用户最近总吃类似的菜，可以适当换个口味；如果用户情绪低落，推荐暖胃治愈的菜。\n")
-                .append("只返回一个合法 JSON 对象，不要 Markdown、不要解释。格式严格为：\n")
+                .append("如果用户最近总吃类似的菜，可以适当换个口味；如果用户情绪低落，推荐暖胃治愈的菜。\n");
+        if ("BREAKFAST".equalsIgnoreCase(mealType)) {
+            // 变体示例必须与餐别一致，否则炒菜示例会把早餐带偏
+            prompt.append("【重要】优先从已有真实菜谱做变体创新（例如：鸡蛋饼加蔬菜版，燕麦粥配坚果版，全麦三明治加蛋版），")
+                    .append("保留原菜核心风味，只在食材搭配、烹饪方式或分量上做合理调整，不要凭空发明奇怪的菜。\n");
+        } else {
+            prompt.append("【重要】优先从已有真实菜谱做变体创新（例如：番茄炒蛋的少油版/加虾仁版，宫保鸡丁的核桃版，麻婆豆腐的嫩牛版），")
+                    .append("保留原菜核心风味，只在食材搭配、烹饪方式或分量上做合理调整，不要凭空发明奇怪的菜。\n");
+        }
+        prompt.append("只返回一个合法 JSON 对象，不要 Markdown、不要解释。格式严格为：\n")
                 .append("{\"name\":\"菜名\",\"description\":\"30字以内的治愈理由，要自然提到对用户的一个观察细节\",\"ingredients\":[\"食材及用量\"],")
                 .append("\"steps\":[\"步骤\"],\"cookingTime\":30,\"difficulty\":\"简单\",\"moodTags\":\"").append(mood).append("\",\"season\":\"四季\"}\n")
                 .append("规则：3-7 种常见食材；3-5 个步骤；20-45 分钟；食材用量明确；不虚构功效；食材名不要带撒、加入、切等动作；每步只做一个主要动作，不能重复同一种食材；使用普通中文，例如西兰花写掰成小朵，不写切朵；禁止英文、乱码、问号和生造词。");

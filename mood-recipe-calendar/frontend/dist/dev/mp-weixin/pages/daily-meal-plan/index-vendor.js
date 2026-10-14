@@ -2,6 +2,7 @@
 const common_vendor = require("../../common/vendor.js");
 const composables_useNavBar = require("../../composables/useNavBar.js");
 const api_dailyMealPlan = require("../../api/dailyMealPlan.js");
+const api_dailyMenu = require("../../api/dailyMenu.js");
 const utils_assets = require("../../utils/assets.js");
 const utils_albumShare = require("../../utils/albumShare.js");
 const utils_toast = require("../../utils/toast.js");
@@ -64,6 +65,9 @@ const _sfc_defineComponent = common_vendor.defineComponent({
     function mealImage(meal) {
       return meal.image || `${utils_assets.STATIC_BASE_URL}/static/guozai/action_01_bowl.png`;
     }
+    function mealParts(name) {
+      return api_dailyMenu.splitComboDishName(name);
+    }
     function guidelineFor(i) {
       var _a, _b;
       const p = (_b = (_a = plan.value) == null ? void 0 : _a.guidelineBasis) == null ? void 0 : _b[i];
@@ -104,11 +108,34 @@ const _sfc_defineComponent = common_vendor.defineComponent({
         }
         plan.value = data;
         expanded[0] = expanded[1] = expanded[2] = false;
+        backfillCovers();
       } catch (e) {
         error.value = "加载失败，请检查网络后重试";
         utils_toast.toastError(e, "一日三餐加载失败");
       } finally {
         utils_toast.hideLoading();
+      }
+    }
+    const backfilling = common_vendor.ref(false);
+    async function backfillCovers() {
+      var _a, _b, _c;
+      if (!plan.value || backfilling.value)
+        return;
+      backfilling.value = true;
+      try {
+        const date = plan.value.date;
+        for (let i = 0; i < plan.value.meals.length; i++) {
+          if ((_a = plan.value.meals[i]) == null ? void 0 : _a.image)
+            continue;
+          const res = await api_dailyMealPlan.generateDailyMealCover(i, date);
+          const updated = (_b = res == null ? void 0 : res.meals) == null ? void 0 : _b[i];
+          if ((updated == null ? void 0 : updated.image) && plan.value && ((_c = plan.value.meals[i]) == null ? void 0 : _c.name) === updated.name) {
+            plan.value.meals[i] = { ...plan.value.meals[i], image: updated.image };
+          }
+        }
+      } catch {
+      } finally {
+        backfilling.value = false;
       }
     }
     async function replaceMeal(i) {
@@ -122,6 +149,7 @@ const _sfc_defineComponent = common_vendor.defineComponent({
           plan.value = res;
           pulseSwap(i);
           utils_toast.toast("已为你换一道");
+          backfillCovers();
         }
       } catch (e) {
         utils_toast.toastError(e, "换菜失败");
@@ -234,22 +262,26 @@ const _sfc_defineComponent = common_vendor.defineComponent({
             d: common_vendor.t(mealLabel(i)),
             e: common_vendor.t(meal.cookingTime || "--"),
             f: common_vendor.t(meal.difficulty || "家常"),
-            g: common_vendor.t(meal.name),
-            h: meal.description
-          }, meal.description ? {
-            i: common_vendor.t(meal.description)
+            g: common_vendor.t(mealParts(meal.name).main),
+            h: mealParts(meal.name).drink
+          }, mealParts(meal.name).drink ? {
+            i: common_vendor.t(mealParts(meal.name).drink)
           } : {}, {
-            j: common_vendor.t(expanded[i] ? "收起做法" : "查看食材 / 做法"),
-            k: common_vendor.o(($event) => toggle(i), i),
-            l: expanded[i]
+            j: meal.description
+          }, meal.description ? {
+            k: common_vendor.t(meal.description)
+          } : {}, {
+            l: common_vendor.t(expanded[i] ? "收起做法" : "查看食材 / 做法"),
+            m: common_vendor.o(($event) => toggle(i), i),
+            n: expanded[i]
           }, expanded[i] ? {
-            m: common_vendor.f(ingredientsFor(meal), (ing, k, i1) => {
+            o: common_vendor.f(ingredientsFor(meal), (ing, k, i1) => {
               return {
                 a: common_vendor.t(ing),
                 b: k
               };
             }),
-            n: common_vendor.f(stepsFor(meal), (step, k, i1) => {
+            p: common_vendor.f(stepsFor(meal), (step, k, i1) => {
               return {
                 a: common_vendor.t(k + 1),
                 b: common_vendor.t(step),
@@ -257,18 +289,18 @@ const _sfc_defineComponent = common_vendor.defineComponent({
               };
             })
           } : {}, {
-            o: guidelineFor(i)
+            q: guidelineFor(i)
           }, guidelineFor(i) ? common_vendor.e({
-            p: common_vendor.t(guidelineFor(i).title || "膳食指南建议"),
-            q: common_vendor.t(guidelineFor(i).content),
-            r: guidelineFor(i).source
+            r: common_vendor.t(guidelineFor(i).title || "膳食指南建议"),
+            s: common_vendor.t(guidelineFor(i).content),
+            t: guidelineFor(i).source
           }, guidelineFor(i).source ? {
-            s: common_vendor.t(guidelineFor(i).source)
+            v: common_vendor.t(guidelineFor(i).source)
           } : {}) : {}, {
-            t: common_vendor.t(replacing[i] ? "替换中…" : "换一道"),
-            v: common_vendor.o(($event) => replaceMeal(i), i),
-            w: i,
-            x: swapping[i] ? 1 : ""
+            w: common_vendor.t(replacing[i] ? "替换中…" : "换一道"),
+            x: common_vendor.o(($event) => replaceMeal(i), i),
+            y: i,
+            z: swapping[i] ? 1 : ""
           });
         }),
         q: common_vendor.t(generating.value ? "规划中…" : "换一整天"),

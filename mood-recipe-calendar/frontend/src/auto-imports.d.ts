@@ -21,7 +21,19 @@ declare global {
   const RECORD_DRAFT_KEY: typeof import('./utils/cookingDraft')['RECORD_DRAFT_KEY']
   const STATIC_BASE_URL: typeof import('./utils/assets')['STATIC_BASE_URL']
   const acceptHMRUpdate: typeof import('pinia')['acceptHMRUpdate']
+  const acceptShareInvite: typeof import('./api/share')['acceptShareInvite']
   const addFavorite: typeof import('./api/favorites')['addFavorite']
+  const adminCheck: typeof import('./api/admin')['adminCheck']
+  const adminGetGenerationConfig: typeof import('./api/admin')['adminGetGenerationConfig']
+  const adminRecipeBatchImage: typeof import('./api/admin')['adminRecipeBatchImage']
+  const adminRecipeDelete: typeof import('./api/admin')['adminRecipeDelete']
+  const adminRecipeDetail: typeof import('./api/admin')['adminRecipeDetail']
+  const adminRecipeGenImage: typeof import('./api/admin')['adminRecipeGenImage']
+  const adminRecipeList: typeof import('./api/admin')['adminRecipeList']
+  const adminRecipeStats: typeof import('./api/admin')['adminRecipeStats']
+  const adminRecipeUpdate: typeof import('./api/admin')['adminRecipeUpdate']
+  const adminRunGenerationNow: typeof import('./api/admin')['adminRunGenerationNow']
+  const adminUpdateGenerationConfig: typeof import('./api/admin')['adminUpdateGenerationConfig']
   const askMealAgent: typeof import('./api/weeklyPlans')['askMealAgent']
   const assetUrl: typeof import('./utils/assets')['assetUrl']
   const asyncComputed: typeof import('@vueuse/core')['asyncComputed']
@@ -31,6 +43,7 @@ declare global {
   const beginAuthRecovery: typeof import('./utils/authRecovery')['beginAuthRecovery']
   const bus: typeof import('./utils/bus')['bus']
   const cancelAuthRecovery: typeof import('./utils/authRecovery')['cancelAuthRecovery']
+  const checkAchievements: typeof import('./api/achievements')['checkAchievements']
   const chooseImageFile: typeof import('./utils/chooseImage')['chooseImageFile']
   const chooseImageFiles: typeof import('./utils/chooseImage')['chooseImageFiles']
   const chunkPages: typeof import('./utils/albumLayout')['chunkPages']
@@ -84,6 +97,7 @@ declare global {
   const exportRecipeShare: typeof import('./utils/albumShare')['exportRecipeShare']
   const exportRecordShare: typeof import('./utils/albumShare')['exportRecordShare']
   const extendRef: typeof import('@vueuse/core')['extendRef']
+  const fetchAchievements: typeof import('./api/achievements')['fetchAchievements']
   const fetchAgentConversationQuota: typeof import('./api/weeklyPlans')['fetchAgentConversationQuota']
   const fetchAllRecipes: typeof import('./api/recipes')['fetchAllRecipes']
   const fetchCheckinStatus: typeof import('./api/gallery')['fetchCheckinStatus']
@@ -100,12 +114,14 @@ declare global {
   const fetchFridgeSummary: typeof import('./api/fridge')['fetchFridgeSummary']
   const fetchMemberBenefits: typeof import('./api/virtualCommerce')['fetchMemberBenefits']
   const fetchMonthAlbum: typeof import('./api/albums')['fetchMonthAlbum']
+  const fetchMoodTags: typeof import('./api/recipes')['fetchMoodTags']
   const fetchMyFeedback: typeof import('./api/feedback')['fetchMyFeedback']
   const fetchNutritionReport: typeof import('./api/nutritionReport')['fetchNutritionReport']
   const fetchOrders: typeof import('./api/gallery')['fetchOrders']
   const fetchProducts: typeof import('./api/gallery')['fetchProducts']
   const fetchRecipeDetail: typeof import('./api/recipes')['fetchRecipeDetail']
   const fetchRecipeFeedback: typeof import('./api/recipes')['fetchRecipeFeedback']
+  const fetchRecipeLibrary: typeof import('./api/recipes')['fetchRecipeLibrary']
   const fetchRecipePool: typeof import('./api/recipes')['fetchRecipePool']
   const fetchRecipeQuota: typeof import('./api/recipes')['fetchRecipeQuota']
   const fetchRecipesByMood: typeof import('./api/recipes')['fetchRecipesByMood']
@@ -125,6 +141,8 @@ declare global {
   const fetchWeeklyPlanQuota: typeof import('./api/weeklyPlans')['fetchWeeklyPlanQuota']
   const fetchYearStats: typeof import('./api/records')['fetchYearStats']
   const forgetAgentMemory: typeof import('./api/auth')['forgetAgentMemory']
+  const generateDailyMealCover: typeof import('./api/dailyMealPlan')['generateDailyMealCover']
+  const generateDailyMenuCover: typeof import('./api/dailyMenu')['generateDailyMenuCover']
   const generatePlanDayCover: typeof import('./api/weeklyPlans')['generatePlanDayCover']
   const generatePlanDishCover: typeof import('./api/weeklyPlans')['generatePlanDishCover']
   const generateRecordPoster: typeof import('./api/recordPoster')['generateRecordPoster']
@@ -221,6 +239,7 @@ declare global {
   const onUpdated: typeof import('vue')['onUpdated']
   const pausableWatch: typeof import('@vueuse/core')['pausableWatch']
   const persistPlugin: typeof import('./store/persist')['persistPlugin']
+  const pollWeeklyPlanJob: typeof import('./api/weeklyPlans')['pollWeeklyPlanJob']
   const post: typeof import('./api/request')['post']
   const provide: typeof import('vue')['provide']
   const provideLocal: typeof import('@vueuse/core')['provideLocal']
@@ -277,6 +296,7 @@ declare global {
   const shallowRef: typeof import('vue')['shallowRef']
   const showLoading: typeof import('./utils/toast')['showLoading']
   const sourceLabel: typeof import('./utils/memoryLabels')['sourceLabel']
+  const splitComboDishName: typeof import('./api/dailyMenu')['splitComboDishName']
   const storeToRefs: typeof import('pinia')['storeToRefs']
   const submitFeedback: typeof import('./api/feedback')['submitFeedback']
   const subscribeSystemThemeChange: typeof import('./utils/systemTheme')['subscribeSystemThemeChange']
@@ -527,7 +547,19 @@ declare module 'vue' {
     readonly RECORD_DRAFT_KEY: UnwrapRef<typeof import('./utils/cookingDraft')['RECORD_DRAFT_KEY']>
     readonly STATIC_BASE_URL: UnwrapRef<typeof import('./utils/assets')['STATIC_BASE_URL']>
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>
+    readonly acceptShareInvite: UnwrapRef<typeof import('./api/share')['acceptShareInvite']>
     readonly addFavorite: UnwrapRef<typeof import('./api/favorites')['addFavorite']>
+    readonly adminCheck: UnwrapRef<typeof import('./api/admin')['adminCheck']>
+    readonly adminGetGenerationConfig: UnwrapRef<typeof import('./api/admin')['adminGetGenerationConfig']>
+    readonly adminRecipeBatchImage: UnwrapRef<typeof import('./api/admin')['adminRecipeBatchImage']>
+    readonly adminRecipeDelete: UnwrapRef<typeof import('./api/admin')['adminRecipeDelete']>
+    readonly adminRecipeDetail: UnwrapRef<typeof import('./api/admin')['adminRecipeDetail']>
+    readonly adminRecipeGenImage: UnwrapRef<typeof import('./api/admin')['adminRecipeGenImage']>
+    readonly adminRecipeList: UnwrapRef<typeof import('./api/admin')['adminRecipeList']>
+    readonly adminRecipeStats: UnwrapRef<typeof import('./api/admin')['adminRecipeStats']>
+    readonly adminRecipeUpdate: UnwrapRef<typeof import('./api/admin')['adminRecipeUpdate']>
+    readonly adminRunGenerationNow: UnwrapRef<typeof import('./api/admin')['adminRunGenerationNow']>
+    readonly adminUpdateGenerationConfig: UnwrapRef<typeof import('./api/admin')['adminUpdateGenerationConfig']>
     readonly askMealAgent: UnwrapRef<typeof import('./api/weeklyPlans')['askMealAgent']>
     readonly assetUrl: UnwrapRef<typeof import('./utils/assets')['assetUrl']>
     readonly asyncComputed: UnwrapRef<typeof import('@vueuse/core')['asyncComputed']>
@@ -537,6 +569,7 @@ declare module 'vue' {
     readonly beginAuthRecovery: UnwrapRef<typeof import('./utils/authRecovery')['beginAuthRecovery']>
     readonly bus: UnwrapRef<typeof import('./utils/bus')['bus']>
     readonly cancelAuthRecovery: UnwrapRef<typeof import('./utils/authRecovery')['cancelAuthRecovery']>
+    readonly checkAchievements: UnwrapRef<typeof import('./api/achievements')['checkAchievements']>
     readonly chooseImageFile: UnwrapRef<typeof import('./utils/chooseImage')['chooseImageFile']>
     readonly chooseImageFiles: UnwrapRef<typeof import('./utils/chooseImage')['chooseImageFiles']>
     readonly chunkPages: UnwrapRef<typeof import('./utils/albumLayout')['chunkPages']>
@@ -590,8 +623,8 @@ declare module 'vue' {
     readonly exportRecipeShare: UnwrapRef<typeof import('./utils/albumShare')['exportRecipeShare']>
     readonly exportRecordShare: UnwrapRef<typeof import('./utils/albumShare')['exportRecordShare']>
     readonly extendRef: UnwrapRef<typeof import('@vueuse/core')['extendRef']>
+    readonly fetchAchievements: UnwrapRef<typeof import('./api/achievements')['fetchAchievements']>
     readonly fetchAgentConversationQuota: UnwrapRef<typeof import('./api/weeklyPlans')['fetchAgentConversationQuota']>
-    readonly fetchAllRecipes: UnwrapRef<typeof import('./api/recipes')['fetchAllRecipes']>
     readonly fetchCheckinStatus: UnwrapRef<typeof import('./api/gallery')['fetchCheckinStatus']>
     readonly fetchCompanionMessage: UnwrapRef<typeof import('./api/records')['fetchCompanionMessage']>
     readonly fetchCurrentAgentConversation: UnwrapRef<typeof import('./api/weeklyPlans')['fetchCurrentAgentConversation']>
@@ -606,12 +639,14 @@ declare module 'vue' {
     readonly fetchFridgeSummary: UnwrapRef<typeof import('./api/fridge')['fetchFridgeSummary']>
     readonly fetchMemberBenefits: UnwrapRef<typeof import('./api/virtualCommerce')['fetchMemberBenefits']>
     readonly fetchMonthAlbum: UnwrapRef<typeof import('./api/albums')['fetchMonthAlbum']>
+    readonly fetchMoodTags: UnwrapRef<typeof import('./api/recipes')['fetchMoodTags']>
     readonly fetchMyFeedback: UnwrapRef<typeof import('./api/feedback')['fetchMyFeedback']>
     readonly fetchNutritionReport: UnwrapRef<typeof import('./api/nutritionReport')['fetchNutritionReport']>
     readonly fetchOrders: UnwrapRef<typeof import('./api/gallery')['fetchOrders']>
     readonly fetchProducts: UnwrapRef<typeof import('./api/gallery')['fetchProducts']>
     readonly fetchRecipeDetail: UnwrapRef<typeof import('./api/recipes')['fetchRecipeDetail']>
     readonly fetchRecipeFeedback: UnwrapRef<typeof import('./api/recipes')['fetchRecipeFeedback']>
+    readonly fetchRecipeLibrary: UnwrapRef<typeof import('./api/recipes')['fetchRecipeLibrary']>
     readonly fetchRecipePool: UnwrapRef<typeof import('./api/recipes')['fetchRecipePool']>
     readonly fetchRecipeQuota: UnwrapRef<typeof import('./api/recipes')['fetchRecipeQuota']>
     readonly fetchRecipesByMood: UnwrapRef<typeof import('./api/recipes')['fetchRecipesByMood']>
@@ -631,6 +666,8 @@ declare module 'vue' {
     readonly fetchWeeklyPlanQuota: UnwrapRef<typeof import('./api/weeklyPlans')['fetchWeeklyPlanQuota']>
     readonly fetchYearStats: UnwrapRef<typeof import('./api/records')['fetchYearStats']>
     readonly forgetAgentMemory: UnwrapRef<typeof import('./api/auth')['forgetAgentMemory']>
+    readonly generateDailyMealCover: UnwrapRef<typeof import('./api/dailyMealPlan')['generateDailyMealCover']>
+    readonly generateDailyMenuCover: UnwrapRef<typeof import('./api/dailyMenu')['generateDailyMenuCover']>
     readonly generatePlanDayCover: UnwrapRef<typeof import('./api/weeklyPlans')['generatePlanDayCover']>
     readonly generatePlanDishCover: UnwrapRef<typeof import('./api/weeklyPlans')['generatePlanDishCover']>
     readonly generateRecordPoster: UnwrapRef<typeof import('./api/recordPoster')['generateRecordPoster']>
@@ -727,6 +764,7 @@ declare module 'vue' {
     readonly onUpdated: UnwrapRef<typeof import('vue')['onUpdated']>
     readonly pausableWatch: UnwrapRef<typeof import('@vueuse/core')['pausableWatch']>
     readonly persistPlugin: UnwrapRef<typeof import('./store/persist')['persistPlugin']>
+    readonly pollWeeklyPlanJob: UnwrapRef<typeof import('./api/weeklyPlans')['pollWeeklyPlanJob']>
     readonly post: UnwrapRef<typeof import('./api/request')['post']>
     readonly provide: UnwrapRef<typeof import('vue')['provide']>
     readonly provideLocal: UnwrapRef<typeof import('@vueuse/core')['provideLocal']>
@@ -783,6 +821,7 @@ declare module 'vue' {
     readonly shallowRef: UnwrapRef<typeof import('vue')['shallowRef']>
     readonly showLoading: UnwrapRef<typeof import('./utils/toast')['showLoading']>
     readonly sourceLabel: UnwrapRef<typeof import('./utils/memoryLabels')['sourceLabel']>
+    readonly splitComboDishName: UnwrapRef<typeof import('./api/dailyMenu')['splitComboDishName']>
     readonly storeToRefs: UnwrapRef<typeof import('pinia')['storeToRefs']>
     readonly submitFeedback: UnwrapRef<typeof import('./api/feedback')['submitFeedback']>
     readonly subscribeSystemThemeChange: UnwrapRef<typeof import('./utils/systemTheme')['subscribeSystemThemeChange']>

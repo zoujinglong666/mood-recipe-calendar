@@ -134,7 +134,10 @@ public class DialogueAgent {
         // 知识问答：模型在循环里已调用工具并给出答案，直接返回，不再进入问卷流程。
         if ("ASK_KNOWLEDGE".equals(orchestrated.intent()) && !orchestrated.reply().isBlank()) {
             state = HeuristicExtractor.applySelection(state, input);
-            String action = nextAction(state, gaps(state, List.of()));
+            // 知识问答后的引导卡同样遵守「同槽位只问一次」：问过的缺口用默认值补齐
+            List<String> askedBefore = new ArrayList<>(askedActions(history));
+            state = applySkippedDefaults(state, askedBefore);
+            String action = nextAction(state, gaps(state, askedBefore));
             DialogueState.Card card = dynamicCard(action, state, modelInput, openid,
                     "用户刚问了一个知识问题并已得到回答，现在引导用户继续安排这一周的备餐");
             if (card == null) card = AgentCards.defaultCard(action, state);
@@ -155,8 +158,23 @@ public class DialogueAgent {
         if (!independentMeal) persistFacts(openid, facts, input);
 
         List<String> skipQuestions = independentMeal ? List.of() : profile.skipQuestions();
-        state = applySkippedDefaults(state, skipQuestions);
-        List<Gap> gaps = gaps(state, skipQuestions);
+        // 同一槽位的问题本次会话问过一次就不再问（换措辞的重复提问也算）：还没答上的缺口
+        // 直接用长期记忆/默认值补齐，杜绝「用户重复选择」。已问动作从会话记录的卡片选项反查。
+        List<String> skipAll = new ArrayList<>(skipQuestions);
+        for (String asked : askedActions(history)) {
+            if (!skipAll.contains(asked)) skipAll.add(asked);
+        }
+        // 用户明确表示不想再聊：剩余缺口全部按记忆/默认值补齐，直接就绪
+        boolean directGenerate = "generate".equals(input)
+                || input.matches(".*(不用问|别问了|不想说了|跳过提问|直接生成|按.{0,4}记忆.{0,4}生成|根据.{0,4}记忆.{0,4}生成).*");
+        if (directGenerate) {
+            for (String slot : AgentCards.ASK_ACTIONS) {
+                if (!skipAll.contains(slot)) skipAll.add(slot);
+            }
+            state = state.withCuisineConfirmed(true);
+        }
+        state = applySkippedDefaults(state, skipAll);
+        List<Gap> gaps = gaps(state, skipAll);
         List<Conflict> conflicts = new ArrayList<>(conflicts(state));
         conflicts.addAll(parseConflicts(orchestrated.conflicts()));
 
@@ -168,7 +186,9 @@ public class DialogueAgent {
             rememberCuisine(openid, state.favoriteCuisine());
         }
 
-        String action = validateAction(orchestrated.action(), state, learnedSomething, gaps, conflicts, orchestrated.unclear(), previousAction);
+        String action = directGenerate
+                ? "READY"
+                : validateAction(orchestrated.action(), state, learnedSomething, gaps, conflicts, orchestrated.unclear(), previousAction);
         // 违规台账（Harness）：模型提了白名单外的动作 → 记录，反复出现自动升级为提示词纪律
         if (!action.equals(orchestrated.action()) && !orchestrated.action().isBlank()) {
             outputGate.record("action.invalid");
@@ -215,13 +235,15 @@ public class DialogueAgent {
         String askReason = orchestrated.askReason().isBlank()
                 ? gaps.stream().filter(gap -> gap.action().equals(selectedAction)).map(Gap::reason).findFirst().orElse("")
                 : orchestrated.askReason();
-        String reply = repeatedQuestion
-                ? "我还没从刚才的话里确认到新的信息。请直接告诉我具体答案，也可以点“自己输入”。"
-                : (orchestrated.reply().isBlank()
-                        ? (readyRepeat
-                                ? "收到～信息没变化，点下面的「生成这一周菜单」随时开工；想改哪项直接告诉我。"
-                                : fallbackReply(action, conflicts))
-                        : orchestrated.reply());
+        String reply = directGenerate
+                ? "好，不再多问啦。剩下的信息锅仔按你的记忆和习惯补齐了，点下面的「开始安排」马上生成。"
+                : (repeatedQuestion
+                        ? "我还没从刚才的话里确认到新的信息。请直接告诉我具体答案，也可以点“自己输入”。"
+                        : (orchestrated.reply().isBlank()
+                                ? (readyRepeat
+                                        ? "收到～信息没变化，点下面的「生成这一周菜单」随时开工；想改哪项直接告诉我。"
+                                        : fallbackReply(action, conflicts))
+                                : orchestrated.reply()));
         reply = sanitizeReply(correctTodayWeekday(reply));
 
         List<String> memoryUsed = independentMeal ? List.of() : profile.memory().stream()
@@ -565,6 +587,23 @@ public class DialogueAgent {
         }
         if (skipQuestions.contains("ASK_BUDGET") && merged.budget() == null) merged = merged.withBudget("DAILY");
         return merged;
+    }
+
+    /** 从会话记录收集「已经问过的问题」：锅仔消息携带的卡片选项值反查槽位动作。
+     *  同一意思的问题（同一槽位，无论措辞怎么换）在一次会话里只允许出现一次。 */
+    private Set<String> askedActions(List<AgentConversationService.TranscriptMessage> history) {
+        Set<String> asked = new LinkedHashSet<>();
+        if (history == null) return asked;
+        for (AgentConversationService.TranscriptMessage item : history) {
+            DialogueState.Card card = item == null ? null : item.card();
+            if (card == null || card.options() == null) continue;
+            for (DialogueState.Option option : card.options()) {
+                if (option == null) continue;
+                String action = AgentCards.actionOfValue(option.value());
+                if (action != null && action.startsWith("ASK_")) asked.add(action);
+            }
+        }
+        return asked;
     }
 
     private List<Gap> gaps(DialogueState.AgentState state, List<String> skipQuestions) {

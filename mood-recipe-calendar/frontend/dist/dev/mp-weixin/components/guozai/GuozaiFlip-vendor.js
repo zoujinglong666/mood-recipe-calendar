@@ -103,6 +103,12 @@ const _sfc_main = /* @__PURE__ */ common_vendor.defineComponent({
         phase.value = "ready";
       }, 1900);
     }
+    function fail() {
+      if (phase.value !== "dealing")
+        return;
+      clearTimers();
+      phase.value = "idle";
+    }
     function pickCard(index) {
       if (phase.value !== "ready")
         return;
@@ -127,7 +133,7 @@ const _sfc_main = /* @__PURE__ */ common_vendor.defineComponent({
       if (phase.value !== "dealing" && phase.value !== "picking")
         emit("close");
     }
-    __expose({ deal });
+    __expose({ deal, fail });
     return (_ctx, _cache) => {
       return common_vendor.e({
         a: _ctx.visible

@@ -26,6 +26,13 @@ public class WeeklyMealPlanService {
     private final AgnesRecipeImageService images;
     private final WechatSubscriptionMessageService subscriptions;
     private final ObjectMapper json;
+    /** 成就检测：可选依赖（setter 注入，测试构造器签名不变），为空时跳过。 */
+    private AchievementService achievementService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setAchievementService(AchievementService achievementService) {
+        this.achievementService = achievementService;
+    }
 
     public WeeklyMealPlanService(WeeklyMealPlanRepository plans, GuozaiAgent agent, MenuPlannerAgent planner,
                                  AgentMemoryStore memory, AgnesRecipeImageService images,
@@ -76,6 +83,9 @@ public class WeeklyMealPlanService {
         plan.setAgentJson(write(audit(planned)));
         progress.update(WeeklyPlanJobService.Stage.SAVE, WeeklyPlanJobService.StepStatus.RUNNING, "保存周菜单");
         PlanView view = view(plans.save(plan));
+        if (achievementService != null) {
+            try { achievementService.checkAndUnlock(openid); } catch (RuntimeException ignored) { }
+        }
         if (request.sendNotification()) subscriptions.sendWeeklyPlanCompleted(openid, view.id());
         progress.update(WeeklyPlanJobService.Stage.FINALIZE, WeeklyPlanJobService.StepStatus.COMPLETED, "整理生成结果");
         return view;
@@ -402,6 +412,8 @@ public class WeeklyMealPlanService {
             if (oneOffMeal && !selected.isEmpty()) return List.of(selected.get(0));
             if (!selected.isEmpty()) return selected;
         }
+        // 没选过开火日（days<=0）：按「工作日」默认排，而不是只排周一
+        if (request.days() <= 0) return List.of(0, 1, 2, 3, 4);
         return java.util.stream.IntStream.range(0, Math.max(1, Math.min(request.days(), 7))).boxed().toList();
     }
     private int weekdayIndex(String day) { return "一二三四五六日".indexOf(day == null || day.length() < 2 ? "一" : day.substring(1)); }

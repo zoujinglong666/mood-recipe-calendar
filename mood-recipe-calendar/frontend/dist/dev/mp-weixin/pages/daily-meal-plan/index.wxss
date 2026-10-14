@@ -168,12 +168,27 @@
 }
 .meal-eyebrow__zh.data-v-aa2fe743 { color: var(--mrc-text-sub); font-weight: 600; letter-spacing: 0;
 }
+.meal-name-row.data-v-aa2fe743 {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  margin-top: 10rpx;
+}
 .meal-name.data-v-aa2fe743 {
   font-size: 34rpx;
   font-weight: 800;
   color: var(--mrc-text-strong);
-  margin-top: 10rpx;
   line-height: 1.35;
+}
+.meal-drink-tag.data-v-aa2fe743 {
+  flex-shrink: 0;
+  font-size: 20rpx;
+  font-weight: 700;
+  color: var(--mrc-accent);
+  background: var(--mrc-accent-soft);
+  border: 2rpx solid var(--mrc-border-light);
+  padding: 4rpx 16rpx;
+  border-radius: 999rpx;
 }
 .meal-desc.data-v-aa2fe743 {
   display: -webkit-box;

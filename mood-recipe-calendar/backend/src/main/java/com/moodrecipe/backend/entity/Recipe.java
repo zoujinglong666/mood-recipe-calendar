@@ -35,6 +35,19 @@ public class Recipe {
     @Column(name = "mood_tags")
     private String moodTags;
 
+    /** 口味：清淡/辣/甜/酸/鲜等，逗号分隔。 */
+    private String taste;
+
+    /** 餐别：lunch/dinner/all。 */
+    @Column(name = "meal_type")
+    private String mealType;
+
+    /** 标签：快手菜/汤品/主食等，逗号分隔。 */
+    private String tags;
+
+    /** 调料：盐/酱油/醋等，跟食材分开，逗号分隔。 */
+    private String seasonings;
+
     private String season;
 
     /** 仅用于本次响应，不进入菜谱表。 */

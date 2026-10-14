@@ -95,6 +95,10 @@ const looseToNumber = (val) => {
   const n2 = parseFloat(val);
   return isNaN(n2) ? val : n2;
 };
+const toNumber = (val) => {
+  const n2 = isString$1(val) ? Number(val) : NaN;
+  return isNaN(n2) ? val : n2;
+};
 function normalizeStyle(value) {
   if (isArray$1(value)) {
     const res = {};
@@ -6689,16 +6693,20 @@ function setRef(ref2, id, opts = {}) {
 function withModelModifiers(fn, { number, trim }, isComponent = false) {
   if (isComponent) {
     return (...args) => {
-      {
+      if (trim) {
         args = args.map((a) => a.trim());
+      } else if (number) {
+        args = args.map(toNumber);
       }
       return fn(...args);
     };
   }
   return (event) => {
     const value = event.detail.value;
-    {
+    if (trim) {
       event.detail.value = value.trim();
+    } else if (number) {
+      event.detail.value = toNumber(value);
     }
     return fn(event);
   };
@@ -8210,6 +8218,11 @@ const onLoad = /* @__PURE__ */ createLifeCycleHook(
 );
 const onUnload = /* @__PURE__ */ createLifeCycleHook(
   ON_UNLOAD,
+  2
+  /* HookFlags.PAGE */
+);
+const onReachBottom = /* @__PURE__ */ createLifeCycleHook(
+  ON_REACH_BOTTOM,
   2
   /* HookFlags.PAGE */
 );
@@ -10492,6 +10505,71 @@ const tabProps = {
    */
   badgeProps: Object
 };
+const paginationProps = {
+  ...baseProps,
+  /**
+   * 当前页
+   * 类型: number
+   * 默认值: 必填
+   */
+  modelValue: makeRequiredProp(Number),
+  /**
+   * 总页数，如果有total，则优先使用total计算页数
+   * 类型: number
+   * 默认值: 1
+   */
+  totalPage: makeNumberProp(1),
+  /**
+   * 是否展示分页为Icon图标
+   * 类型: boolean
+   * 默认值: false
+   */
+  showIcon: makeBooleanProp(false),
+  /**
+   * 按钮的variant
+   * 类型: ButtonVariant
+   * 可选值: 'base' | 'plain' | 'dashed' | 'text'
+   * 默认值: 'text'
+   */
+  buttonVariant: {
+    type: String,
+    default: "text"
+  },
+  /**
+   * 是否展示总条数
+   * 类型: boolean
+   * 默认值: false
+   */
+  showMessage: makeBooleanProp(false),
+  /**
+   * 总条数
+   * 类型: number
+   * 默认值: 0
+   */
+  total: makeNumberProp(0),
+  /**
+   * 每页条数
+   * 类型: number
+   * 默认值: 10
+   */
+  pageSize: makeNumberProp(10),
+  /**
+   * 上一页文本
+   * 类型: string
+   */
+  prevText: String,
+  /**
+   * 下一页文本
+   * 类型: string
+   */
+  nextText: String,
+  /**
+   * 总页数只有一页时是否隐藏
+   * 类型: boolean
+   * 默认值: false
+   */
+  hideIfOnePage: makeBooleanProp(false)
+};
 const overlayProps = {
   ...baseProps,
   /**
@@ -11111,6 +11189,7 @@ exports.onLaunch = onLaunch;
 exports.onLoad = onLoad;
 exports.onMounted = onMounted;
 exports.onPullDownRefresh = onPullDownRefresh;
+exports.onReachBottom = onReachBottom;
 exports.onShareAppMessage = onShareAppMessage;
 exports.onShareTimeline = onShareTimeline;
 exports.onShow = onShow;
@@ -11118,6 +11197,7 @@ exports.onUnload = onUnload;
 exports.onUnmounted = onUnmounted;
 exports.overlayProps = overlayProps;
 exports.p = p;
+exports.paginationProps = paginationProps;
 exports.pause = pause;
 exports.popupProps = popupProps;
 exports.r = r;

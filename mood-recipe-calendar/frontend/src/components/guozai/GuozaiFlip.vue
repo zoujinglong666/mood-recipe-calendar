@@ -133,6 +133,14 @@ function deal(winner: FlipSlot) {
   later(() => { phase.value = 'ready' }, 1900)
 }
 
+/** 菜池未就绪等异常时由父组件调用：终止洗牌回到待机，避免永远卡在「洗牌中」。 */
+function fail() {
+  if (phase.value !== 'dealing')
+    return
+  clearTimers()
+  phase.value = 'idle'
+}
+
 /** 用户点开一张牌：所点卡立即翻出中奖菜，1.2s 后全部翻开。 */
 function pickCard(index: number) {
   if (phase.value !== 'ready')
@@ -165,7 +173,7 @@ function onMask() {
     emit('close')
 }
 
-defineExpose({ deal })
+defineExpose({ deal, fail })
 </script>
 
 <template>

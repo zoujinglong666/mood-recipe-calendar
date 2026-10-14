@@ -117,8 +117,12 @@ const _sfc_defineComponent = common_vendor.defineComponent({
       loading.value = false;
       await startTour();
     }
+    let pageAlive = true;
     common_vendor.onShow(load);
     common_vendor.onHide(() => showTour.value = false);
+    common_vendor.onUnmounted(() => {
+      pageAlive = false;
+    });
     async function startTour(force = false) {
       if (loading.value || showTour.value || !force && Number(common_vendor.index.getStorageSync(WEEKLY_PLAN_TOUR_KEY)) >= WEEKLY_PLAN_TOUR_VERSION)
         return;
@@ -153,28 +157,16 @@ const _sfc_defineComponent = common_vendor.defineComponent({
       try {
         const notify = await api_weeklyPlans.requestWeeklyPlanCompletionNotice();
         const job = await api_weeklyPlans.generateWeeklyPlan({ people: people.value, days: cookingDays.value.length, cookingDays: cookingDays.value, healthGoal: healthGoal.value, sendNotification: notify, dishesPerDay: dishesPerDay.value });
-        const planId = await pollWeeklyPlanJob(job.jobId);
+        const planId = await api_weeklyPlans.pollWeeklyPlanJob(job.jobId, 9e4, 2e3, () => !pageAlive);
         if (planId != null)
           router.replace({ name: "weekly-plan-detail", params: { id: String(planId) } });
-        else
+        else if (pageAlive)
           utils_toast.toastError(null, "锅仔还在努力排这周，稍后在锅仔管饭里看结果");
       } catch (error) {
         utils_toast.toastError(error, "锅仔暂时没排好这一周，请重试");
       } finally {
         generating.value = false;
       }
-    }
-    async function pollWeeklyPlanJob(jobId, timeoutMs = 9e4, interval = 2e3) {
-      const deadline = Date.now() + timeoutMs;
-      while (Date.now() < deadline) {
-        const job = await api_weeklyPlans.getWeeklyPlanJob(jobId);
-        if (job.status === "SUCCEEDED")
-          return job.planId ?? null;
-        if (job.status === "FAILED")
-          throw new Error(job.message || "生成失败");
-        await new Promise((resolve) => setTimeout(resolve, interval));
-      }
-      return null;
     }
     function throttleClick(fn, wait = 1500) {
       let last = 0;

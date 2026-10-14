@@ -9,6 +9,7 @@ const utils_login = require("../../utils/login.js");
 const utils_toast = require("../../utils/toast.js");
 const utils_bus = require("../../utils/bus.js");
 const stores_user = require("../../stores/user.js");
+const api_share = require("../../api/share.js");
 const __unplugin_components_0 = () => "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar.js";
 if (!Array) {
   const _component_wd_navbar = __unplugin_components_0;
@@ -33,6 +34,8 @@ const _sfc_defineComponent = common_vendor.defineComponent({
     common_vendor.onShareAppMessage(() => {
       const sharer = userStore.openid;
       const path = `/pages/record/index${sharer ? `?sharer=${encodeURIComponent(sharer)}` : ""}`;
+      void api_share.recordShare("record").catch(() => {
+      });
       return { title: "锅仔 · 记录今天吃了什么", path };
     });
     common_vendor.onShareTimeline(() => {
@@ -174,7 +177,7 @@ const _sfc_defineComponent = common_vendor.defineComponent({
       }
     }
     async function publish() {
-      var _a, _b;
+      var _a, _b, _c;
       if (submitting.value)
         return;
       if (uploading.value) {
@@ -216,6 +219,11 @@ const _sfc_defineComponent = common_vendor.defineComponent({
           const result = await api_records.saveRecord(payload);
           saved = result.record;
           learningReceipt.value = result.learningReceipt;
+          if ((_c = result.newlyUnlocked) == null ? void 0 : _c.length) {
+            utils_toast.toastSuccess(`🎉 解锁成就：${result.newlyUnlocked.join("、")}`);
+            const unread = Number(common_vendor.index.getStorageSync("mrc_achv_unread") || 0);
+            common_vendor.index.setStorageSync("mrc_achv_unread", unread + result.newlyUnlocked.length);
+          }
         }
         savedRecordId.value = saved.id;
         common_vendor.index.removeStorageSync(utils_cookingDraft.RECORD_DRAFT_KEY);

@@ -18,6 +18,15 @@ public final class AgentCards {
             "ASK_PEOPLE", "ASK_HOUSEHOLD", "ASK_SPICE", "ASK_DAYS", "ASK_DISHES",
             "ASK_GOAL", "ASK_BUDGET", "ASK_CLARIFY", "CONFIRM_CUISINE", "READY");
 
+    /** 需要用户回答的槽位动作：会话内问过一次就不再问第二次（防重复追问）。 */
+    public static final Set<String> ASK_ACTIONS = Set.of(
+            "ASK_PEOPLE", "ASK_HOUSEHOLD", "ASK_SPICE", "ASK_DAYS", "ASK_DISHES",
+            "ASK_GOAL", "ASK_BUDGET");
+
+    /** 「不想再聊了」入口的统一选项：点击后前端直接触发按记忆生成，不再逐项追问。 */
+    public static final DialogueState.Option GENERATE_FROM_MEMORY =
+            new DialogueState.Option("按我的记忆直接生成", "generate");
+
     private static final Map<String, List<String>> CUISINE_DISHES = Map.of(
             "赣菜", List.of("宁都三杯鸡", "莲花血鸭", "藜蒿炒腊肉"),
             "川菜", List.of("宫保鸡丁", "鱼香肉丝", "麻婆豆腐"),
@@ -61,8 +70,7 @@ public final class AgentCards {
                     "household=elder", "有老人", "household=child", "有小孩", "household=pregnant", "有孕妇", "household=adult", "都是成人");
             case "ASK_SPICE" -> options("家里平时能吃多辣？", "我会贯穿整周菜单",
                     "spice=不吃辣", "不吃辣", "spice=微辣", "微辣", "spice=能吃辣", "能吃辣");
-            case "ASK_DAYS" -> options("哪几天开火？", "可一次选择多个日期",
-                    "days=0,1,2,3,4,5,6", "周一到周日", "days=0,1,2,3,4", "工作日", "days=5,6", "周末");
+            case "ASK_DAYS" -> dayOptions();
             case "ASK_DISHES" -> dishOptions(state);
             case "ASK_GOAL" -> options("这阵子想怎么吃？", "锅仔会调整搭配和做法",
                     "goal=BALANCED", "均衡吃", "goal=FITNESS", "练得好", "goal=LEAN", "轻一点");
@@ -82,6 +90,9 @@ public final class AgentCards {
         List<DialogueState.Option> options = new ArrayList<>(card.options());
         if (options.stream().noneMatch(option -> "other".equals(option.value()))) {
             options.add(new DialogueState.Option("自己输入", "other"));
+        }
+        if (options.stream().noneMatch(option -> "generate".equals(option.value()))) {
+            options.add(GENERATE_FROM_MEMORY);
         }
         return new DialogueState.Card(card.type(), card.title(), card.description(), List.copyOf(options));
     }
@@ -121,6 +132,10 @@ public final class AgentCards {
         };
         if (!"READY".equals(action)) {
             safeOptions.add(other != null ? other : new DialogueState.Option("自己输入", "other"));
+            // 每张追问卡都带「按我的记忆直接生成」：用户随时可以结束问答，一键按记忆出菜单
+            if (safeOptions.stream().noneMatch(option -> "generate".equals(option.value()))) {
+                safeOptions.add(GENERATE_FROM_MEMORY);
+            }
         }
         String safeTitle = trimDisplayable(title, 60);
         if (safeTitle == null) safeTitle = trimDisplayable(description, 60);
@@ -144,6 +159,19 @@ public final class AgentCards {
             offset += Character.charCount(codePoint);
         }
         return trimmed;
+    }
+
+    /** 开火日卡片：支持「就今天一天」（生成一天菜谱）和多天选择。 */
+    private static DialogueState.Card dayOptions() {
+        int today = java.time.LocalDate.now(com.moodrecipe.backend.config.AppClock.ZONE)
+                .getDayOfWeek().getValue() - 1; // 0=周一 … 6=周日，与 cookingDays 槽位一致
+        List<DialogueState.Option> options = new ArrayList<>();
+        options.add(new DialogueState.Option("就今天一天", "days=" + today));
+        options.add(new DialogueState.Option("周一到周日", "days=0,1,2,3,4,5,6"));
+        options.add(new DialogueState.Option("工作日", "days=0,1,2,3,4"));
+        options.add(new DialogueState.Option("周末", "days=5,6"));
+        return new DialogueState.Card("OPTIONS", "哪几天开火？",
+                "可以只排今天，也可以一次选多天", options);
     }
 
     private static DialogueState.Card options(String title, String description, String... pairs) {

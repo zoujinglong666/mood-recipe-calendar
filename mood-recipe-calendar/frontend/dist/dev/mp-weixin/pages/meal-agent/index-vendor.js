@@ -162,7 +162,9 @@ const _sfc_defineComponent = common_vendor.defineComponent({
       ].filter(Boolean).join("；");
     });
     common_vendor.onShow(load);
+    let pageAlive = true;
     common_vendor.onUnmounted(() => {
+      pageAlive = false;
       stopProgress();
       stopThinking();
       stopTyping();
@@ -185,7 +187,7 @@ const _sfc_defineComponent = common_vendor.defineComponent({
         return;
       const draft = {
         conversationId: currentConversationId(),
-        messages: messages.value.slice(-80),
+        messages: messages.value.slice(-240),
         state: agentState.value,
         turn: agentTurn.value,
         completed: completed.value,
@@ -328,7 +330,7 @@ const _sfc_defineComponent = common_vendor.defineComponent({
       startThinking();
       await scrollToLatest();
       try {
-        const history = messages.value.map(({ role, text, tags, selected, card }) => ({ role, text, tags, selected, card }));
+        const history = messages.value.slice(-240).map(({ role, text, tags, selected, card }) => ({ role, text, tags, selected, card }));
         const turn = await api_weeklyPlans.runMealAgentTurn(message, agentState.value, currentConversationId(), history, webSearch, preset);
         stopThinking();
         agentTurn.value = turn;
@@ -365,6 +367,9 @@ const _sfc_defineComponent = common_vendor.defineComponent({
     }
     async function streamAgentReply(reply) {
       const full = localizeAgentText(reply || "");
+      const lastAgent = [...messages.value].reverse().find((m) => m.role === "agent");
+      if (full && (lastAgent == null ? void 0 : lastAgent.text) === full)
+        return;
       const index = messages.value.length;
       messages.value.push({ id: ++messageId, role: "agent", text: "" });
       await scrollToLatest();
@@ -601,7 +606,7 @@ const _sfc_defineComponent = common_vendor.defineComponent({
       startProgress();
       try {
         const notify = await api_weeklyPlans.requestWeeklyPlanCompletionNotice();
-        const plan = await api_weeklyPlans.generateWeeklyPlan({
+        const job = await api_weeklyPlans.generateWeeklyPlan({
           people: people.value,
           days: cookingDays.value.length,
           cookingDays: cookingDays.value,
@@ -611,10 +616,16 @@ const _sfc_defineComponent = common_vendor.defineComponent({
           conversationNotes: conversationNotes.value,
           sendNotification: notify
         });
+        const planId = await api_weeklyPlans.pollWeeklyPlanJob(job.jobId, 9e4, 2e3, () => !pageAlive);
         stopProgress();
         activeStep.value = agentSteps.length;
         completed.value = true;
-        generatedPlanId.value = plan.planId;
+        if (!planId) {
+          if (pageAlive)
+            utils_toast.toastError(null, "锅仔还在收尾这周的菜单，稍后可在备餐档案里查看");
+          return;
+        }
+        generatedPlanId.value = planId;
         persistConversation();
       } catch (error) {
         stopProgress();
@@ -642,9 +653,19 @@ const _sfc_defineComponent = common_vendor.defineComponent({
       if (ratingValue)
         void rateConversation(ratingValue);
     }
-    function openGeneratedPlan() {
-      if (generatedPlanId.value)
+    async function openGeneratedPlan() {
+      if (generatedPlanId.value) {
         router.replace({ name: "weekly-plan-detail", params: { id: String(generatedPlanId.value) } });
+        return;
+      }
+      try {
+        const plan = await api_weeklyPlans.getCurrentPlan();
+        if (plan == null ? void 0 : plan.id) {
+          generatedPlanId.value = plan.id;
+          router.replace({ name: "weekly-plan-detail", params: { id: String(plan.id) } });
+        }
+      } catch {
+      }
     }
     function openCurrentPlan() {
       if (currentPlan.value)

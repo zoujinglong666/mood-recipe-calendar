@@ -35,6 +35,38 @@ const nav = useNavBar()
 const userStore = useUserStore()
 const loading = ref(true)
 const paying = ref('')
+
+/** 「开通会员成功通知」模板 ID（与后端 wechat.subscription.member-template-id 一致）。 */
+const MEMBER_NOTICE_TEMPLATE_ID = '03DBh5APFeME7iZl7akNURNuNvDCxW2e1GMMQiifNiY'
+/** 支付前静默请求订阅授权：拒绝/失败均不影响支付流程；返回用户是否勾选了允许。 */
+function requestMemberNoticeAuthorization(): Promise<boolean> {
+  return new Promise((resolve) => {
+    // #ifdef MP-WEIXIN
+    const requestSubscribeMessage = (uni as any).requestSubscribeMessage
+    if (typeof requestSubscribeMessage !== 'function') {
+      resolve(false)
+      return
+    }
+    requestSubscribeMessage({
+      tmplIds: [MEMBER_NOTICE_TEMPLATE_ID],
+      success: (res: Record<string, string>) => resolve(['accept', 'acceptWithAudio'].includes(res[MEMBER_NOTICE_TEMPLATE_ID])),
+      fail: () => resolve(false),
+    })
+    // #endif
+    // #ifndef MP-WEIXIN
+    resolve(false)
+    // #endif
+  })
+}
+
+/** 续费入口旁的授权入口：订阅消息一次授权只能发一条，续费/到期场景由用户在此重新授权。 */
+async function enableRenewalNotice() {
+  const accepted = await requestMemberNoticeAuthorization()
+  if (accepted)
+    toastSuccess('已开启，会员到期与续费成功后会通知你')
+  else
+    toast('未开启授权，不影响会员使用')
+}
 const product = ref<VirtualProduct | null>(null)
 const yearProduct = ref<VirtualProduct | null>(null)
 const error = ref('')
@@ -127,17 +159,7 @@ const yearPrice = computed(() => ((yearProduct.value?.priceFen || 3900) / 100).t
 const yearDailyPrice = computed(() => ((yearProduct.value?.priceFen || 3900) / 100 / 365).toFixed(2))
 const purchasable = computed(() => paymentSupported && Boolean(product.value?.paymentAvailable))
 const yearPurchasable = computed(() => paymentSupported && Boolean(yearProduct.value?.paymentAvailable))
-const actionText = computed(() => {
-  if (active.value)
-    return `会员有效至 ${expireText.value}`
-  if (!userStore.isLoggedIn)
-    return '登录后开通会员'
-  if (!paymentSupported)
-    return '请在微信小程序内开通'
-  if (!product.value?.paymentAvailable)
-    return product.value?.paymentUnavailableMsg || '会员暂不可开通'
-  return `¥${price.value} · 开通 30 天`
-})
+// 会员生效中也可随时续费：时长由后端在现有到期日上顺延（grantEntitlement 已支持累加）
 
 async function load() {
   loading.value = true
@@ -242,11 +264,12 @@ function goNutritionReport() {
   router.push({ name: 'nutrition-report' })
 }
 
-/** 购买指定 SKU 的会员（月卡/年卡）。 */
+/** 购买指定 SKU 的会员（月卡/年卡）；已是会员时即续费，时长由后端顺延。 */
 async function purchase(sku: string) {
   const target = sku === MEMBER_YEAR_SKU ? yearProduct.value : product.value
-  if (active.value || paying.value)
+  if (paying.value)
     return
+  const isRenewal = active.value
   if (!userStore.isLoggedIn) {
     navigateToLogin()
     return
@@ -262,6 +285,8 @@ async function purchase(sku: string) {
   let checking = false
   try {
     const openid = await refreshWechatLoginForPayment()
+    // 支付前请求「开通会员成功通知」授权：拒绝不影响支付，只是收不到订阅消息
+    requestMemberNoticeAuthorization()
     const order = await createVirtualOrder(openid, target.sku)
     const params = await getVirtualPaymentParams(openid, order.orderNo)
     await requestWechatVirtualPayment(params)
@@ -274,10 +299,12 @@ async function purchase(sku: string) {
     }
     await refreshUserInfo(true)
     loadFamily()
-    toastSuccess(sku === MEMBER_YEAR_SKU ? '年卡已开通，全家都能用了' : '锅仔会员已开通')
+    toastSuccess(isRenewal
+      ? '续费成功，有效期已顺延'
+      : (sku === MEMBER_YEAR_SKU ? '年卡已开通，全家都能用了' : '锅仔会员已开通'))
   }
   catch (e: any) {
-    toastError(e, '暂时无法开通会员')
+    toastError(e, isRenewal ? '暂时无法续费' : '暂时无法开通会员')
   }
   finally {
     if (checking)
@@ -445,49 +472,47 @@ async function waitForDelivery(orderNo: string) {
     <view class="member-safe-space" />
 
     <view class="member-footer">
-      <template v-if="active">
+      <view v-if="active" class="member-footer__top">
         <view class="member-footer__price">
-          <text>已包含全部权益</text>
-          <text>续费后有效期顺延</text>
+          <text class="member-footer__expire">会员有效至 {{ expireText }}</text>
+          <text class="member-footer__hint">随时续费，时长自动顺延</text>
         </view>
-        <view class="member-footer__button is-disabled" role="button" :aria-label="actionText">
-          {{ actionText }}
+        <view class="member-footer__notice" role="button" aria-label="开启到账提醒" @click="enableRenewalNotice">
+          🔔 到账提醒
         </view>
-      </template>
-      <template v-else>
-        <view class="member-footer__plans">
-          <view
-            class="member-plan member-plan--year"
-            :class="{ 'is-disabled': !yearPurchasable }"
-            role="button"
-            aria-label="开通会员年卡"
-            @click="purchase(MEMBER_YEAR_SKU)"
-          >
-            <view class="member-plan__tag">全家共享 · 最划算</view>
-            <view class="member-plan__price">
-              <text class="member-plan__currency">¥</text>
-              <text class="member-plan__amount">{{ yearPrice }}</text>
-              <text class="member-plan__unit">/ 365 天</text>
-            </view>
-            <view class="member-plan__note">低至 ¥{{ yearDailyPrice }}/天 · 含家庭共享与营养月报</view>
+      </view>
+      <view class="member-footer__plans">
+        <view
+          class="member-plan member-plan--year"
+          :class="{ 'is-disabled': !yearPurchasable }"
+          role="button"
+          :aria-label="active ? '续费会员年卡' : '开通会员年卡'"
+          @click="purchase(MEMBER_YEAR_SKU)"
+        >
+          <view class="member-plan__tag">全家共享 · 最划算</view>
+          <view class="member-plan__price">
+            <text class="member-plan__currency">¥</text>
+            <text class="member-plan__amount">{{ yearPrice }}</text>
+            <text class="member-plan__unit">/ 365 天</text>
           </view>
-          <view
-            class="member-plan member-plan--month"
-            :class="{ 'is-disabled': !purchasable }"
-            role="button"
-            aria-label="开通会员月卡"
-            @click="purchase(MEMBER_PRODUCT_SKU)"
-          >
-            <view class="member-plan__price">
-              <text class="member-plan__currency">¥</text>
-              <text class="member-plan__amount">{{ price }}</text>
-              <text class="member-plan__unit">/ 30 天</text>
-            </view>
-            <view class="member-plan__note">先试试</view>
-          </view>
+          <view class="member-plan__note">低至 ¥{{ yearDailyPrice }}/天 · 含家庭共享与营养月报</view>
         </view>
-        <view v-if="paying" class="member-footer__paying">确认中…</view>
-      </template>
+        <view
+          class="member-plan member-plan--month"
+          :class="{ 'is-disabled': !purchasable }"
+          role="button"
+          :aria-label="active ? '续费会员月卡' : '开通会员月卡'"
+          @click="purchase(MEMBER_PRODUCT_SKU)"
+        >
+          <view class="member-plan__price">
+            <text class="member-plan__currency">¥</text>
+            <text class="member-plan__amount">{{ price }}</text>
+            <text class="member-plan__unit">/ 30 天</text>
+          </view>
+          <view class="member-plan__note">{{ active ? '续费 · 在现有效期上顺延 30 天' : '先试试' }}</view>
+        </view>
+      </view>
+      <view v-if="paying" class="member-footer__paying">确认中…</view>
     </view>
   </view>
 </template>
@@ -534,14 +559,28 @@ async function waitForDelivery(orderNo: string) {
 .member-note, .member-error { margin: 24rpx 8rpx 0; color: var(--mrc-text-sub); font-size: 20rpx; line-height: 1.55; text-align: center; }
 .member-note__legal { display: block; margin-top: 10rpx; font-size: 18rpx; }
 .member-error { color: var(--mrc-accent); }
-.member-safe-space { height: 190rpx; }
-.member-footer { position: fixed; z-index: 20; right: 0; bottom: 0; left: 0; display: flex; align-items: center; gap: 20rpx; padding: 22rpx 24rpx calc(22rpx + env(safe-area-inset-bottom)); border-top: 2rpx solid var(--mrc-border-light); background: rgba(255, 248, 237, .96); box-shadow: 0 -12rpx 34rpx rgba(93, 54, 30, .08); }
-.member-footer__price { display: flex; min-width: 190rpx; flex-direction: column; }
-.member-footer__price text:first-child { color: var(--mrc-text-deep); font-size: 28rpx; font-weight: 900; }
-.member-footer__price text:last-child { margin-top: 4rpx; color: var(--mrc-text-sub); font-size: 17rpx; }
+.member-safe-space { height: 280rpx; }
+.member-footer { position: fixed; z-index: 20; right: 0; bottom: 0; left: 0; display: flex; flex-direction: column; gap: 16rpx; padding: 20rpx 24rpx calc(20rpx + env(safe-area-inset-bottom)); border-top: 2rpx solid var(--mrc-border-light); background: rgba(255, 248, 237, .96); box-shadow: 0 -12rpx 34rpx rgba(93, 54, 30, .08); }
+.member-footer__top { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; }
+.member-footer__price { display: flex; min-width: 0; align-items: baseline; gap: 14rpx; }
+.member-footer__expire { color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 900; }
+.member-footer__hint { color: var(--mrc-text-sub); font-size: 19rpx; }
 .member-footer__button { display: flex; min-height: 86rpx; flex: 1; align-items: center; justify-content: center; padding: 0 24rpx; border-radius: 28rpx; background: linear-gradient(135deg, #f0b45f, #e96b4a); color: #fff; font-size: 25rpx; font-weight: 850; box-shadow: 0 12rpx 24rpx rgba(219, 92, 61, .22); text-align: center; }
 .member-footer__button.is-disabled { opacity: .62; box-shadow: none; }
 @media (prefers-reduced-motion: reduce) { .member-footer__button { transition: none; } }
+.member-footer__notice {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  padding: 10rpx 22rpx;
+  border: 2rpx solid var(--mrc-border);
+  border-radius: 999rpx;
+  background: var(--mrc-surface);
+  color: var(--mrc-accent);
+  font-size: 20rpx;
+  font-weight: 700;
+}
+.member-footer__notice:active { opacity: .7; }
 
 /* 家庭共享 */
 .member-family { margin: 24rpx 0 8rpx; padding: 26rpx 28rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 32rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }
@@ -579,21 +618,21 @@ async function waitForDelivery(orderNo: string) {
 .member-report-entry__sub { color: var(--mrc-text-sub); font-size: 21rpx; }
 .member-report-entry__arrow { color: var(--mrc-text-light); font-size: 40rpx; }
 
-/* 底部双 SKU */
-.member-footer__plans { display: flex; flex: 1; align-items: stretch; gap: 16rpx; }
-.member-plan { position: relative; display: flex; flex-direction: column; justify-content: center; padding: 14rpx 20rpx; border-radius: 24rpx; background: var(--mrc-surface-2); }
-.member-plan--year { flex: 1.4; background: linear-gradient(135deg, #f0b45f, #e96b4a); box-shadow: 0 12rpx 24rpx rgba(219, 92, 61, .22); }
+/* 底部双 SKU：占满一行，价格不换行，触控高度 ≥ 88rpx */
+.member-footer__plans { display: flex; align-items: stretch; gap: 16rpx; }
+.member-plan { position: relative; display: flex; min-height: 118rpx; flex: 1; flex-direction: column; justify-content: center; padding: 16rpx 22rpx; border-radius: 24rpx; background: var(--mrc-surface-2); }
+.member-plan--year { flex: 1.35; background: linear-gradient(135deg, #f0b45f, #e96b4a); box-shadow: 0 12rpx 24rpx rgba(219, 92, 61, .22); }
 .member-plan--month { flex: 1; }
 .member-plan__tag { align-self: flex-start; margin-bottom: 6rpx; padding: 3rpx 12rpx; border-radius: 999rpx; background: rgba(255, 255, 255, .9); color: #c2532f; font-size: 16rpx; font-weight: 800; }
-.member-plan__price { display: flex; align-items: baseline; gap: 4rpx; }
+.member-plan__price { display: flex; align-items: baseline; gap: 4rpx; white-space: nowrap; }
 .member-plan__currency { color: #fff; font-size: 24rpx; font-weight: 700; }
 .member-plan__amount { color: #fff; font-size: 46rpx; font-weight: 900; line-height: 1; }
 .member-plan__unit { color: rgba(255, 255, 255, .85); font-size: 20rpx; }
 .member-plan--month .member-plan__currency { color: var(--mrc-text-deep); }
 .member-plan--month .member-plan__amount { color: var(--mrc-text-deep); }
 .member-plan--month .member-plan__unit { color: var(--mrc-text-sub); }
-.member-plan__note { margin-top: 6rpx; color: rgba(255, 255, 255, .9); font-size: 17rpx; }
+.member-plan__note { margin-top: 6rpx; overflow: hidden; color: rgba(255, 255, 255, .9); font-size: 18rpx; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
 .member-plan--month .member-plan__note { color: var(--mrc-text-sub); }
 .member-plan.is-disabled { opacity: .6; pointer-events: none; }
-.member-footer__paying { flex: 1; text-align: center; color: var(--mrc-text-sub); font-size: 24rpx; }
+.member-footer__paying { text-align: center; color: var(--mrc-text-sub); font-size: 24rpx; }
 </style>

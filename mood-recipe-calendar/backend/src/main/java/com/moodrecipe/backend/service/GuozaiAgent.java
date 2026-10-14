@@ -12,6 +12,7 @@ import com.moodrecipe.backend.repository.RecipeInteractionRepository;
 import com.moodrecipe.backend.repository.RecipeRepository;
 import com.moodrecipe.backend.repository.UserFoodPreferenceRepository;
 import com.moodrecipe.backend.service.RecipePool;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -58,6 +59,8 @@ public class GuozaiAgent {
     private final WechatContentSafetyService contentSafety;
     private final RecipePool recipePool;
     private final GuidelineRagService guidelineRag;
+    /** 封面异步补拍：可空（测试/降级场景），为空时推荐照常返回只是没有后台补图。 */
+    private RecipeCoverBackfillService coverBackfill;
 
     public GuozaiAgent(AiRecipeService aiRecipeService, GuozaiMemory memory, GuozaiPersona persona,
                        RecipeRepository recipeRepository, RecipeInteractionRepository interactions,
@@ -75,6 +78,12 @@ public class GuozaiAgent {
         this.contentSafety = contentSafety;
         this.recipePool = recipePool;
         this.guidelineRag = guidelineRag;
+    }
+
+    /** 可选依赖走 setter 注入：保持既有构造器（测试用）签名不变。 */
+    @Autowired(required = false)
+    void setCoverBackfill(RecipeCoverBackfillService coverBackfill) {
+        this.coverBackfill = coverBackfill;
     }
 
     // ==================== 能力一：菜谱推荐 ====================
@@ -110,12 +119,24 @@ public class GuozaiAgent {
         // 本次推荐的《中国居民膳食指南》依据，随推荐结果返回（失败不影响推荐本身）
         String guidelineBasis = buildGuidelineBasis(mood, mealType);
 
+        // 早餐是硬约束：优先从现成早餐组合池（BreakfastPoolSeeder 生成的「主食 · 配饮品」）直接挑，
+        // 不交给文本模型即兴生成——prompt 软约束拦不住炒菜混进早餐；池子被忌口/曝光过滤光才走 AI 生成。
+        if (isBreakfast(mealType)) {
+            Recipe breakfast = breakfastPoolRecipe(openid, mood, preference, snapshot, progress);
+            if (breakfast != null) {
+                breakfast.setGuidelineBasis(guidelineBasis);
+                return breakfast;
+            }
+            log.info("早餐组合池为空或全部被过滤，回退 AI 生成早餐");
+        }
+
         // 优先 AI 智能体推荐（基于记忆主动分析，不是简单传 mood+preference）
         try {
             String preferenceText = preferencePrompt(preference);
             String smartPrompt = persona.recipePrompt(mood, userAnalysis, preferenceText, mealType);
+            // 封面延后生成：生图 30-90s 是推荐慢的主因，文本就绪即出结果
             Optional<Recipe> aiRecipe = aiRecipeService.recommendWithPersona(mood, smartPrompt,
-                    event -> updateAiProgress(openid, progress, event));
+                    event -> updateAiProgress(openid, progress, event), true);
             if (aiRecipe.isPresent() && contentSafe(openid, aiRecipe.get()) && allowedByPreference(aiRecipe.get(), preference)
                     && !exposures.wasRecentlyShownOrRejected(openid, aiRecipe.get())) {
                 Recipe generated = aiRecipe.get();
@@ -125,6 +146,12 @@ public class GuozaiAgent {
                     generated = recipeRepository.save(generated);
                 } catch (Exception ex) {
                     log.warn("锅仔菜谱落库失败，本次仍返回: {}", ex.toString());
+                }
+                // 封面异步补拍：菜谱已落库，后台生成回写后，各展示面的懒补图/详情拉取都能复用
+                if (safe(generated.getImage()).isBlank()) {
+                    if (coverBackfill != null) coverBackfill.schedule(generated.getId());
+                    update(progress, RecommendationJobService.Stage.IMAGE,
+                            RecommendationJobService.StepStatus.DEGRADED, "封面正在后台赶制，先看菜谱正文");
                 }
                 update(progress, RecommendationJobService.Stage.FINALIZE,
                         RecommendationJobService.StepStatus.RUNNING, "锅仔正在整理这道菜");
@@ -143,9 +170,71 @@ public class GuozaiAgent {
         }
 
         // 回退：本地菜谱库
-        Recipe fallback = fallbackLocalRecipe(openid, mood, preference, snapshot, progress);
+        Recipe fallback = fallbackLocalRecipe(openid, mood, mealType, preference, snapshot, progress);
         fallback.setGuidelineBasis(guidelineBasis);
         return fallback;
+    }
+
+    private boolean isBreakfast(String mealType) {
+        return mealType != null && "BREAKFAST".equalsIgnoreCase(mealType);
+    }
+
+    /**
+     * 从早餐组合池挑一道：池子里是 BreakfastPoolSeeder 生成并打「早餐」标签的完整早餐
+     * （包子/汤面/肠粉配豆浆牛奶等）。按忌口硬过滤、曝光去重、反馈与偏好打分，有真实图的优先。
+     * 池子被过滤光返回 null，由调用方回退 AI 生成。
+     */
+    private Recipe breakfastPoolRecipe(String openid, String mood, UserFoodPreference preference,
+                                       GuozaiMemory.MemorySnapshot snapshot,
+                                       RecommendationJobService.Progress progress) {
+        Set<Long> rejected = interactions.findByOpenidAndAction(openid, "DISLIKE").stream()
+                .map(RecipeInteraction::getRecipeId).filter(Objects::nonNull).collect(Collectors.toSet());
+        List<Recipe> pool = recipePool.all().stream()
+                .filter(r -> r.getMoodTags() != null && r.getMoodTags().contains(BreakfastPoolSeeder.BREAKFAST_TAG))
+                .filter(r -> allowedByPreference(r, preference))
+                .filter(r -> !rejected.contains(r.getId()) && !exposures.isRejected(openid, r))
+                .toList();
+        if (pool.isEmpty()) return null;
+
+        // 近期展示过的放后面：还有没看过的早餐就先出没看过的
+        List<Recipe> unseen = pool.stream().filter(r -> !exposures.wasRecentlyShown(openid, r)).toList();
+        if (!unseen.isEmpty()) pool = unseen;
+
+        Map<Long, Integer> feedback = new HashMap<>();
+        interactions.findTop30ByOpenidOrderByCreatedAtDesc(openid).forEach(i ->
+                feedback.merge(i.getRecipeId(), switch (i.getAction()) {
+                    case "MADE" -> 5;
+                    case "LIKE" -> 3;
+                    default -> 0;
+                }, Integer::sum));
+
+        Recipe recipe = pool.stream()
+                .max(Comparator
+                        .comparingInt((Recipe r) -> hasRealImage(r) ? 1 : 0)
+                        .thenComparingInt(r -> feedback.getOrDefault(r.getId(), 0)
+                                + preferenceScore(r, preference) + recommendationMemoryScore(r, snapshot)))
+                .orElse(null);
+        if (recipe == null) return null;
+
+        update(progress, RecommendationJobService.Stage.TEXT,
+                RecommendationJobService.StepStatus.COMPLETED, "从早餐组合里挑了一道现成的");
+        update(progress, RecommendationJobService.Stage.IMAGE,
+                RecommendationJobService.StepStatus.COMPLETED, "使用早餐组合的现有封面");
+        recipe.setRecommendationReason(buildSmartReason(mood, snapshot, preference, recipe.getDescription()));
+        recipe.setRecommendationInsights(recommendationInsights(recipe, snapshot));
+        if (recipe.getId() != null) recordInteraction(openid, recipe.getId(), "SHOWN");
+        recipe.setExposureId(exposures.recordShown(openid, recipe, "AI"));
+        update(progress, RecommendationJobService.Stage.FINALIZE,
+                RecommendationJobService.StepStatus.RUNNING, "正在整理推荐理由和做法");
+        update(progress, RecommendationJobService.Stage.FINALIZE,
+                RecommendationJobService.StepStatus.COMPLETED, "菜谱已经整理完成");
+        return recipe;
+    }
+
+    /** doubaocdn 短链已过期（403），与 static 插画一样视为无图。 */
+    private boolean hasRealImage(Recipe recipe) {
+        String img = recipe.getImage();
+        return img != null && !img.isBlank() && !img.startsWith("/static/") && !img.contains("doubaocdn.com");
     }
 
     /** 检索《中国居民膳食指南》要点作为本次推荐的可见依据；失败则静默返回 null，不影响推荐本身。 */
@@ -182,7 +271,7 @@ public class GuozaiAgent {
                 + "；本次口味与忌口：" + safe(userPreference)
                 + "；长期口味记忆：" + preferencePrompt(foodPref);
         String smartPrompt = persona.recipePrompt(mood, userAnalysis, preference);
-        Optional<Recipe> generated = aiRecipeService.recommendWithPersona(mood, smartPrompt, ignored -> { });
+        Optional<Recipe> generated = aiRecipeService.recommendWithPersona(mood, smartPrompt, ignored -> { }, false);
         if (generated.isEmpty() || !contentSafe(openid, generated.get()) || !allowedByPreference(generated.get(), foodPref)
                 || exposures.wasRecentlyShownOrRejected(openid, generated.get())) {
             return Optional.empty();
@@ -279,7 +368,7 @@ public class GuozaiAgent {
         }
     }
 
-    private Recipe fallbackLocalRecipe(String openid, String mood, UserFoodPreference preference,
+    private Recipe fallbackLocalRecipe(String openid, String mood, String mealType, UserFoodPreference preference,
                                        GuozaiMemory.MemorySnapshot snapshot,
                                        RecommendationJobService.Progress progress) {
         update(progress, RecommendationJobService.Stage.TEXT,
@@ -311,6 +400,13 @@ public class GuozaiAgent {
                 .filter(r -> r.getMoodTags() != null && r.getMoodTags().contains(mood)).toList();
         if (candidates.isEmpty()) {
             candidates = aiPool;
+        }
+        // 早餐推荐即使走兜底也必须出早餐：优先早餐组合池，池子为空才不限制
+        if (isBreakfast(mealType)) {
+            List<Recipe> breakfast = candidates.stream()
+                    .filter(r -> r.getMoodTags() != null && r.getMoodTags().contains(BreakfastPoolSeeder.BREAKFAST_TAG))
+                    .toList();
+            if (!breakfast.isEmpty()) candidates = breakfast;
         }
         if (candidates.isEmpty()) {
             update(progress, RecommendationJobService.Stage.LOCAL_FALLBACK,

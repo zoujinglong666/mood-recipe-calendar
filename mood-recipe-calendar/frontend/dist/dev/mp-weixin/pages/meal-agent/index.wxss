@@ -1157,9 +1157,8 @@ to {
 .composer__send.data-v-d8896d00 {
   display: flex;
   width: 70rpx;
-  height: 70rpx;
+  height: 32rpx;
   min-width: 70rpx;
-  min-height: 70rpx;
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;

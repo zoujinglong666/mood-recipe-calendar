@@ -129,7 +129,7 @@ public class AgentConversationService {
         if (transcript == null) return List.of();
         return transcript.stream()
                 .filter(message -> message != null && message.role() != null && message.text() != null)
-                .limit(80)
+                .limit(240)
                 .map(message -> new TranscriptMessage(
                         message.role().equals("user") ? "user" : "agent",
                         message.text().length() > 500 ? message.text().substring(0, 500) : message.text(),

@@ -15,6 +15,11 @@ export function recordShare(scene: string): Promise<ShareResult> {
   return post<ShareResult>('/share/record', { scene })
 }
 
+/** 分享回流承接：好友通过分享卡打开时调用，当日首次奖励双方各 +1 次对话额度。 */
+export function acceptShareInvite(sharer: string): Promise<ShareResult> {
+  return post<ShareResult>('/share/accept', { scene: sharer })
+}
+
 /** 查询当前用户分享状态，用于「我的」页展示「分享家」徽章。 */
 export function fetchShareStatus(): Promise<ShareStatus> {
   return get<ShareStatus>('/share/status')

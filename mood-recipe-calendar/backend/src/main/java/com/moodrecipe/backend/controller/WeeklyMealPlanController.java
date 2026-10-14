@@ -78,9 +78,17 @@ public class WeeklyMealPlanController {
         String next = request.nextQuestion() == null || request.nextQuestion().isBlank() ? "这周几个人一起吃饭？" : request.nextQuestion().substring(0, Math.min(80, request.nextQuestion().length()));
         return ApiResponse.ok(new AgentReply(agent.replyToPlanningMessage(openid, request.message().trim(), next)));
     }
+    /** 单轮携带的对话历史上限：超出部分自动裁剪（更早内容由 Compaction 摘要承接），不再拒绝请求。 */
+    private static final int MAX_TURN_HISTORY = 240;
+
     @PostMapping("/agent-turns") public ApiResponse<?> agentTurn(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @RequestBody AgentTurnRequest request) {
         if (request != null && request.message() != null && request.message().length() > 300) return ApiResponse.error(400, "一次最多输入 300 个字");
-        if (request != null && request.history() != null && request.history().size() > 80) return ApiResponse.error(400, "对话记录过长，请重新开始一轮");
+        // 无缝长对话：历史超限不再判停，只保留最近一段；更早往来由 Compactor 压成摘要进模型背景
+        if (request != null && request.history() != null && request.history().size() > MAX_TURN_HISTORY) {
+            request = new AgentTurnRequest(request.message(), request.state(), request.conversationId(),
+                    request.requestId(), request.preset(),
+                    request.history().subList(request.history().size() - MAX_TURN_HISTORY, request.history().size()));
+        }
         if (request != null && !contentSafety.allowsText(openid, request.message())) return ApiResponse.error(400, "文字未通过安全检查");
         boolean consumed = false;
         if (!quotas.member(openid)) {

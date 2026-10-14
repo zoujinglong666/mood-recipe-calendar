@@ -66,10 +66,12 @@ function getPeriod(hour: number) {
 import { computed, ref } from 'vue'
 import Icon from '../../components/common/Icon.vue'
 import { ensureLogin } from '../../utils/login'
-import { toastError } from '../../utils/toast'
+import { toastError, toastSuccess } from '../../utils/toast'
+import { acceptShareInvite } from '../../api/share'
+import { onLoad } from '@dcloudio/uni-app'
 import { fetchCompanionMessage, fetchRecordsByMonth, type CompanionMessage, type RecordItem } from '../../api/records'
 import { fetchRecipePool, fetchRecipeQuota, type RecipeItem, type UsageQuotaView } from '../../api/recipes'
-import { fetchDailyBoard, refreshDailyBoard, type DailyBoard } from '../../api/dailyMenu'
+import { fetchDailyBoard, refreshDailyBoard, generateDailyMenuCover, splitComboDishName, type DailyBoard } from '../../api/dailyMenu'
 import { saveCookingDraft } from '../../utils/cookingDraft'
 import GuozaiWheel from '../../components/guozai/GuozaiWheel.vue'
 import GuozaiNine from '../../components/guozai/GuozaiNine.vue'
@@ -167,6 +169,8 @@ async function loadData() {
     fetchRecipeQuota().then((q) => { recipeQuota.value = q }).catch(() => {})
     loadCompanion().catch(() => {})
     loadTodayBoard().catch(() => {})
+    // 菜池提前加载：转盘/九宫格/翻牌点开即用，不等点击后再拉
+    void preloadRecipePool()
   } catch (e: any) {
     if (e?.message !== 'NOT_LOGGED_IN')
       toastError(e, '加载失败，请稍后重试')
@@ -207,10 +211,57 @@ const todayBoard = ref<DailyBoard>()
 async function loadTodayBoard() {
   try {
     todayBoard.value = await fetchDailyBoard()
+    backfillBoardCover()
   }
   catch {
     todayBoard.value = undefined
   }
+}
+
+/** 今日菜懒补专属封面：没有真实图（锅仔插画兜底）时后台补拍，成功后就地替换；失败保持兜底。 */
+async function backfillBoardCover() {
+  if (!todayBoard.value?.recipe || todayBoard.value.recipe.image) return
+  try {
+    const board = await generateDailyMenuCover()
+    if (board?.recipe?.image) todayBoard.value = board
+  }
+  catch { /* 静默：保留锅仔插画兜底 */ }
+}
+
+/** 早餐组合菜「主食 · 配饮品」拆开展示：标题显示主食，饮品作为小标签。 */
+const boardNameParts = computed(() => splitComboDishName(todayBoard.value?.recipe?.name || ''))
+
+/** 菜池预加载：转盘/九宫格/翻牌共用。onShow 即拉取并预热图片，打开弹层时秒开不白屏。 */
+const recipePoolCache = ref<RecipeItem[]>([])
+const recipePoolAt = ref(0)
+const RECIPE_POOL_TTL = 5 * 60 * 1000
+let poolPreloading = false
+async function preloadRecipePool(force = false) {
+  if (poolPreloading) return
+  if (!force && recipePoolCache.value.length && Date.now() - recipePoolAt.value < RECIPE_POOL_TTL)
+    return
+  poolPreloading = true
+  try {
+    const pool = await fetchRecipePool()
+    recipePoolCache.value = pool
+    recipePoolAt.value = Date.now()
+    // 预热前 24 张封面：抽样大多落在其中，开抽时图片已在本地缓存，不再「转完了图才出来」
+    pool.slice(0, 24).forEach((item) => {
+      if (!item.image)
+        return
+      uni.getImageInfo({ src: item.image, fail: () => {} })
+    })
+  }
+  catch { /* 预加载失败静默：打开弹层时还有兜底拉取 */ }
+  finally {
+    poolPreloading = false
+  }
+}
+/** 取菜池：缓存新鲜直接返回；否则现拉（预加载通常已备好）。 */
+function recipePool(): Promise<RecipeItem[]> {
+  if (recipePoolCache.value.length && Date.now() - recipePoolAt.value < RECIPE_POOL_TTL)
+    return Promise.resolve(recipePoolCache.value)
+  return preloadRecipePool().then(() => recipePoolCache.value)
 }
 
 /** 从菜池抽样：按菜名去重 + 同前缀（前 2 字）最多 2 道，避免「番茄炒蛋×3」这类刷屏；可排除某道菜（如中奖菜）。 */
@@ -253,7 +304,7 @@ const wheelRef = ref<InstanceType<typeof GuozaiWheel>>()
 async function openWheel() {
   showWheel.value = true
   try {
-    const pool = await fetchRecipePool()
+    const pool = await recipePool()
     // 当前这道菜固定占一格，其余 7 格去重 + 同类限流抽样
     const current = todayBoard.value?.recipe
     const others = sampleDiverseDishes(pool, 7, current?.name)
@@ -287,7 +338,7 @@ const nineRef = ref<InstanceType<typeof GuozaiNine>>()
 async function openNine() {
   showNine.value = true
   try {
-    const pool = await fetchRecipePool()
+    const pool = await recipePool()
     const sampled = sampleDiverseDishes(pool, 8)
     nineRecipes.value = sampled
     nineItems.value = sampled.map(item => ({ name: item.name, image: item.image }))
@@ -325,24 +376,53 @@ const flipRef = ref<InstanceType<typeof GuozaiFlip>>()
 async function openFlip() {
   showFlip.value = true
   try {
-    const pool = await fetchRecipePool()
+    const pool = await recipePool()
     flipPool.value = pool
-    const sampled = sampleDiverseDishes(pool, 8)
-    flipItems.value = sampled.map(item => ({ name: item.name, image: item.image }))
+    flipItems.value = flipBoardItems(pool)
   }
   catch {
     flipPool.value = []
     flipItems.value = []
   }
 }
-function onFlipStart() {
+/** 翻牌牌面：有图优先抽样，不够 8 张用真实菜补齐（哪怕暂时无图），不再拿彩蛋词充数。 */
+function flipBoardItems(pool: RecipeItem[]): { name: string, image?: string }[] {
+  const sampled = sampleDiverseDishes(pool, 8)
+  const items = sampled.map(item => ({ name: item.name, image: item.image }))
+  for (const item of pool) {
+    if (items.length >= 8)
+      break
+    if (item?.name && !items.some(f => f.name === item.name))
+      items.push({ name: item.name, image: item.image })
+  }
+  return items
+}
+async function onFlipStart() {
+  // 菜池未就绪（预加载失败/被清）时先补拉：不能让卡片永远停在「洗牌中」
+  if (!flipPool.value.length) {
+    try {
+      flipPool.value = await recipePool()
+    }
+    catch {
+      flipPool.value = []
+    }
+    if (!flipPool.value.length) {
+      toastError(new Error('菜谱还没备好，稍后再来试试'), '翻一翻')
+      flipRef.value?.fail()
+      return
+    }
+    flipItems.value = flipBoardItems(flipPool.value)
+  }
   // 先定中奖菜，再抽「其余 7 张」——排除中奖菜同名，保证全翻开后 8 格不重样
-  if (!flipPool.value.length)
-    return
+  // sampleDiverseDishes 只取有图菜；菜池全部无图时回退任意一道，保证 deal() 一定被调用
   const winners = sampleDiverseDishes(flipPool.value, 1)
   const pick = winners[0]
-  if (!pick)
+    || flipPool.value.find(item => item?.name && item.name !== '锅仔牌')
+  if (!pick) {
+    toastError(new Error('菜谱还没备好，稍后再来试试'), '翻一翻')
+    flipRef.value?.fail()
     return
+  }
   const others = sampleDiverseDishes(flipPool.value, 7, pick.name)
   flipPick.value = pick
   flipItems.value = [
@@ -368,6 +448,26 @@ function goCookToday() {
   router.push({ name: 'cooking' })
 }
 
+/** 分享回流承接：好友通过分享卡打开 → 双方各 +1 次对话额度；带上好友分享的那道菜名做欢迎 */
+const friendDish = ref('')
+const inviteBonus = ref(false)
+onLoad((query) => {
+  const sharer = String(query?.sharer || '')
+  const dish = String(query?.dish || '')
+  if (dish)
+    friendDish.value = dish
+  if (!sharer || sharer === userStore.openid)
+    return
+  acceptShareInvite(sharer)
+    .then((res) => {
+      if (res?.grantedBonus) {
+        inviteBonus.value = true
+        toastSuccess('好友分享的福利：今日对话 +1 次')
+      }
+    })
+    .catch(() => {})
+})
+
 onShow(() => {
   now.value = new Date()
   loadData()
@@ -376,8 +476,17 @@ onShow(() => {
 /** 转发给好友/群：必须定义 onShareAppMessage 胶囊「···」里的转发才可用 */
 onShareAppMessage(() => {
   const sharer = userStore.openid
-  const path = `/pages/index/index${sharer ? `?sharer=${encodeURIComponent(sharer)}` : ''}`
-  return { title: '锅仔 · 按心情帮你决定今天吃什么', path }
+  // 分享卡带菜：好友点开直接看到这道菜 + 你的邀请，回流后双方各得 1 次对话额度
+  const dish = todayBoard.value?.recipe?.name || ''
+  const params = [
+    sharer ? `sharer=${encodeURIComponent(sharer)}` : '',
+    dish ? `dish=${encodeURIComponent(dish)}` : '',
+  ].filter(Boolean).join('&')
+  const path = `/pages/index/index${params ? `?${params}` : ''}`
+  const title = dish ? `我用锅仔安排了「${dish}」，也替你留了一份` : '锅仔 · 按心情帮你决定今天吃什么'
+  // 记录分享：发放「分享家」徽章 + 非会员当日 +1 次对话激励（失败静默，不影响转发）
+  void recordShare('home').catch(() => {})
+  return { title, path }
 })
 /** 分享到朋友圈：必须定义 onShareTimeline 才可用 */
 onShareTimeline(() => {
@@ -433,11 +542,21 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
         <view class="home-hero__spark home-hero__spark--one" /><view class="home-hero__spark home-hero__spark--two" />
       </view>
 
+      <!-- 分享回流欢迎条：好友点开的落地页，先看到这道菜和福利，再自然进入今日菜牌 -->
+      <view v-if="friendDish || inviteBonus" class="share-welcome">
+        <text class="share-welcome__emoji">🍲</text>
+        <text v-if="friendDish" class="share-welcome__text">好友用锅仔安排了「{{ friendDish }}」</text>
+        <text v-if="inviteBonus" class="share-welcome__bonus">你和好友各得 1 次对话额度</text>
+      </view>
+
       <!-- 今日菜单（TodayBoard）：今日菜牌——菜图右侧通栏出血，信息在左 -->
       <view v-if="todayBoard" class="home-entry home-board" role="button" :aria-label="`锅仔今天留了${todayBoard.recipe.name}，打开看做法`" @click="goCookToday">
         <view class="home-board__text">
           <view class="home-board__eyebrow"><text class="home-board__eyebrow-dot" /><text>锅仔今天给你留了</text></view>
-          <text class="home-board__name">{{ todayBoard.recipe.name }}</text>
+          <view class="home-board__name-row">
+            <text class="home-board__name">{{ boardNameParts.main }}</text>
+            <text v-if="boardNameParts.drink" class="home-board__drink">配{{ boardNameParts.drink }}</text>
+          </view>
           <view class="home-board__meta">
             <text v-if="todayBoard.recipe.cookingTime" class="home-board__chip">{{ todayBoard.recipe.cookingTime }} 分钟</text>
             <text v-if="todayBoard.recipe.difficulty" class="home-board__chip">{{ todayBoard.recipe.difficulty }}</text>
@@ -590,13 +709,29 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
 .home-hero__profile image { width: 58rpx; height: 58rpx; }
 
 /* 三个首页入口共享同一高度和节奏，内容层级通过颜色区分。 */
+.share-welcome {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin: 12rpx 24rpx 0;
+  padding: 16rpx 24rpx;
+  background: var(--mrc-surface-sun, #FFF6E0);
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 24rpx;
+}
+.share-welcome__emoji { font-size: 30rpx; }
+.share-welcome__text { font-size: 24rpx; color: var(--mrc-text-deep); font-weight: 700; }
+.share-welcome__bonus { margin-left: auto; font-size: 21rpx; color: var(--mrc-accent); font-weight: 700; }
+
 .home-entry { border-radius: 30rpx; box-sizing: border-box; }
 /* 今日菜牌（TodayBoard）：图占满右侧全高、杂志式出血；左侧信息三级（眉标/菜名/标签），CTA 为实心药丸。 */
 .home-board { position: relative; display: flex; align-items: stretch; height: 228rpx; margin-bottom: 16rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 30rpx; background: linear-gradient(120deg, var(--mrc-surface-peach) 0%, var(--mrc-surface) 62%); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); overflow: hidden; }
 .home-board__text { display: flex; flex: 1; min-width: 0; flex-direction: column; justify-content: center; gap: 10rpx; padding: 22rpx 6rpx 22rpx 30rpx; }
 .home-board__eyebrow { display: flex; align-items: center; gap: 10rpx; color: var(--mrc-accent); font-size: 19rpx; font-weight: 800; letter-spacing: 2rpx; }
 .home-board__eyebrow-dot { flex: 0 0 auto; width: 10rpx; height: 10rpx; border-radius: 50%; background: var(--mrc-accent); box-shadow: 0 0 0 6rpx var(--mrc-accent-soft); }
+.home-board__name-row { display: flex; align-items: center; gap: 12rpx; }
 .home-board__name { color: var(--mrc-text-strong); font-size: 37rpx; font-weight: 800; line-height: 1.22; letter-spacing: -.5rpx; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+.home-board__drink { flex-shrink: 0; padding: 4rpx 14rpx; border: 1rpx solid var(--mrc-border-light); border-radius: 999rpx; background: var(--mrc-accent-soft); color: var(--mrc-accent); font-size: 18rpx; font-weight: 700; }
 .home-board__meta { display: flex; flex-wrap: wrap; gap: 10rpx; }
 .home-board__chip { padding: 4rpx 16rpx; border: 1rpx solid var(--mrc-border-light); border-radius: 999rpx; background: rgba(255, 255, 255, .8); color: var(--mrc-text-sub); font-size: 18rpx; font-weight: 600; }
 .home-board__cook { align-self: flex-start; display: inline-flex; align-items: center; gap: 4rpx; margin-top: 2rpx; padding: 11rpx 26rpx; border-radius: 999rpx; background: var(--mrc-primary-deep); color: #fff; font-size: 21rpx; font-weight: 700; box-shadow: 0 6rpx 16rpx rgba(255, 107, 91, .32); transition: transform .15s ease; }
