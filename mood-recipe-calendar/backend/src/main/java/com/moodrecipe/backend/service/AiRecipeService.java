@@ -303,13 +303,29 @@ public class AiRecipeService {
             recipe.setSteps(objectMapper.writeValueAsString(steps));
             recipe.setCookingTime(Math.max(10, Math.min(cookingTime, 90)));
             recipe.setDifficulty(node.path("difficulty").asText("简单"));
-            recipe.setMoodTags(node.path("moodTags").asText(mood));
+            recipe.setMoodTags(sanitizeMoodTags(node.path("moodTags").asText(mood), mood));
             recipe.setSeason(node.path("season").asText("四季"));
             recipe.setSource("AI");
             return RecipeSafetyPolicy.isSafe(recipe) ? Optional.of(recipe) : Optional.empty();
         } catch (Exception ignored) {
             return Optional.empty();
         }
+    }
+
+    /**
+     * 清洗心情标签：只保留含中文/字母/数字的标签段，丢弃 emoji、问号等
+     * （特殊字符在非 utf8mb4 列/连接下会被替换成 ?，标签云会把 "??" 当标签展示）。空则回退到请求的 mood。
+     */
+    private String sanitizeMoodTags(String raw, String fallback) {
+        if (raw == null || raw.isBlank()) return fallback;
+        StringBuilder out = new StringBuilder();
+        for (String seg : raw.split("[,，、;；\\s]+")) {
+            String s = seg.trim();
+            if (s.isEmpty() || !s.matches(".*[\\u4e00-\\u9fa5a-zA-Z0-9].*")) continue;
+            if (out.length() > 0) out.append(',');
+            out.append(s);
+        }
+        return out.length() > 0 ? out.toString() : fallback;
     }
 
     private Optional<List<Recipe>> parseRecipeList(String content, int limit) {

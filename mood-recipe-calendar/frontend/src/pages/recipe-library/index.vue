@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { computed, ref, watch, onUnmounted } from 'vue'
+import { onShow, onReachBottom } from '@dcloudio/uni-app'
 import { STATIC_BASE_URL } from '@/utils/assets'
-import { fetchAllRecipes, type RecipeItem } from '@/api/recipes'
+import { fetchRecipeLibrary, fetchMoodTags, type RecipeItem } from '@/api/recipes'
 import { saveCookingDraft } from '@/utils/cookingDraft'
 import { navBack } from '@/composables/useNavBar'
 import { useWishlist } from '@/composables/useWishlist'
@@ -20,11 +20,17 @@ function keyOf(r: RecipeItem) {
   return String(r.id ?? r.name)
 }
 const loading = ref(true)
+const loadingMore = ref(false)
+const finished = ref(false)          // 已加载全部
 const recipes = ref<RecipeItem[]>([])
+const total = ref(0)
+const page = ref(1)
+const size = 20
 const keyword = ref('')
 const sourceFilter = ref<'ALL' | 'AI' | 'LOCAL'>('ALL')
 const timeFilter = ref<'ALL' | 'FAST' | 'SLOW'>('ALL')
 const moodFilter = ref<string>('ALL')
+const moodTags = ref<string[]>([])
 
 const SOURCE_OPTIONS = [
   { value: 'ALL', label: '全部' },
@@ -37,64 +43,130 @@ const TIME_OPTIONS = [
   { value: 'SLOW', label: '慢工 >30分' },
 ] as const
 
-/** 从全部菜谱动态提取心情标签（最多取 12 个），供标签云筛选 */
-const moodTags = computed(() => {
-  const set = new Set<string>()
-  for (const r of recipes.value) {
-    for (const t of (r.moodTags || '').split(',')) {
-      const s = t.trim()
-      if (s) set.add(s)
+const hasFilters = computed(() =>
+  !!keyword.value.trim() || sourceFilter.value !== 'ALL' || timeFilter.value !== 'ALL' || moodFilter.value !== 'ALL',
+)
+
+/** 组装当前筛选的请求参数（筛选全部下推后端） */
+function buildParams(resetPage: number) {
+  return {
+    page: resetPage - 1,
+    size,
+    keyword: keyword.value.trim() || undefined,
+    source: sourceFilter.value === 'ALL' ? undefined : sourceFilter.value,
+    time: timeFilter.value === 'ALL' ? undefined : timeFilter.value,
+    mood: moodFilter.value === 'ALL' ? undefined : moodFilter.value,
+  }
+}
+
+/** 请求序号守卫：筛选快速切换/触底并发时只让最后一次响应生效 */
+let reqSeq = 0
+
+/**
+ * 分页加载：reset=true 重建列表（首屏/筛选变化），否则触底追加下一页。
+ * 后端分页 + SQL 筛选，不再一次性拉全量。
+ */
+async function loadPage(reset: boolean) {
+  if (reset) {
+    page.value = 1
+    finished.value = false
+    loading.value = true
+  }
+  else {
+    if (loadingMore.value || finished.value || loading.value) return
+    loadingMore.value = true
+    page.value += 1
+  }
+  const seq = ++reqSeq
+  const targetPage = page.value
+  try {
+    const res = await fetchRecipeLibrary(buildParams(targetPage))
+    if (seq !== reqSeq) return // 已被更新的请求取代，丢弃
+    if (reset) {
+      recipes.value = res.list
+    }
+    else {
+      recipes.value = [...recipes.value, ...res.list]
+    }
+    total.value = res.total
+    if (!res.list.length || res.list.length < size) finished.value = true
+  }
+  catch (e: any) {
+    if (seq !== reqSeq) return
+    if (reset) toastError(e, '菜谱库加载失败')
+    else page.value = Math.max(1, page.value - 1) // 加载失败回退页码，可再次触底重试
+  }
+  finally {
+    if (seq === reqSeq) {
+      loading.value = false
+      loadingMore.value = false
     }
   }
-  return [...set].slice(0, 12)
+}
+
+async function loadMoodTags() {
+  try {
+    moodTags.value = await fetchMoodTags()
+  }
+  catch { /* 标签云拉取失败静默，不影响列表 */ }
+}
+
+/** 筛选变化回到第 1 页重建列表 */
+function onFilterChange() {
+  loadPage(true)
+}
+
+/** 键盘确认搜索：跳过防抖等待立即请求 */
+function onSearchConfirm() {
+  if (keywordTimer) {
+    clearTimeout(keywordTimer)
+    keywordTimer = null
+  }
+  loadPage(true)
+}
+
+/** 关键词防抖搜索（本地输入即时，400ms 后下推后端） */
+let keywordTimer: ReturnType<typeof setTimeout> | null = null
+let skipKeywordWatch = false
+watch(keyword, () => {
+  if (skipKeywordWatch) {
+    skipKeywordWatch = false
+    return
+  }
+  if (keywordTimer) clearTimeout(keywordTimer)
+  keywordTimer = setTimeout(() => {
+    keywordTimer = null
+    loadPage(true)
+  }, 400)
+})
+onUnmounted(() => {
+  if (keywordTimer) clearTimeout(keywordTimer)
 })
 
-const filtered = computed(() => {
-  const kw = keyword.value.trim().toLowerCase()
-  return recipes.value.filter((r) => {
-    if (kw && !`${r.name} ${r.description} ${r.ingredients}`.toLowerCase().includes(kw))
-      return false
-    if (sourceFilter.value !== 'ALL' && r.source !== sourceFilter.value)
-      return false
-    if (timeFilter.value === 'FAST' && (r.cookingTime || 0) > 30)
-      return false
-    if (timeFilter.value === 'SLOW' && (r.cookingTime || 0) <= 30)
-      return false
-    if (moodFilter.value !== 'ALL' && !(r.moodTags || '').split(',').map(s => s.trim()).includes(moodFilter.value))
-      return false
-    return true
-  })
+/** 触底加载下一页 */
+onReachBottom(() => {
+  if (!loading.value && !finished.value) loadPage(false)
 })
 
 onShow(async () => {
   syncFromServer()
-  if (recipes.value.length)
+  loadMoodTags()
+  if (recipes.value.length || loading.value)
     return
-  loading.value = true
-  try {
-    const all = await fetchAllRecipes()
-    // 防御性去重：后端已按菜名去重，旧缓存/兜底数据再按菜名过滤一次，保证列表不出现两道同名菜
-    const seen = new Set<string>()
-    recipes.value = all.filter((r) => {
-      if (seen.has(r.name))
-        return false
-      seen.add(r.name)
-      return true
-    })
-  }
-  catch (e: any) {
-    toastError(e, '菜谱库加载失败')
-  }
-  finally {
-    loading.value = false
-  }
+  loadPage(true)
 })
 
 function resetFilters() {
+  if (keywordTimer) {
+    clearTimeout(keywordTimer)
+    keywordTimer = null
+  }
+  skipKeywordWatch = keyword.value !== '' // 置空会触发防抖 watch，跳过避免重复请求
   keyword.value = ''
   sourceFilter.value = 'ALL'
   timeFilter.value = 'ALL'
   moodFilter.value = 'ALL'
+  loadPage(true)
 }
 
 function openCook(r: RecipeItem) {
@@ -115,6 +187,7 @@ function openCook(r: RecipeItem) {
         placeholder="搜菜名、食材或做法，比如「番茄」"
         placeholder-class="library-search__placeholder"
         confirm-type="search"
+        @confirm="onSearchConfirm"
       />
       <text v-if="keyword" class="library-search__clear" @click="keyword = ''">×</text>
     </view>
@@ -127,7 +200,7 @@ function openCook(r: RecipeItem) {
           class="library-chip"
           :class="{ 'library-chip--active': sourceFilter === opt.value }"
           role="button"
-          @click="sourceFilter = opt.value"
+          @click="sourceFilter = opt.value; onFilterChange()"
         >{{ opt.label }}</view>
         <view
           v-for="opt in TIME_OPTIONS"
@@ -135,7 +208,7 @@ function openCook(r: RecipeItem) {
           class="library-chip"
           :class="{ 'library-chip--active': timeFilter === opt.value }"
           role="button"
-          @click="timeFilter = opt.value"
+          @click="timeFilter = opt.value; onFilterChange()"
         >{{ opt.label }}</view>
       </view>
     </scroll-view>
@@ -146,7 +219,7 @@ function openCook(r: RecipeItem) {
           class="library-chip"
           :class="{ 'library-chip--active': moodFilter === 'ALL' }"
           role="button"
-          @click="moodFilter = 'ALL'"
+          @click="moodFilter = 'ALL'; onFilterChange()"
         >全部心情</view>
         <view
           v-for="m in moodTags"
@@ -154,25 +227,25 @@ function openCook(r: RecipeItem) {
           class="library-chip"
           :class="{ 'library-chip--active': moodFilter === m }"
           role="button"
-          @click="moodFilter = m"
+          @click="moodFilter = m; onFilterChange()"
         >{{ m }}</view>
       </view>
     </scroll-view>
 
     <view class="library-count">
-      <text>共 {{ filtered.length }} 道菜</text>
-      <text v-if="keyword || sourceFilter !== 'ALL' || timeFilter !== 'ALL' || moodFilter !== 'ALL'" class="library-count__reset" @click="resetFilters">清空筛选</text>
+      <text>共 {{ total }} 道菜</text>
+      <text v-if="hasFilters" class="library-count__reset" @click="resetFilters">清空筛选</text>
     </view>
 
     <view v-if="loading" class="library-empty"><text>锅仔正在翻菜谱…</text></view>
-    <view v-else-if="!filtered.length" class="library-empty">
+    <view v-else-if="!recipes.length" class="library-empty">
       <image :src="`${STATIC_BASE_URL}/static/guozai/action_08_peek.png`" mode="aspectFit" />
       <text>没有匹配的菜，换个关键词试试</text>
     </view>
 
     <view v-else class="library-list">
       <view
-        v-for="r in filtered"
+        v-for="r in recipes"
         :key="r.id || r.name"
         class="library-item"
         role="button"
@@ -198,6 +271,10 @@ function openCook(r: RecipeItem) {
         >♥</view>
         <text class="library-item__arrow">›</text>
       </view>
+
+      <view v-if="loadingMore" class="library-more"><text>加载中…</text></view>
+      <view v-else-if="finished" class="library-more"><text>已经到底啦，共 {{ total }} 道菜</text></view>
+      <view v-else class="library-more"><text>上拉加载更多</text></view>
     </view>
   </view>
 </template>
@@ -219,6 +296,7 @@ function openCook(r: RecipeItem) {
 
 .library-empty { display: flex; flex-direction: column; align-items: center; gap: 20rpx; padding: 120rpx 0; color: var(--mrc-text-sub); font-size: 26rpx; }
 .library-empty image { width: 160rpx; height: 160rpx; opacity: .8; }
+.library-more { display: flex; justify-content: center; padding: 24rpx 0 8rpx; color: var(--mrc-text-light); font-size: 24rpx; }
 
 .library-list { display: flex; flex-direction: column; gap: 16rpx; }
 .library-item { display: flex; align-items: center; gap: 20rpx; padding: 18rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); transition: transform .15s ease; }

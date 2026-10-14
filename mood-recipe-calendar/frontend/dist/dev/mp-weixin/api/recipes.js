@@ -1,7 +1,13 @@
 "use strict";
 const api_request = require("./request.js");
-function fetchAllRecipes() {
-  return api_request.get("/recipes").then((items) => items.map(normalizeRecipe));
+function fetchRecipeLibrary(params) {
+  return api_request.get("/recipes/library", params).then((res) => ({
+    ...res,
+    list: (res.list ?? []).map(normalizeRecipe)
+  }));
+}
+function fetchMoodTags() {
+  return api_request.get("/recipes/mood-tags").then((tags) => Array.isArray(tags) ? tags : []);
 }
 function createRecommendationJob(mood, mealType) {
   return api_request.post("/recipes/recommend-jobs", { mood, mealType }).then((job) => ({
@@ -43,9 +49,10 @@ function normalizeRecipe(recipe) {
   return { ...recipe, source: recipe.source === "AI" ? "AI" : "LOCAL", image: api_request.resolveAssetUrl(recipe.image) };
 }
 exports.createRecommendationJob = createRecommendationJob;
-exports.fetchAllRecipes = fetchAllRecipes;
+exports.fetchMoodTags = fetchMoodTags;
 exports.fetchRecipeDetail = fetchRecipeDetail;
 exports.fetchRecipeFeedback = fetchRecipeFeedback;
+exports.fetchRecipeLibrary = fetchRecipeLibrary;
 exports.fetchRecipePool = fetchRecipePool;
 exports.fetchRecipeQuota = fetchRecipeQuota;
 exports.fetchRecommendationHistory = fetchRecommendationHistory;

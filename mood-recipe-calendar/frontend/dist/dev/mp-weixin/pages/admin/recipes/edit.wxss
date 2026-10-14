@@ -1,0 +1,165 @@
+
+/* 与全局主题（theme.scss --mrc-* 令牌）统一 */
+.edit-page.data-v-2cace1c7 {
+  min-height: 100vh;
+  min-height: 100dvh;
+  box-sizing: border-box;
+  font-family: var(--mrc-font-family);
+  color: var(--mrc-text);
+  background: var(--mrc-bg);
+}
+.edit-content.data-v-2cace1c7 {
+  width: calc(100% - 48rpx);
+  max-width: 820rpx;
+  margin: 0 auto;
+  padding: 20rpx 0 calc(52rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+.image-section.data-v-2cace1c7 {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 28rpx;
+}
+.preview-img.data-v-2cace1c7 {
+  width: 400rpx;
+  height: 300rpx;
+  border-radius: 28rpx;
+  background: var(--mrc-surface-2);
+  border: 2rpx solid var(--mrc-border-light);
+  box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss);
+  box-sizing: border-box;
+}
+.preview-img.empty.data-v-2cace1c7 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--mrc-text-light);
+}
+.upload-btn.data-v-2cace1c7 {
+  background: var(--mrc-surface);
+  border: 2rpx solid var(--mrc-primary);
+  color: var(--mrc-accent);
+  font-size: 26rpx;
+  font-weight: 700;
+  border-radius: 999rpx;
+  padding: 0 44rpx;
+  line-height: 72rpx;
+  margin: 0;
+  box-shadow: var(--mrc-shadow-soft);
+  transition: transform var(--mrc-motion-fast, 180ms ease-out);
+}
+.upload-btn.data-v-2cace1c7::after {
+  border: none;
+}
+.upload-btn.data-v-2cace1c7:active {
+  transform: scale(0.97);
+}
+.warn-tip.data-v-2cace1c7 {
+  color: var(--mrc-accent);
+  background: var(--mrc-accent-soft);
+  font-size: 22rpx;
+  padding: 8rpx 24rpx;
+  border-radius: 999rpx;
+}
+.form-card.data-v-2cace1c7 {
+  background: var(--mrc-surface);
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 28rpx;
+  padding: 28rpx 26rpx;
+  box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss);
+  box-sizing: border-box;
+}
+.form-row.data-v-2cace1c7 {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 22rpx;
+  gap: 16rpx;
+}
+.form-row.data-v-2cace1c7:last-child {
+  margin-bottom: 0;
+}
+.label.data-v-2cace1c7 {
+  width: 140rpx;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: var(--mrc-text-deep);
+  line-height: 76rpx;
+  flex-shrink: 0;
+}
+.input.data-v-2cace1c7,
+.textarea.data-v-2cace1c7 {
+  flex: 1;
+  min-width: 0;
+  background: var(--mrc-surface-2);
+  border: 2rpx solid transparent;
+  border-radius: 18rpx;
+  padding: 16rpx 22rpx;
+  font-size: 26rpx;
+  color: var(--mrc-text-deep);
+  transition: border-color 180ms ease, background-color 180ms ease;
+}
+.textarea.data-v-2cace1c7 {
+  min-height: 110rpx;
+  line-height: 1.6;
+}
+.textarea.tall.data-v-2cace1c7 {
+  min-height: 220rpx;
+}
+.input.data-v-2cace1c7:focus,
+.textarea.data-v-2cace1c7:focus {
+  border-color: var(--mrc-primary);
+  background: var(--mrc-surface);
+}
+.action-bar.data-v-2cace1c7 {
+  display: flex;
+  gap: 20rpx;
+  margin-top: 36rpx;
+}
+.save-btn.data-v-2cace1c7,
+.delete-btn.data-v-2cace1c7 {
+  flex: 1;
+  height: 96rpx;
+  line-height: 96rpx;
+  font-size: 30rpx;
+  font-weight: 700;
+  border-radius: 48rpx;
+  margin: 0;
+  padding: 0;
+  transition: transform var(--mrc-motion-fast, 180ms ease-out), box-shadow var(--mrc-motion-fast, 180ms ease-out);
+}
+.save-btn.data-v-2cace1c7::after,
+.delete-btn.data-v-2cace1c7::after {
+  border: none;
+}
+.save-btn.data-v-2cace1c7 {
+  background: var(--mrc-primary-grad);
+  color: #fff;
+  box-shadow: var(--mrc-shadow-coral), var(--mrc-gloss);
+}
+.delete-btn.data-v-2cace1c7 {
+  background: var(--mrc-surface);
+  color: #C44732;
+  border: 2rpx solid rgba(196, 71, 50, 0.42);
+}
+.save-btn.data-v-2cace1c7:active,
+.delete-btn.data-v-2cace1c7:active {
+  transform: scale(0.97);
+}
+.save-btn[disabled].data-v-2cace1c7,
+.delete-btn[disabled].data-v-2cace1c7 {
+  opacity: 0.5;
+}
+@media (prefers-reduced-motion: reduce) {
+.upload-btn.data-v-2cace1c7,
+  .save-btn.data-v-2cace1c7,
+  .delete-btn.data-v-2cace1c7 {
+    transition: none;
+}
+.upload-btn.data-v-2cace1c7:active,
+  .save-btn.data-v-2cace1c7:active,
+  .delete-btn.data-v-2cace1c7:active {
+    transform: none;
+}
+}

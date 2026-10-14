@@ -28,6 +28,24 @@ delete appJson.requiredPrivateInfos
 fs.writeFileSync(appJsonPath, JSON.stringify(appJson, null, 2) + '\n', 'utf-8')
 console.log('[patch-mp-weixin] 已注入 __usePrivacyCheck__，并清理 requiredPrivateInfos 残留')
 
+// ---------- 关闭「过滤无依赖文件」 ----------
+// 原因：依赖分析会误杀只被单个页面引用、以懒加载字符串形式 require 的组件
+// （如 wd-pagination 被过滤后运行时报「无法被其他模块引用」）。
+const projCfgPath = path.resolve(__dirname, '../dist/build/mp-weixin/project.config.json')
+if (fs.existsSync(projCfgPath)) {
+  const projCfg = JSON.parse(fs.readFileSync(projCfgPath, 'utf-8'))
+  projCfg.setting = {
+    ...(projCfg.setting || {}),
+    ignoreDevUnusedFiles: false,
+    ignoreUploadUnusedFiles: false,
+  }
+  fs.writeFileSync(projCfgPath, JSON.stringify(projCfg, null, 2) + '\n', 'utf-8')
+  console.log('[patch-mp-weixin] 已关闭 ignoreDevUnusedFiles / ignoreUploadUnusedFiles（防依赖分析误杀组件）')
+}
+else {
+  console.error('[patch-mp-weixin] project.config.json 不存在，跳过过滤开关注入:', projCfgPath)
+}
+
 // ---------- 图标字体内联 ----------
 const fontPath = path.resolve(__dirname, './wot-icon-font.ttf')
 const iconWxssPath = path.resolve(__dirname, '../dist/build/mp-weixin/node-modules/@wot-ui/ui/components/wd-icon/wd-icon.wxss')

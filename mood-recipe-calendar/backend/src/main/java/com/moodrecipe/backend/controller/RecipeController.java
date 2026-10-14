@@ -13,6 +13,8 @@ import com.moodrecipe.backend.service.RecommendationJobService;
 import com.moodrecipe.backend.service.RecommendationExposureService;
 import com.moodrecipe.backend.service.UsageQuotaService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import com.moodrecipe.backend.config.SessionAuthInterceptor;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,10 +56,86 @@ public class RecipeController {
         this.quotas = quotas;
     }
 
-    /** 全部菜谱（按菜名去重，同名保留最早入库的一条） */
+    /**
+     * 锅仔菜谱池（首页转盘/九宫格/翻牌抽样用）：AI 且图非占位/死链，按菜名去重。
+     * 菜谱库浏览请用 /library（分页懒加载），不要走这个全量接口。
+     */
     @GetMapping
     public ApiResponse<List<Recipe>> list() {
         return ApiResponse.ok(dedupeByName(repository.findAiWithImages()));
+    }
+
+    /**
+     * 菜谱库分页列表（懒加载）：筛选全部下推 SQL，返回 {list,total,page,size}。
+     * 同名菜用 MIN(id) 子查询去重（与 dedupeByName 口径一致），按 id 升序分页稳定。
+     */
+    @GetMapping("/library")
+    public ApiResponse<Map<String, Object>> library(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String source,
+            @RequestParam(required = false) String time,
+            @RequestParam(required = false) String mood) {
+        int pageNo = Math.max(0, page);
+        int pageSize = Math.min(50, Math.max(1, size));
+        var pageResult = repository.findAll(librarySpec(keyword, source, time, mood),
+                PageRequest.of(pageNo, pageSize, Sort.by(Sort.Direction.ASC, "id")));
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("list", pageResult.getContent());
+        data.put("total", pageResult.getTotalElements());
+        data.put("page", pageNo);
+        data.put("size", pageSize);
+        return ApiResponse.ok(data);
+    }
+
+    /** 菜谱库筛选条件：同名去重 + 关键词/来源/时长/心情，全部下推 SQL，分页与 total 按筛选后口径 */
+    private org.springframework.data.jpa.domain.Specification<Recipe> librarySpec(
+            String keyword, String source, String time, String mood) {
+        return (root, query, cb) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            // 同名菜只保留最早入库（id 最小）的一条
+            var sub = query.subquery(Long.class);
+            var r2 = sub.from(Recipe.class);
+            sub.select(cb.min(r2.<Long>get("id"))).groupBy(r2.get("name"));
+            predicates.add(root.get("id").in(sub));
+            if (keyword != null && !keyword.isBlank()) {
+                String kw = "%" + keyword.trim() + "%";
+                predicates.add(cb.or(
+                        cb.like(root.get("name"), kw),
+                        cb.like(root.get("description"), kw),
+                        cb.like(root.get("ingredients"), kw)));
+            }
+            if (source != null && !source.isBlank()) {
+                predicates.add(cb.equal(root.get("source"), source));
+            }
+            if ("FAST".equals(time)) {
+                // 与前端原口径一致：cookingTime 为空按 0 计，归入快手
+                predicates.add(cb.or(root.get("cookingTime").isNull(),
+                        cb.lessThanOrEqualTo(root.<Integer>get("cookingTime"), 30)));
+            } else if ("SLOW".equals(time)) {
+                predicates.add(cb.greaterThan(root.<Integer>get("cookingTime"), 30));
+            }
+            if (mood != null && !mood.isBlank()) {
+                predicates.add(cb.like(root.get("moodTags"), "%" + mood.trim() + "%"));
+            }
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+    }
+
+    /** 菜谱库标签云：全表 mood_tags 聚合出的有效标签（去重取前 12），分页下前端拿不到全量 */
+    @GetMapping("/mood-tags")
+    public ApiResponse<List<String>> moodTags() {
+        Set<String> tags = new LinkedHashSet<>();
+        for (String raw : repository.findAllMoodTags()) {
+            for (String seg : raw.split("[,，、;；\\s]+")) {
+                String s = seg.trim();
+                // 只保留含中文/字母/数字的标签，过滤 emoji 入库变 ? 的乱码
+                if (!s.isEmpty() && s.matches(".*[\\u4e00-\\u9fa5a-zA-Z0-9].*")) tags.add(s);
+            }
+            if (tags.size() >= 12) break;
+        }
+        return ApiResponse.ok(new ArrayList<>(tags));
     }
 
     /**

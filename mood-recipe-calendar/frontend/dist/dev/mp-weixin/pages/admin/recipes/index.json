@@ -1,0 +1,8 @@
+{
+  "navigationStyle": "custom",
+  "navigationBarTitleText": "菜谱管理",
+  "usingComponents": {
+    "wd-pagination": "../../../node-modules/@wot-ui/ui/components/wd-pagination/wd-pagination",
+    "wd-navbar": "../../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar"
+  }
+}

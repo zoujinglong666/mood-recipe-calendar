@@ -2,13 +2,14 @@ package com.moodrecipe.backend.repository;
 
 import com.moodrecipe.backend.entity.Recipe;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.Optional;
 
-public interface RecipeRepository extends JpaRepository<Recipe, Long> {
+public interface RecipeRepository extends JpaRepository<Recipe, Long>, JpaSpecificationExecutor<Recipe> {
 
     /** 按心情标签模糊匹配（mood_tags 字段是逗号分隔的字符串） */
     @Query("SELECT r FROM Recipe r WHERE r.moodTags LIKE %:mood%")
@@ -39,4 +40,8 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
     List<Recipe> findAiWithMissingImage(@Param("tag") String tag);
 
     Optional<Recipe> findByName(String name);
+
+    /** 仅取 mood_tags 列（不含大 TEXT 字段），供菜谱库标签云聚合（分页接口拿不到全量）。 */
+    @Query("SELECT r.moodTags FROM Recipe r WHERE r.moodTags IS NOT NULL")
+    List<String> findAllMoodTags();
 }

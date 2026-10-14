@@ -52,8 +52,8 @@ public class RecipeCoverBackfillService {
         worker.start();
     }
 
-    /** doubaocdn 短链已过期（403），与 static 插画一样视为无图。 */
-    private boolean hasRealImage(Recipe recipe) {
+    /** doubaocdn 短链已过期（403），与 static 插画一样视为无图。公开供管理端「配图」入口复用同一口径。 */
+    public boolean hasRealImage(Recipe recipe) {
         String img = recipe.getImage();
         return img != null && !img.isBlank() && !img.startsWith("/static/") && !img.contains("doubaocdn.com");
     }
