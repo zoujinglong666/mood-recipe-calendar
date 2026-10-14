@@ -14,6 +14,7 @@ if (!Array) {
   const _component_layout_default_uni = common_vendor.resolveComponent("layout-default-uni");
   (_component_wd_navbar + _component_wd_icon + _component_layout_default_uni)();
 }
+const size = 20;
 const _sfc_main = /* @__PURE__ */ common_vendor.defineComponent({
   __name: "index",
   setup(__props) {
@@ -23,11 +24,16 @@ const _sfc_main = /* @__PURE__ */ common_vendor.defineComponent({
       return String(r.id ?? r.name);
     }
     const loading = common_vendor.ref(true);
+    const loadingMore = common_vendor.ref(false);
+    const finished = common_vendor.ref(false);
     const recipes = common_vendor.ref([]);
+    const total = common_vendor.ref(0);
+    const page = common_vendor.ref(1);
     const keyword = common_vendor.ref("");
     const sourceFilter = common_vendor.ref("ALL");
     const timeFilter = common_vendor.ref("ALL");
     const moodFilter = common_vendor.ref("ALL");
+    const moodTags = common_vendor.ref([]);
     const SOURCE_OPTIONS = [
       { value: "ALL", label: "全部" },
       { value: "AI", label: "AI 菜" },
@@ -38,58 +44,115 @@ const _sfc_main = /* @__PURE__ */ common_vendor.defineComponent({
       { value: "FAST", label: "快手 ≤30分" },
       { value: "SLOW", label: "慢工 >30分" }
     ];
-    const moodTags = common_vendor.computed(() => {
-      const set = /* @__PURE__ */ new Set();
-      for (const r of recipes.value) {
-        for (const t of (r.moodTags || "").split(",")) {
-          const s = t.trim();
-          if (s)
-            set.add(s);
+    const hasFilters = common_vendor.computed(
+      () => !!keyword.value.trim() || sourceFilter.value !== "ALL" || timeFilter.value !== "ALL" || moodFilter.value !== "ALL"
+    );
+    function buildParams(resetPage) {
+      return {
+        page: resetPage - 1,
+        size,
+        keyword: keyword.value.trim() || void 0,
+        source: sourceFilter.value === "ALL" ? void 0 : sourceFilter.value,
+        time: timeFilter.value === "ALL" ? void 0 : timeFilter.value,
+        mood: moodFilter.value === "ALL" ? void 0 : moodFilter.value
+      };
+    }
+    let reqSeq = 0;
+    async function loadPage(reset) {
+      if (reset) {
+        page.value = 1;
+        finished.value = false;
+        loading.value = true;
+      } else {
+        if (loadingMore.value || finished.value || loading.value)
+          return;
+        loadingMore.value = true;
+        page.value += 1;
+      }
+      const seq = ++reqSeq;
+      const targetPage = page.value;
+      try {
+        const res = await api_recipes.fetchRecipeLibrary(buildParams(targetPage));
+        if (seq !== reqSeq)
+          return;
+        if (reset) {
+          recipes.value = res.list;
+        } else {
+          recipes.value = [...recipes.value, ...res.list];
+        }
+        total.value = res.total;
+        if (!res.list.length || res.list.length < size)
+          finished.value = true;
+      } catch (e) {
+        if (seq !== reqSeq)
+          return;
+        if (reset)
+          utils_toast.toastError(e, "菜谱库加载失败");
+        else
+          page.value = Math.max(1, page.value - 1);
+      } finally {
+        if (seq === reqSeq) {
+          loading.value = false;
+          loadingMore.value = false;
         }
       }
-      return [...set].slice(0, 12);
+    }
+    async function loadMoodTags() {
+      try {
+        moodTags.value = await api_recipes.fetchMoodTags();
+      } catch {
+      }
+    }
+    function onFilterChange() {
+      loadPage(true);
+    }
+    function onSearchConfirm() {
+      if (keywordTimer) {
+        clearTimeout(keywordTimer);
+        keywordTimer = null;
+      }
+      loadPage(true);
+    }
+    let keywordTimer = null;
+    let skipKeywordWatch = false;
+    common_vendor.watch(keyword, () => {
+      if (skipKeywordWatch) {
+        skipKeywordWatch = false;
+        return;
+      }
+      if (keywordTimer)
+        clearTimeout(keywordTimer);
+      keywordTimer = setTimeout(() => {
+        keywordTimer = null;
+        loadPage(true);
+      }, 400);
     });
-    const filtered = common_vendor.computed(() => {
-      const kw = keyword.value.trim().toLowerCase();
-      return recipes.value.filter((r) => {
-        if (kw && !`${r.name} ${r.description} ${r.ingredients}`.toLowerCase().includes(kw))
-          return false;
-        if (sourceFilter.value !== "ALL" && r.source !== sourceFilter.value)
-          return false;
-        if (timeFilter.value === "FAST" && (r.cookingTime || 0) > 30)
-          return false;
-        if (timeFilter.value === "SLOW" && (r.cookingTime || 0) <= 30)
-          return false;
-        if (moodFilter.value !== "ALL" && !(r.moodTags || "").split(",").map((s) => s.trim()).includes(moodFilter.value))
-          return false;
-        return true;
-      });
+    common_vendor.onUnmounted(() => {
+      if (keywordTimer)
+        clearTimeout(keywordTimer);
+    });
+    common_vendor.onReachBottom(() => {
+      if (!loading.value && !finished.value)
+        loadPage(false);
     });
     common_vendor.onShow(async () => {
       syncFromServer();
-      if (recipes.value.length)
+      loadMoodTags();
+      if (recipes.value.length || loading.value)
         return;
-      loading.value = true;
-      try {
-        const all = await api_recipes.fetchAllRecipes();
-        const seen = /* @__PURE__ */ new Set();
-        recipes.value = all.filter((r) => {
-          if (seen.has(r.name))
-            return false;
-          seen.add(r.name);
-          return true;
-        });
-      } catch (e) {
-        utils_toast.toastError(e, "菜谱库加载失败");
-      } finally {
-        loading.value = false;
-      }
+      loadPage(true);
     });
     function resetFilters() {
+      if (keywordTimer) {
+        clearTimeout(keywordTimer);
+        keywordTimer = null;
+      }
+      skipKeywordWatch = keyword.value !== "";
       keyword.value = "";
       sourceFilter.value = "ALL";
       timeFilter.value = "ALL";
       moodFilter.value = "ALL";
+      loadPage(true);
     }
     function openCook(r) {
       utils_cookingDraft.saveCookingDraft(r, "满足");
@@ -109,51 +172,64 @@ const _sfc_main = /* @__PURE__ */ common_vendor.defineComponent({
           size: "32rpx",
           color: "#A1826A"
         }),
-        d: keyword.value,
-        e: common_vendor.o(($event) => keyword.value = $event.detail.value),
-        f: keyword.value
+        d: common_vendor.o(onSearchConfirm),
+        e: keyword.value,
+        f: common_vendor.o(($event) => keyword.value = $event.detail.value),
+        g: keyword.value
       }, keyword.value ? {
-        g: common_vendor.o(($event) => keyword.value = "")
+        h: common_vendor.o(($event) => keyword.value = "")
       } : {}, {
-        h: common_vendor.f(SOURCE_OPTIONS, (opt, k0, i0) => {
+        i: common_vendor.f(SOURCE_OPTIONS, (opt, k0, i0) => {
           return {
             a: common_vendor.t(opt.label),
             b: opt.value,
             c: sourceFilter.value === opt.value ? 1 : "",
-            d: common_vendor.o(($event) => sourceFilter.value = opt.value, opt.value)
+            d: common_vendor.o(($event) => {
+              sourceFilter.value = opt.value;
+              onFilterChange();
+            }, opt.value)
           };
         }),
-        i: common_vendor.f(TIME_OPTIONS, (opt, k0, i0) => {
+        j: common_vendor.f(TIME_OPTIONS, (opt, k0, i0) => {
           return {
             a: common_vendor.t(opt.label),
             b: opt.value,
             c: timeFilter.value === opt.value ? 1 : "",
-            d: common_vendor.o(($event) => timeFilter.value = opt.value, opt.value)
+            d: common_vendor.o(($event) => {
+              timeFilter.value = opt.value;
+              onFilterChange();
+            }, opt.value)
           };
         }),
-        j: moodTags.value.length
+        k: moodTags.value.length
       }, moodTags.value.length ? {
-        k: moodFilter.value === "ALL" ? 1 : "",
-        l: common_vendor.o(($event) => moodFilter.value = "ALL"),
-        m: common_vendor.f(moodTags.value, (m, k0, i0) => {
+        l: moodFilter.value === "ALL" ? 1 : "",
+        m: common_vendor.o(($event) => {
+          moodFilter.value = "ALL";
+          onFilterChange();
+        }),
+        n: common_vendor.f(moodTags.value, (m, k0, i0) => {
           return {
             a: common_vendor.t(m),
             b: m,
             c: moodFilter.value === m ? 1 : "",
-            d: common_vendor.o(($event) => moodFilter.value = m, m)
+            d: common_vendor.o(($event) => {
+              moodFilter.value = m;
+              onFilterChange();
+            }, m)
           };
         })
       } : {}, {
-        n: common_vendor.t(filtered.value.length),
-        o: keyword.value || sourceFilter.value !== "ALL" || timeFilter.value !== "ALL" || moodFilter.value !== "ALL"
-      }, keyword.value || sourceFilter.value !== "ALL" || timeFilter.value !== "ALL" || moodFilter.value !== "ALL" ? {
-        p: common_vendor.o(resetFilters)
+        o: common_vendor.t(total.value),
+        p: hasFilters.value
+      }, hasFilters.value ? {
+        q: common_vendor.o(resetFilters)
       } : {}, {
-        q: loading.value
-      }, loading.value ? {} : !filtered.value.length ? {
-        s: `${common_vendor.unref(utils_assets.STATIC_BASE_URL)}/static/guozai/action_08_peek.png`
-      } : {
-        t: common_vendor.f(filtered.value, (r, k0, i0) => {
+        r: loading.value
+      }, loading.value ? {} : !recipes.value.length ? {
+        t: `${common_vendor.unref(utils_assets.STATIC_BASE_URL)}/static/guozai/action_08_peek.png`
+      } : common_vendor.e({
+        v: common_vendor.f(recipes.value, (r, k0, i0) => {
           return common_vendor.e({
             a: r.image || `${common_vendor.unref(utils_assets.STATIC_BASE_URL)}/static/guozai/action_01_bowl.png`,
             b: common_vendor.t(r.name),
@@ -174,9 +250,14 @@ const _sfc_main = /* @__PURE__ */ common_vendor.defineComponent({
             m: `查看${r.name}做法`,
             n: common_vendor.o(($event) => openCook(r), r.id || r.name)
           });
-        })
-      }, {
-        r: !filtered.value.length
+        }),
+        w: loadingMore.value
+      }, loadingMore.value ? {} : finished.value ? {
+        y: common_vendor.t(total.value)
+      } : {}, {
+        x: finished.value
+      }), {
+        s: !recipes.value.length
       });
     };
   }

@@ -1,0 +1,330 @@
+
+/* 与全局主题（theme.scss --mrc-* 令牌）统一：暖奶油底 + 珊瑚主色 + 暖褐文字 */
+.admin-page.data-v-a7a9d3a7 {
+  min-height: 100vh;
+  min-height: 100dvh;
+  box-sizing: border-box;
+  font-family: var(--mrc-font-family);
+  color: var(--mrc-text);
+  background: var(--mrc-bg);
+}
+.admin-content.data-v-a7a9d3a7 {
+  width: calc(100% - 48rpx);
+  max-width: 820rpx;
+  margin: 0 auto;
+  padding: 20rpx 0 calc(52rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+}
+
+/* 统一卡片基底：近白暖调表面 + 浅描边 + 上色柔和投影 */
+.stat-card.data-v-a7a9d3a7,
+.gen-card.data-v-a7a9d3a7,
+.recipe-card.data-v-a7a9d3a7,
+.search-input.data-v-a7a9d3a7 {
+  background: var(--mrc-surface);
+  border: 2rpx solid var(--mrc-border-light);
+  box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss);
+  box-sizing: border-box;
+}
+
+/* ---------- 统计卡 ---------- */
+.stats-row.data-v-a7a9d3a7 {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 24rpx;
+}
+.stat-card.data-v-a7a9d3a7 {
+  flex: 1;
+  border-radius: 28rpx;
+  padding: 22rpx 0;
+  text-align: center;
+}
+.stat-card.warn.data-v-a7a9d3a7 {
+  background: var(--mrc-surface-sun);
+}
+.stat-num.data-v-a7a9d3a7 {
+  display: block;
+  font-size: 36rpx;
+  font-weight: 800;
+  color: var(--mrc-text-strong);
+}
+.stat-card.warn .stat-num.data-v-a7a9d3a7 {
+  color: var(--mrc-accent);
+}
+.stat-label.data-v-a7a9d3a7 {
+  font-size: 21rpx;
+  color: var(--mrc-text-sub);
+}
+
+/* ---------- 搜索 ---------- */
+.search-bar.data-v-a7a9d3a7 {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 20rpx;
+}
+.search-input.data-v-a7a9d3a7 {
+  flex: 1;
+  min-width: 0;
+  height: 88rpx;
+  border-radius: 44rpx;
+  padding: 0 30rpx;
+  font-size: 28rpx;
+  color: var(--mrc-text-deep);
+}
+.search-btn.data-v-a7a9d3a7 {
+  margin: 0;
+  height: 88rpx;
+  padding: 0 38rpx;
+  border-radius: 44rpx;
+  background: var(--mrc-primary-grad);
+  color: #fff;
+  font-size: 28rpx;
+  font-weight: 700;
+  line-height: 88rpx;
+  box-shadow: var(--mrc-shadow-coral), var(--mrc-gloss);
+  transition: transform var(--mrc-motion-fast, 180ms ease-out);
+}
+.search-btn.data-v-a7a9d3a7::after,
+.gen-run-btn.data-v-a7a9d3a7::after {
+  border: none;
+}
+.search-btn.data-v-a7a9d3a7:active,
+.gen-run-btn.data-v-a7a9d3a7:active {
+  transform: scale(0.97);
+}
+
+/* ---------- 筛选 chip ---------- */
+.filter-bar.data-v-a7a9d3a7 {
+  display: flex;
+  gap: 14rpx;
+  margin-bottom: 22rpx;
+  flex-wrap: wrap;
+}
+.filter-chip.data-v-a7a9d3a7 {
+  padding: 14rpx 28rpx;
+  background: var(--mrc-surface);
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 999rpx;
+  font-size: 24rpx;
+  font-weight: 600;
+  color: var(--mrc-text-sub);
+  transition: background-color 180ms ease, color 180ms ease;
+}
+.filter-chip.active.data-v-a7a9d3a7 {
+  background: var(--mrc-accent-soft);
+  border-color: transparent;
+  color: var(--mrc-accent);
+}
+
+/* ---------- 菜谱列表 ---------- */
+.recipe-list.data-v-a7a9d3a7 {
+  display: flex;
+  flex-direction: column;
+  gap: 18rpx;
+}
+.recipe-card.data-v-a7a9d3a7 {
+  display: flex;
+  border-radius: 28rpx;
+  overflow: hidden;
+}
+.recipe-img.data-v-a7a9d3a7 {
+  width: 168rpx;
+  height: 168rpx;
+  flex-shrink: 0;
+  background: var(--mrc-surface-2);
+}
+.recipe-img.placeholder.data-v-a7a9d3a7 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--mrc-text-light);
+  font-size: 24rpx;
+}
+.recipe-info.data-v-a7a9d3a7 {
+  flex: 1;
+  min-width: 0;
+  padding: 18rpx 22rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+  overflow: hidden;
+}
+.recipe-name-row.data-v-a7a9d3a7 {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+}
+.recipe-name.data-v-a7a9d3a7 {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: var(--mrc-text-deep);
+}
+.badge-warn.data-v-a7a9d3a7,
+.badge-none.data-v-a7a9d3a7 {
+  flex: 0 0 auto;
+  font-size: 20rpx;
+  font-weight: 600;
+  padding: 4rpx 14rpx;
+  border-radius: 999rpx;
+}
+.badge-warn.data-v-a7a9d3a7 {
+  background: var(--mrc-accent-soft);
+  color: var(--mrc-accent);
+}
+.badge-none.data-v-a7a9d3a7 {
+  background: var(--mrc-surface-2);
+  color: var(--mrc-text-sub);
+}
+.recipe-desc.data-v-a7a9d3a7 {
+  font-size: 24rpx;
+  color: var(--mrc-text-sub);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.recipe-meta.data-v-a7a9d3a7 {
+  display: flex;
+  gap: 12rpx;
+}
+.meta-tag.data-v-a7a9d3a7 {
+  font-size: 20rpx;
+  color: var(--mrc-text-sub);
+  background: var(--mrc-surface-2);
+  padding: 4rpx 14rpx;
+  border-radius: 999rpx;
+}
+
+/* 卡片内操作按钮：.stop 阻断卡片跳转；胶囊小按钮 + 软色底 */
+.recipe-actions.data-v-a7a9d3a7 {
+  display: flex;
+  gap: 14rpx;
+  margin-top: 4rpx;
+}
+.action-btn.data-v-a7a9d3a7 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 56rpx;
+  padding: 0 26rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+  font-weight: 700;
+}
+.action-btn--primary.data-v-a7a9d3a7 {
+  background: var(--mrc-accent-soft);
+  color: var(--mrc-accent);
+}
+.action-btn--primary.is-busy.data-v-a7a9d3a7 {
+  opacity: 0.55;
+  pointer-events: none;
+}
+.action-btn--danger.data-v-a7a9d3a7 {
+  background: rgba(217, 72, 65, 0.10);
+  color: #C44732;
+}
+
+/* 分页条 */
+.admin-content > .wd-pagination.data-v-a7a9d3a7 {
+  margin-top: 28rpx;
+}
+.loading-tip.data-v-a7a9d3a7, .empty-tip.data-v-a7a9d3a7 {
+  text-align: center;
+  padding: 48rpx;
+  color: var(--mrc-text-sub);
+  font-size: 26rpx;
+}
+
+/* ---------- 定时任务配置 ---------- */
+.gen-card.data-v-a7a9d3a7 {
+  border-radius: 28rpx;
+  padding: 26rpx;
+  margin-bottom: 24rpx;
+}
+.gen-header.data-v-a7a9d3a7 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+.gen-title.data-v-a7a9d3a7 {
+  font-size: 30rpx;
+  font-weight: 800;
+  color: var(--mrc-text-deep);
+}
+.gen-sub.data-v-a7a9d3a7 {
+  font-size: 21rpx;
+  color: var(--mrc-text-sub);
+  font-weight: 600;
+}
+.gen-row.data-v-a7a9d3a7 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12rpx 0;
+}
+.gen-label.data-v-a7a9d3a7 {
+  font-size: 26rpx;
+  color: var(--mrc-text);
+}
+.gen-value.data-v-a7a9d3a7 {
+  font-size: 24rpx;
+  color: var(--mrc-text-sub);
+}
+.gen-count.data-v-a7a9d3a7 {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+.gen-btn.data-v-a7a9d3a7 {
+  width: 56rpx;
+  height: 56rpx;
+  line-height: 56rpx;
+  text-align: center;
+  background: var(--mrc-surface-2);
+  border-radius: 50%;
+  font-size: 32rpx;
+  font-weight: 700;
+  color: var(--mrc-accent);
+}
+.gen-num.data-v-a7a9d3a7 {
+  font-size: 28rpx;
+  font-weight: 800;
+  color: var(--mrc-text-deep);
+  min-width: 88rpx;
+  text-align: center;
+}
+.gen-run-btn.data-v-a7a9d3a7 {
+  margin-top: 20rpx;
+  background: var(--mrc-primary-grad);
+  color: #fff;
+  font-size: 28rpx;
+  font-weight: 700;
+  border-radius: 44rpx;
+  padding: 0;
+  line-height: 88rpx;
+  box-shadow: var(--mrc-shadow-coral), var(--mrc-gloss);
+  transition: transform var(--mrc-motion-fast, 180ms ease-out);
+}
+.gen-run-btn[disabled].data-v-a7a9d3a7 {
+  opacity: 0.5;
+}
+
+/* 按压反馈（与其他页面一致） */
+.pressable.data-v-a7a9d3a7 {
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+.pressable.data-v-a7a9d3a7:active {
+  transform: scale(0.97);
+}
+@media (prefers-reduced-motion: reduce) {
+.pressable.data-v-a7a9d3a7,
+  .search-btn.data-v-a7a9d3a7,
+  .gen-run-btn.data-v-a7a9d3a7 {
+    transition: none;
+}
+.pressable.data-v-a7a9d3a7:active,
+  .search-btn.data-v-a7a9d3a7:active,
+  .gen-run-btn.data-v-a7a9d3a7:active {
+    transform: none;
+}
+}

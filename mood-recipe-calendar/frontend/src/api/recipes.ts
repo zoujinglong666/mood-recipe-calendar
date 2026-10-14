@@ -67,9 +67,31 @@ export interface RecommendationHistoryItem {
   recommendedAt: string
 }
 
-/** 全部菜谱 */
-export function fetchAllRecipes() {
-  return get<RecipeItem[]>('/recipes').then(items => items.map(normalizeRecipe))
+/** 菜谱库分页（懒加载）：筛选下推后端，返回 {list,total,page,size} */
+export interface RecipeLibraryPage {
+  list: RecipeItem[]
+  total: number
+  page: number
+  size: number
+}
+
+export function fetchRecipeLibrary(params: {
+  page?: number
+  size?: number
+  keyword?: string
+  source?: string
+  time?: string
+  mood?: string
+}) {
+  return get<RecipeLibraryPage>('/recipes/library', params).then(res => ({
+    ...res,
+    list: (res.list ?? []).map(normalizeRecipe),
+  }))
+}
+
+/** 菜谱库标签云：后端全表聚合的有效心情标签 */
+export function fetchMoodTags() {
+  return get<string[]>('/recipes/mood-tags').then(tags => (Array.isArray(tags) ? tags : []))
 }
 
 /** 按心情优先获取 AI 生成的菜谱；服务端不可用时自动回退到菜谱库 */

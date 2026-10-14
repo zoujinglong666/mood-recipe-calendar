@@ -40,6 +40,7 @@ declare module 'vue' {
     WdImagePreview: typeof import('@wot-ui/ui/components/wd-image-preview/wd-image-preview.vue')['default']
     WdLoading: typeof import('@wot-ui/ui/components/wd-loading/wd-loading.vue')['default']
     WdNavbar: typeof import('@wot-ui/ui/components/wd-navbar/wd-navbar.vue')['default']
+    WdPagination: typeof import('@wot-ui/ui/components/wd-pagination/wd-pagination.vue')['default']
     WdPopup: typeof import('@wot-ui/ui/components/wd-popup/wd-popup.vue')['default']
     WdSwitch: typeof import('@wot-ui/ui/components/wd-switch/wd-switch.vue')['default']
     WdTab: typeof import('@wot-ui/ui/components/wd-tab/wd-tab.vue')['default']

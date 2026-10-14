@@ -113,6 +113,13 @@
   height: 160rpx;
   opacity: 0.8;
 }
+.library-more.data-v-c4caa62b {
+  display: flex;
+  justify-content: center;
+  padding: 24rpx 0 8rpx;
+  color: var(--mrc-text-light);
+  font-size: 24rpx;
+}
 .library-list.data-v-c4caa62b {
   display: flex;
   flex-direction: column;
