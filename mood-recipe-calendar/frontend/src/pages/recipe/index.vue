@@ -186,6 +186,8 @@ async function loadRecipe() {
   shareCardSaved.value = false
   shareStyle.value = 'classic'
   clearPollTimer()
+  clearCoverTimer()
+  coverAttempts = 0
   const run = ++pollRun
   try {
     await ensureLogin()
@@ -277,7 +279,44 @@ function clearPollTimer() {
 
 function stopPolling() {
   clearPollTimer()
+  clearCoverTimer()
   pollRun += 1
+}
+
+/** 封面异步补拍轮询：推荐正文先出，封面由服务端后台生成——到点轻量拉一次详情，图片到了就地替换 */
+const COVER_POLL_INTERVAL = 6000
+const COVER_POLL_MAX_ATTEMPTS = 6
+let coverTimer: ReturnType<typeof setTimeout> | undefined
+let coverAttempts = 0
+function pollRecipeCover(run: number) {
+  clearCoverTimer()
+  if (coverAttempts >= COVER_POLL_MAX_ATTEMPTS)
+    return
+  coverTimer = setTimeout(async () => {
+    if (run !== pollRun)
+      return
+    const id = recipe.value?.id
+    if (!id)
+      return
+    try {
+      const detail = await fetchRecipeDetail(id)
+      if (run !== pollRun)
+        return
+      if (detail?.image && recipe.value && recipe.value.id === id) {
+        recipe.value = { ...recipe.value, image: detail.image }
+        return
+      }
+    }
+    catch { /* 详情拉取失败静默，继续下一轮 */ }
+    coverAttempts += 1
+    pollRecipeCover(run)
+  }, COVER_POLL_INTERVAL)
+}
+function clearCoverTimer() {
+  if (coverTimer !== undefined) {
+    clearTimeout(coverTimer)
+    coverTimer = undefined
+  }
 }
 
 function applyJob(job: RecommendationJob, run: number) {
@@ -288,8 +327,12 @@ function applyJob(job: RecommendationJob, run: number) {
     loading.value = false
     if (!job.recipe)
       error.value = '推荐好了，菜谱内容暂时打不开'
-    else
+    else {
       void loadFeedbackState()
+      // 封面走异步补拍：无图时轮询详情，图片生成完毕就地替换（菜谱正文已可立即阅读）
+      if (!recipe.value?.image)
+        pollRecipeCover(run)
+    }
     return
   }
   if (job.status === 'FAILED') {

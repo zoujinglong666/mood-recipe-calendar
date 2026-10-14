@@ -46,7 +46,10 @@
           </view>
           <view class="meal-body">
             <view class="meal-eyebrow"><text class="meal-eyebrow__en">{{ MEAL_EN[i] || 'MEAL' }}</text><text class="meal-eyebrow__zh"> · {{ mealLabel(i) }} · {{ meal.cookingTime || '--' }} 分钟 · {{ meal.difficulty || '家常' }}</text></view>
-            <view class="meal-name">{{ meal.name }}</view>
+            <view class="meal-name-row">
+              <text class="meal-name">{{ mealParts(meal.name).main }}</text>
+              <text v-if="mealParts(meal.name).drink" class="meal-drink-tag">配{{ mealParts(meal.name).drink }}</text>
+            </view>
             <view v-if="meal.description" class="meal-desc">{{ meal.description }}</view>
             <view class="meal-expand-btn" @click="toggle(i)">
               {{ expanded[i] ? '收起做法' : '查看食材 / 做法' }}
@@ -114,7 +117,8 @@ definePage({
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { ref, reactive, computed } from 'vue'
 import { useNavBar, navBack } from '@/composables/useNavBar'
-import { fetchDailyMealPlan, replaceDailyMealPlanMeal } from '@/api/dailyMealPlan'
+import { fetchDailyMealPlan, replaceDailyMealPlanMeal, generateDailyMealCover } from '@/api/dailyMealPlan'
+import { splitComboDishName } from '@/api/dailyMenu'
 import type { RecipeItem } from '@/api/recipes'
 import { STATIC_BASE_URL } from '@/utils/assets'
 import { exportDailyMenuShare, saveShareImage } from '@/utils/albumShare'
@@ -178,6 +182,11 @@ function mealImage(meal: RecipeItem): string {
   return meal.image || `${STATIC_BASE_URL}/static/guozai/action_01_bowl.png`
 }
 
+/** 早餐组合菜「主食 · 配饮品」拆开展示：标题显示主食，饮品以小标签呈现，读起来是两道。 */
+function mealParts(name: string): { main: string, drink: string } {
+  return splitComboDishName(name)
+}
+
 function guidelineFor(i: number) {
   const p = plan.value?.guidelineBasis?.[i]
   return p && (p.title || p.content) ? p : null
@@ -219,6 +228,7 @@ async function load() {
     }
     plan.value = data
     expanded[0] = expanded[1] = expanded[2] = false
+    backfillCovers()
   }
   catch (e) {
     error.value = '加载失败，请检查网络后重试'
@@ -226,6 +236,30 @@ async function load() {
   }
   finally {
     hideLoading()
+  }
+}
+
+/** 三餐卡懒补图：无真实图（锅仔插画兜底）的餐次逐个补拍专属封面，成功后就地更新；失败保持兜底。 */
+const backfilling = ref(false)
+async function backfillCovers() {
+  if (!plan.value || backfilling.value) return
+  backfilling.value = true
+  try {
+    const date = plan.value.date
+    for (let i = 0; i < plan.value.meals.length; i++) {
+      if (plan.value.meals[i]?.image) continue
+      const res = await generateDailyMealCover(i, date)
+      const updated = res?.meals?.[i]
+      // 只回写图片且校验菜名：补图请求耗时较长，期间用户可能已「换一道」，
+      // 整条覆盖会把旧菜的名称/做法盖到新换的菜上
+      if (updated?.image && plan.value && plan.value.meals[i]?.name === updated.name) {
+        plan.value.meals[i] = { ...plan.value.meals[i], image: updated.image }
+      }
+    }
+  }
+  catch { /* 补图失败不打扰浏览，保留锅仔插画兜底 */ }
+  finally {
+    backfilling.value = false
   }
 }
 
@@ -238,6 +272,7 @@ async function replaceMeal(i: number) {
       plan.value = res
       pulseSwap(i)
       toast('已为你换一道')
+      backfillCovers()
     }
   }
   catch (e) {
@@ -476,12 +511,27 @@ onShareTimeline(() => ({
 }
 .meal-eyebrow__en { font-size: 21rpx; letter-spacing: 2rpx; }
 .meal-eyebrow__zh { color: var(--mrc-text-sub); font-weight: 600; letter-spacing: 0; }
+.meal-name-row {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  margin-top: 10rpx;
+}
 .meal-name {
   font-size: 34rpx;
   font-weight: 800;
   color: var(--mrc-text-strong);
-  margin-top: 10rpx;
   line-height: 1.35;
+}
+.meal-drink-tag {
+  flex-shrink: 0;
+  font-size: 20rpx;
+  font-weight: 700;
+  color: var(--mrc-accent);
+  background: var(--mrc-accent-soft);
+  border: 2rpx solid var(--mrc-border-light);
+  padding: 4rpx 16rpx;
+  border-radius: 999rpx;
 }
 .meal-desc {
   display: -webkit-box;

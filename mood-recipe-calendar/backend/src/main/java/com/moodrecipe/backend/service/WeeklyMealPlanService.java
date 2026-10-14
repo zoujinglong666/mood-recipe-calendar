@@ -402,6 +402,8 @@ public class WeeklyMealPlanService {
             if (oneOffMeal && !selected.isEmpty()) return List.of(selected.get(0));
             if (!selected.isEmpty()) return selected;
         }
+        // 没选过开火日（days<=0）：按「工作日」默认排，而不是只排周一
+        if (request.days() <= 0) return List.of(0, 1, 2, 3, 4);
         return java.util.stream.IntStream.range(0, Math.max(1, Math.min(request.days(), 7))).boxed().toList();
     }
     private int weekdayIndex(String day) { return "一二三四五六日".indexOf(day == null || day.length() < 2 ? "一" : day.substring(1)); }

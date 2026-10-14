@@ -5,6 +5,7 @@ import com.moodrecipe.backend.entity.DailyMenu;
 import com.moodrecipe.backend.entity.Recipe;
 import com.moodrecipe.backend.repository.DailyMenuRepository;
 import com.moodrecipe.backend.repository.RecipeInteractionRepository;
+import com.moodrecipe.backend.repository.RecipeFavoriteRepository;
 import com.moodrecipe.backend.repository.RecipeRepository;
 import com.moodrecipe.backend.repository.UserFoodPreferenceRepository;
 import com.moodrecipe.backend.repository.UserRecordRepository;
@@ -42,7 +43,7 @@ class DailyMenuServiceTest {
         DailyMenuService service = new DailyMenuService(dailyMenus, recipes,
                 mock(RecipeInteractionRepository.class), mock(UserRecordRepository.class),
                 mock(UserFoodPreferenceRepository.class),
-                new AllergenNormalizationService(null, new ObjectMapper()), new RecipePool(recipes));
+                new AllergenNormalizationService(null, new ObjectMapper()), new RecipePool(recipes), mock(RecipeFavoriteRepository.class));
 
         assertTrue(service.today("user-1").isEmpty());
     }

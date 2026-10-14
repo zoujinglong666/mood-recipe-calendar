@@ -42,6 +42,9 @@ public class DailyMealPlanService {
     private final AgentMemoryStore memory;
     private final RecipePool recipePool;
     private final GuidelineRagService guidelineRag;
+    /** 图片懒生成依赖：可空（测试/降级场景），为空时 ensureCover 直接跳过。 */
+    private AgnesRecipeImageService images;
+    private CosImageStorageService cosImageStorage;
 
     /** 候选集封顶：findThree 是 O(n³) 暴力枚举，菜谱表稍大就会让请求挂死（线上曾因 AI 灌入数百道菜而 60s 超时）。取排序后的前若干道即可把组合数收敛为常数级，且前三道偏好已排序不妨碍质量。 */
     private static final int MAX_CANDIDATES = 120;
@@ -92,6 +95,13 @@ public class DailyMealPlanService {
         this.memory = memory;
         this.recipePool = recipePool;
         this.guidelineRag = guidelineRag;
+    }
+
+    /** 可选依赖走 setter 注入：保持既有构造器（测试用）签名不变。 */
+    @Autowired(required = false)
+    void setImageDependencies(AgnesRecipeImageService images, CosImageStorageService cosImageStorage) {
+        this.images = images;
+        this.cosImageStorage = cosImageStorage;
     }
 
     public Optional<PlanView> plan(String openid, LocalDate date) {
@@ -158,6 +168,50 @@ public class DailyMealPlanService {
             return Optional.empty();
         }
         return Optional.empty();
+    }
+
+    /**
+     * 三餐卡封面懒生成：该餐没有真实图（只有锅仔插画兜底）时补拍专属封面，
+     * 成功后同时回写菜谱表（之后的计划与今日卡都能复用）和当日 planJson。失败返回 empty，不影响浏览。
+     */
+    public Optional<PlanView> ensureCover(String openid, LocalDate date, int mealIndex) {
+        if (images == null || cosImageStorage == null) return Optional.empty();
+        Optional<DailyMealPlan> stored = plans.findByOpenidAndPlanDate(openid, date);
+        if (stored.isEmpty()) return Optional.empty();
+        try {
+            List<Recipe> meals = new ArrayList<>(json.readValue(stored.get().getPlanJson(),
+                    new TypeReference<List<Recipe>>() { }));
+            if (mealIndex < 0 || mealIndex >= meals.size()) return Optional.empty();
+            Recipe meal = meals.get(mealIndex);
+            if (hasRealImage(meal)) return Optional.of(enrich(date, List.copyOf(meals), "saved"));
+            Optional<String> cover = images.generateCover(meal)
+                    .flatMap(url -> cosImageStorage.transferFromUrl(url, "recipes/"));
+            if (cover.isEmpty()) return Optional.empty();
+            meal.setImage(cover.get());
+            recipes.save(meal);
+            // 生图耗时 30-90s，期间用户可能已「换一道」。落库前重读最新 planJson，
+            // 只把图片写回同一道菜（按菜名匹配且仍无图），避免整包覆盖丢失并发更新；
+            // 该餐已换成别的菜时只保留菜谱表里的封面，不回写当日计划。
+            DailyMealPlan latest = plans.findByOpenidAndPlanDate(openid, date).orElse(stored.get());
+            List<Recipe> latestMeals = new ArrayList<>(json.readValue(latest.getPlanJson(),
+                    new TypeReference<List<Recipe>>() { }));
+            boolean applied = false;
+            for (Recipe item : latestMeals) {
+                if (item.getName() != null && item.getName().equals(meal.getName()) && !hasRealImage(item)) {
+                    item.setImage(cover.get());
+                    applied = true;
+                    break;
+                }
+            }
+            if (applied) {
+                latest.setPlanJson(json.writeValueAsString(latestMeals));
+                plans.save(latest);
+                return Optional.of(enrich(date, List.copyOf(latestMeals), "saved"));
+            }
+            return Optional.of(enrich(date, latestMeals, "saved"));
+        } catch (Exception ignored) {
+            return Optional.empty();
+        }
     }
 
     private UserProfile profile(String openid) {

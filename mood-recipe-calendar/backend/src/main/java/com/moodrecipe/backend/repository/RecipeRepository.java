@@ -33,5 +33,10 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long> {
     /** 早餐组合菜谱池数量（moodTags 打了「早餐」标签的菜谱，三餐生成的早餐槽从这里选）。 */
     long countBySourceAndMoodTagsContaining(String source, String tag);
 
+    /** 早餐池中无真实图（无图 / static 占位 / doubaocdn 死链）的组合，供启动时补拍专属封面。 */
+    @Query("SELECT r FROM Recipe r WHERE r.source = 'AI' AND r.moodTags LIKE %:tag% "
+            + "AND (r.image IS NULL OR r.image = '' OR r.image LIKE '/static/%' OR r.image LIKE '%doubaocdn.com%')")
+    List<Recipe> findAiWithMissingImage(@Param("tag") String tag);
+
     Optional<Recipe> findByName(String name);
 }

@@ -601,7 +601,7 @@ const _sfc_defineComponent = common_vendor.defineComponent({
       startProgress();
       try {
         const notify = await api_weeklyPlans.requestWeeklyPlanCompletionNotice();
-        const plan = await api_weeklyPlans.generateWeeklyPlan({
+        const job = await api_weeklyPlans.generateWeeklyPlan({
           people: people.value,
           days: cookingDays.value.length,
           cookingDays: cookingDays.value,
@@ -611,10 +611,15 @@ const _sfc_defineComponent = common_vendor.defineComponent({
           conversationNotes: conversationNotes.value,
           sendNotification: notify
         });
+        const planId = await api_weeklyPlans.pollWeeklyPlanJob(job.jobId);
         stopProgress();
         activeStep.value = agentSteps.length;
         completed.value = true;
-        generatedPlanId.value = plan.planId;
+        if (!planId) {
+          utils_toast.toastError(null, "锅仔还在收尾这周的菜单，稍后可在备餐档案里查看");
+          return;
+        }
+        generatedPlanId.value = planId;
         persistConversation();
       } catch (error) {
         stopProgress();
@@ -642,9 +647,19 @@ const _sfc_defineComponent = common_vendor.defineComponent({
       if (ratingValue)
         void rateConversation(ratingValue);
     }
-    function openGeneratedPlan() {
-      if (generatedPlanId.value)
+    async function openGeneratedPlan() {
+      if (generatedPlanId.value) {
         router.replace({ name: "weekly-plan-detail", params: { id: String(generatedPlanId.value) } });
+        return;
+      }
+      try {
+        const plan = await api_weeklyPlans.getCurrentPlan();
+        if (plan == null ? void 0 : plan.id) {
+          generatedPlanId.value = plan.id;
+          router.replace({ name: "weekly-plan-detail", params: { id: String(plan.id) } });
+        }
+      } catch {
+      }
     }
     function openCurrentPlan() {
       if (currentPlan.value)

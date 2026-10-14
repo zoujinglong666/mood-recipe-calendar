@@ -125,6 +125,8 @@ declare global {
   const fetchWeeklyPlanQuota: typeof import('./api/weeklyPlans')['fetchWeeklyPlanQuota']
   const fetchYearStats: typeof import('./api/records')['fetchYearStats']
   const forgetAgentMemory: typeof import('./api/auth')['forgetAgentMemory']
+  const generateDailyMealCover: typeof import('./api/dailyMealPlan')['generateDailyMealCover']
+  const generateDailyMenuCover: typeof import('./api/dailyMenu')['generateDailyMenuCover']
   const generatePlanDayCover: typeof import('./api/weeklyPlans')['generatePlanDayCover']
   const generatePlanDishCover: typeof import('./api/weeklyPlans')['generatePlanDishCover']
   const generateRecordPoster: typeof import('./api/recordPoster')['generateRecordPoster']
@@ -221,6 +223,7 @@ declare global {
   const onUpdated: typeof import('vue')['onUpdated']
   const pausableWatch: typeof import('@vueuse/core')['pausableWatch']
   const persistPlugin: typeof import('./store/persist')['persistPlugin']
+  const pollWeeklyPlanJob: typeof import('./api/weeklyPlans')['pollWeeklyPlanJob']
   const post: typeof import('./api/request')['post']
   const provide: typeof import('vue')['provide']
   const provideLocal: typeof import('@vueuse/core')['provideLocal']
@@ -277,6 +280,7 @@ declare global {
   const shallowRef: typeof import('vue')['shallowRef']
   const showLoading: typeof import('./utils/toast')['showLoading']
   const sourceLabel: typeof import('./utils/memoryLabels')['sourceLabel']
+  const splitComboDishName: typeof import('./api/dailyMenu')['splitComboDishName']
   const storeToRefs: typeof import('pinia')['storeToRefs']
   const submitFeedback: typeof import('./api/feedback')['submitFeedback']
   const subscribeSystemThemeChange: typeof import('./utils/systemTheme')['subscribeSystemThemeChange']
@@ -631,6 +635,8 @@ declare module 'vue' {
     readonly fetchWeeklyPlanQuota: UnwrapRef<typeof import('./api/weeklyPlans')['fetchWeeklyPlanQuota']>
     readonly fetchYearStats: UnwrapRef<typeof import('./api/records')['fetchYearStats']>
     readonly forgetAgentMemory: UnwrapRef<typeof import('./api/auth')['forgetAgentMemory']>
+    readonly generateDailyMealCover: UnwrapRef<typeof import('./api/dailyMealPlan')['generateDailyMealCover']>
+    readonly generateDailyMenuCover: UnwrapRef<typeof import('./api/dailyMenu')['generateDailyMenuCover']>
     readonly generatePlanDayCover: UnwrapRef<typeof import('./api/weeklyPlans')['generatePlanDayCover']>
     readonly generatePlanDishCover: UnwrapRef<typeof import('./api/weeklyPlans')['generatePlanDishCover']>
     readonly generateRecordPoster: UnwrapRef<typeof import('./api/recordPoster')['generateRecordPoster']>
@@ -727,6 +733,7 @@ declare module 'vue' {
     readonly onUpdated: UnwrapRef<typeof import('vue')['onUpdated']>
     readonly pausableWatch: UnwrapRef<typeof import('@vueuse/core')['pausableWatch']>
     readonly persistPlugin: UnwrapRef<typeof import('./store/persist')['persistPlugin']>
+    readonly pollWeeklyPlanJob: UnwrapRef<typeof import('./api/weeklyPlans')['pollWeeklyPlanJob']>
     readonly post: UnwrapRef<typeof import('./api/request')['post']>
     readonly provide: UnwrapRef<typeof import('vue')['provide']>
     readonly provideLocal: UnwrapRef<typeof import('@vueuse/core')['provideLocal']>
@@ -783,6 +790,7 @@ declare module 'vue' {
     readonly shallowRef: UnwrapRef<typeof import('vue')['shallowRef']>
     readonly showLoading: UnwrapRef<typeof import('./utils/toast')['showLoading']>
     readonly sourceLabel: UnwrapRef<typeof import('./utils/memoryLabels')['sourceLabel']>
+    readonly splitComboDishName: UnwrapRef<typeof import('./api/dailyMenu')['splitComboDishName']>
     readonly storeToRefs: UnwrapRef<typeof import('pinia')['storeToRefs']>
     readonly submitFeedback: UnwrapRef<typeof import('./api/feedback')['submitFeedback']>
     readonly subscribeSystemThemeChange: UnwrapRef<typeof import('./utils/systemTheme')['subscribeSystemThemeChange']>

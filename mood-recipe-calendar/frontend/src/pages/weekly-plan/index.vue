@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import type { TourStep } from '@wot-ui/ui/components/wd-tour/types'
 import type { PlanDay, WeeklyPlan, WeeklyPlanSummary } from '@/api/weeklyPlans'
-import { computed, nextTick, ref } from 'vue'
-import { generateWeeklyPlan, getCurrentPlan, getWeeklyPlanHistory, getWeeklyPlanJob, requestWeeklyPlanCompletionNotice, toggleWeeklyPlanFavorite } from '@/api/weeklyPlans'
+import { computed, nextTick, onUnmounted, ref } from 'vue'
+import { generateWeeklyPlan, getCurrentPlan, getWeeklyPlanHistory, pollWeeklyPlanJob, requestWeeklyPlanCompletionNotice, toggleWeeklyPlanFavorite } from '@/api/weeklyPlans'
 import { navBack } from '@/composables/useNavBar'
 import { STATIC_BASE_URL } from '@/utils/assets'
 import { toastError } from '@/utils/toast'
@@ -104,8 +104,11 @@ async function load() {
   await startTour()
 }
 
+/** 页面存活标记：生成轮询（最长 90s）在页面销毁后应停止 */
+let pageAlive = true
 onShow(load)
 onHide(() => showTour.value = false)
+onUnmounted(() => { pageAlive = false })
 
 async function startTour(force = false) {
   if (loading.value || showTour.value || (!force && Number(uni.getStorageSync(WEEKLY_PLAN_TOUR_KEY)) >= WEEKLY_PLAN_TOUR_VERSION))
@@ -144,9 +147,9 @@ async function generate() {
   try {
     const notify = await requestWeeklyPlanCompletionNotice()
     const job = await generateWeeklyPlan({ people: people.value, days: cookingDays.value.length, cookingDays: cookingDays.value, healthGoal: healthGoal.value, sendNotification: notify, dishesPerDay: dishesPerDay.value })
-    const planId = await pollWeeklyPlanJob(job.jobId)
+    const planId = await pollWeeklyPlanJob(job.jobId, 90000, 2000, () => !pageAlive)
     if (planId != null) router.replace({ name: 'weekly-plan-detail', params: { id: String(planId) } })
-    else toastError(null, '锅仔还在努力排这周，稍后在锅仔管饭里看结果')
+    else if (pageAlive) toastError(null, '锅仔还在努力排这周，稍后在锅仔管饭里看结果')
   }
   catch (error) {
     toastError(error, '锅仔暂时没排好这一周，请重试')
@@ -154,18 +157,6 @@ async function generate() {
   finally {
     generating.value = false
   }
-}
-
-/** 轮询后台生成任务，直到成功/失败或超时（默认 90s）。返回成功后的 planId，失败抛错，超时返回 null。 */
-async function pollWeeklyPlanJob(jobId: string, timeoutMs = 90000, interval = 2000): Promise<number | null> {
-  const deadline = Date.now() + timeoutMs
-  while (Date.now() < deadline) {
-    const job = await getWeeklyPlanJob(jobId)
-    if (job.status === 'SUCCEEDED') return job.planId ?? null
-    if (job.status === 'FAILED') throw new Error(job.message || '生成失败')
-    await new Promise(resolve => setTimeout(resolve, interval))
-  }
-  return null
 }
 
 // 节流防连点：收藏/取消是写入操作，快速点击会导致重复请求、状态乱跳（leading 节流，冷却期内忽略）

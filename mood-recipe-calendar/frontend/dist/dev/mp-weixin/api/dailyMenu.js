@@ -14,5 +14,21 @@ function fetchDailyBoard() {
 function refreshDailyBoard() {
   return api_request.post("/daily-menu/refresh", {}).then(normalizeBoard);
 }
+function generateDailyMenuCover() {
+  return api_request.post("/daily-menu/cover", {}).then(normalizeBoard);
+}
+function splitComboDishName(name) {
+  if (!name)
+    return { main: "", drink: "" };
+  const cut = name.indexOf("·");
+  if (cut <= 0)
+    return { main: name, drink: "" };
+  let drink = name.slice(cut + 1).trim();
+  if (drink.startsWith("配"))
+    drink = drink.slice(1).trim();
+  return { main: name.slice(0, cut).trim(), drink };
+}
 exports.fetchDailyBoard = fetchDailyBoard;
+exports.generateDailyMenuCover = generateDailyMenuCover;
 exports.refreshDailyBoard = refreshDailyBoard;
+exports.splitComboDishName = splitComboDishName;

@@ -38,4 +38,13 @@ public class DailyMenuController {
                 .map(ApiResponse::ok)
                 .orElseGet(() -> ApiResponse.error(404, "今天已经没有别的菜可换啦，明天锅仔再想新的"));
     }
+
+    /** 今日卡封面懒生成：今日菜没有真实图时补拍专属封面并回写菜谱表。 */
+    @PostMapping("/cover")
+    public ApiResponse<DailyMenuService.Board> cover(
+            @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
+        return dailyMenuService.ensureCover(openid)
+                .map(ApiResponse::ok)
+                .orElseGet(() -> ApiResponse.error(404, "这道菜暂时不需要补图"));
+    }
 }

@@ -103,8 +103,15 @@ public class AgnesRecipeImageService {
         }
     }
 
+    /** 早餐组合菜名是「主食 · 配饮品」：封面只画主食，避免把主食和饮品画进同一个盘子。 */
+    static String coverSubject(String name) {
+        if (name == null) return "";
+        int cut = name.indexOf('·');
+        return (cut > 0 ? name.substring(0, cut) : name).trim();
+    }
+
     private String prompt(Recipe recipe) {
-        return "真实照片级美食摄影：一道烹饪完成、刚出锅并已盛盘的中国家常菜「" + clip(recipe.getName(), 40) + "」。"
+        return "真实照片级美食摄影：一道烹饪完成、刚出锅并已盛盘的中国家常菜「" + clip(coverSubject(recipe.getName()), 40) + "」。"
                 + "必须是真实相机拍摄质感（photorealistic，RAW photo）：自然暖色窗光、浅景深、三分之二俯拍视角，"
                 + "干净温暖的陶瓷餐具与原木桌面，食物细节清晰、油光与热气真实、令人有食欲，主体居中并留有舒适呼吸感。"
                 + "严禁插画、卡通、3D 渲染、CG、油画、水彩、过饱和塑料感等任何非照片风格。"

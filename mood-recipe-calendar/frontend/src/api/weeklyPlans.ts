@@ -102,6 +102,22 @@ export function generateWeeklyPlan(data: { people: number, days: number, cooking
 export function getWeeklyPlanJob(jobId: string) {
   return get<WeeklyPlanJob>(`/weekly-plans/generate/jobs/${jobId}`)
 }
+
+/** 轮询周菜单生成任务直到出结果：成功返回 planId，失败抛错，超时/取消返回 null。所有生成入口都必须走这里，否则拿不到 planId。 */
+export async function pollWeeklyPlanJob(jobId: string, timeoutMs = 90000, interval = 2000,
+  isCancelled?: () => boolean): Promise<number | null> {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    // 页面已销毁等场景由调用方取消，不再空转打接口
+    if (isCancelled?.())
+      return null
+    const job = await getWeeklyPlanJob(jobId)
+    if (job.status === 'SUCCEEDED') return job.planId ?? null
+    if (job.status === 'FAILED') throw new Error(job.message || '生成失败')
+    await new Promise(resolve => setTimeout(resolve, interval))
+  }
+  return null
+}
 export function askMealAgent(message: string, nextQuestion: string) {
   return post<{ reply: string }>('/weekly-plans/agent-replies', { message, nextQuestion })
 }

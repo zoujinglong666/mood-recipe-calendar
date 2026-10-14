@@ -29,6 +29,18 @@ function generateWeeklyPlan(data) {
 function getWeeklyPlanJob(jobId) {
   return api_request.get(`/weekly-plans/generate/jobs/${jobId}`);
 }
+async function pollWeeklyPlanJob(jobId, timeoutMs = 9e4, interval = 2e3) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const job = await getWeeklyPlanJob(jobId);
+    if (job.status === "SUCCEEDED")
+      return job.planId ?? null;
+    if (job.status === "FAILED")
+      throw new Error(job.message || "生成失败");
+    await new Promise((resolve) => setTimeout(resolve, interval));
+  }
+  return null;
+}
 function runMealAgentTurn(message, state, conversationId, history, webSearch, preset) {
   return api_request.post("/weekly-plans/agent-turns", { message, state, conversationId, requestId: requestId("turn"), history, ...webSearch ? { webSearch } : {}, ...preset ? { preset } : {} });
 }
@@ -72,7 +84,7 @@ exports.generateWeeklyPlan = generateWeeklyPlan;
 exports.getCurrentPlan = getCurrentPlan;
 exports.getWeeklyPlan = getWeeklyPlan;
 exports.getWeeklyPlanHistory = getWeeklyPlanHistory;
-exports.getWeeklyPlanJob = getWeeklyPlanJob;
+exports.pollWeeklyPlanJob = pollWeeklyPlanJob;
 exports.rateAgentConversation = rateAgentConversation;
 exports.replacePlanDay = replacePlanDay;
 exports.reportPlanDishOutcome = reportPlanDishOutcome;

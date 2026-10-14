@@ -3,7 +3,7 @@ import type { FoodMemoryView } from '@/api/preferences'
 import type { MealAgentCard, MealAgentConversationSnapshot, MealAgentHistoryMessage, MealAgentOption, MealAgentState, MealAgentTurn, WeeklyPlan, UsageQuotaView } from '@/api/weeklyPlans'
 import { computed, nextTick, ref } from 'vue'
 import { fetchFoodMemory } from '@/api/preferences'
-import { fetchAgentConversationQuota, fetchCurrentAgentConversation, generateWeeklyPlan, getCurrentPlan, requestWeeklyPlanCompletionNotice, rateAgentConversation, resetAgentConversation, runMealAgentTurn } from '@/api/weeklyPlans'
+import { fetchAgentConversationQuota, fetchCurrentAgentConversation, generateWeeklyPlan, getCurrentPlan, pollWeeklyPlanJob, requestWeeklyPlanCompletionNotice, rateAgentConversation, resetAgentConversation, runMealAgentTurn } from '@/api/weeklyPlans'
 import { navBack } from '@/composables/useNavBar'
 import { STATIC_BASE_URL } from '@/utils/assets'
 import { safeDecodePrompt } from '@/utils/safeDecodePrompt'
@@ -156,7 +156,10 @@ const conversationNotes = computed(() => {
 })
 
 onShow(load)
+/** 页面存活标记：生成轮询（最长 90s）在页面销毁后应停止，不再空转打接口 */
+let pageAlive = true
 onUnmounted(() => {
+  pageAlive = false
   stopProgress()
   stopThinking()
   stopTyping()
@@ -184,7 +187,7 @@ function persistConversation() {
     return
   const draft: MealAgentDraft = {
     conversationId: currentConversationId(),
-    messages: messages.value.slice(-80),
+    messages: messages.value.slice(-240),
     state: agentState.value,
     turn: agentTurn.value,
     completed: completed.value,
@@ -353,7 +356,8 @@ async function runAgent(message: string, echo = false, echoLabel = message, webS
   startThinking()
   await scrollToLatest()
   try {
-    const history: MealAgentHistoryMessage[] = messages.value.map(({ role, text, tags, selected, card }) => ({ role, text, tags, selected, card }))
+    // 只携带最近 240 条：更早往来由服务端 Compaction 摘要承接，对话可无限延续不被判停
+    const history: MealAgentHistoryMessage[] = messages.value.slice(-240).map(({ role, text, tags, selected, card }) => ({ role, text, tags, selected, card }))
     const turn = await runMealAgentTurn(message, agentState.value, currentConversationId(), history, webSearch, preset)
     stopThinking()
     agentTurn.value = turn
@@ -398,6 +402,11 @@ async function runAgent(message: string, echo = false, echoLabel = message, webS
 // 把锅仔的回复以打字机方式逐字浮现；回复落定后才解除输入锁定。
 async function streamAgentReply(reply: string) {
   const full = localizeAgentText(reply || '')
+  // 连续一模一样的回复（如 READY 态反复点选项的「收到～信息没变化」）不再重复上屏，
+  // 既避免刷屏，也不让重复气泡把对话历史撑爆
+  const lastAgent = [...messages.value].reverse().find(m => m.role === 'agent')
+  if (full && lastAgent?.text === full)
+    return
   const index = messages.value.length
   messages.value.push({ id: ++messageId, role: 'agent', text: '' })
   await scrollToLatest()
@@ -652,7 +661,7 @@ async function generate() {
   startProgress()
   try {
     const notify = await requestWeeklyPlanCompletionNotice()
-    const plan = await generateWeeklyPlan({
+    const job = await generateWeeklyPlan({
       people: people.value,
       days: cookingDays.value.length,
       cookingDays: cookingDays.value,
@@ -662,10 +671,19 @@ async function generate() {
       conversationNotes: conversationNotes.value,
       sendNotification: notify,
     })
+    // 生成是后端异步任务：必须轮询到 planId，“查看这周菜单”才有跳转目标。
+    // 此前直接取 job.planId（刚创建的任务恒为空），按钮点击被 if 静默吞掉。
+    const planId = await pollWeeklyPlanJob(job.jobId, 90000, 2000, () => !pageAlive)
     stopProgress()
     activeStep.value = agentSteps.length
     completed.value = true
-    generatedPlanId.value = plan.planId
+    if (!planId) {
+      // 页面已销毁导致的取消不再打扰；真超时才提示去备餐档案查看
+      if (pageAlive)
+        toastError(null, '锅仔还在收尾这周的菜单，稍后可在备餐档案里查看')
+      return
+    }
+    generatedPlanId.value = planId
     persistConversation()
   }
   catch (error) {
@@ -701,9 +719,20 @@ function onRatingChange(value: string | string[]) {
     void rateConversation(ratingValue)
 }
 
-function openGeneratedPlan() {
-  if (generatedPlanId.value)
+async function openGeneratedPlan() {
+  if (generatedPlanId.value) {
     router.replace({ name: 'weekly-plan-detail', params: { id: String(generatedPlanId.value) } })
+    return
+  }
+  // 兜底：旧会话恢复/轮询超时等场景没有 planId 时，取当前生效的菜单跳详情，不让按钮点了没反应
+  try {
+    const plan = await getCurrentPlan()
+    if (plan?.id) {
+      generatedPlanId.value = plan.id
+      router.replace({ name: 'weekly-plan-detail', params: { id: String(plan.id) } })
+    }
+  }
+  catch { /* 当前没有可用菜单，保持安静 */ }
 }
 
 function openCurrentPlan() {
@@ -1098,7 +1127,7 @@ onShareTimeline(() => {
 .composer__web-text { line-height: 1; }
 .composer__web-lock { padding: 1rpx 8rpx; border-radius: 16rpx; background: var(--mrc-accent-soft); color: var(--mrc-accent); font-size: 15rpx; }
 /* 发送按钮：70rpx 圆形图标钮，与 other-input__send 同款（原来 136rpx 文字大钮太胖，挤压输入区） */
-.composer__send { display: flex; width: 70rpx; height: 70rpx; min-width: 70rpx; min-height: 70rpx; flex: 0 0 auto; align-items: center; justify-content: center; padding: 0 !important; border-radius: 50% !important; }
+.composer__send { display: flex; width: 70rpx; height: 32rpx; min-width: 70rpx;  flex: 0 0 auto; align-items: center; justify-content: center; padding: 0 !important; border-radius: 50% !important; }
 .composer__send.is-disabled { background: var(--mrc-surface-sun) !important; color: #C9B7A8 !important; box-shadow: none !important; text-shadow: none !important; opacity: 1; }
 .composer__send.is-disabled .composer__send-text { color: #C9B7A8; }
 .composer__send-loading { color: #fff; font-size: 30rpx; font-weight: 800; line-height: 1; }
