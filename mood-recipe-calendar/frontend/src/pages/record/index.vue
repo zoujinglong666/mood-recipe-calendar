@@ -34,6 +34,8 @@ const userStore = useUserStore()
 onShareAppMessage(() => {
   const sharer = userStore.openid
   const path = `/pages/record/index${sharer ? `?sharer=${encodeURIComponent(sharer)}` : ''}`
+  // 记录分享：发放「分享家」徽章 + 非会员当日 +1 次对话激励
+  void recordShare('record').catch(() => {})
   return { title: '锅仔 · 记录今天吃了什么', path }
 })
 /** 分享到朋友圈 */
@@ -246,6 +248,12 @@ async function publish() {
       const result = await saveRecord(payload)
       saved = result.record
       learningReceipt.value = result.learningReceipt
+      // 新解锁成就随保存响应返回：轻量庆祝 + 累计未读，点亮「我的」页形象馆入口红点
+      if (result.newlyUnlocked?.length) {
+        toastSuccess(`🎉 解锁成就：${result.newlyUnlocked.join('、')}`)
+        const unread = Number(uni.getStorageSync('mrc_achv_unread') || 0)
+        uni.setStorageSync('mrc_achv_unread', unread + result.newlyUnlocked.length)
+      }
     }
     savedRecordId.value = saved.id
     uni.removeStorageSync(RECORD_DRAFT_KEY)

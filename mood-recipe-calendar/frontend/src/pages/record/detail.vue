@@ -24,6 +24,8 @@ onShareAppMessage(() => {
   const sharer = userStore.openid
   const path = `/pages/record/detail${sharer ? `?sharer=${encodeURIComponent(sharer)}` : ''}`
   const thumb = savedPosterPath.value || photos.value[0]
+  // 记录分享：发放「分享家」徽章 + 非会员当日 +1 次对话激励
+  void recordShare('record').catch(() => {})
   return {
     title: record.value
       ? `我记下了「${record.value.dishName}」，锅仔帮我留住这顿饭`

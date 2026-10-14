@@ -150,6 +150,80 @@
   box-shadow: 0 4rpx 12rpx rgba(90, 62, 43, 0.08);
 }
 
+/* 成就墙 */
+.achv-section.data-v-5a43f0bf {
+  margin: 0 0 24rpx;
+  padding: 28rpx 24rpx 24rpx;
+  background: var(--mrc-surface);
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 32rpx;
+  box-shadow: var(--mrc-shadow-soft);
+}
+.achv-progress.data-v-5a43f0bf {
+  height: 14rpx;
+  background: var(--mrc-surface-2);
+  border-radius: 999rpx;
+  margin: 4rpx 4rpx 24rpx;
+  overflow: hidden;
+}
+.achv-progress__inner.data-v-5a43f0bf {
+  height: 100%;
+  background: linear-gradient(90deg, var(--mrc-primary), var(--mrc-accent));
+  border-radius: 999rpx;
+  transition: width 0.5s ease;
+}
+.achv-grid.data-v-5a43f0bf {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16rpx;
+}
+.achv-item.data-v-5a43f0bf {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10rpx;
+  padding: 18rpx 6rpx;
+  border-radius: 20rpx;
+  background: var(--mrc-accent-soft);
+  border: 2rpx solid rgba(232, 131, 107, 0.25);
+  transition: transform 0.15s ease;
+}
+.achv-item.data-v-5a43f0bf:active {
+  transform: scale(0.94);
+}
+.achv-item__emoji.data-v-5a43f0bf {
+  font-size: 44rpx;
+  line-height: 1.2;
+}
+.achv-item__name.data-v-5a43f0bf {
+  font-size: 20rpx;
+  font-weight: 700;
+  color: var(--mrc-text-deep);
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.achv-item--locked.data-v-5a43f0bf {
+  background: var(--mrc-surface-2);
+  border: 2rpx solid var(--mrc-border-light);
+}
+.achv-item--locked .achv-item__emoji.data-v-5a43f0bf {
+  opacity: 0.55;
+  filter: grayscale(1);
+}
+.achv-item--locked .achv-item__name.data-v-5a43f0bf {
+  color: var(--mrc-text-light);
+  font-weight: 500;
+}
+.achv-hint.data-v-5a43f0bf {
+  display: block;
+  margin-top: 20rpx;
+  font-size: 22rpx;
+  color: var(--mrc-text-light);
+  text-align: center;
+}
+
 /* 内容资产 */
 .asset-intro.data-v-5a43f0bf {
   display: flex;

@@ -11,6 +11,7 @@ if (!Array) {
   const _component_layout_default_uni = common_vendor.resolveComponent("layout-default-uni");
   _component_layout_default_uni();
 }
+const MEMBER_NOTICE_TEMPLATE_ID = "03DBh5APFeME7iZl7akNURNuNvDCxW2e1GMMQiifNiY";
 const _sfc_defineComponent = common_vendor.defineComponent({
   __name: "index",
   setup(__props) {
@@ -26,6 +27,27 @@ const _sfc_defineComponent = common_vendor.defineComponent({
     const userStore = stores_user.useUserStore();
     const loading = common_vendor.ref(true);
     const paying = common_vendor.ref("");
+    function requestMemberNoticeAuthorization() {
+      return new Promise((resolve) => {
+        const requestSubscribeMessage = common_vendor.index.requestSubscribeMessage;
+        if (typeof requestSubscribeMessage !== "function") {
+          resolve(false);
+          return;
+        }
+        requestSubscribeMessage({
+          tmplIds: [MEMBER_NOTICE_TEMPLATE_ID],
+          success: (res) => resolve(["accept", "acceptWithAudio"].includes(res[MEMBER_NOTICE_TEMPLATE_ID])),
+          fail: () => resolve(false)
+        });
+      });
+    }
+    async function enableRenewalNotice() {
+      const accepted = await requestMemberNoticeAuthorization();
+      if (accepted)
+        utils_toast.toastSuccess("已开启，会员到期与续费成功后会通知你");
+      else
+        utils_toast.toast("未开启授权，不影响会员使用");
+    }
     const product = common_vendor.ref(null);
     const yearProduct = common_vendor.ref(null);
     const error = common_vendor.ref("");
@@ -118,18 +140,6 @@ const _sfc_defineComponent = common_vendor.defineComponent({
       var _a;
       return paymentSupported && Boolean((_a = yearProduct.value) == null ? void 0 : _a.paymentAvailable);
     });
-    const actionText = common_vendor.computed(() => {
-      var _a, _b;
-      if (active.value)
-        return `会员有效至 ${expireText.value}`;
-      if (!userStore.isLoggedIn)
-        return "登录后开通会员";
-      if (!paymentSupported)
-        return "请在微信小程序内开通";
-      if (!((_a = product.value) == null ? void 0 : _a.paymentAvailable))
-        return ((_b = product.value) == null ? void 0 : _b.paymentUnavailableMsg) || "会员暂不可开通";
-      return `¥${price.value} · 开通 30 天`;
-    });
     async function load() {
       loading.value = true;
       error.value = "";
@@ -216,8 +226,9 @@ const _sfc_defineComponent = common_vendor.defineComponent({
     }
     async function purchase(sku) {
       const target = sku === api_virtualCommerce.MEMBER_YEAR_SKU ? yearProduct.value : product.value;
-      if (active.value || paying.value)
+      if (paying.value)
         return;
+      const isRenewal = active.value;
       if (!userStore.isLoggedIn) {
         utils_login.navigateToLogin();
         return;
@@ -231,6 +242,7 @@ const _sfc_defineComponent = common_vendor.defineComponent({
       let checking = false;
       try {
         const openid = await utils_login.refreshWechatLoginForPayment();
+        requestMemberNoticeAuthorization();
         const order = await api_virtualCommerce.createVirtualOrder(openid, target.sku);
         const params = await api_virtualCommerce.getVirtualPaymentParams(openid, order.orderNo);
         await api_virtualCommerce.requestWechatVirtualPayment(params);
@@ -243,9 +255,9 @@ const _sfc_defineComponent = common_vendor.defineComponent({
         }
         await utils_login.refreshUserInfo(true);
         loadFamily();
-        utils_toast.toastSuccess(sku === api_virtualCommerce.MEMBER_YEAR_SKU ? "年卡已开通，全家都能用了" : "锅仔会员已开通");
+        utils_toast.toastSuccess(isRenewal ? "续费成功，有效期已顺延" : sku === api_virtualCommerce.MEMBER_YEAR_SKU ? "年卡已开通，全家都能用了" : "锅仔会员已开通");
       } catch (e) {
-        utils_toast.toastError(e, "暂时无法开通会员");
+        utils_toast.toastError(e, isRenewal ? "暂时无法续费" : "暂时无法开通会员");
       } finally {
         if (checking)
           common_vendor.index.hideLoading();
@@ -331,18 +343,21 @@ const _sfc_defineComponent = common_vendor.defineComponent({
         F: common_vendor.t(price.value),
         G: active.value
       }, active.value ? {
-        H: common_vendor.t(actionText.value),
-        I: actionText.value
-      } : common_vendor.e({
+        H: common_vendor.t(expireText.value),
+        I: common_vendor.o(enableRenewalNotice)
+      } : {}, {
         J: common_vendor.t(yearPrice.value),
         K: common_vendor.t(yearDailyPrice.value),
         L: !yearPurchasable.value ? 1 : "",
-        M: common_vendor.o(($event) => purchase(common_vendor.unref(api_virtualCommerce.MEMBER_YEAR_SKU))),
-        N: common_vendor.t(price.value),
-        O: !purchasable.value ? 1 : "",
-        P: common_vendor.o(($event) => purchase(common_vendor.unref(api_virtualCommerce.MEMBER_PRODUCT_SKU))),
-        Q: paying.value
-      }, paying.value ? {} : {}));
+        M: active.value ? "续费会员年卡" : "开通会员年卡",
+        N: common_vendor.o(($event) => purchase(common_vendor.unref(api_virtualCommerce.MEMBER_YEAR_SKU))),
+        O: common_vendor.t(price.value),
+        P: common_vendor.t(active.value ? "续费 · 在现有效期上顺延 30 天" : "先试试"),
+        Q: !purchasable.value ? 1 : "",
+        R: active.value ? "续费会员月卡" : "开通会员月卡",
+        S: common_vendor.o(($event) => purchase(common_vendor.unref(api_virtualCommerce.MEMBER_PRODUCT_SKU))),
+        T: paying.value
+      }, paying.value ? {} : {});
     };
   }
 });

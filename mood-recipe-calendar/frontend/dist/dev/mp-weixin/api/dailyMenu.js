@@ -15,7 +15,7 @@ function refreshDailyBoard() {
   return api_request.post("/daily-menu/refresh", {}).then(normalizeBoard);
 }
 function generateDailyMenuCover() {
-  return api_request.post("/daily-menu/cover", {}).then(normalizeBoard);
+  return api_request.post("/daily-menu/cover", {}, 15e4).then(normalizeBoard);
 }
 function splitComboDishName(name) {
   if (!name)

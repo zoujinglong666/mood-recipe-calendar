@@ -7,7 +7,7 @@ function replaceDailyMealPlanMeal(mealIndex, date) {
   return api_request.post(`/daily-meal-plan/${mealIndex}/replace`, void 0, void 0, { date: date || "" }).then(normalizePlan);
 }
 function generateDailyMealCover(mealIndex, date) {
-  return api_request.post(`/daily-meal-plan/${mealIndex}/cover`, void 0, void 0, { date: date || "" }).then(normalizePlan);
+  return api_request.post(`/daily-meal-plan/${mealIndex}/cover`, void 0, 15e4, { date: date || "" }).then(normalizePlan);
 }
 function normalizePlan(plan) {
   if (!plan)

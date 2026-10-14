@@ -109,6 +109,8 @@ public class UsageQuotaService {
             int base = checkins != null && checkins.findByOpenidAndCheckinDate(openid, today.toString()).isPresent() ? 3 : 0;
             // 分享裂变激励：非会员当日分享任意高光时刻，额外 +1 次锅仔对话
             if (base > 0 && shareRecords != null && shareRecords.existsByOpenidAndShareDate(openid, today)) base += 1;
+            // 回流激励：通过好友分享卡打开（被邀请侧），当日也 +1 次——新客无需签到即可立刻体验
+            if (shareRecords != null && shareRecords.existsByOpenidAndShareDateAndScene(openid, today, "ACCEPT")) base += 1;
             return base;
         }
         return isMember ? (feature == Feature.HOME_RECOMMEND ? 20 : Integer.MAX_VALUE)

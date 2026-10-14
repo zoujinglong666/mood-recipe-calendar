@@ -30,6 +30,8 @@ const POLL_INTERVAL = 900;
 const POLL_TIMEOUT = 9e4;
 const MAX_POLL_FAILURES = 3;
 const ACTIVE_JOB_KEY = "mrc_active_recommendation_job";
+const COVER_POLL_INTERVAL = 6e3;
+const COVER_POLL_MAX_ATTEMPTS = 6;
 const _sfc_defineComponent = common_vendor.defineComponent({
   __name: "index",
   setup(__props) {
@@ -193,6 +195,8 @@ const _sfc_defineComponent = common_vendor.defineComponent({
       shareCardSaved.value = false;
       shareStyle.value = "classic";
       clearPollTimer();
+      clearCoverTimer();
+      coverAttempts = 0;
       const run = ++pollRun;
       try {
         await utils_login.ensureLogin();
@@ -278,9 +282,44 @@ const _sfc_defineComponent = common_vendor.defineComponent({
     }
     function stopPolling() {
       clearPollTimer();
+      clearCoverTimer();
       pollRun += 1;
     }
+    let coverTimer;
+    let coverAttempts = 0;
+    function pollRecipeCover(run) {
+      clearCoverTimer();
+      if (coverAttempts >= COVER_POLL_MAX_ATTEMPTS)
+        return;
+      coverTimer = setTimeout(async () => {
+        var _a;
+        if (run !== pollRun)
+          return;
+        const id = (_a = recipe.value) == null ? void 0 : _a.id;
+        if (!id)
+          return;
+        try {
+          const detail = await api_recipes.fetchRecipeDetail(id);
+          if (run !== pollRun)
+            return;
+          if ((detail == null ? void 0 : detail.image) && recipe.value && recipe.value.id === id) {
+            recipe.value = { ...recipe.value, image: detail.image };
+            return;
+          }
+        } catch {
+        }
+        coverAttempts += 1;
+        pollRecipeCover(run);
+      }, COVER_POLL_INTERVAL);
+    }
+    function clearCoverTimer() {
+      if (coverTimer !== void 0) {
+        clearTimeout(coverTimer);
+        coverTimer = void 0;
+      }
+    }
     function applyJob(job, run) {
+      var _a;
       recommendationJob.value = job;
       if (job.status === "SUCCEEDED") {
         common_vendor.index.removeStorageSync(ACTIVE_JOB_KEY);
@@ -288,8 +327,11 @@ const _sfc_defineComponent = common_vendor.defineComponent({
         loading.value = false;
         if (!job.recipe)
           error.value = "推荐好了，菜谱内容暂时打不开";
-        else
+        else {
           void loadFeedbackState();
+          if (!((_a = recipe.value) == null ? void 0 : _a.image))
+            pollRecipeCover(run);
+        }
         return;
       }
       if (job.status === "FAILED") {

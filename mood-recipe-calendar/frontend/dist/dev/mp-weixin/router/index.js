@@ -311,6 +311,26 @@ const pages = [
       "navigationStyle": "custom",
       "navigationBarTitleText": "想吃清单"
     }
+  },
+  {
+    "path": "pages/admin/recipes/edit",
+    "type": "page",
+    "name": "admin-recipe-edit",
+    "layout": "default",
+    "style": {
+      "navigationStyle": "custom",
+      "navigationBarTitleText": "编辑菜谱"
+    }
+  },
+  {
+    "path": "pages/admin/recipes/index",
+    "type": "page",
+    "name": "admin-recipes",
+    "layout": "default",
+    "style": {
+      "navigationStyle": "custom",
+      "navigationBarTitleText": "菜谱管理"
+    }
   }
 ];
 const subPackages = [];

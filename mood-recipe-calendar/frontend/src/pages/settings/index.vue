@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import type { ApiBackend } from '@/api/request'
 import type { ThemeMode } from '@/composables/useManualTheme'
 import { computed, ref } from 'vue'
@@ -12,6 +12,7 @@ import { STATIC_BASE_URL } from '@/utils/assets'
 import { chooseImageFile } from '@/utils/chooseImage'
 import { refreshUserInfo, navigateToLogin } from '@/utils/login'
 import { manualCheckUpdate } from '@/utils/update'
+import { adminCheck } from '@/api/admin'
 import { toast, toastError, toastSuccess } from '@/utils/toast'
 
 definePage({
@@ -45,11 +46,13 @@ const avatarUpdating = ref(false)
 const nicknameSaving = ref(false)
 const logoutLoading = ref(false)
 const deleteLoading = ref(false)
+const adminVisible = ref(false)
 
 const avatar = computed(() => userStore.userInfo?.avatarUrl || `${STATIC_BASE_URL}/static/guozai/mood_01_happy.png`)
 const themeChoice = computed<ThemeChoice>(() => followSystem.value ? 'system' : isDark.value ? 'dark' : 'light')
 
 /** 检查更新（逻辑在 utils/update，微信原生分发，零维护） */
+function goAdminRecipes() { router.push({ name: 'admin-recipes' }) }
 function checkForUpdate() {
   manualCheckUpdate()
 }
@@ -97,6 +100,7 @@ onShow(async () => {
   userStore.restoreFromStorage()
   if (userStore.isLoggedIn) {
     await refreshUserInfo()
+    try { adminVisible.value = !!(await adminCheck()).admin } catch (e) { adminVisible.value = false }
   }
   nickname.value = userStore.userInfo?.nickname || ''
 })
@@ -243,9 +247,8 @@ function askDeleteAccount() {
           <text class="settings-intro__eyebrow">
             锅仔的小饭友
           </text>
-          <text class="settings-intro__title">
-            把这里调成<br>最舒服的样子
-          </text>
+          <text class="settings-intro__title">把这里调成</text>
+          <text class="settings-intro__title">最舒服的样子</text>
         </view>
         <image class="settings-intro__image guozai-breathe" :src="`${STATIC_BASE_URL}/static/guozai/action_06_glasses.png`" mode="aspectFit" />
       </view>
@@ -318,10 +321,10 @@ function askDeleteAccount() {
               昵称
             </text>
             <!-- #ifdef MP-WEIXIN -->
-            <input v-model="nickname" class="nickname-input" type="nickname" :maxlength="24" placeholder="给自己取个昵称" confirm-type="done" @confirm="saveNickname">
+            <input v-model="nickname" class="nickname-input" type="nickname" :maxlength="24" placeholder="给自己取个昵称" confirm-type="done" @confirm="saveNickname" />
             <!-- #endif -->
             <!-- #ifndef MP-WEIXIN -->
-            <input v-model="nickname" class="nickname-input" type="text" :maxlength="24" placeholder="给自己取个昵称" confirm-type="done" @confirm="saveNickname">
+            <input v-model="nickname" class="nickname-input" type="text" :maxlength="24" placeholder="给自己取个昵称" confirm-type="done" @confirm="saveNickname" />
             <!-- #endif -->
             <view class="nickname-save pressable" :class="{ 'is-disabled': nicknameSaving || !nickname.trim() || nickname.trim() === userStore.userInfo?.nickname }" role="button" aria-label="保存昵称" @click="saveNickname">
               {{ nicknameSaving ? '保存中…' : '保存昵称' }}
@@ -416,13 +419,26 @@ function askDeleteAccount() {
         </view>
       </view>
 
+      <view class="settings-section" v-if="adminVisible">
+        <view class="settings-heading">
+          <text class="settings-heading__title">管理后台</text>
+        </view>
+        <view class="about-card">
+          <view class="about-row about-check pressable" role="button" aria-label="菜谱管理" @click="goAdminRecipes">
+            <Icon name="info" :size="30" color="#EF5A3C" />
+            <view class="about-row__text">
+              <text class="about-row__name">菜谱管理中心</text>
+              <text class="about-row__desc">审核/编辑/删除菜谱，替换占位假图</text>
+            </view>
+            <text class="about-row__arrow">›</text>
+          </view>
+        </view>
+      </view>
+
       <view class="settings-section">
         <view class="settings-heading">
-          <text class="settings-heading__title">
-            关于锅仔
-          </text><text class="settings-heading__hint">
-            新版本由微信自动推送，也可手动检查
-          </text>
+          <text class="settings-heading__title">关于锅仔</text>
+          <text class="settings-heading__hint">新版本由微信自动推送，也可手动检查</text>
         </view>
         <view class="about-card">
           <view class="about-row about-check pressable" role="button" aria-label="检查更新" @click="checkForUpdate">

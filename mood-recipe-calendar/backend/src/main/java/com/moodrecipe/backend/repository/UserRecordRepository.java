@@ -21,5 +21,12 @@ public interface UserRecordRepository extends JpaRepository<UserRecord, Long> {
     List<UserRecord> findByOpenidAndRecordDate(String openid, String date);
 
     long countByOpenid(String openid);
+
+    /** 快手菜成就：cookingTime 为 null 的记录不计入。 */
+    long countByOpenidAndCookingTimeLessThanEqual(String openid, Integer cookingTime);
+
+    /** 点评成就：写了备注（note 非空）的记录数。 */
+    long countByOpenidAndNoteIsNotEmpty(String openid);
+
     Optional<UserRecord> findByOpenidAndClientRequestId(String openid, String clientRequestId);
 }

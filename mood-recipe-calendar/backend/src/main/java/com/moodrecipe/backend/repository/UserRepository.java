@@ -18,4 +18,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByOpenidForUpdate(@Param("openid") String openid);
 
     Optional<User> findBySessionTokenHashAndSessionTokenExpiresAtAfter(String tokenHash, LocalDateTime now);
+
+    /** 召回等运营任务：全量 openid（当前用户规模下可接受，量大时再分页）。 */
+    @org.springframework.data.jpa.repository.Query("SELECT u.openid FROM User u")
+    java.util.List<String> findAllOpenids();
 }

@@ -1,1 +1,1 @@
-"use strict";const e=require("./request.js");exports.fetchShareStatus=function(){return e.get("/share/status")},exports.recordShare=function(r){return e.post("/share/record",{scene:r})};
+"use strict";const e=require("./request.js");exports.acceptShareInvite=function(t){return e.post("/share/accept",{scene:t})},exports.fetchShareStatus=function(){return e.get("/share/status")},exports.recordShare=function(t){return e.post("/share/record",{scene:t})};

@@ -35,6 +35,13 @@ public class VirtualCommerceService {
     private final UserRepository userRepository;
     private final ObjectMapper mapper;
     private final MemberAccessService memberAccess;
+    /** 会员开通成功通知（可选依赖，setter 注入保持测试构造器签名不变）。 */
+    private WechatSubscriptionMessageService subscriptions;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setSubscriptions(WechatSubscriptionMessageService subscriptions) {
+        this.subscriptions = subscriptions;
+    }
 
     /** 兼容既有测试的直构（无家庭穿透，退回本人判定）。 */
     public VirtualCommerceService(
@@ -194,6 +201,7 @@ public class VirtualCommerceService {
         // sourceOrderNo 唯一约束保证支付回调重试时不会重复加权益。
         if (entitlementRepository.findBySourceOrderNo(orderNo).isEmpty()) {
             grantEntitlement(order, product, now);
+            if (product.isMemberPass()) notifyMemberActivated(order, product, now);
         }
         order.setStatus("DELIVERED");
         order.setDeliveredAt(now);
@@ -222,5 +230,38 @@ public class VirtualCommerceService {
         entitlement.setExpiresAt(product.getValidDays() > 0 ? now.plusDays(product.getValidDays()) : null);
         entitlement.setCreatedAt(now);
         entitlementRepository.save(entitlement);
+    }
+
+    /** 会员开通成功通知（订阅消息）：需用户支付前授权；失败仅记日志，绝不影响发货。 */
+    private void notifyMemberActivated(VirtualOrder order, VirtualProduct product, LocalDateTime now) {
+        try {
+            User user = userRepository.findByOpenid(order.getOpenid()).orElse(null);
+            LocalDateTime expireAt = user == null ? null : user.getMemberExpire();
+            subscriptions.sendMemberActivated(
+                    order.getOpenid(),
+                    safeTitle(product),
+                    String.format("%.2f", order.getAmountFen() == null ? 0 : order.getAmountFen() / 100.0),
+                    expireAt,
+                    memberType(product.getValidDays()));
+        } catch (RuntimeException ignored) {
+            // 通知失败不能影响发货结果
+        }
+    }
+
+    /** 会员类型文案：按有效期天数粗分，无匹配天数时兜底为「N天会员」。 */
+    private String memberType(Integer validDays) {
+        int days = validDays == null ? 0 : validDays;
+        return switch (days) {
+            case 7 -> "周卡会员";
+            case 30 -> "月度会员";
+            case 90 -> "季度会员";
+            case 365 -> "年度会员";
+            default -> days > 0 ? days + "天会员" : "锅仔会员";
+        };
+    }
+
+    private String safeTitle(VirtualProduct product) {
+        String title = product.getTitle();
+        return title == null || title.isBlank() ? "锅仔会员" : title;
     }
 }

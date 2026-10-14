@@ -26,6 +26,13 @@ public class WeeklyMealPlanService {
     private final AgnesRecipeImageService images;
     private final WechatSubscriptionMessageService subscriptions;
     private final ObjectMapper json;
+    /** 成就检测：可选依赖（setter 注入，测试构造器签名不变），为空时跳过。 */
+    private AchievementService achievementService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setAchievementService(AchievementService achievementService) {
+        this.achievementService = achievementService;
+    }
 
     public WeeklyMealPlanService(WeeklyMealPlanRepository plans, GuozaiAgent agent, MenuPlannerAgent planner,
                                  AgentMemoryStore memory, AgnesRecipeImageService images,
@@ -76,6 +83,9 @@ public class WeeklyMealPlanService {
         plan.setAgentJson(write(audit(planned)));
         progress.update(WeeklyPlanJobService.Stage.SAVE, WeeklyPlanJobService.StepStatus.RUNNING, "保存周菜单");
         PlanView view = view(plans.save(plan));
+        if (achievementService != null) {
+            try { achievementService.checkAndUnlock(openid); } catch (RuntimeException ignored) { }
+        }
         if (request.sendNotification()) subscriptions.sendWeeklyPlanCompleted(openid, view.id());
         progress.update(WeeklyPlanJobService.Stage.FINALIZE, WeeklyPlanJobService.StepStatus.COMPLETED, "整理生成结果");
         return view;

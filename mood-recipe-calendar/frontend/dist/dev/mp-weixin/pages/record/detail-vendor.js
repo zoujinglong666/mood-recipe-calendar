@@ -7,6 +7,7 @@ const composables_useNavBar = require("../../composables/useNavBar.js");
 const utils_login = require("../../utils/login.js");
 const utils_toast = require("../../utils/toast.js");
 const stores_user = require("../../stores/user.js");
+const api_share = require("../../api/share.js");
 const __unplugin_components_2 = () => "../../node-modules/@wot-ui/ui/components/wd-image-preview/wd-image-preview.js";
 const __unplugin_components_1 = () => "../../node-modules/@wot-ui/ui/components/wd-icon/wd-icon.js";
 const __unplugin_components_0 = () => "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar.js";
@@ -31,6 +32,8 @@ const _sfc_defineComponent = common_vendor.defineComponent({
       const sharer = userStore.openid;
       const path = `/pages/record/detail${sharer ? `?sharer=${encodeURIComponent(sharer)}` : ""}`;
       const thumb = savedPosterPath.value || photos.value[0];
+      void api_share.recordShare("record").catch(() => {
+      });
       return {
         title: record.value ? `我记下了「${record.value.dishName}」，锅仔帮我留住这顿饭` : "锅仔 · 记录今天的食光",
         path,

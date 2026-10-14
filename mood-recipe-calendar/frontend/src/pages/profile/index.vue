@@ -117,6 +117,7 @@ async function loadData() {
 onShow(() => {
   loadData()
   syncWishlist()
+  achievementUnread.value = Number(uni.getStorageSync('mrc_achv_unread') || 0)
 })
 
 async function handleIdentityCard() {
@@ -130,8 +131,14 @@ async function handleIdentityCard() {
 function goReport() {
   router.push({ name: 'report' })
 }
+/** 成就未读数：记录解锁后累计，进形象馆即清零。 */
+const achievementUnread = ref(0)
 function goGallery() {
   router.push({ name: 'gallery' })
+}
+/** 成就入口：直达形象馆并聚焦成就墙（focus=achievements 触发滚动）。 */
+function goAchievements() {
+  router.push({ name: 'gallery', query: { focus: 'achievements' } })
 }
 function goSettings() {
   router.push({ name: 'settings' })
@@ -501,6 +508,19 @@ function openStat(type: 'records' | 'days' | 'streak') {
       </text>
     </view>
 
+    <!-- 我的成就入口：直达形象馆成就墙 -->
+    <view class="profile-achv" role="button" aria-label="查看我的成就徽章" @click="goAchievements">
+      <view class="profile-achv__icon">🏅</view>
+      <view class="profile-achv__main">
+        <text class="profile-achv__title">我的成就</text>
+        <text class="profile-achv__sub">
+          {{ achievementUnread > 0 ? `有 ${achievementUnread} 个新成就，去点亮` : '记录 · 分享 · 连续打卡，徽章一个个解锁' }}
+        </text>
+      </view>
+      <view v-if="achievementUnread > 0" class="profile-achv__dot">{{ achievementUnread }}</view>
+      <text class="profile-achv__arrow">›</text>
+    </view>
+
     <!-- 锅仔形象馆入口（核心变现模块） -->
     <view class="profile-gallery" role="button" aria-label="打开锅仔形象馆" @click="goGallery">
       <image :src="`${STATIC_BASE_URL}/static/guozai/mood_06_hungry.png`" class="profile-gallery__guozai"
@@ -510,10 +530,13 @@ function openStat(type: 'records' | 'days' | 'streak') {
           锅仔形象馆
         </text>
         <text class="profile-gallery__sub">
-          表情包 · 主题素材 · 每日收藏
+          表情包 · 主题素材 · 成就徽章
         </text>
       </view>
       <view class="profile-gallery__badges">
+        <view v-if="achievementUnread > 0" class="profile-gallery__dot">
+          {{ achievementUnread }}
+        </view>
         <view v-if="shareStatus.isSharer" class="profile-gallery__badge profile-gallery__badge--sharer">
           分享家
         </view>
@@ -902,6 +925,51 @@ function openStat(type: 'records' | 'days' | 'streak') {
 .profile-gallery:active {
   transform: scale(0.98);
 }
+
+/* 我的成就入口卡 */
+.profile-achv {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  margin-bottom: 24rpx;
+  padding: 22rpx 26rpx;
+  border: 2rpx solid var(--mrc-border);
+  border-radius: 32rpx;
+  min-height: 138rpx;
+  box-sizing: border-box;
+  background: var(--mrc-surface);
+  box-shadow: var(--mrc-shadow-soft);
+  transition: transform 0.15s ease;
+}
+.profile-achv:active { transform: scale(0.98); }
+.profile-achv__icon {
+  display: flex;
+  width: 88rpx;
+  height: 88rpx;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 24rpx;
+  background: linear-gradient(145deg, var(--mrc-surface-sun), var(--mrc-surface-peach));
+  font-size: 44rpx;
+}
+.profile-achv__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8rpx; }
+.profile-achv__title { font-size: 31rpx; font-weight: 800; color: var(--mrc-text-deep); }
+.profile-achv__sub { font-size: 22rpx; color: var(--mrc-text-sub); }
+.profile-achv__dot {
+  min-width: 34rpx;
+  height: 34rpx;
+  padding: 0 8rpx;
+  border-radius: 999rpx;
+  background: var(--mrc-accent);
+  color: #fff;
+  font-size: 20rpx;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.profile-achv__arrow { color: var(--mrc-text-light); font-size: 40rpx; }
 .profile-gallery__guozai {
   width: 88rpx;
   height: 88rpx;
@@ -932,6 +1000,20 @@ function openStat(type: 'records' | 'days' | 'streak') {
 }
 .profile-gallery__badges { display: flex; flex-direction: column; align-items: flex-end; gap: 8rpx; }
 .profile-gallery__badge--sharer { background: rgba(26, 173, 25, .12); color: #1AAD19; }
+.profile-gallery__dot {
+  min-width: 34rpx;
+  height: 34rpx;
+  padding: 0 8rpx;
+  border-radius: 999rpx;
+  background: var(--mrc-accent);
+  color: #fff;
+  font-size: 20rpx;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4rpx 10rpx rgba(255, 107, 91, 0.4);
+}
 
 /* 内联签到卡 */
 .profile-checkin { display: flex; align-items: center; gap: 18rpx; margin-bottom: 16rpx; padding: 22rpx 26rpx; box-sizing: border-box; border: 2rpx solid var(--mrc-border); border-radius: 30rpx; background: linear-gradient(135deg, var(--mrc-surface-sun), var(--mrc-surface-peach)); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }

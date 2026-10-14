@@ -130,6 +130,8 @@ export function rateAgentConversation(rating: string, comment?: string) {
 }
 
 const WEEKLY_PLAN_TEMPLATE_ID = 'h00FlM2Xf_X64sXln5WoYGnbvtJBjasdEraRPjs4NOg'
+/** 「日程提醒」模板 1677：周六清单提醒与沉睡召回共用，生成周菜单时随授权弹窗一起请求。 */
+const SCHEDULE_TEMPLATE_ID = 'FvYwk2LwZ3ztd7myzrEJKNcXnIpXW0OvaSMCtl1iwgU'
 
 /** 只在用户点击生成按钮时调用；非微信端和拒绝授权均不影响生成计划。 */
 export function requestWeeklyPlanCompletionNotice(): Promise<boolean> {
@@ -140,8 +142,10 @@ export function requestWeeklyPlanCompletionNotice(): Promise<boolean> {
       resolve(false)
       return
     }
+    // 一次弹窗同时请求「生成完成」与「日程提醒（清单/召回）」两类授权
+    const tmplIds = [WEEKLY_PLAN_TEMPLATE_ID, SCHEDULE_TEMPLATE_ID]
     requestSubscribeMessage({
-      tmplIds: [WEEKLY_PLAN_TEMPLATE_ID],
+      tmplIds,
       success: (result: Record<string, string>) => resolve(['accept', 'acceptWithAudio'].includes(result[WEEKLY_PLAN_TEMPLATE_ID])),
       fail: () => resolve(false),
     })

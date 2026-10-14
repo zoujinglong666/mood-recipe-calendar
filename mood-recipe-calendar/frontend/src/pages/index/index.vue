@@ -66,7 +66,9 @@ function getPeriod(hour: number) {
 import { computed, ref } from 'vue'
 import Icon from '../../components/common/Icon.vue'
 import { ensureLogin } from '../../utils/login'
-import { toastError } from '../../utils/toast'
+import { toastError, toastSuccess } from '../../utils/toast'
+import { acceptShareInvite } from '../../api/share'
+import { onLoad } from '@dcloudio/uni-app'
 import { fetchCompanionMessage, fetchRecordsByMonth, type CompanionMessage, type RecordItem } from '../../api/records'
 import { fetchRecipePool, fetchRecipeQuota, type RecipeItem, type UsageQuotaView } from '../../api/recipes'
 import { fetchDailyBoard, refreshDailyBoard, generateDailyMenuCover, splitComboDishName, type DailyBoard } from '../../api/dailyMenu'
@@ -446,6 +448,26 @@ function goCookToday() {
   router.push({ name: 'cooking' })
 }
 
+/** 分享回流承接：好友通过分享卡打开 → 双方各 +1 次对话额度；带上好友分享的那道菜名做欢迎 */
+const friendDish = ref('')
+const inviteBonus = ref(false)
+onLoad((query) => {
+  const sharer = String(query?.sharer || '')
+  const dish = String(query?.dish || '')
+  if (dish)
+    friendDish.value = dish
+  if (!sharer || sharer === userStore.openid)
+    return
+  acceptShareInvite(sharer)
+    .then((res) => {
+      if (res?.grantedBonus) {
+        inviteBonus.value = true
+        toastSuccess('好友分享的福利：今日对话 +1 次')
+      }
+    })
+    .catch(() => {})
+})
+
 onShow(() => {
   now.value = new Date()
   loadData()
@@ -454,8 +476,17 @@ onShow(() => {
 /** 转发给好友/群：必须定义 onShareAppMessage 胶囊「···」里的转发才可用 */
 onShareAppMessage(() => {
   const sharer = userStore.openid
-  const path = `/pages/index/index${sharer ? `?sharer=${encodeURIComponent(sharer)}` : ''}`
-  return { title: '锅仔 · 按心情帮你决定今天吃什么', path }
+  // 分享卡带菜：好友点开直接看到这道菜 + 你的邀请，回流后双方各得 1 次对话额度
+  const dish = todayBoard.value?.recipe?.name || ''
+  const params = [
+    sharer ? `sharer=${encodeURIComponent(sharer)}` : '',
+    dish ? `dish=${encodeURIComponent(dish)}` : '',
+  ].filter(Boolean).join('&')
+  const path = `/pages/index/index${params ? `?${params}` : ''}`
+  const title = dish ? `我用锅仔安排了「${dish}」，也替你留了一份` : '锅仔 · 按心情帮你决定今天吃什么'
+  // 记录分享：发放「分享家」徽章 + 非会员当日 +1 次对话激励（失败静默，不影响转发）
+  void recordShare('home').catch(() => {})
+  return { title, path }
 })
 /** 分享到朋友圈：必须定义 onShareTimeline 才可用 */
 onShareTimeline(() => {
@@ -509,6 +540,13 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
         </view>
         <view class="home-hero__bubble"><text>{{ companion.actionText }}</text><text class="home-hero__bubble-arrow">›</text></view>
         <view class="home-hero__spark home-hero__spark--one" /><view class="home-hero__spark home-hero__spark--two" />
+      </view>
+
+      <!-- 分享回流欢迎条：好友点开的落地页，先看到这道菜和福利，再自然进入今日菜牌 -->
+      <view v-if="friendDish || inviteBonus" class="share-welcome">
+        <text class="share-welcome__emoji">🍲</text>
+        <text v-if="friendDish" class="share-welcome__text">好友用锅仔安排了「{{ friendDish }}」</text>
+        <text v-if="inviteBonus" class="share-welcome__bonus">你和好友各得 1 次对话额度</text>
       </view>
 
       <!-- 今日菜单（TodayBoard）：今日菜牌——菜图右侧通栏出血，信息在左 -->
@@ -671,6 +709,20 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
 .home-hero__profile image { width: 58rpx; height: 58rpx; }
 
 /* 三个首页入口共享同一高度和节奏，内容层级通过颜色区分。 */
+.share-welcome {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin: 12rpx 24rpx 0;
+  padding: 16rpx 24rpx;
+  background: var(--mrc-surface-sun, #FFF6E0);
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 24rpx;
+}
+.share-welcome__emoji { font-size: 30rpx; }
+.share-welcome__text { font-size: 24rpx; color: var(--mrc-text-deep); font-weight: 700; }
+.share-welcome__bonus { margin-left: auto; font-size: 21rpx; color: var(--mrc-accent); font-weight: 700; }
+
 .home-entry { border-radius: 30rpx; box-sizing: border-box; }
 /* 今日菜牌（TodayBoard）：图占满右侧全高、杂志式出血；左侧信息三级（眉标/菜名/标签），CTA 为实心药丸。 */
 .home-board { position: relative; display: flex; align-items: stretch; height: 228rpx; margin-bottom: 16rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 30rpx; background: linear-gradient(120deg, var(--mrc-surface-peach) 0%, var(--mrc-surface) 62%); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); overflow: hidden; }

@@ -48,6 +48,8 @@ export interface LearningReceipt {
 export interface RecordSaveResult {
   record: RecordItem
   learningReceipt: LearningReceipt
+  /** 本次新解锁的成就名（后端记录落库后自动检测），无新解锁为空数组 */
+  newlyUnlocked?: string[]
 }
 
 export interface StatsResult {

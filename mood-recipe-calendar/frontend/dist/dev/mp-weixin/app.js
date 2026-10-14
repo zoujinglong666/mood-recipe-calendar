@@ -38,6 +38,8 @@ if (!Math) {
   "./pages/weekly-plan/detail.js";
   "./pages/weekly-plan/index.js";
   "./pages/wishlist/index.js";
+  "./pages/admin/recipes/edit.js";
+  "./pages/admin/recipes/index.js";
 }
 const __unplugin_components_0 = () => "./node-modules/@wot-ui/ui/components/wd-popup/wd-popup.js";
 if (!Array) {

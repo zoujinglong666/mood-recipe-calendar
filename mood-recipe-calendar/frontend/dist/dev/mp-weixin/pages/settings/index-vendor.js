@@ -9,6 +9,7 @@ const utils_assets = require("../../utils/assets.js");
 const utils_toast = require("../../utils/toast.js");
 const utils_login = require("../../utils/login.js");
 const utils_update = require("../../utils/update.js");
+const api_admin = require("../../api/admin.js");
 const __unplugin_components_0 = () => "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar.js";
 if (!Array) {
   const _component_wd_navbar = __unplugin_components_0;
@@ -42,11 +43,15 @@ const _sfc_defineComponent = common_vendor.defineComponent({
     const nicknameSaving = common_vendor.ref(false);
     const logoutLoading = common_vendor.ref(false);
     const deleteLoading = common_vendor.ref(false);
+    const adminVisible = common_vendor.ref(false);
     const avatar = common_vendor.computed(() => {
       var _a;
       return ((_a = userStore.userInfo) == null ? void 0 : _a.avatarUrl) || `${utils_assets.STATIC_BASE_URL}/static/guozai/mood_01_happy.png`;
     });
     const themeChoice = common_vendor.computed(() => followSystem.value ? "system" : isDark.value ? "dark" : "light");
+    function goAdminRecipes() {
+      router.push({ name: "admin-recipes" });
+    }
     function checkForUpdate() {
       utils_update.manualCheckUpdate();
     }
@@ -87,6 +92,11 @@ const _sfc_defineComponent = common_vendor.defineComponent({
       userStore.restoreFromStorage();
       if (userStore.isLoggedIn) {
         await utils_login.refreshUserInfo();
+        try {
+          adminVisible.value = !!(await api_admin.adminCheck()).admin;
+        } catch (e) {
+          adminVisible.value = false;
+        }
       }
       nickname.value = ((_a = userStore.userInfo) == null ? void 0 : _a.nickname) || "";
     });
@@ -286,23 +296,32 @@ const _sfc_defineComponent = common_vendor.defineComponent({
           };
         })
       } : {}, {
-        B: common_vendor.p({
+        B: adminVisible.value
+      }, adminVisible.value ? {
+        C: common_vendor.p({
           name: "info",
           size: 30,
           color: "#EF5A3C"
         }),
-        C: common_vendor.o(checkForUpdate),
-        D: common_vendor.unref(userStore).isLoggedIn
-      }, common_vendor.unref(userStore).isLoggedIn ? {
-        E: common_vendor.t(logoutLoading.value ? "正在退出…" : "退出登录"),
-        F: logoutLoading.value ? 1 : "",
-        G: common_vendor.o(askForLogout)
+        D: common_vendor.o(goAdminRecipes)
       } : {}, {
-        H: common_vendor.unref(userStore).isLoggedIn
+        E: common_vendor.p({
+          name: "info",
+          size: 30,
+          color: "#EF5A3C"
+        }),
+        F: common_vendor.o(checkForUpdate),
+        G: common_vendor.unref(userStore).isLoggedIn
       }, common_vendor.unref(userStore).isLoggedIn ? {
-        I: common_vendor.t(deleteLoading.value ? "正在注销…" : "永久注销账号"),
-        J: deleteLoading.value ? 1 : "",
-        K: common_vendor.o(askDeleteAccount)
+        H: common_vendor.t(logoutLoading.value ? "正在退出…" : "退出登录"),
+        I: logoutLoading.value ? 1 : "",
+        J: common_vendor.o(askForLogout)
+      } : {}, {
+        K: common_vendor.unref(userStore).isLoggedIn
+      }, common_vendor.unref(userStore).isLoggedIn ? {
+        L: common_vendor.t(deleteLoading.value ? "正在注销…" : "永久注销账号"),
+        M: deleteLoading.value ? 1 : "",
+        N: common_vendor.o(askDeleteAccount)
       } : {});
     };
   }

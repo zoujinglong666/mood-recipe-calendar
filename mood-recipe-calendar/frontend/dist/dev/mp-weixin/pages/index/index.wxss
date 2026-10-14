@@ -209,6 +209,30 @@ to {
 }
 
 /* 三个首页入口共享同一高度和节奏，内容层级通过颜色区分。 */
+.share-welcome.data-v-83a5a03c {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin: 12rpx 24rpx 0;
+  padding: 16rpx 24rpx;
+  background: var(--mrc-surface-sun, #FFF6E0);
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 24rpx;
+}
+.share-welcome__emoji.data-v-83a5a03c {
+  font-size: 30rpx;
+}
+.share-welcome__text.data-v-83a5a03c {
+  font-size: 24rpx;
+  color: var(--mrc-text-deep);
+  font-weight: 700;
+}
+.share-welcome__bonus.data-v-83a5a03c {
+  margin-left: auto;
+  font-size: 21rpx;
+  color: var(--mrc-accent);
+  font-weight: 700;
+}
 .home-entry.data-v-83a5a03c {
   border-radius: 30rpx;
   box-sizing: border-box;

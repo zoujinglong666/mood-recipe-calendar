@@ -13,6 +13,7 @@ import {
   doCheckin,
   type CheckinStatus,
 } from '../../api/gallery'
+import { fetchAchievements, checkAchievements, type AchievementItem, type AchievementView } from '../../api/achievements'
 import {
   fetchVirtualProducts,
   fetchVirtualOrders,
@@ -54,6 +55,23 @@ const showBuy = ref(false)
 const checkin = ref<CheckinStatus>({ checkedIn: false, streak: 0, exchangeReady: false, daysToExchange: 30, totalDays: 0 })
 const checking = ref(false)
 const showCheckinModal = ref(false)
+/** 锅仔成就墙：记录/探索/连续天数等，记录落库后自动检测解锁 */
+const achievements = ref<AchievementView | null>(null)
+const achievementPct = computed(() => {
+  const a = achievements.value
+  if (!a || !a.total) return 0
+  return Math.min(100, Math.round((a.unlockedCount / a.total) * 100))
+})
+
+/** 点开一枚成就：解锁的看获取方式，未解锁的当作目标提示 */
+function showAchievement(item: AchievementItem) {
+  uni.showModal({
+    title: `${item.emoji} ${item.name}`,
+    content: `${item.unlocked ? '已解锁 · ' : '还没解锁 · '}${item.desc}`,
+    showCancel: false,
+    confirmText: item.unlocked ? '真棒' : '加油',
+  })
+}
 
 // ---------- 表情包（内容资产区：锅仔透明 PNG 资源库） ----------
 const STICKER_GROUPS = [
@@ -103,12 +121,14 @@ async function loadData() {
   error.value = ''
   try {
     await ensureLogin()
-    const [ck, prods, vOrders] = await Promise.all([
+    const [ck, prods, vOrders, achv] = await Promise.all([
       fetchCheckinStatus(),
       fetchVirtualProducts().catch(() => [] as VirtualProduct[]),
       fetchVirtualOrders().catch(() => [] as VirtualOrder[]),
+      fetchAchievements().catch(() => null),
     ])
     checkin.value = ck
+    achievements.value = achv
     productTitleMap.value = Object.fromEntries(prods.map(p => [p.sku, p.title]))
     orders.value = vOrders.map(o => ({
       orderNo: o.orderNo,
@@ -125,7 +145,37 @@ async function loadData() {
 }
 
 onShow(() => {
+  // 进馆即清零成就未读（「我的」页红点由此归零）
+  uni.removeStorageSync('mrc_achv_unread')
   loadData()
+  // 「我的」页「我的成就」入口携带 focus=achievements，进入后滚动到成就墙
+  const pages = getCurrentPages()
+  const query = (pages[pages.length - 1] as any)?.options || {}
+  if (query.focus === 'achievements') {
+    setTimeout(() => {
+      uni.pageScrollTo({ selector: '#achvSection', duration: 300 })
+    }, 360)
+  }
+  // 兜底补检测（分享/生成周菜单等场景的成就在这里集中解锁），有新解锁就锅仔播报
+  checkAchievements()
+    .then((res) => {
+      const codes = res?.newlyUnlocked || []
+      if (!codes.length || !achievements.value)
+        return
+      const names = codes
+        .map(code => achievements.value?.achievements.find(item => item.code === code))
+        .filter(Boolean)
+        .map(item => `${item!.emoji} ${item!.name}`)
+      if (!names.length)
+        return
+      uni.showModal({
+        title: '锅仔播报',
+        content: `解锁新成就：${names.join('、')}！去成就墙看看吧`,
+        showCancel: false,
+        confirmText: '好耶',
+      })
+    })
+    .catch(() => {})
 })
 
 const orderStatusText: Record<string, string> = {
@@ -222,6 +272,32 @@ function onBuy() {}
             {{ checkin.checkedIn ? '今日已签到' : '签到' }}
           </view>
         </view>
+      </view>
+
+      <!-- ============ 锅仔成就墙：记录/探索/连续天数等，越用越亮 ============ -->
+      <view v-if="achievements" id="achvSection" class="achv-section">
+        <view class="section-title">
+          <text>锅仔成就墙</text>
+          <text class="section-title__sub">已点亮 {{ achievements.unlockedCount }} / {{ achievements.total }}</text>
+        </view>
+        <view class="achv-progress">
+          <view class="achv-progress__inner" :style="{ width: achievementPct + '%' }" />
+        </view>
+        <view class="achv-grid">
+          <view
+            v-for="item in achievements.achievements"
+            :key="item.code"
+            class="achv-item"
+            :class="{ 'achv-item--locked': !item.unlocked }"
+            :aria-label="`${item.name}，${item.unlocked ? '已解锁' : '未解锁'}，${item.desc}`"
+            role="button"
+            @click="showAchievement(item)"
+          >
+            <text class="achv-item__emoji">{{ item.unlocked ? item.emoji : '🔒' }}</text>
+            <text class="achv-item__name">{{ item.name }}</text>
+          </view>
+        </view>
+        <text class="achv-hint">好好吃饭、多记录，成就徽章一个个点亮</text>
       </view>
 
       <!-- ============ 内容资产区：锅仔表情包 ============ -->
@@ -489,6 +565,80 @@ function onBuy() {}
   color: var(--mrc-accent);
   font-weight: 700;
   box-shadow: 0 4rpx 12rpx rgba(90, 62, 43, 0.08);
+}
+
+/* 成就墙 */
+.achv-section {
+  margin: 0 0 24rpx;
+  padding: 28rpx 24rpx 24rpx;
+  background: var(--mrc-surface);
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 32rpx;
+  box-shadow: var(--mrc-shadow-soft);
+}
+.achv-progress {
+  height: 14rpx;
+  background: var(--mrc-surface-2);
+  border-radius: 999rpx;
+  margin: 4rpx 4rpx 24rpx;
+  overflow: hidden;
+}
+.achv-progress__inner {
+  height: 100%;
+  background: linear-gradient(90deg, var(--mrc-primary), var(--mrc-accent));
+  border-radius: 999rpx;
+  transition: width 0.5s ease;
+}
+.achv-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16rpx;
+}
+.achv-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10rpx;
+  padding: 18rpx 6rpx;
+  border-radius: 20rpx;
+  background: var(--mrc-accent-soft);
+  border: 2rpx solid rgba(232, 131, 107, 0.25);
+  transition: transform 0.15s ease;
+}
+.achv-item:active {
+  transform: scale(0.94);
+}
+.achv-item__emoji {
+  font-size: 44rpx;
+  line-height: 1.2;
+}
+.achv-item__name {
+  font-size: 20rpx;
+  font-weight: 700;
+  color: var(--mrc-text-deep);
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.achv-item--locked {
+  background: var(--mrc-surface-2);
+  border: 2rpx solid var(--mrc-border-light);
+}
+.achv-item--locked .achv-item__emoji {
+  opacity: 0.55;
+  filter: grayscale(1);
+}
+.achv-item--locked .achv-item__name {
+  color: var(--mrc-text-light);
+  font-weight: 500;
+}
+.achv-hint {
+  display: block;
+  margin-top: 20rpx;
+  font-size: 22rpx;
+  color: var(--mrc-text-light);
+  text-align: center;
 }
 
 /* 内容资产 */

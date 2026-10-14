@@ -7,6 +7,7 @@ import com.moodrecipe.backend.model.LearningReceipt;
 import com.moodrecipe.backend.model.RecordRequest;
 import com.moodrecipe.backend.model.RecordSaveResponse;
 import com.moodrecipe.backend.repository.UserRecordRepository;
+import com.moodrecipe.backend.service.AchievementService;
 import com.moodrecipe.backend.service.RecordLearningService;
 import com.moodrecipe.backend.service.RecordPosterService;
 import com.moodrecipe.backend.service.UsageQuotaService;
@@ -29,17 +30,31 @@ public class RecordController {
     private final WechatContentSafetyService contentSafety;
     private final UsageQuotaService quotas;
     private final RecordPosterService posters;
+    private final AchievementService achievements;
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ISO_LOCAL_DATE;
     private static final String DEFAULT_DISH_IMAGE = "/static/dish_tomato_beef.png";
 
     public RecordController(UserRecordRepository repository, RecordLearningService learning,
                             WechatContentSafetyService contentSafety, UsageQuotaService quotas,
-                            RecordPosterService posters) {
+                            RecordPosterService posters, AchievementService achievements) {
         this.repository = repository;
         this.learning = learning;
         this.contentSafety = contentSafety;
         this.quotas = quotas;
         this.posters = posters;
+        this.achievements = achievements;
+    }
+
+    /** 成就检测：把解锁的 code 翻译成成就名给前端庆祝；失败静默（不影响记录保存）。 */
+    private List<String> unlockedNames(String openid) {
+        try {
+            return achievements.checkAndUnlock(openid).stream()
+                    .map(code -> achievements.catalogName(code))
+                    .filter(name -> name != null && !name.isBlank())
+                    .toList();
+        } catch (RuntimeException ignored) {
+            return List.of();
+        }
     }
 
     /** 保存一条记录 */
@@ -62,7 +77,7 @@ public class RecordController {
         if (req.clientRequestId() != null && !req.clientRequestId().isBlank()) {
             var existing = repository.findByOpenidAndClientRequestId(openid, req.clientRequestId());
             if (existing.isPresent()) {
-                return ApiResponse.ok(new RecordSaveResponse(existing.get(), LearningReceipt.savedOnly()));
+                return ApiResponse.ok(new RecordSaveResponse(existing.get(), LearningReceipt.savedOnly(), List.of()));
             }
         }
         UserRecord record = new UserRecord();
@@ -86,7 +101,9 @@ public class RecordController {
         } catch (RuntimeException ignored) {
             receipt = LearningReceipt.learningUnavailable();
         }
-        return ApiResponse.ok(new RecordSaveResponse(saved, receipt));
+        // 记录落库后顺手跑一遍成就检测（几次 count 查询，毫秒级）；新解锁成就随响应返回庆祝
+        List<String> newlyUnlocked = unlockedNames(openid);
+        return ApiResponse.ok(new RecordSaveResponse(saved, receipt, newlyUnlocked));
     }
 
     @PutMapping("/{id}")
@@ -104,7 +121,9 @@ public class RecordController {
         record.setPosterUrl(null);
         if (req.exposureId() != null && !req.exposureId().isBlank()) record.setExposureId(req.exposureId());
         if (req.recordDate() != null) record.setRecordDate(req.recordDate());
-        return ApiResponse.ok(repository.save(record));
+        UserRecord saved = repository.save(record);
+        unlockedNames(openid);
+        return ApiResponse.ok(saved);
     }
 
     private List<String> imageUrls(RecordRequest req) {
