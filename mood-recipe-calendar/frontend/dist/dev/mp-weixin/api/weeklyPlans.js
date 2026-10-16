@@ -81,6 +81,21 @@ function reportPlanDishOutcome(data) {
 function toggleShoppingItem(id, name) {
   return api_request.post(`/weekly-plans/${id}/shopping/${encodeURIComponent(name)}`);
 }
+function requestDailyReminderNotice() {
+  const requestSubscribeMessage = common_vendor.index.requestSubscribeMessage;
+  if (typeof requestSubscribeMessage !== "function")
+    return;
+  try {
+    requestSubscribeMessage({
+      tmplIds: [SCHEDULE_TEMPLATE_ID],
+      success: () => {
+      },
+      fail: () => {
+      }
+    });
+  } catch {
+  }
+}
 exports.fetchAgentConversationQuota = fetchAgentConversationQuota;
 exports.fetchCurrentAgentConversation = fetchCurrentAgentConversation;
 exports.generatePlanDishCover = generatePlanDishCover;
@@ -92,6 +107,7 @@ exports.pollWeeklyPlanJob = pollWeeklyPlanJob;
 exports.rateAgentConversation = rateAgentConversation;
 exports.replacePlanDay = replacePlanDay;
 exports.reportPlanDishOutcome = reportPlanDishOutcome;
+exports.requestDailyReminderNotice = requestDailyReminderNotice;
 exports.requestWeeklyPlanCompletionNotice = requestWeeklyPlanCompletionNotice;
 exports.resetAgentConversation = resetAgentConversation;
 exports.runMealAgentTurn = runMealAgentTurn;

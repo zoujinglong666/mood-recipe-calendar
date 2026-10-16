@@ -5,6 +5,8 @@ import { clearCookingLearning, cookingAgentTurn, sendCookingFeedback } from '@/a
 import { navBack } from '@/composables/useNavBar'
 import { STATIC_BASE_URL } from '@/utils/assets'
 import Icon from '../../components/common/Icon.vue'
+import FoodSafetyTips from '../../components/guozai/FoodSafetyTips.vue'
+import SuccessModal from '../../components/guozai/SuccessModal.vue'
 import { COOKING_PROGRESS_KEY, loadCookingDraft, saveRecordDraft } from '../../utils/cookingDraft'
 import { toast } from '../../utils/toast'
 
@@ -243,6 +245,9 @@ async function restart() {
   resetTimer()
 }
 
+/** 完成引导弹层：不再直接跳记录页，先庆祝并把「拍照记录」送到用户眼前 */
+const showFinishModal = ref(false)
+
 async function finish() {
   if (!recipe.value || !draft.value)
     return
@@ -250,8 +255,19 @@ async function finish() {
   if (recipe.value.id)
     await sendCookingFeedback({ recipeId: recipe.value.id, eventType: 'COMPLETED' }).catch(() => undefined)
   uni.removeStorageSync(COOKING_PROGRESS_KEY)
+  // 草稿先落盘：用户无论点「去记录」还是「下次再说」，下次进记录页草稿都在
   saveRecordDraft(recipe.value, draft.value.mood)
+  showFinishModal.value = true
+}
+
+function goRecordThisMeal() {
+  showFinishModal.value = false
   router.pushTab({ name: 'record' })
+}
+
+function finishLater() {
+  showFinishModal.value = false
+  router.pushTab({ name: 'home' })
 }
 
 onLoad(() => {
@@ -428,6 +444,7 @@ onUnload(() => {
           <view v-for="(item, index) in ingredients" :key="`${item}-${index}`" class="ingredients-item">
             <text>{{ index + 1 }}</text><text>{{ item }}</text>
           </view>
+          <FoodSafetyTips :ingredients="ingredients" class="cooking-safety" />
         </view>
       </view>
 
@@ -530,6 +547,17 @@ onUnload(() => {
           </view>
         </view>
       </wd-popup>
+
+      <!-- 完成引导：庆祝 + 顺势把「拍照记录」送到眼前（记录渗透率的关键一步） -->
+      <SuccessModal
+        :visible="showFinishModal"
+        title="这顿做完啦！"
+        subtitle="拍张照记下来，锅仔会记住你的口味，下次推荐更懂你"
+        confirm-text="去记录这顿"
+        secondary-text="下次再说"
+        @confirm="goRecordThisMeal"
+        @secondary="finishLater"
+      />
     </template>
   </view>
 </template>
@@ -620,6 +648,7 @@ onUnload(() => {
 .learning-actions { display: flex; gap: 10rpx; margin-top: 16rpx; }.learning-actions text { flex: 1; padding: 12rpx 8rpx; border-radius: 16rpx; background: var(--mrc-bg); color: var(--mrc-text-sub); font-size: 19rpx; text-align: center; }
 .quick-questions { flex-shrink: 0; width: 100%; margin-top: 12rpx; white-space: nowrap; }.quick-questions__inner { display: inline-flex; gap: 10rpx; padding-right: 24rpx; }.quick-questions text { padding: 13rpx 18rpx; border: 2rpx solid var(--mrc-border); border-radius: 22rpx; background: var(--mrc-surface); color: var(--mrc-text-sub); font-size: 20rpx; }
 .coach-composer { display: flex; flex-shrink: 0; align-items: center; gap: 10rpx; margin-top: 12rpx; padding: 10rpx 10rpx 10rpx 20rpx; border: 2rpx solid var(--mrc-border); border-radius: 28rpx; background: var(--mrc-surface); }.coach-composer input { min-width: 0; flex: 1; color: var(--mrc-text-deep); font-size: 22rpx; }.coach-composer button { display: flex; width: 92rpx; min-height: 70rpx; align-items: center; justify-content: center; margin: 0; padding: 0; border: 0; border-radius: 20rpx; background: var(--mrc-text-deep); color: #fff; font-size: 21rpx; }.coach-composer button::after { border: 0; }.coach-composer button[disabled] { opacity: .4; }
+.cooking-safety { grid-column: 1 / -1; margin-top: 0; }
 @media (max-width: 350px) { .ingredients-list { grid-template-columns: 1fr; } .step-focus__text { font-size: 32rpx; } }
 @media (prefers-reduced-motion: reduce) { .cook-progress__line view, .ingredients-card__arrow, .mini-switch i { transition: none; } .thinking-dots i { animation: none; opacity: 1; } }
 </style>

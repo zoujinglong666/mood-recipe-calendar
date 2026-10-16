@@ -44,6 +44,9 @@ export interface RecommendationJob {
   message: string
   usedFallback: boolean
   recipe?: RecipeItem
+  /** 任务创建时的心情与餐别：恢复进行中任务前校验，避免换餐别后复用到旧任务（如选了早餐却拿到炒菜） */
+  mood?: string
+  mealType?: string
 }
 
 export interface UsageQuotaView {
@@ -166,6 +169,11 @@ export function requestDeepRecipe(payload: {
 /** 按心情列表 */
 export function fetchRecipesByMood(mood: string) {
   return get<RecipeItem[]>('/recipes/by-mood', { mood }).then(items => items.map(normalizeRecipe))
+}
+
+/** 菜谱教程海报（服务端模板排版 + 封面图，免费）：返回可保存/分享的图片 URL */
+export function fetchRecipePoster(id: number) {
+  return post<{ url: string }>(`/recipes/${id}/poster`, undefined, 30000).then(res => res?.url)
 }
 
 /** 菜谱详情 */

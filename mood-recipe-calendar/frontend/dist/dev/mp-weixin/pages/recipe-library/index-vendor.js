@@ -47,6 +47,31 @@ const _sfc_main = /* @__PURE__ */ common_vendor.defineComponent({
     const hasFilters = common_vendor.computed(
       () => !!keyword.value.trim() || sourceFilter.value !== "ALL" || timeFilter.value !== "ALL" || moodFilter.value !== "ALL"
     );
+    const IMG_HEIGHTS = [300, 360, 420];
+    function imageHeightOf(r) {
+      const seed = (r.id ?? 0) + r.name.length;
+      return `${IMG_HEIGHTS[seed % IMG_HEIGHTS.length]}rpx`;
+    }
+    function estimateHeight(r) {
+      const seed = (r.id ?? 0) + r.name.length;
+      const img = IMG_HEIGHTS[seed % IMG_HEIGHTS.length];
+      const desc = r.description && r.description.length > 22 ? 68 : 44;
+      return img + desc + 160;
+    }
+    const columns = common_vendor.computed(() => {
+      const left = [];
+      const right = [];
+      const heights = [0, 0];
+      for (const r of recipes.value) {
+        const idx = heights[0] <= heights[1] ? 0 : 1;
+        if (idx === 0)
+          left.push(r);
+        else
+          right.push(r);
+        heights[idx] += estimateHeight(r);
+      }
+      return [left, right];
+    });
     function buildParams(resetPage) {
       return {
         page: resetPage - 1,
@@ -228,36 +253,45 @@ const _sfc_main = /* @__PURE__ */ common_vendor.defineComponent({
         r: loading.value
       }, loading.value ? {} : !recipes.value.length ? {
         t: `${common_vendor.unref(utils_assets.STATIC_BASE_URL)}/static/guozai/action_08_peek.png`
-      } : common_vendor.e({
-        v: common_vendor.f(recipes.value, (r, k0, i0) => {
-          return common_vendor.e({
-            a: r.image || `${common_vendor.unref(utils_assets.STATIC_BASE_URL)}/static/guozai/action_01_bowl.png`,
-            b: common_vendor.t(r.name),
-            c: common_vendor.t(r.description),
-            d: r.cookingTime
-          }, r.cookingTime ? {
-            e: common_vendor.t(r.cookingTime)
-          } : {}, {
-            f: r.difficulty
-          }, r.difficulty ? {
-            g: common_vendor.t(r.difficulty)
-          } : {}, {
-            h: common_vendor.t(r.source === "AI" ? "AI" : "本地"),
-            i: common_vendor.unref(isFav)(keyOf(r)) ? 1 : "",
-            j: common_vendor.unref(isFav)(keyOf(r)) ? "取消收藏" : "加入想吃清单",
-            k: common_vendor.o(($event) => common_vendor.unref(toggle)(keyOf(r)), r.id || r.name),
-            l: r.id || r.name,
-            m: `查看${r.name}做法`,
-            n: common_vendor.o(($event) => openCook(r), r.id || r.name)
-          });
-        }),
+      } : {
+        v: common_vendor.f(columns.value, (col, ci, i0) => {
+          return {
+            a: common_vendor.f(col, (r, k1, i1) => {
+              return common_vendor.e({
+                a: imageHeightOf(r),
+                b: r.image || `${common_vendor.unref(utils_assets.STATIC_BASE_URL)}/static/guozai/action_01_bowl.png`,
+                c: common_vendor.unref(isFav)(keyOf(r)) ? 1 : "",
+                d: common_vendor.unref(isFav)(keyOf(r)) ? "取消收藏" : "加入想吃清单",
+                e: common_vendor.o(($event) => common_vendor.unref(toggle)(keyOf(r)), r.id || r.name),
+                f: common_vendor.t(r.name),
+                g: r.description
+              }, r.description ? {
+                h: common_vendor.t(r.description)
+              } : {}, {
+                i: r.cookingTime
+              }, r.cookingTime ? {
+                j: common_vendor.t(r.cookingTime)
+              } : {}, {
+                k: r.difficulty
+              }, r.difficulty ? {
+                l: common_vendor.t(r.difficulty)
+              } : {}, {
+                m: common_vendor.t(r.source === "AI" ? "AI" : "本地"),
+                n: r.id || r.name,
+                o: `查看${r.name}做法`,
+                p: common_vendor.o(($event) => openCook(r), r.id || r.name)
+              });
+            }),
+            b: ci
+          };
+        })
+      }, {
+        s: !recipes.value.length,
         w: loadingMore.value
       }, loadingMore.value ? {} : finished.value ? {
         y: common_vendor.t(total.value)
       } : {}, {
         x: finished.value
-      }), {
-        s: !recipes.value.length
       });
     };
   }

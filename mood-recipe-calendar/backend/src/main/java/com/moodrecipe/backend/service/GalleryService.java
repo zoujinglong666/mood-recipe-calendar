@@ -32,6 +32,9 @@ public class GalleryService {
     private final CheckinRepository checkinRepository;
     private final ProductRepository productRepository;
     private final ShopOrderRepository shopOrderRepository;
+    /** 签到随机赠礼判定（可选依赖，setter 注入保持测试构造器不变） */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private UsageQuotaService usageQuota;
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final ZoneId ZONE = AppClock.ZONE;
 
@@ -76,6 +79,10 @@ public class GalleryService {
         res.put("daysToExchange", Math.max(0, EXCHANGE_DAYS - streak));
         res.put("totalDays", dateSet.size());
         res.put("agentConversationGifted", checkedIn);
+        // 今日随机赠礼类型（签到前也能预览将抽到哪种；未注入配额服务时退回对话券，兼容旧测试）
+        res.put("giftType", usageQuota == null
+                ? UsageQuotaService.DailyGift.CONVERSATION.name()
+                : usageQuota.giftOf(openid, AppClock.today()).name());
         return res;
     }
 

@@ -2,6 +2,8 @@
 const common_vendor = require("../../common/vendor.js");
 const api_request = require("../../api/request.js");
 const api_weeklyPlans = require("../../api/weeklyPlans.js");
+const api_foodSafety = require("../../api/foodSafety.js");
+const utils_cps = require("../../utils/cps.js");
 const composables_useNavBar = require("../../composables/useNavBar.js");
 const utils_albumShare = require("../../utils/albumShare.js");
 const utils_albumLayout = require("../../utils/albumLayout.js");
@@ -198,6 +200,7 @@ const _sfc_defineComponent = common_vendor.defineComponent({
         if (!opts.preserveDay)
           activeDay.value = 0;
         queueCovers(0);
+        void loadSafetyTips(loaded);
       } catch (err) {
         if (sequence !== loadSequence)
           return;
@@ -206,6 +209,29 @@ const _sfc_defineComponent = common_vendor.defineComponent({
         loading.value = false;
         common_vendor.index.stopPullDownRefresh();
       }
+    }
+    const pickTips = common_vendor.ref({});
+    const safetyCombos = common_vendor.ref([]);
+    async function loadSafetyTips(loaded) {
+      var _a;
+      const names = (loaded.shopping || []).map((item) => item.name);
+      if (!names.length)
+        return;
+      try {
+        const tips = await api_foodSafety.fetchFoodTips(names);
+        if (!tips.length)
+          return;
+        const map = {};
+        for (const tip of tips) {
+          if (tip.type !== "PICK")
+            continue;
+          const key = names.find((n) => n.includes(tip.name) || tip.name.includes(n)) || tip.name;
+          (map[key] || (map[key] = [])).push(tip);
+        }
+        pickTips.value = map;
+      } catch {
+      }
+      safetyCombos.value = (((_a = loaded.agent) == null ? void 0 : _a.issues) || []).filter((text) => text.includes("×") || text.includes("：") && text.includes("不要安排在同一天"));
     }
     function reloadPlan() {
       void load({ preserveDay: true });
@@ -273,15 +299,16 @@ ${text}`,
         success: () => utils_toast.toastSuccess("清单已复制")
       });
     }
-    function buyAllIngredients() {
-      var _a;
+    async function buyAllIngredients() {
+      var _a, _b;
       const pending = (((_a = plan.value) == null ? void 0 : _a.shopping) || []).filter((i) => !i.purchased);
       if (!pending.length) {
         utils_toast.toastSuccess("都买齐了，真棒");
         return;
       }
-      copyShoppingList();
-      setTimeout(() => utils_toast.toast("食材箱正在筹备中，清单已复制，先去美团或超市买齐"), 400);
+      const listText = `本周采购清单：
+${pending.map((i) => `${i.name} ${i.quantity}`).join("\n")}`;
+      await utils_cps.goToMeituanBuy(((_b = pending[0]) == null ? void 0 : _b.name) || "", listText);
     }
     async function toggle(name) {
       if (!plan.value)
@@ -501,8 +528,17 @@ ${text}`,
         B: shoppingOpen.value,
         C: common_vendor.o(($event) => shoppingOpen.value = !shoppingOpen.value),
         D: shoppingOpen.value
-      }, shoppingOpen.value ? {
-        E: common_vendor.f(groups.value, (group, k0, i0) => {
+      }, shoppingOpen.value ? common_vendor.e({
+        E: safetyCombos.value.length
+      }, safetyCombos.value.length ? {
+        F: common_vendor.f(safetyCombos.value, (combo, idx, i0) => {
+          return {
+            a: common_vendor.t(combo),
+            b: idx
+          };
+        })
+      } : {}, {
+        G: common_vendor.f(groups.value, (group, k0, i0) => {
           return {
             a: common_vendor.t(group.category),
             b: common_vendor.f(group.items, (item, k1, i1) => {
@@ -512,17 +548,23 @@ ${text}`,
                 c: common_vendor.t(item.name),
                 d: item.purchased ? 1 : "",
                 e: common_vendor.t(item.quantity),
-                f: item.name,
-                g: item.purchased,
-                h: common_vendor.o(($event) => toggle(item.name), item.name)
+                f: item.purchased,
+                g: common_vendor.o(($event) => toggle(item.name), item.name),
+                h: common_vendor.f(pickTips.value[item.name] || [], (tip, tipIdx, i2) => {
+                  return {
+                    a: common_vendor.t(tip.text),
+                    b: item.name + "-tip-" + tipIdx
+                  };
+                }),
+                i: item.name
               };
             }),
             c: group.category
           };
         }),
-        F: common_vendor.o(copyShoppingList),
-        G: common_vendor.o(buyAllIngredients)
-      } : {}) : {}, {
+        H: common_vendor.o(copyShoppingList),
+        I: common_vendor.o(buyAllIngredients)
+      }) : {}) : {}, {
         d: error.value,
         g: plan.value
       });

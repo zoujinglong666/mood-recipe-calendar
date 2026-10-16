@@ -49,15 +49,30 @@ public class MenuPlannerAgent {
     private final SearchClient search;
     /** 菜谱池缓存：避免规划时反复全表扫描含大 TEXT 的菜谱表。 */
     private final RecipePool recipePool;
+    /** 食品安全知识库：高风险搭配规则注入规划提示词（单一事实来源，与知识库同步） */
+    private final com.moodrecipe.backend.service.FoodSafetyService foodSafety;
 
     public MenuPlannerAgent(LlmClient llm, AgentMemoryStore store, RecipeRepository recipes,
                             ObjectMapper json, SearchClient search, RecipePool recipePool) {
+        this(llm, store, recipes, json, search, recipePool, null);
+    }
+
+    /** 食品安全红线文案（知识库动态生成）；知识库缺失时返回空串，planMenu 会兜底通用底线 */
+    private String safetyRules() {
+        return foodSafety == null ? "" : foodSafety.comboRulesForPrompt();
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public MenuPlannerAgent(LlmClient llm, AgentMemoryStore store, RecipeRepository recipes,
+                            ObjectMapper json, SearchClient search, RecipePool recipePool,
+                            com.moodrecipe.backend.service.FoodSafetyService foodSafety) {
         this.llm = llm;
         this.store = store;
         this.recipes = recipes;
         this.json = json;
         this.search = search;
         this.recipePool = recipePool;
+        this.foodSafety = foodSafety;
     }
 
     public PlanResult plan(PlanRequest request) {
@@ -89,7 +104,7 @@ public class MenuPlannerAgent {
                 long start = System.currentTimeMillis();
                 LlmResult result = llm.complete(LlmRequest.json("agent-plan-menu", AgentPrompts.system(),
                         AgentPrompts.planMenu(constraintsText(profile, request, independentMeal), daysText(request.cookingDays()),
-                                request.dishesPerDay(), String.join("、", rejected), referenceDishes()),
+                                request.dishesPerDay(), String.join("、", rejected), referenceDishes(), safetyRules()),
                         Math.min(0.9, 0.5 + round * 0.15), planTokens,
                         round == 0 ? TimeoutTier.STANDARD : TimeoutTier.LONG).withOpenid(request.openid()));
                 if (!result.ok()) {
@@ -212,7 +227,7 @@ public class MenuPlannerAgent {
             long start = System.currentTimeMillis();
             LlmResult response = llm.complete(LlmRequest.json("agent-plan-menu", AgentPrompts.system(),
                     AgentPrompts.planMenu(constraintsText(profile, batch, independentMeal), daysText(batch.cookingDays()),
-                            batch.dishesPerDay(), String.join("、", rejected), referenceDishes()), 0.55,
+                            batch.dishesPerDay(), String.join("、", rejected), referenceDishes(), safetyRules()), 0.55,
                     Math.max(2_400, batch.dishesPerDay() * 420), TimeoutTier.STANDARD).withOpenid(batch.openid()));
             if (!response.ok()) {
                 degradeReasons.add("周" + (weekday + 1) + "菜单生成失败：" + response.reason());

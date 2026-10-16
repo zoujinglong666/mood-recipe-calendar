@@ -35,12 +35,19 @@ public class VirtualCommerceService {
     private final UserRepository userRepository;
     private final ObjectMapper mapper;
     private final MemberAccessService memberAccess;
+    /** 运营事件（可选依赖，setter 注入保持测试构造器签名不变）：支付发货埋点。 */
+    private OperationalEventService operationalEvents;
     /** 会员开通成功通知（可选依赖，setter 注入保持测试构造器签名不变）。 */
     private WechatSubscriptionMessageService subscriptions;
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     void setSubscriptions(WechatSubscriptionMessageService subscriptions) {
         this.subscriptions = subscriptions;
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setOperationalEvents(OperationalEventService operationalEvents) {
+        this.operationalEvents = operationalEvents;
     }
 
     /** 兼容既有测试的直构（无家庭穿透，退回本人判定）。 */
@@ -205,7 +212,15 @@ public class VirtualCommerceService {
         }
         order.setStatus("DELIVERED");
         order.setDeliveredAt(now);
-        return orderRepository.save(order);
+        VirtualOrder saved = orderRepository.save(order);
+        // 支付发货埋点：付费转化与 LTV 归因的事实来源
+        if (operationalEvents != null) {
+            try {
+                operationalEvents.record("PAY_DELIVERED", "INFO", order.getOpenid(), orderNo,
+                        order.getSku() + ":" + order.getAmountFen() / 100.0 + "元");
+            } catch (RuntimeException ignored) { }
+        }
+        return saved;
     }
 
     private void grantEntitlement(VirtualOrder order, VirtualProduct product, LocalDateTime now) {

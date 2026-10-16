@@ -14,9 +14,10 @@ if (!Array) {
   (_component_wd_navbar + _component_wd_popup + _component_layout_default_uni)();
 }
 if (!Math) {
-  Icon();
+  (Icon + FoodSafetyTips)();
 }
 const Icon = () => "../../components/common/Icon.js";
+const FoodSafetyTips = () => "../../components/guozai/FoodSafetyTips.js";
 const _sfc_defineComponent = common_vendor.defineComponent({
   __name: "index",
   setup(__props) {
@@ -349,41 +350,44 @@ const _sfc_defineComponent = common_vendor.defineComponent({
             b: common_vendor.t(item),
             c: `${item}-${index}`
           };
+        }),
+        O: common_vendor.p({
+          ingredients: ingredients.value
         })
       } : {}, {
-        O: stepIndex.value === 0 ? 1 : "",
-        P: common_vendor.o(($event) => move(-1)),
-        Q: stepIndex.value < steps.value.length - 1
+        P: stepIndex.value === 0 ? 1 : "",
+        Q: common_vendor.o(($event) => move(-1)),
+        R: stepIndex.value < steps.value.length - 1
       }, stepIndex.value < steps.value.length - 1 ? {
-        R: common_vendor.o(($event) => move(1))
+        S: common_vendor.o(($event) => move(1))
       } : {
-        S: common_vendor.o(finish)
+        T: common_vendor.o(finish)
       }, {
-        T: common_vendor.t(stepIndex.value + 1),
-        U: common_vendor.o(($event) => coachOpen.value = false),
-        V: common_vendor.t(currentStep.value),
-        W: !messages.value.length
+        U: common_vendor.t(stepIndex.value + 1),
+        V: common_vendor.o(($event) => coachOpen.value = false),
+        W: common_vendor.t(currentStep.value),
+        X: !messages.value.length
       }, !messages.value.length ? {
-        X: `${common_vendor.unref(utils_assets.STATIC_BASE_URL)}/static/guozai/action_16_chopsticks.png`
+        Y: `${common_vendor.unref(utils_assets.STATIC_BASE_URL)}/static/guozai/action_16_chopsticks.png`
       } : {}, {
-        Y: common_vendor.f(messages.value, (message, index, i0) => {
+        Z: common_vendor.f(messages.value, (message, index, i0) => {
           return {
             a: common_vendor.t(message.content),
             b: `${index}-${message.role}`,
             c: common_vendor.n(`chat-row--${message.role}`)
           };
         }),
-        Z: asking.value
+        aa: asking.value
       }, asking.value ? {} : {}, {
-        aa: (_f = (_e = guide.value) == null ? void 0 : _e.sources) == null ? void 0 : _f.length
+        ab: (_f = (_e = guide.value) == null ? void 0 : _e.sources) == null ? void 0 : _f.length
       }, ((_h = (_g = guide.value) == null ? void 0 : _g.sources) == null ? void 0 : _h.length) ? common_vendor.e({
-        ab: common_vendor.t(guide.value.sources.length),
-        ac: common_vendor.t(sourcesOpen.value ? "收起" : "查看"),
-        ad: sourcesOpen.value,
-        ae: common_vendor.o(($event) => sourcesOpen.value = !sourcesOpen.value),
-        af: sourcesOpen.value
+        ac: common_vendor.t(guide.value.sources.length),
+        ad: common_vendor.t(sourcesOpen.value ? "收起" : "查看"),
+        ae: sourcesOpen.value,
+        af: common_vendor.o(($event) => sourcesOpen.value = !sourcesOpen.value),
+        ag: sourcesOpen.value
       }, sourcesOpen.value ? {
-        ag: common_vendor.f(guide.value.sources, (source, k0, i0) => {
+        ah: common_vendor.f(guide.value.sources, (source, k0, i0) => {
           return {
             a: common_vendor.t(source.title),
             b: common_vendor.t(source.sourceName),
@@ -394,45 +398,45 @@ const _sfc_defineComponent = common_vendor.defineComponent({
           };
         })
       } : {}) : guide.value ? {} : {}, {
-        ah: guide.value,
-        ai: common_vendor.t(personalized.value ? "已开启" : "已关闭"),
-        aj: personalized.value ? 1 : "",
-        ak: personalized.value,
-        al: common_vendor.o(($event) => {
+        ai: guide.value,
+        aj: common_vendor.t(personalized.value ? "已开启" : "已关闭"),
+        ak: personalized.value ? 1 : "",
+        al: personalized.value,
+        am: common_vendor.o(($event) => {
           personalized.value = !personalized.value;
           loadGuide();
         }),
-        am: (_j = (_i = guide.value) == null ? void 0 : _i.memoryUsed) == null ? void 0 : _j.length
+        an: (_j = (_i = guide.value) == null ? void 0 : _i.memoryUsed) == null ? void 0 : _j.length
       }, ((_l = (_k = guide.value) == null ? void 0 : _k.memoryUsed) == null ? void 0 : _l.length) ? {
-        an: common_vendor.t(guide.value.memoryUsed.length),
-        ao: common_vendor.t(memoryOpen.value ? "收起" : "为什么"),
-        ap: memoryOpen.value,
-        aq: common_vendor.o(($event) => memoryOpen.value = !memoryOpen.value),
-        ar: common_vendor.f(memoryOpen.value ? guide.value.memoryUsed : [], (item, k0, i0) => {
+        ao: common_vendor.t(guide.value.memoryUsed.length),
+        ap: common_vendor.t(memoryOpen.value ? "收起" : "为什么"),
+        aq: memoryOpen.value,
+        ar: common_vendor.o(($event) => memoryOpen.value = !memoryOpen.value),
+        as: common_vendor.f(memoryOpen.value ? guide.value.memoryUsed : [], (item, k0, i0) => {
           return {
             a: common_vendor.t(item),
             b: item
           };
         })
       } : {}, {
-        as: common_vendor.o(($event) => feedback("TOO_HARD")),
-        at: common_vendor.o(($event) => feedback("NOT_COMPLETED")),
-        av: common_vendor.o(clearLearning),
-        aw: common_vendor.f(suggestions.value, (item, k0, i0) => {
+        at: common_vendor.o(($event) => feedback("TOO_HARD")),
+        av: common_vendor.o(($event) => feedback("NOT_COMPLETED")),
+        aw: common_vendor.o(clearLearning),
+        ax: common_vendor.f(suggestions.value, (item, k0, i0) => {
           return {
             a: common_vendor.t(item),
             b: item,
             c: common_vendor.o(($event) => ask(item), item)
           };
         }),
-        ax: asking.value,
-        ay: common_vendor.o(($event) => ask()),
-        az: question.value,
-        aA: common_vendor.o(($event) => question.value = $event.detail.value),
-        aB: asking.value || !question.value.trim(),
-        aC: common_vendor.o(($event) => ask()),
-        aD: common_vendor.o(($event) => coachOpen.value = $event),
-        aE: common_vendor.p({
+        ay: asking.value,
+        az: common_vendor.o(($event) => ask()),
+        aA: question.value,
+        aB: common_vendor.o(($event) => question.value = $event.detail.value),
+        aC: asking.value || !question.value.trim(),
+        aD: common_vendor.o(($event) => ask()),
+        aE: common_vendor.o(($event) => coachOpen.value = $event),
+        aF: common_vendor.p({
           position: "bottom",
           ["close-on-click-modal"]: !asking.value,
           ["custom-style"]: "border-radius: 40rpx 40rpx 0 0; overflow: hidden; background: var(--mrc-bg);",

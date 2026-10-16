@@ -91,6 +91,16 @@ public class DialogueAgent {
     /** 带对话历史的完整轮次：模型能看到最近往来，才能理解指代、省略，并自查重复提问。 */
     public DialogueState.Turn turn(String openid, String message, DialogueState.AgentState clientState,
                                    String previousAction, List<AgentConversationService.TranscriptMessage> history) {
+        return turn(openid, message, clientState, previousAction, history, false);
+    }
+
+    /**
+     * webSearch=true（前端会员「联网搜索」开关）：本轮事实性问题必须先用 web_search 查证再作答。
+     * 关闭时保持原行为：工具对模型开放，由其自主决定是否联网。
+     */
+    public DialogueState.Turn turn(String openid, String message, DialogueState.AgentState clientState,
+                                   String previousAction, List<AgentConversationService.TranscriptMessage> history,
+                                   boolean webSearch) {
         List<String> degraded = new ArrayList<>();
         String historyText = historyText(openid, history);
         String lessonsText = reflection.lessons(openid);
@@ -129,7 +139,7 @@ public class DialogueAgent {
         // 卡片点选回传的是机器载荷（days=0 等），先翻译成人话再给模型，否则模型看不懂自己上轮生成的载荷。
         String modelInput = HeuristicExtractor.humanizeSelection(input);
         Orchestrated orchestrated = orchestrate(openid, modelInput, state, profile, independentMeal,
-                historyText, lessonsText, outputGate.disciplineText(), degraded);
+                historyText, lessonsText, outputGate.disciplineText(), degraded, webSearch);
 
         // 知识问答：模型在循环里已调用工具并给出答案，直接返回，不再进入问卷流程。
         if ("ASK_KNOWLEDGE".equals(orchestrated.intent()) && !orchestrated.reply().isBlank()) {
@@ -296,21 +306,27 @@ public class DialogueAgent {
     private Orchestrated orchestrate(String openid, String input, DialogueState.AgentState state,
                                      UserProfile profile, boolean independentMeal,
                                      String historyText, String lessonsText, String disciplineText,
-                                     List<String> degraded) {
+                                     List<String> degraded, boolean webSearch) {
         if (input.isBlank()) return Orchestrated.empty();
         if (!llm.isConfigured()) {
             degraded.add("单循环降级：使用本地规则（模型未配置）");
             return Orchestrated.empty();
         }
         List<String> skipped = independentMeal ? List.of() : profile.skipQuestions();
+        String prompt = AgentPrompts.orchestrate(input, jsonValue(state),
+                independentMeal ? "本次为独立宴请，不引用长期记忆" : profileText(profile),
+                gapsText(gaps(state, skipped)),
+                conflictsText(conflicts(state)),
+                String.join("、", allowedActions(state, gaps(state, skipped))),
+                historyText, lessonsText, disciplineText);
+        if (webSearch) {
+            // 用户显式开启联网搜索：事实性问题必须先查证再答，不能只凭模型记忆
+            prompt += "\n【联网查证要求】用户已开启联网搜索：涉及具体做法、食材、营养价值、价格、时令季节、食品安全等事实性问题，"
+                    + "必须先调用 web_search 查证，再结合查证结果回答；不要只凭记忆作答。";
+        }
         AgentLoop.Outcome outcome = agentLoop.run(new AgentLoop.RunSpec(
                 "agent-orchestrate",
-                AgentPrompts.orchestrate(input, jsonValue(state),
-                        independentMeal ? "本次为独立宴请，不引用长期记忆" : profileText(profile),
-                        gapsText(gaps(state, skipped)),
-                        conflictsText(conflicts(state)),
-                        String.join("、", allowedActions(state, gaps(state, skipped))),
-                        historyText, lessonsText, disciplineText),
+                prompt,
                 ORCHESTRATOR_TOOLS,
                 4,
                 0.3,

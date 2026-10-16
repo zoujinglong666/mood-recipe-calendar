@@ -88,6 +88,7 @@ page {
   --mrc-color-secondary: var(--mrc-accent);
   --mrc-color-success: var(--mrc-mint);
   --mrc-color-danger: #C44732;
+  --mrc-color-danger-soft: rgba(196, 71, 50, 0.10);
   --mrc-color-on-primary: #FFFCF7;
   --mrc-touch-min: 88rpx;       /* 44pt touch target 的小程序等比值 */
   --mrc-space-1: 8rpx;
@@ -383,6 +384,8 @@ textarea {
   --mrc-primary-deep: #FF7A6B;
   --mrc-accent: #FF8A6E;
   --mrc-accent-soft: rgba(255, 138, 110, 0.2);
+  --mrc-color-danger: #FF8A6E;
+  --mrc-color-danger-soft: rgba(255, 138, 110, 0.16);
   --mrc-pop: #FFD93D;
   --mrc-mint: #4AD4B0;
   --mrc-blue: #8BC4EA;

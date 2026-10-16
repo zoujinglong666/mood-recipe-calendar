@@ -65,6 +65,7 @@
               <text class="step-no">{{ k + 1 }}</text>
               <text class="step-text">{{ step }}</text>
             </view>
+            <NutritionCard :name="meal.name" :ingredients="ingredientsFor(meal)" />
           </view>
 
           <view v-if="guidelineFor(i)" class="meal-basis">
@@ -118,6 +119,7 @@ import { onLoad, onShow } from '@dcloudio/uni-app'
 import { ref, reactive, computed } from 'vue'
 import { useNavBar, navBack } from '@/composables/useNavBar'
 import { fetchDailyMealPlan, replaceDailyMealPlanMeal, generateDailyMealCover } from '@/api/dailyMealPlan'
+import NutritionCard from '@/components/guozai/NutritionCard.vue'
 import { splitComboDishName } from '@/api/dailyMenu'
 import type { RecipeItem } from '@/api/recipes'
 import { STATIC_BASE_URL } from '@/utils/assets'

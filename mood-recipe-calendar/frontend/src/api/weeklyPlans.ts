@@ -1,4 +1,4 @@
-import { get, post } from './request'
+﻿import { get, post } from './request'
 import type { UsageQuotaView as RecipeUsageQuotaView } from './recipes'
 export type UsageQuotaView = RecipeUsageQuotaView
 
@@ -121,8 +121,9 @@ export async function pollWeeklyPlanJob(jobId: string, timeoutMs = 90000, interv
 export function askMealAgent(message: string, nextQuestion: string) {
   return post<{ reply: string }>('/weekly-plans/agent-replies', { message, nextQuestion })
 }
-export function runMealAgentTurn(message: string, state: MealAgentState, conversationId?: string, history?: MealAgentHistoryMessage[], webSearch?: boolean, preset?: string) {
-  return post<MealAgentTurn>('/weekly-plans/agent-turns', { message, state, conversationId, requestId: requestId('turn'), history, ...(webSearch ? { webSearch } : {}), ...(preset ? { preset } : {}) })
+/** requestIdValue 可外部传入：网络中断自动重试时复用同一 requestId，后端配额按其幂等不重复扣次 */
+export function runMealAgentTurn(message: string, state: MealAgentState, conversationId?: string, history?: MealAgentHistoryMessage[], webSearch?: boolean, preset?: string, requestIdValue?: string) {
+  return post<MealAgentTurn>('/weekly-plans/agent-turns', { message, state, conversationId, requestId: requestIdValue || requestId('turn'), history, ...(webSearch ? { webSearch } : {}), ...(preset ? { preset } : {}) })
 }
 /** 会话评分：后端据此触发锅仔异步复盘，教训在之后的对话中生效 */
 export function rateAgentConversation(rating: string, comment?: string) {
@@ -131,7 +132,7 @@ export function rateAgentConversation(rating: string, comment?: string) {
 
 const WEEKLY_PLAN_TEMPLATE_ID = 'h00FlM2Xf_X64sXln5WoYGnbvtJBjasdEraRPjs4NOg'
 /** 「日程提醒」模板 1677：周六清单提醒与沉睡召回共用，生成周菜单时随授权弹窗一起请求。 */
-const SCHEDULE_TEMPLATE_ID = 'FvYwk2LwZ3ztd7myzrEJKNcXnIpXW0OvaSMCtl1iwgU'
+export const SCHEDULE_TEMPLATE_ID = 'FvYwk2LwZ3ztd7myzrEJKNcXnIpXW0OvaSMCtl1iwgU'
 
 /** 只在用户点击生成按钮时调用；非微信端和拒绝授权均不影响生成计划。 */
 export function requestWeeklyPlanCompletionNotice(): Promise<boolean> {
@@ -173,4 +174,26 @@ export function reportPlanDishOutcome(data: { planId: number, dayIndex: number, 
 }
 export function toggleShoppingItem(id: number, name: string) {
   return post<WeeklyPlan>(`/weekly-plans/${id}/shopping/${encodeURIComponent(name)}`)
+}
+
+
+/**
+ * 记录完一顿饭后请求「日程提醒」订阅授权。
+ * 用于 P0 留存召回：用户授权后，后端每天 10:30 给连续未打开的人推「今天的菜已留好」。
+ * 只在新记录保存成功后调用一次；拒绝/失败都不影响主流程。
+ */
+export function requestDailyReminderNotice(): void {
+  // #ifdef MP-WEIXIN
+  const requestSubscribeMessage = (uni as any).requestSubscribeMessage
+  if (typeof requestSubscribeMessage !== 'function') return
+  try {
+    requestSubscribeMessage({
+      tmplIds: [SCHEDULE_TEMPLATE_ID],
+      success: () => {},
+      fail: () => {},
+    })
+  } catch {
+    // 静默失败：订阅授权不能影响记录主流程
+  }
+  // #endif
 }

@@ -833,6 +833,15 @@ public class GuozaiAgent {
                 .anyMatch(name -> searchableText(recipe).contains(name))) {
             result.add(new RecommendationInsight("MEMORY", "参考了你喜欢或做过的菜", "dish.loved"));
         }
+        // 口味回显：用户表达过辣度偏好而这道菜确实不辣时，把「被记住」说出来
+        if (result.size() < 2 && snapshot.preference() != null && !isSpicy(recipe)) {
+            String spice = snapshot.preference().getSpiceLevel();
+            if ("不吃辣".equals(spice)) {
+                result.add(new RecommendationInsight("MEMORY", "没放辣，因为你说过不吃辣", "preference.spice"));
+            } else if ("微辣".equals(spice)) {
+                result.add(new RecommendationInsight("MEMORY", "口味偏清淡，因为你上次说只要微辣", "preference.spice"));
+            }
+        }
         return result.stream().limit(2).toList();
     }
 
@@ -844,6 +853,12 @@ public class GuozaiAgent {
 
     private boolean matchesCuisine(String text, String cuisine) {
         return CUISINE_KEYWORDS.getOrDefault(cuisine, List.of()).stream().anyMatch(text::contains);
+    }
+
+    /** 这道菜是否带辣：菜名+食材+步骤里出现辣系关键词即视为辣，用于「少辣回显」判断 */
+    private boolean isSpicy(Recipe recipe) {
+        String text = searchableText(recipe);
+        return containsAny(text, "辣", "麻", "花椒", "剁椒", "藤椒", "泡椒", "老干妈");
     }
 
     private boolean matchesTag(String text, String tag) {

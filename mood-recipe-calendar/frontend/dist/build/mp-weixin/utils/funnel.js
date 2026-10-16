@@ -1,0 +1,1 @@
+"use strict";const e=require("../common/vendor.js"),n={home_view:"",recommend_click:"",recipe_delivered:"",record_saved:""};exports.funnel=function(o,t={}){const c=n[o],r={event:o,ts:Date.now(),...t};try{const n=e.index.reportEvent;"function"==typeof n&&c?n(c,t):console.log("[funnel]",JSON.stringify(r))}catch{}};

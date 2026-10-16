@@ -1,9 +1,12 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import type { PlanDay, WeeklyPlan } from '@/api/weeklyPlans'
+import type { FoodTip } from '@/api/foodSafety'
 import { useImagePreview } from '@wot-ui/ui'
 import { computed, nextTick, ref, onUnmounted } from 'vue'
 import { resolveAssetUrl } from '@/api/request'
 import { generatePlanDishCover, getCurrentPlan, getWeeklyPlan, replacePlanDay, reportPlanDishOutcome, toggleShoppingItem } from '@/api/weeklyPlans'
+import { fetchFoodTips } from '@/api/foodSafety'
+import { goToMeituanBuy } from '@/utils/cps'
 import { navBack } from '@/composables/useNavBar'
 import GuozaiButton from '@/components/guozai/GuozaiButton.vue'
 import GuozaiChipGroup from '@/components/guozai/GuozaiChipGroup.vue'
@@ -206,6 +209,7 @@ async function load(opts: { preserveDay?: boolean } = {}) {
     plan.value = loaded
     if (!opts.preserveDay) activeDay.value = 0
     queueCovers(0)
+    void loadSafetyTips(loaded)
   }
   catch (err) {
     if (sequence !== loadSequence) return
@@ -215,6 +219,28 @@ async function load(opts: { preserveDay?: boolean } = {}) {
     loading.value = false
     uni.stopPullDownRefresh()
   }
+}
+
+// ---------- 采购清单食品安全：挑选技巧 + 搭配风险 ----------
+/** 挑选技巧：按食材名从服务端知识库匹配（土豆不选发芽的等），失败静默不影响清单 */
+const pickTips = ref<Record<string, FoodTip[]>>({})
+const safetyCombos = ref<string[]>([])
+async function loadSafetyTips(loaded: WeeklyPlan) {
+  const names = (loaded.shopping || []).map(item => item.name)
+  if (!names.length) return
+  try {
+    const tips = await fetchFoodTips(names)
+    if (!tips.length) return
+    const map: Record<string, FoodTip[]> = {}
+    for (const tip of tips) {
+      if (tip.type !== 'PICK') continue
+      const key = names.find(n => n.includes(tip.name) || tip.name.includes(n)) || tip.name
+      ;(map[key] ||= []).push(tip)
+    }
+    pickTips.value = map
+  } catch { /* 挑选技巧加载失败静默 */ }
+  // 搭配风险：后端生成时已扫描写入 agent.issues，本地再按知识库兜底扫一次食材组合
+  safetyCombos.value = (loaded.agent?.issues || []).filter(text => text.includes('×') || text.includes('：') && text.includes('不要安排在同一天'))
 }
 
 function reloadPlan() {
@@ -298,17 +324,17 @@ function copyShoppingList() {
 }
 
 /**
- * 一键买齐：食材箱供应链筹备中，当前先复制清单应急（去美团/超市），
- * 微信小店商品就绪后在此处接跳转，交互位置不变。
+ * 一键买齐：CPS 导购复制采购清单，引导去买菜 App 搜索；
+ * 未配置推广位或跳转失败时自动降级为复制清单兜底（utils/cps.ts 统一处理）。
  */
-function buyAllIngredients() {
+async function buyAllIngredients() {
   const pending = (plan.value?.shopping || []).filter(i => !i.purchased)
   if (!pending.length) {
     toastSuccess('都买齐了，真棒')
     return
   }
-  copyShoppingList()
-  setTimeout(() => toast('食材箱正在筹备中，清单已复制，先去美团或超市买齐'), 400)
+  const listText = `本周采购清单：\n${pending.map(i => `${i.name} ${i.quantity}`).join('\n')}`
+  await goToMeituanBuy(pending[0]?.name || '', listText)
 }
 
 async function toggle(name: string) {
@@ -605,27 +631,40 @@ async function shareDay(day: PlanDay, index: number) {
         </view>
 
         <view v-if="shoppingOpen" class="shopping-list">
+          <!-- 搭配风险提示：柿子×螃蟹等同日组合，提示错开食用 -->
+          <view v-if="safetyCombos.length" class="safety-combos">
+            <text class="safety-combos__title">⚠️ 搭配提醒</text>
+            <text v-for="(combo, idx) in safetyCombos" :key="idx" class="safety-combos__item">
+              {{ combo }}
+            </text>
+          </view>
           <view v-for="group in groups" :key="group.category" class="shopping-group">
             <text class="group-title">
               {{ group.category }}
             </text>
-            <view v-for="item in group.items" :key="item.name" class="shop-item" role="checkbox" :aria-checked="item.purchased" @click="toggle(item.name)">
-              <text class="shop-item__check" :class="{ checked: item.purchased }">
-                {{ item.purchased ? '✓' : '○' }}
-              </text>
-              <text class="shop-item__name" :class="{ done: item.purchased }">
-                {{ item.name }}
-              </text>
-              <text class="shop-item__quantity">
-                {{ item.quantity }}
-              </text>
+            <view v-for="item in group.items" :key="item.name">
+              <view class="shop-item" role="checkbox" :aria-checked="item.purchased" @click="toggle(item.name)">
+                <text class="shop-item__check" :class="{ checked: item.purchased }">
+                  {{ item.purchased ? '✓' : '○' }}
+                </text>
+                <text class="shop-item__name" :class="{ done: item.purchased }">
+                  {{ item.name }}
+                </text>
+                <text class="shop-item__quantity">
+                  {{ item.quantity }}
+                </text>
+              </view>
+              <view v-for="(tip, tipIdx) in pickTips[item.name] || []" :key="item.name + '-tip-' + tipIdx" class="pick-tip">
+                <text class="pick-tip__badge">挑</text>
+                <text class="pick-tip__text">{{ tip.text }}</text>
+              </view>
             </view>
           </view>
           <view class="shopping-actions">
             <view class="shopping-action" role="button" aria-label="复制采购清单" @click="copyShoppingList">
               复制清单
             </view>
-            <view class="shopping-action shopping-action--primary" role="button" aria-label="一键买齐食材" @click="buyAllIngredients">
+            <view class="shopping-action shopping-action--primary" role="button" aria-label="一键买齐食材，复制清单去买菜 App" @click="buyAllIngredients">
               一键买齐
             </view>
           </view>
@@ -743,5 +782,15 @@ async function shareDay(day: PlanDay, index: number) {
 .shop-item__quantity { color: var(--mrc-text-sub); font-size: 22rpx; }
 .done { color: var(--mrc-text-light) !important; text-decoration: line-through; }
 .checked { font-weight: 800; }
+
+/* 挑选技巧（食材项下方）：帮用户挑出好食材，如土豆不选发芽的 */
+.pick-tip { display: flex; align-items: flex-start; gap: 10rpx; padding: 8rpx 0 10rpx 54rpx; border-bottom: 2rpx solid var(--mrc-border-light); }
+.pick-tip__badge { flex: 0 0 auto; display: flex; align-items: center; justify-content: center; min-width: 34rpx; height: 34rpx; margin-top: 2rpx; border-radius: 10rpx; background: var(--mrc-surface-sun); color: var(--mrc-accent); font-size: 19rpx; font-weight: 800; }
+.pick-tip__text { color: var(--mrc-text-sub); font-size: 21rpx; line-height: 1.5; }
+
+/* 搭配风险提示：柿子×螃蟹等同日组合 */
+.safety-combos { margin: 16rpx 0 4rpx; padding: 16rpx 20rpx; border: 2rpx solid var(--mrc-color-danger-soft); border-radius: 18rpx; background: var(--mrc-color-danger-soft); }
+.safety-combos__title { color: var(--mrc-color-danger); font-size: 24rpx; font-weight: 800; }
+.safety-combos__item { margin-top: 6rpx; color: var(--mrc-text-sub); font-size: 21rpx; line-height: 1.5; }
 @media (prefers-reduced-motion: reduce) { .week-tab, .day-card, .replace-action, .dish-pager__item, .share-day, .details-toggle, .details-toggle__arrow, .shopping-toggle, .shop-item { transition: none; } }
 </style>

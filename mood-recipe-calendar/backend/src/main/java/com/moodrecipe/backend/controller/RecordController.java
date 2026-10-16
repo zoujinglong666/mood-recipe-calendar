@@ -10,6 +10,7 @@ import com.moodrecipe.backend.repository.UserRecordRepository;
 import com.moodrecipe.backend.service.AchievementService;
 import com.moodrecipe.backend.service.RecordLearningService;
 import com.moodrecipe.backend.service.RecordPosterService;
+import com.moodrecipe.backend.service.OperationalEventService;
 import com.moodrecipe.backend.service.UsageQuotaService;
 import com.moodrecipe.backend.service.WechatContentSafetyService;
 import jakarta.validation.Valid;
@@ -31,18 +32,29 @@ public class RecordController {
     private final UsageQuotaService quotas;
     private final RecordPosterService posters;
     private final AchievementService achievements;
+    /** 运营埋点（可选）：记录落库是推荐→记录转化漏斗的末端事实。 */
+    private OperationalEventService operationalEvents;
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ISO_LOCAL_DATE;
     private static final String DEFAULT_DISH_IMAGE = "/static/dish_tomato_beef.png";
 
     public RecordController(UserRecordRepository repository, RecordLearningService learning,
                             WechatContentSafetyService contentSafety, UsageQuotaService quotas,
                             RecordPosterService posters, AchievementService achievements) {
+        this(repository, learning, contentSafety, quotas, posters, achievements, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public RecordController(UserRecordRepository repository, RecordLearningService learning,
+                            WechatContentSafetyService contentSafety, UsageQuotaService quotas,
+                            RecordPosterService posters, AchievementService achievements,
+                            OperationalEventService operationalEvents) {
         this.repository = repository;
         this.learning = learning;
         this.contentSafety = contentSafety;
         this.quotas = quotas;
         this.posters = posters;
         this.achievements = achievements;
+        this.operationalEvents = operationalEvents;
     }
 
     /** 成就检测：把解锁的 code 翻译成成就名给前端庆祝；失败静默（不影响记录保存）。 */
@@ -103,6 +115,13 @@ public class RecordController {
         }
         // 记录落库后顺手跑一遍成就检测（几次 count 查询，毫秒级）；新解锁成就随响应返回庆祝
         List<String> newlyUnlocked = unlockedNames(openid);
+        // 漏斗埋点：推荐→记录转化的末端事实（detail 带来源 recipeId 便于归因）
+        if (operationalEvents != null) {
+            try {
+                operationalEvents.record("RECORD_SAVED", "INFO", openid, null,
+                        req.recipeId() == null ? "manual" : "recipe:" + req.recipeId());
+            } catch (RuntimeException ignored) { }
+        }
         return ApiResponse.ok(new RecordSaveResponse(saved, receipt, newlyUnlocked));
     }
 

@@ -12,6 +12,9 @@ export interface Product {
   stock: number
 }
 
+/** 签到随机赠礼类型：当天确定性二选一，跨日过期重抽 */
+export type CheckinGiftType = 'CONVERSATION' | 'MEAL_PLAN'
+
 /** 签到状态 */
 export interface CheckinStatus {
   checkedIn: boolean
@@ -20,6 +23,8 @@ export interface CheckinStatus {
   daysToExchange: number
   totalDays: number
   agentConversationGifted?: boolean
+  /** 今日随机赠礼类型：对话券（3 轮对话）或三餐券（换菜 2 次） */
+  giftType?: CheckinGiftType
 }
 
 /** 订单 */

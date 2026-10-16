@@ -49,6 +49,18 @@ const _sfc_defineComponent = common_vendor.defineComponent({
         return 0;
       return Math.min(100, Math.round(a.unlockedCount / a.total * 100));
     });
+    const GALLERY_TABS = [
+      { value: "achievements", label: "成就" },
+      { value: "stickers", label: "表情包" },
+      { value: "orders", label: "订单" }
+    ];
+    const activeTab = common_vendor.ref("achievements");
+    const achievementUnread = common_vendor.ref(0);
+    function openTab(tab) {
+      activeTab.value = tab;
+      if (tab === "achievements")
+        achievementUnread.value = 0;
+    }
     function showAchievement(item) {
       common_vendor.index.showModal({
         title: `${item.emoji} ${item.name}`,
@@ -125,19 +137,18 @@ const _sfc_defineComponent = common_vendor.defineComponent({
     }
     common_vendor.onShow(() => {
       var _a;
+      achievementUnread.value = Number(common_vendor.index.getStorageSync("mrc_achv_unread") || 0);
       common_vendor.index.removeStorageSync("mrc_achv_unread");
       loadData();
       const pages = getCurrentPages();
       const query = ((_a = pages[pages.length - 1]) == null ? void 0 : _a.options) || {};
-      if (query.focus === "achievements") {
-        setTimeout(() => {
-          common_vendor.index.pageScrollTo({ selector: "#achvSection", duration: 300 });
-        }, 360);
-      }
+      if (query.focus === "achievements")
+        activeTab.value = "achievements";
       api_achievements.checkAchievements().then((res) => {
         const codes = (res == null ? void 0 : res.newlyUnlocked) || [];
         if (!codes.length || !achievements.value)
           return;
+        achievementUnread.value += codes.length;
         const names = codes.map((code) => {
           var _a2;
           return (_a2 = achievements.value) == null ? void 0 : _a2.achievements.find((item) => item.code === code);
@@ -217,12 +228,27 @@ const _sfc_defineComponent = common_vendor.defineComponent({
         l: checkin.value.checkedIn ? 1 : "",
         m: checkin.value.exchangeReady ? 1 : "",
         n: common_vendor.o(onCheckin),
-        o: achievements.value
+        o: common_vendor.f(GALLERY_TABS, (tab, k0, i0) => {
+          return common_vendor.e({
+            a: common_vendor.t(tab.label),
+            b: tab.value === "achievements" && achievementUnread.value > 0
+          }, tab.value === "achievements" && achievementUnread.value > 0 ? {
+            c: common_vendor.t(achievementUnread.value)
+          } : {}, {
+            d: tab.value,
+            e: activeTab.value === tab.value ? 1 : "",
+            f: activeTab.value === tab.value,
+            g: common_vendor.o(($event) => openTab(tab.value), tab.value)
+          });
+        }),
+        p: activeTab.value === "achievements"
+      }, activeTab.value === "achievements" ? common_vendor.e({
+        q: achievements.value
       }, achievements.value ? {
-        p: common_vendor.t(achievements.value.unlockedCount),
-        q: common_vendor.t(achievements.value.total),
-        r: achievementPct.value + "%",
-        s: common_vendor.f(achievements.value.achievements, (item, k0, i0) => {
+        r: common_vendor.t(achievements.value.unlockedCount),
+        s: common_vendor.t(achievements.value.total),
+        t: achievementPct.value + "%",
+        v: common_vendor.f(achievements.value.achievements, (item, k0, i0) => {
           return {
             a: common_vendor.t(item.unlocked ? item.emoji : "🔒"),
             b: common_vendor.t(item.name),
@@ -232,9 +258,9 @@ const _sfc_defineComponent = common_vendor.defineComponent({
             f: common_vendor.o(($event) => showAchievement(item), item.code)
           };
         })
-      } : {}, {
-        t: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/mood_06_hungry.png",
-        v: common_vendor.f(STICKER_GROUPS, (group, k0, i0) => {
+      } : {}) : activeTab.value === "stickers" ? {
+        x: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/mood_06_hungry.png",
+        y: common_vendor.f(STICKER_GROUPS, (group, k0, i0) => {
           return {
             a: common_vendor.t(group.title),
             b: common_vendor.f(group.items, (s, k1, i1) => {
@@ -248,7 +274,7 @@ const _sfc_defineComponent = common_vendor.defineComponent({
             c: group.title
           };
         })
-      }, {}, {
+      } : common_vendor.e({
         z: orders.value.length === 0
       }, orders.value.length === 0 ? {
         A: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_07_empty.png"
@@ -263,7 +289,9 @@ const _sfc_defineComponent = common_vendor.defineComponent({
             f: o.orderNo
           };
         }),
-        C: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/mood_01_happy.png",
+        C: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/mood_01_happy.png"
+      }), {
+        w: activeTab.value === "stickers",
         D: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/mood_02_calm.png"
       }), {
         e: error.value

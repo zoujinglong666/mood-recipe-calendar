@@ -20,9 +20,10 @@ if (!Array) {
   (_component_wd_navbar + _component_wd_image_preview + _component_layout_default_uni)();
 }
 if (!Math) {
-  (ErrorState + Icon + GuozaiInsightCard + GuozaiChoiceChips)();
+  (ErrorState + Icon + GuozaiInsightCard + GuozaiChoiceChips + FoodSafetyTips)();
 }
 const Icon = () => "../../components/common/Icon.js";
+const FoodSafetyTips = () => "../../components/guozai/FoodSafetyTips.js";
 const ErrorState = () => "../../components/guozai/ErrorState.js";
 const GuozaiChoiceChips = () => "../../components/guozai/GuozaiChoiceChips.js";
 const GuozaiInsightCard = () => "../../components/guozai/GuozaiInsightCard.js";
@@ -212,7 +213,8 @@ const _sfc_defineComponent = common_vendor.defineComponent({
             const activeJob = await api_recipes.fetchRecommendationJob(activeJobId);
             if (run !== pollRun)
               return;
-            if (activeJob.status === "RUNNING") {
+            const sameMeal = (activeJob.mealType || "").toUpperCase() === (mealType.value || "").toUpperCase();
+            if (activeJob.status === "RUNNING" && activeJob.mood === mood.value && sameMeal) {
               recommendationJob.value = activeJob;
               pollStartedAt = Date.now();
               pollFailures = 0;
@@ -261,7 +263,7 @@ const _sfc_defineComponent = common_vendor.defineComponent({
     common_vendor.onShareAppMessage(() => {
       var _a;
       const sharer = userStore.openid;
-      const path = `/pages/recipe/index?mood=${encodeURIComponent(mood.value)}${sharer ? `&sharer=${encodeURIComponent(sharer)}` : ""}`;
+      const path = `/pages/recipe/index?mood=${encodeURIComponent(mood.value)}${mealType.value ? `&mealType=${encodeURIComponent(mealType.value)}` : ""}${sharer ? `&sharer=${encodeURIComponent(sharer)}` : ""}`;
       void api_share.recordShare("recipe").catch(() => {
       });
       return {
@@ -737,15 +739,21 @@ const _sfc_defineComponent = common_vendor.defineComponent({
           };
         })
       } : {}, {
-        X: steps.value.length
-      }, steps.value.length ? {
-        Y: common_vendor.t(showSteps.value ? "收起" : `查看 ${steps.value.length} 步`),
-        Z: showSteps.value ? "收起完整做法" : "展开完整做法",
-        aa: common_vendor.o(toggleSteps)
+        X: ingredients.value.length
+      }, ingredients.value.length ? {
+        Y: common_vendor.p({
+          ingredients: ingredients.value
+        })
       } : {}, {
-        ab: showSteps.value && steps.value.length
+        Z: steps.value.length
+      }, steps.value.length ? {
+        aa: common_vendor.t(showSteps.value ? "收起" : `查看 ${steps.value.length} 步`),
+        ab: showSteps.value ? "收起完整做法" : "展开完整做法",
+        ac: common_vendor.o(toggleSteps)
+      } : {}, {
+        ad: showSteps.value && steps.value.length
       }, showSteps.value && steps.value.length ? {
-        ac: common_vendor.f(steps.value, (step, index, i0) => {
+        ae: common_vendor.f(steps.value, (step, index, i0) => {
           return {
             a: common_vendor.t(Number(index) + 1),
             b: common_vendor.t(step),
@@ -753,96 +761,96 @@ const _sfc_defineComponent = common_vendor.defineComponent({
           };
         })
       } : steps.value.length ? {} : {}, {
-        ad: steps.value.length,
-        ae: common_vendor.p({
+        af: steps.value.length,
+        ag: common_vendor.p({
           name: steps.value.length ? "flame" : "camera",
           size: 36,
           color: "#fff"
         }),
-        af: common_vendor.t(primaryText.value),
-        ag: primaryText.value,
-        ah: common_vendor.o(handlePrimaryAction),
-        ai: showShareSheet.value
+        ah: common_vendor.t(primaryText.value),
+        ai: primaryText.value,
+        aj: common_vendor.o(handlePrimaryAction),
+        ak: showShareSheet.value
       }, showShareSheet.value ? common_vendor.e({
-        aj: common_vendor.t(shareCardLoading.value ? "锅仔正在一次生成三张卡…" : "成品图、材料和做法都装进卡里，选一张保存就行。"),
-        ak: common_vendor.o(($event) => showShareSheet.value = false),
-        al: shareCardPaths.value.classic
+        al: common_vendor.t(shareCardLoading.value ? "锅仔正在一次生成三张卡…" : "成品图、材料和做法都装进卡里，选一张保存就行。"),
+        am: common_vendor.o(($event) => showShareSheet.value = false),
+        an: shareCardPaths.value.classic
       }, shareCardPaths.value.classic ? {
-        am: shareCardPaths.value.classic,
-        an: common_vendor.o(($event) => previewShareCard("classic"))
+        ao: shareCardPaths.value.classic,
+        ap: common_vendor.o(($event) => previewShareCard("classic"))
       } : {
-        ao: common_vendor.t(shareCardLoading.value ? "生成中" : "生成失败")
+        aq: common_vendor.t(shareCardLoading.value ? "生成中" : "生成失败")
       }, {
-        ap: shareStyle.value === "classic" ? 1 : "",
-        aq: shareCardLoading.value ? 1 : "",
-        ar: common_vendor.o(($event) => selectShareStyle("classic")),
-        as: shareCardPaths.value.guozai
+        ar: shareStyle.value === "classic" ? 1 : "",
+        as: shareCardLoading.value ? 1 : "",
+        at: common_vendor.o(($event) => selectShareStyle("classic")),
+        av: shareCardPaths.value.guozai
       }, shareCardPaths.value.guozai ? {
-        at: shareCardPaths.value.guozai,
-        av: common_vendor.o(($event) => previewShareCard("guozai"))
+        aw: shareCardPaths.value.guozai,
+        ax: common_vendor.o(($event) => previewShareCard("guozai"))
       } : {
-        aw: `${common_vendor.unref(utils_assets.STATIC_BASE_URL)}/static/guozai/action_16_chopsticks.png`,
-        ax: common_vendor.t(shareCardLoading.value ? "生成中" : "生成失败")
+        ay: `${common_vendor.unref(utils_assets.STATIC_BASE_URL)}/static/guozai/action_16_chopsticks.png`,
+        az: common_vendor.t(shareCardLoading.value ? "生成中" : "生成失败")
       }, {
-        ay: shareStyle.value === "guozai" ? 1 : "",
-        az: shareCardLoading.value ? 1 : "",
-        aA: common_vendor.o(($event) => selectShareStyle("guozai")),
-        aB: shareCardPaths.value.handwritten
+        aA: shareStyle.value === "guozai" ? 1 : "",
+        aB: shareCardLoading.value ? 1 : "",
+        aC: common_vendor.o(($event) => selectShareStyle("guozai")),
+        aD: shareCardPaths.value.handwritten
       }, shareCardPaths.value.handwritten ? {
-        aC: shareCardPaths.value.handwritten,
-        aD: common_vendor.o(($event) => previewShareCard("handwritten"))
+        aE: shareCardPaths.value.handwritten,
+        aF: common_vendor.o(($event) => previewShareCard("handwritten"))
       } : {
-        aE: common_vendor.t(shareCardLoading.value ? "生成中" : "生成失败")
+        aG: common_vendor.t(shareCardLoading.value ? "生成中" : "生成失败")
       }, {
-        aF: shareStyle.value === "handwritten" ? 1 : "",
-        aG: shareCardLoading.value ? 1 : "",
-        aH: common_vendor.o(($event) => selectShareStyle("handwritten")),
-        aI: shareCardError.value
+        aH: shareStyle.value === "handwritten" ? 1 : "",
+        aI: shareCardLoading.value ? 1 : "",
+        aJ: common_vendor.o(($event) => selectShareStyle("handwritten")),
+        aK: shareCardError.value
       }, shareCardError.value ? {
-        aJ: common_vendor.t(shareCardError.value)
+        aL: common_vendor.t(shareCardError.value)
       } : {}, {
-        aK: common_vendor.t(shareCardLoading.value ? "生成三张卡…" : "重新生成三张"),
-        aL: shareCardLoading.value ? 1 : "",
-        aM: common_vendor.o(generateShareCards),
-        aN: common_vendor.t(shareCardLoading.value ? "请稍候…" : shareCardSaved.value ? "已保存" : "保存选中卡片"),
-        aO: shareCardLoading.value || !selectedShareCardPath.value ? 1 : "",
-        aP: common_vendor.o(saveRecipeCard),
-        aQ: common_vendor.p({
+        aM: common_vendor.t(shareCardLoading.value ? "生成三张卡…" : "重新生成三张"),
+        aN: shareCardLoading.value ? 1 : "",
+        aO: common_vendor.o(generateShareCards),
+        aP: common_vendor.t(shareCardLoading.value ? "请稍候…" : shareCardSaved.value ? "已保存" : "保存选中卡片"),
+        aQ: shareCardLoading.value || !selectedShareCardPath.value ? 1 : "",
+        aR: common_vendor.o(saveRecipeCard),
+        aS: common_vendor.p({
           name: "share",
           size: 30,
           color: "#EF5A3C"
         }),
-        aR: common_vendor.o(shareRecipeLink),
-        aS: common_vendor.p({
+        aT: common_vendor.o(shareRecipeLink),
+        aU: common_vendor.p({
           name: "share",
           size: 30,
           color: "#1AAD19"
         }),
-        aT: common_vendor.o(() => {
+        aV: common_vendor.o(() => {
         }),
-        aU: common_vendor.o(($event) => showShareSheet.value = false)
+        aW: common_vendor.o(($event) => showShareSheet.value = false)
       }) : {}, {
-        aV: showAiPanel.value
+        aX: showAiPanel.value
       }, showAiPanel.value ? common_vendor.e({
-        aW: common_vendor.o(($event) => showAiPanel.value = false),
-        aX: deepIngredients.value,
-        aY: common_vendor.o(($event) => deepIngredients.value = $event.detail.value),
-        aZ: deepMinutes.value,
-        ba: common_vendor.o(($event) => deepMinutes.value = $event.detail.value),
-        bb: deepPreference.value,
-        bc: common_vendor.o(($event) => deepPreference.value = $event.detail.value),
-        bd: common_vendor.t(deepLoading.value ? "锅仔正在组合食材…" : "生成我的专属菜单"),
-        be: deepLoading.value ? 1 : "",
-        bf: deepLoading.value ? "专属菜单生成中" : "生成专属菜单",
-        bg: common_vendor.o(requestPersonalMenu),
-        bh: productsLoading.value
+        aY: common_vendor.o(($event) => showAiPanel.value = false),
+        aZ: deepIngredients.value,
+        ba: common_vendor.o(($event) => deepIngredients.value = $event.detail.value),
+        bb: deepMinutes.value,
+        bc: common_vendor.o(($event) => deepMinutes.value = $event.detail.value),
+        bd: deepPreference.value,
+        be: common_vendor.o(($event) => deepPreference.value = $event.detail.value),
+        bf: common_vendor.t(deepLoading.value ? "锅仔正在组合食材…" : "生成我的专属菜单"),
+        bg: deepLoading.value ? 1 : "",
+        bh: deepLoading.value ? "专属菜单生成中" : "生成专属菜单",
+        bi: common_vendor.o(requestPersonalMenu),
+        bj: productsLoading.value
       }, productsLoading.value ? {} : productsError.value ? {
-        bj: common_vendor.t(productsError.value),
-        bk: common_vendor.o(loadProducts)
+        bl: common_vendor.t(productsError.value),
+        bm: common_vendor.o(loadProducts)
       } : productsLoaded.value && !aiProducts.value.length ? {} : {}, {
-        bi: productsError.value,
-        bl: productsLoaded.value && !aiProducts.value.length,
-        bm: common_vendor.f(aiProducts.value, (product, k0, i0) => {
+        bk: productsError.value,
+        bn: productsLoaded.value && !aiProducts.value.length,
+        bo: common_vendor.f(aiProducts.value, (product, k0, i0) => {
           return common_vendor.e({
             a: common_vendor.t(product.title),
             b: purchasedSkus.value.has(product.sku)
@@ -859,11 +867,11 @@ const _sfc_defineComponent = common_vendor.defineComponent({
             j: purchasedSkus.value.has(product.sku) ? 1 : ""
           });
         }),
-        bn: common_vendor.o(() => {
+        bp: common_vendor.o(() => {
         })
       }) : {}) : {
-        bo: common_vendor.o(loadRecipe),
-        bp: common_vendor.p({
+        bq: common_vendor.o(loadRecipe),
+        br: common_vendor.p({
           text: "锅仔今天没挑到合适的菜",
           subtext: "换个心情再试一次，或稍后回来看看",
           ["action-text"]: "重新推荐"

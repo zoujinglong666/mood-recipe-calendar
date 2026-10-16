@@ -33,6 +33,7 @@ public class RecipeController {
     private final RecommendationJobService recommendationJobs;
     private final RecommendationExposureService exposures;
     private final UsageQuotaService quotas;
+    private final com.moodrecipe.backend.service.RecipePosterService recipePosterService;
 
     public RecipeController(RecipeRepository repository, RecipeInteractionRepository interactions,
                             GuozaiAgent guozaiAgent, VirtualCommerceService virtualCommerceService,
@@ -45,7 +46,8 @@ public class RecipeController {
     public RecipeController(RecipeRepository repository, RecipeInteractionRepository interactions,
                             GuozaiAgent guozaiAgent, VirtualCommerceService virtualCommerceService,
                             OperationalEventService operationalEvents, RecommendationJobService recommendationJobs,
-                            RecommendationExposureService exposures, UsageQuotaService quotas) {
+                            RecommendationExposureService exposures, UsageQuotaService quotas,
+                            com.moodrecipe.backend.service.RecipePosterService recipePosterService) {
         this.repository = repository;
         this.interactions = interactions;
         this.guozaiAgent = guozaiAgent;
@@ -54,6 +56,7 @@ public class RecipeController {
         this.recommendationJobs = recommendationJobs;
         this.exposures = exposures;
         this.quotas = quotas;
+        this.recipePosterService = recipePosterService;
     }
 
     /**
@@ -127,13 +130,16 @@ public class RecipeController {
     @GetMapping("/mood-tags")
     public ApiResponse<List<String>> moodTags() {
         Set<String> tags = new LinkedHashSet<>();
+        outer:
         for (String raw : repository.findAllMoodTags()) {
             for (String seg : raw.split("[,，、;；\\s]+")) {
                 String s = seg.trim();
                 // 只保留含中文/字母/数字的标签，过滤 emoji 入库变 ? 的乱码
-                if (!s.isEmpty() && s.matches(".*[\\u4e00-\\u9fa5a-zA-Z0-9].*")) tags.add(s);
+                if (!s.isEmpty() && s.matches(".*[\\u4e00-\\u9fa5a-zA-Z0-9].*")) {
+                    tags.add(s);
+                    if (tags.size() >= 12) break outer;
+                }
             }
-            if (tags.size() >= 12) break;
         }
         return ApiResponse.ok(new ArrayList<>(tags));
     }
@@ -226,6 +232,9 @@ public class RecipeController {
             if (quotas != null && job.get().status() == RecommendationJobService.JobStatus.SUCCEEDED) {
                 recommendationJobs.chargeOnSuccess(jobId, openid,
                         () -> quotas.consume(openid, UsageQuotaService.Feature.HOME_RECOMMEND));
+                // 漏斗埋点：推荐成功且首次被读取（chargeOnSuccess 幂等保证只记一次）
+                try { operationalEvents.record("RECOMMEND_DONE", "INFO", openid, null,
+                        job.get().recipe() == null ? "unknown" : job.get().recipe().getName()); } catch (RuntimeException ignored) { }
             }
             return ApiResponse.ok(job.get());
         } catch (IllegalStateException e) {
@@ -259,6 +268,23 @@ public class RecipeController {
             @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
         if (!repository.existsById(id)) return ApiResponse.error(404, "菜谱不存在");
         return ApiResponse.ok(feedbackState(openid, id));
+    }
+
+    /** 菜谱教程海报（借鉴竞品信息图教程卡）：Java2D 模板排版，文字不依赖生图模型；免费开放（裂变素材）。 */
+    @PostMapping("/{id:\\d+}/poster")
+    public ApiResponse<Map<String, String>> recipePoster(
+            @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
+            @PathVariable Long id) {
+        Recipe recipe = repository.findById(id).orElse(null);
+        if (recipe == null) return ApiResponse.error(404, "菜谱不存在");
+        try {
+            String url = recipePosterService.generate(id, recipe.getName(), recipe.getDescription(),
+                    recipe.getImage(), recipe.getIngredients(), recipe.getSteps(),
+                    recipe.getCookingTime(), recipe.getDifficulty());
+            return ApiResponse.ok(Map.of("url", url));
+        } catch (IllegalStateException e) {
+            return ApiResponse.error(500, e.getMessage());
+        }
     }
 
     @PostMapping("/exposures/{exposureId}/feedback")

@@ -149,6 +149,20 @@
   font-weight: 700;
   box-shadow: 0 4rpx 12rpx rgba(90, 62, 43, 0.08);
 }
+.gallery-tab__dot.data-v-5a43f0bf {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30rpx;
+  height: 30rpx;
+  margin-left: 8rpx;
+  padding: 0 8rpx;
+  border-radius: 999rpx;
+  background: var(--mrc-accent);
+  color: #fff;
+  font-size: 20rpx;
+  font-weight: 800;
+}
 
 /* 成就墙 */
 .achv-section.data-v-5a43f0bf {

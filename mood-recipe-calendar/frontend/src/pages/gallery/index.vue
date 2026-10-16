@@ -63,6 +63,22 @@ const achievementPct = computed(() => {
   return Math.min(100, Math.round((a.unlockedCount / a.total) * 100))
 })
 
+/** 形象馆三馆合一：成就墙 / 表情包 / 订单，Tab 切换（成就默认首位） */
+const GALLERY_TABS = [
+  { value: 'achievements', label: '成就' },
+  { value: 'stickers', label: '表情包' },
+  { value: 'orders', label: '订单' },
+] as const
+type GalleryTab = (typeof GALLERY_TABS)[number]['value']
+const activeTab = ref<GalleryTab>('achievements')
+/** 成就未读数：进馆时从 storage 消费到页内承接（「我的」页红点由此归零），看过成就墙即清零 */
+const achievementUnread = ref(0)
+function openTab(tab: GalleryTab) {
+  activeTab.value = tab
+  if (tab === 'achievements')
+    achievementUnread.value = 0
+}
+
 /** 点开一枚成就：解锁的看获取方式，未解锁的当作目标提示 */
 function showAchievement(item: AchievementItem) {
   uni.showModal({
@@ -145,23 +161,22 @@ async function loadData() {
 }
 
 onShow(() => {
-  // 进馆即清零成就未读（「我的」页红点由此归零）
+  // 进馆即消费成就未读：「我的」页红点归零，未读数由本页 Tab 承接，看过成就墙即清零
+  achievementUnread.value = Number(uni.getStorageSync('mrc_achv_unread') || 0)
   uni.removeStorageSync('mrc_achv_unread')
   loadData()
-  // 「我的」页「我的成就」入口携带 focus=achievements，进入后滚动到成就墙
+  // 「我的」页入口携带 focus=achievements 时直接定位成就 Tab
   const pages = getCurrentPages()
   const query = (pages[pages.length - 1] as any)?.options || {}
-  if (query.focus === 'achievements') {
-    setTimeout(() => {
-      uni.pageScrollTo({ selector: '#achvSection', duration: 300 })
-    }, 360)
-  }
+  if (query.focus === 'achievements')
+    activeTab.value = 'achievements'
   // 兜底补检测（分享/生成周菜单等场景的成就在这里集中解锁），有新解锁就锅仔播报
   checkAchievements()
     .then((res) => {
       const codes = res?.newlyUnlocked || []
       if (!codes.length || !achievements.value)
         return
+      achievementUnread.value += codes.length
       const names = codes
         .map(code => achievements.value?.achievements.find(item => item.code === code))
         .filter(Boolean)
@@ -187,6 +202,17 @@ const orderStatusText: Record<string, string> = {
 }
 
 // ---------- 签到 ----------
+/** 今日随机赠礼：对话券 → 去锅仔对话；三餐券 → 去今日三餐。获赠即引导，一步到达使用页 */
+const giftType = computed(() => checkin.value.giftType || 'CONVERSATION')
+const giftSubTitle = computed(() => giftType.value === 'MEAL_PLAN'
+  ? `今日赠礼：三餐搭配券 ×2，已连续签到 ${checkin.value.streak} 天`
+  : `今日赠礼：锅仔对话 ×3，已连续签到 ${checkin.value.streak} 天`)
+const giftConfirmText = computed(() => giftType.value === 'MEAL_PLAN' ? '看今日三餐' : '去和锅仔聊聊')
+function onCheckinConfirm() {
+  showCheckinModal.value = false
+  router.push({ name: giftType.value === 'MEAL_PLAN' ? 'daily-meal-plan' : 'meal-agent' })
+}
+
 async function onCheckin() {
   if (checkin.value.checkedIn || checking.value) return
   checking.value = true
@@ -274,34 +300,51 @@ function onBuy() {}
         </view>
       </view>
 
-      <!-- ============ 锅仔成就墙：记录/探索/连续天数等，越用越亮 ============ -->
-      <view v-if="achievements" id="achvSection" class="achv-section">
-        <view class="section-title">
-          <text>锅仔成就墙</text>
-          <text class="section-title__sub">已点亮 {{ achievements.unlockedCount }} / {{ achievements.total }}</text>
+      <!-- ============ 三馆合一 Tab：成就 / 表情包 / 订单 ============ -->
+      <view class="gallery-tabs">
+        <view
+          v-for="tab in GALLERY_TABS"
+          :key="tab.value"
+          class="gallery-tab"
+          :class="{ 'gallery-tab--active': activeTab === tab.value }"
+          role="tab"
+          :aria-selected="activeTab === tab.value"
+          @click="openTab(tab.value)"
+        >
+          {{ tab.label }}<text v-if="tab.value === 'achievements' && achievementUnread > 0" class="gallery-tab__dot">{{ achievementUnread }}</text>
         </view>
-        <view class="achv-progress">
-          <view class="achv-progress__inner" :style="{ width: achievementPct + '%' }" />
-        </view>
-        <view class="achv-grid">
-          <view
-            v-for="item in achievements.achievements"
-            :key="item.code"
-            class="achv-item"
-            :class="{ 'achv-item--locked': !item.unlocked }"
-            :aria-label="`${item.name}，${item.unlocked ? '已解锁' : '未解锁'}，${item.desc}`"
-            role="button"
-            @click="showAchievement(item)"
-          >
-            <text class="achv-item__emoji">{{ item.unlocked ? item.emoji : '🔒' }}</text>
-            <text class="achv-item__name">{{ item.name }}</text>
-          </view>
-        </view>
-        <text class="achv-hint">好好吃饭、多记录，成就徽章一个个点亮</text>
       </view>
 
-      <!-- ============ 内容资产区：锅仔表情包 ============ -->
-      <view>
+      <!-- 成就墙：记录/探索/连续天数等，越用越亮 -->
+      <view v-if="activeTab === 'achievements'">
+        <view v-if="achievements" class="achv-section">
+          <view class="section-title">
+            <text>锅仔成就墙</text>
+            <text class="section-title__sub">已点亮 {{ achievements.unlockedCount }} / {{ achievements.total }}</text>
+          </view>
+          <view class="achv-progress">
+            <view class="achv-progress__inner" :style="{ width: achievementPct + '%' }" />
+          </view>
+          <view class="achv-grid">
+            <view
+              v-for="item in achievements.achievements"
+              :key="item.code"
+              class="achv-item"
+              :class="{ 'achv-item--locked': !item.unlocked }"
+              :aria-label="`${item.name}，${item.unlocked ? '已解锁' : '未解锁'}，${item.desc}`"
+              role="button"
+              @click="showAchievement(item)"
+            >
+              <text class="achv-item__emoji">{{ item.unlocked ? item.emoji : '🔒' }}</text>
+              <text class="achv-item__name">{{ item.name }}</text>
+            </view>
+          </view>
+          <text class="achv-hint">好好吃饭、多记录，成就徽章一个个点亮</text>
+        </view>
+      </view>
+
+      <!-- 表情包 -->
+      <view v-else-if="activeTab === 'stickers'">
         <view class="asset-intro">
           <image class="asset-intro__guozai" :src="STATIC_BASE_URL + '/static/guozai/mood_06_hungry.png'" mode="aspectFit" />
           <view class="asset-intro__text">
@@ -325,32 +368,8 @@ function onBuy() {}
         </view>
       </view>
 
-      <!-- 实物周边暂不开放：保留为无商品的内容介绍，避免伪支付入口。 -->
-      <view v-if="false">
-        <view v-if="products.length === 0" class="gallery-empty">
-          <image class="gallery-empty__img" :src="STATIC_BASE_URL + '/static/guozai/action_07_empty.png'" mode="aspectFit" />
-          <text class="gallery-empty__text">周边正在赶工中，锅仔先去喝口水～</text>
-        </view>
-        <view class="shop-grid">
-          <view v-for="p in products" :key="p.id" class="shop-card" @click="openBuy(p)">
-            <image class="shop-card__img" :src="p.image" mode="aspectFill" />
-            <view class="shop-card__body">
-              <text class="shop-card__name">{{ p.name }}</text>
-              <text class="shop-card__desc">{{ p.description }}</text>
-              <view class="shop-card__bottom">
-                <view class="shop-card__price">
-                  <text class="shop-card__price--now">¥{{ p.price }}</text>
-                  <text class="shop-card__price--exchange">签到1元兑</text>
-                </view>
-                <view class="shop-card__buy" @click.stop="openBuy(p)">预约</view>
-              </view>
-            </view>
-          </view>
-        </view>
-      </view>
-
-      <!-- ============ 我的订单（数字权益消费闭环，买完看得见） ============ -->
-      <view class="orders-section">
+      <!-- 订单 -->
+      <view v-else class="orders-section">
         <view class="section-title">
           <text>我的订单</text>
           <text class="section-title__sub">已购数字权益与发货状态</text>
@@ -428,13 +447,13 @@ function onBuy() {}
       </view>
     </view>
 
-    <!-- 签到成功弹窗（与打卡记录成功同款） -->
+    <!-- 签到成功弹窗：按今日随机赠礼类型定制，确认即直达使用页 -->
     <SuccessModal
       :visible="showCheckinModal"
       title="签到成功！"
-      :subtitle="`今日锅仔对话 +3 轮，已连续签到 ${checkin.streak} 天`"
-      confirm-text="好的"
-      @confirm="showCheckinModal = false"
+      :subtitle="giftSubTitle"
+      :confirm-text="giftConfirmText"
+      @confirm="onCheckinConfirm"
     />
   </view>
 </template>
@@ -565,6 +584,20 @@ function onBuy() {}
   color: var(--mrc-accent);
   font-weight: 700;
   box-shadow: 0 4rpx 12rpx rgba(90, 62, 43, 0.08);
+}
+.gallery-tab__dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30rpx;
+  height: 30rpx;
+  margin-left: 8rpx;
+  padding: 0 8rpx;
+  border-radius: 999rpx;
+  background: var(--mrc-accent);
+  color: #fff;
+  font-size: 20rpx;
+  font-weight: 800;
 }
 
 /* 成就墙 */

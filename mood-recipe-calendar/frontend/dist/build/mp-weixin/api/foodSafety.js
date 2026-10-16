@@ -1,0 +1,1 @@
+"use strict";const e=require("./request.js");exports.fetchFoodTips=function(s){const t=s.map((e=>e.trim())).filter(Boolean).slice(0,40).join(",");return t?e.get("/food-safety/tips",{names:t}).then((e=>Array.isArray(null==e?void 0:e.tips)?e.tips:[])):Promise.resolve([])};

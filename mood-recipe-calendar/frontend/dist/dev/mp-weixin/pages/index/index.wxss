@@ -383,7 +383,61 @@ to {
   display: block;
 }
 
-/* 组件墙：4 列网格，入口分层——三餐主卡(2×2 HOT) / 抽奖小卡(1×1) / 双宽卡(2×1) */
+/* P1 收藏引导 */
+.fav-tip.data-v-83a5a03c {
+  position: relative;
+  margin: 16rpx 0 0;
+  padding: 0 24rpx;
+}
+.fav-tip__arrow.data-v-83a5a03c {
+  position: absolute;
+  top: -10rpx;
+  right: 80rpx;
+  width: 0;
+  height: 0;
+  border-left: 12rpx solid transparent;
+  border-right: 12rpx solid transparent;
+  border-bottom: 12rpx solid #FFF7E6;
+}
+.fav-tip__body.data-v-83a5a03c {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 18rpx 20rpx;
+  border-radius: 20rpx;
+  background: #FFF7E6;
+  border: 2rpx solid #FFE4B5;
+  box-shadow: 0 4rpx 12rpx rgba(255, 180, 80, 0.15);
+}
+.fav-tip__emoji.data-v-83a5a03c {
+  font-size: 36rpx;
+}
+.fav-tip__text.data-v-83a5a03c {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+  min-width: 0;
+}
+.fav-tip__title.data-v-83a5a03c {
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #8B5A00;
+}
+.fav-tip__sub.data-v-83a5a03c {
+  font-size: 22rpx;
+  color: #B07930;
+  line-height: 1.4;
+}
+.fav-tip__close.data-v-83a5a03c {
+  flex-shrink: 0;
+  padding: 8rpx 18rpx;
+  border-radius: 999rpx;
+  background: #FFB98C;
+  color: #fff;
+  font-size: 22rpx;
+  font-weight: 600;
+} /* 组件墙：4 列网格，入口分层——三餐主卡(2×2 HOT) / 抽奖小卡(1×1) / 双宽卡(2×1) */
 .home-bento.data-v-83a5a03c {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

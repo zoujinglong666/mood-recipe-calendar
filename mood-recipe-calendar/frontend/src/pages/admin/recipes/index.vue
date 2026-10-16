@@ -620,8 +620,8 @@ onShow(() => {
   pointer-events: none;
 }
 .action-btn--danger {
-  background: rgba(217, 72, 65, 0.10);
-  color: #C44732;
+  background: var(--mrc-color-danger-soft);
+  color: var(--mrc-color-danger);
 }
 
 /* 分页条 */

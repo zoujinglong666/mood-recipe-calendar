@@ -13,7 +13,9 @@ import java.time.*;
 
 @Service
 public class UsageQuotaService {
-    public enum Feature { HOME_RECOMMEND, SIMPLE_WEEKLY_PLAN, AGENT_CONVERSATION }
+    public enum Feature { HOME_RECOMMEND, SIMPLE_WEEKLY_PLAN, AGENT_CONVERSATION, DAILY_MEAL_PLAN }
+    /** 签到随机赠礼：当天确定性二选一（对用户即随机），跨日自然过期重抽 */
+    public enum DailyGift { CONVERSATION, MEAL_PLAN }
     public record View(boolean member, int limit, int used, int remaining, String resetsAt) {}
     private static final ZoneId ZONE = AppClock.ZONE;
     private final UsageQuotaRepository quotas;
@@ -103,15 +105,29 @@ public class UsageQuotaService {
             ? today.minusDays(today.getDayOfWeek().getValue() - 1L) : today;
     }
 
+    /** 签到随机赠礼类型：openid+日期 确定性哈希二选一（用户感知随机，系统幂等，跨日重抽） */
+    public DailyGift giftOf(String openid, LocalDate today) {
+        long seed = Math.abs((openid + "|" + today).hashCode());
+        return seed % 2 == 0 ? DailyGift.CONVERSATION : DailyGift.MEAL_PLAN;
+    }
+
+    private boolean checkedInToday(String openid, LocalDate today) {
+        return checkins != null && checkins.findByOpenidAndCheckinDate(openid, today.toString()).isPresent();
+    }
+
     private int limit(String openid, Feature feature, boolean isMember, LocalDate today) {
         if (feature == Feature.AGENT_CONVERSATION) {
             if (isMember) return Integer.MAX_VALUE;
-            int base = checkins != null && checkins.findByOpenidAndCheckinDate(openid, today.toString()).isPresent() ? 3 : 0;
-            // 分享裂变激励：非会员当日分享任意高光时刻，额外 +1 次锅仔对话
+            // 签到随机赠礼二选一：抽中对话券才有 3 次；分享/回流激励不受赠礼类型影响
+            int base = checkedInToday(openid, today) && giftOf(openid, today) == DailyGift.CONVERSATION ? 3 : 0;
             if (base > 0 && shareRecords != null && shareRecords.existsByOpenidAndShareDate(openid, today)) base += 1;
-            // 回流激励：通过好友分享卡打开（被邀请侧），当日也 +1 次——新客无需签到即可立刻体验
             if (shareRecords != null && shareRecords.existsByOpenidAndShareDateAndScene(openid, today, "ACCEPT")) base += 1;
             return base;
+        }
+        if (feature == Feature.DAILY_MEAL_PLAN) {
+            if (isMember) return Integer.MAX_VALUE;
+            // 未签到也有 1 次基础体验；签到且抽中三餐券 → 2 次。当日有效，跨日按新周期自然过期
+            return checkedInToday(openid, today) && giftOf(openid, today) == DailyGift.MEAL_PLAN ? 2 : 1;
         }
         return isMember ? (feature == Feature.HOME_RECOMMEND ? 20 : Integer.MAX_VALUE)
             : (feature == Feature.HOME_RECOMMEND ? 3 : 1);
@@ -119,7 +135,8 @@ public class UsageQuotaService {
 
     private String message(Feature feature) {
         if (feature == Feature.HOME_RECOMMEND) return "今日免费推荐次数已用完，开通会员可享每日20次";
-        if (feature == Feature.AGENT_CONVERSATION) return "每日签到可获得3次锅仔智能体对话，今天的赠送次数已用完";
+        if (feature == Feature.AGENT_CONVERSATION) return "今日对话券已用完或未抽中，明天签到随机领对话券或三餐券";
+        if (feature == Feature.DAILY_MEAL_PLAN) return "今日三餐券已用完，明天签到随机再领三餐券或对话券";
         return "本周简单周菜单已使用，开通会员可不限次使用锅仔智能体";
     }
 
