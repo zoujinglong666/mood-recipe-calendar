@@ -11,6 +11,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -27,7 +28,8 @@ public class RecommendationJobService {
 
     public record StepView(Stage stage, StepStatus status, String label, String message) { }
     public record JobView(String jobId, JobStatus status, Stage currentStage, List<StepView> steps,
-                          String message, boolean usedFallback, Recipe recipe) { }
+                          String message, boolean usedFallback, Recipe recipe,
+                          String mood, String mealType) { }
 
     @FunctionalInterface
     public interface RecommendationWork {
@@ -63,21 +65,33 @@ public class RecommendationJobService {
     }
 
     public synchronized JobView start(String openid, String mood, RecommendationWork work) {
-        return start(openid, mood, () -> { }, work);
+        return start(openid, mood, null, () -> { }, work);
     }
 
-    /** 仅当确实创建新任务时执行预留动作，避免轮询或复用进行中任务重复扣次。 */
+    /** 无餐别入口的兼容重载（等同 mealType=null）。 */
     public synchronized JobView start(String openid, String mood, Runnable onNewJob, RecommendationWork work) {
+        return start(openid, mood, null, onNewJob, work);
+    }
+
+    /**
+     * 仅当确实创建新任务时执行预留动作，避免轮询或复用进行中任务重复扣次。
+     * 复用进行中任务要求 mood+mealType 一致：用户选「早餐」后不能复用到之前无餐别/其他餐别的任务，
+     * 否则早餐也会拿到炒菜推荐（餐别只影响 prompt，无法从结果反推）。
+     */
+    public synchronized JobView start(String openid, String mood, String mealType, Runnable onNewJob, RecommendationWork work) {
         cleanup();
         String activeKey = openid;
         String existingId = activeJobs.get(activeKey);
         if (existingId != null) {
             Job existing = jobs.get(existingId);
-            if (existing != null && existing.status == JobStatus.RUNNING) return existing.view();
+            if (existing != null && existing.status == JobStatus.RUNNING
+                    && sameContext(existing.mood, mood, existing.mealType, mealType)) {
+                return existing.view();
+            }
         }
 
         onNewJob.run();
-        Job job = new Job(UUID.randomUUID().toString(), openid);
+        Job job = new Job(UUID.randomUUID().toString(), openid, mood, mealType);
         jobs.put(job.id, job);
         activeJobs.put(activeKey, job.id);
         executor.submit(() -> {
@@ -92,6 +106,16 @@ public class RecommendationJobService {
             }
         });
         return job.view();
+    }
+
+    /** mood/mealType 规范化比较：餐别忽略大小写，null 与空串等价 */
+    private boolean sameContext(String oldMood, String newMood, String oldMeal, String newMeal) {
+        return Objects.equals(oldMood, newMood)
+                && normMeal(oldMeal).equals(normMeal(newMeal));
+    }
+
+    private String normMeal(String meal) {
+        return meal == null || meal.isBlank() ? "" : meal.trim().toUpperCase();
     }
 
     public Optional<JobView> find(String jobId, String openid) {
@@ -122,6 +146,8 @@ public class RecommendationJobService {
     private static final class Job implements Progress {
         private final String id;
         private final String openid;
+        private final String mood;
+        private final String mealType;
         private final Map<Stage, StepView> steps = new LinkedHashMap<>();
         private volatile JobStatus status = JobStatus.RUNNING;
         private volatile Stage currentStage;
@@ -131,9 +157,11 @@ public class RecommendationJobService {
         private volatile Instant finishedAt;
         private boolean quotaCharged;
 
-        private Job(String id, String openid) {
+        private Job(String id, String openid, String mood, String mealType) {
             this.id = id;
             this.openid = openid;
+            this.mood = mood;
+            this.mealType = mealType;
             for (Stage stage : List.of(Stage.MEMORY, Stage.TEXT, Stage.IMAGE, Stage.FINALIZE)) {
                 steps.put(stage, new StepView(stage, StepStatus.WAITING, LABELS.get(stage), "等待开始"));
             }
@@ -174,7 +202,7 @@ public class RecommendationJobService {
             List<StepView> ordered = new ArrayList<>(steps.values());
             ordered.sort(Comparator.comparingInt(step -> ORDER.get(step.stage())));
             return new JobView(id, status, currentStage, List.copyOf(ordered), message,
-                    usedFallback, recipe);
+                    usedFallback, recipe, mood, mealType);
         }
     }
 }

@@ -253,6 +253,10 @@ function restoreRemoteConversation(snapshot: MealAgentConversationSnapshot) {
 }
 
 async function load() {
+  // 灭屏亮屏会触发 onShow 重载：若对话请求还在飞（系统挂起后恢复中），
+  // 此时用快照覆盖 messages 会与在飞请求竞态导致内容错乱——直接跳过本次重载
+  if (agentBusy.value || agentTyping.value)
+    return
   loading.value = true
   try {
     await ensureLogin()
@@ -267,10 +271,13 @@ async function load() {
   memory.value = memoryResult.status === 'fulfilled' ? memoryResult.value : undefined
   currentPlan.value = planResult.status === 'fulfilled' ? planResult.value : undefined
   agentQuota.value = quotaResult.status === 'fulfilled' ? quotaResult.value : undefined
-  if (conversationResult.status === 'fulfilled' && conversationResult.value?.messages?.length)
-    restoreRemoteConversation(conversationResult.value)
-  else
+  // 恢复顺序：先本地草稿（页面销毁重进时是最近现场），远端快照只在比本地更完整时才采纳——
+  // 本地消息更多说明远端还没保存成功（刚发出的消息/保存失败），以本地为准，防止旧快照回退丢聊天
+  if (!messages.value.length)
     restoreConversation()
+  const remoteSnapshot = conversationResult.status === 'fulfilled' ? conversationResult.value : undefined
+  if (remoteSnapshot?.messages?.length && remoteSnapshot.messages.length > messages.value.length)
+    restoreRemoteConversation(remoteSnapshot)
   if (memory.value?.explicit.healthGoal)
     healthGoal.value = memory.value.explicit.healthGoal
   if (canUseAgent.value && !messages.value.length) {
@@ -279,6 +286,9 @@ async function load() {
     await runAgent(initialPrompt, Boolean(initialPrompt))
   }
   loading.value = false
+  // 恢复完成后自动滚到最新一条，不再让用户手动下滑
+  if (messages.value.length)
+    await scrollToLatest()
 }
 
 function addAgent(text: string, tags?: string[]) {
@@ -342,11 +352,36 @@ function localizeAgentText(text: string) {
 
 async function scrollToLatest() {
   await nextTick()
+  followOutput = true
+  autoScrolling = true
   uni.pageScrollTo({ scrollTop: 999999, duration: 220 })
+  setTimeout(() => { autoScrolling = false }, 300)
 }
 
-/** echoMode：option=点卡片选项/快捷回复发出的（回执显示成选中的选项），text=手动输入的（普通气泡）。 */
-async function runAgent(message: string, echo = false, echoLabel = message, webSearch = webSearchEnabled.value, echoMode: 'option' | 'text' = 'text', preset?: string) {
+// ---------- 输出跟随滚动 ----------
+// 打字机输出时页面持续变高，若用户没有主动上滑看历史，就自动跟随滚到底；
+// 用户一旦上滑（scrollTop 跌离历史最高值）即停止跟随，不抢用户的浏览位置。
+let followOutput = true
+let maxSeenTop = 0
+let autoScrolling = false
+let lastFollowAt = 0
+function followIfPinned() {
+  if (!followOutput) return
+  const now = Date.now()
+  if (now - lastFollowAt < 300) return
+  lastFollowAt = now
+  uni.pageScrollTo({ scrollTop: 999999, duration: 120 })
+}
+onPageScroll((res) => {
+  if (autoScrolling) return
+  followOutput = res.scrollTop >= maxSeenTop - 80
+  if (res.scrollTop > maxSeenTop) maxSeenTop = res.scrollTop
+})
+
+/** echoMode：option=点卡片选项/快捷回复发出的（回执显示成选中的选项），text=手动输入的（普通气泡）。
+ *  turnRequestId：本轮请求标识，自动重试时复用（后端配额按其幂等，不重复扣次）。
+ *  attempt：网络类失败自动重试计数（最多 1 次），灭屏挂起导致的中断对用户无感恢复。 */
+async function runAgent(message: string, echo = false, echoLabel = message, webSearch = webSearchEnabled.value, echoMode: 'option' | 'text' = 'text', preset?: string, turnRequestId?: string, attempt = 0) {
   if (agentBusy.value || agentTyping.value)
     return
   if (echo && message)
@@ -358,7 +393,8 @@ async function runAgent(message: string, echo = false, echoLabel = message, webS
   try {
     // 只携带最近 240 条：更早往来由服务端 Compaction 摘要承接，对话可无限延续不被判停
     const history: MealAgentHistoryMessage[] = messages.value.slice(-240).map(({ role, text, tags, selected, card }) => ({ role, text, tags, selected, card }))
-    const turn = await runMealAgentTurn(message, agentState.value, currentConversationId(), history, webSearch, preset)
+    const requestIdValue = turnRequestId || `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+    const turn = await runMealAgentTurn(message, agentState.value, currentConversationId(), history, webSearch, preset, requestIdValue)
     stopThinking()
     agentTurn.value = turn
     otherInput.value = false
@@ -384,10 +420,21 @@ async function runAgent(message: string, echo = false, echoLabel = message, webS
   catch (error) {
     stopThinking()
     stopTyping()
+    // 失败也要保存现场：用户刚发的这条消息在本地草稿里保留，重进不丢
+    persistConversation()
     const message = String((error as any)?.message || '')
     if (message.includes('重新开始') || message.includes('过长')) {
       // 后端判定本轮对话过长：主动引导开启新对话，而不是让用户卡死
       await offerNewConversation()
+      return
+    }
+    // 灭屏挂起/网络闪断导致的中断（request:fail/timeout）：静默自动重试一次。
+    // 复用同一 requestId，后端配额按其幂等不重复扣次；后端业务错误（配额/审核）不重试。
+    const isNetworkError = /request:fail|timeout|network|abort/i.test(message) || !(error as any)?.message
+    if (isNetworkError && attempt < 1) {
+      await new Promise(resolve => setTimeout(resolve, 1200))
+      if (!pageAlive) return
+      await runAgent(message, false, '', webSearch, 'text', preset, turnRequestId, attempt + 1)
       return
     }
     toastError(error, message.includes('签到') || message.includes('用完') ? '今日签到赠送的对话已用完，明天再来' : '锅仔刚刚走神了，请再说一次')
@@ -426,6 +473,8 @@ async function streamAgentReply(reply: string) {
     typingTimer = setInterval(() => {
       i = Math.min(chars.length, i + step)
       messages.value[index].text = chars.slice(0, i).join('')
+      // 内容变高时跟随滚到底（用户上滑看历史时停止跟随）
+      followIfPinned()
       if (i >= chars.length) {
         clearInterval(typingTimer)
         typingTimer = undefined

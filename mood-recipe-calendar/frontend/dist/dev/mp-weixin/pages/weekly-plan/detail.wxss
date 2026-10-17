@@ -656,6 +656,54 @@
 .checked.data-v-5d49e1be {
   font-weight: 800;
 }
+
+/* 挑选技巧（食材项下方）：帮用户挑出好食材，如土豆不选发芽的 */
+.pick-tip.data-v-5d49e1be {
+  display: flex;
+  align-items: flex-start;
+  gap: 10rpx;
+  padding: 8rpx 0 10rpx 54rpx;
+  border-bottom: 2rpx solid var(--mrc-border-light);
+}
+.pick-tip__badge.data-v-5d49e1be {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34rpx;
+  height: 34rpx;
+  margin-top: 2rpx;
+  border-radius: 10rpx;
+  background: var(--mrc-surface-sun);
+  color: var(--mrc-accent);
+  font-size: 19rpx;
+  font-weight: 800;
+}
+.pick-tip__text.data-v-5d49e1be {
+  color: var(--mrc-text-sub);
+  font-size: 21rpx;
+  line-height: 1.5;
+}
+
+/* 搭配风险提示：柿子×螃蟹等同日组合 */
+.safety-combos.data-v-5d49e1be {
+  margin: 16rpx 0 4rpx;
+  padding: 16rpx 20rpx;
+  border: 2rpx solid rgba(217, 72, 65, 0.25);
+  border-radius: 18rpx;
+  background: rgba(217, 72, 65, 0.06);
+}
+.safety-combos__title.data-v-5d49e1be {
+  color: #C44732;
+  font-size: 24rpx;
+  font-weight: 800;
+}
+.safety-combos__item.data-v-5d49e1be {
+  margin-top: 6rpx;
+  color: var(--mrc-text-sub);
+  font-size: 21rpx;
+  line-height: 1.5;
+}
 @media (prefers-reduced-motion: reduce) {
 .week-tab.data-v-5d49e1be, .day-card.data-v-5d49e1be, .replace-action.data-v-5d49e1be, .dish-pager__item.data-v-5d49e1be, .share-day.data-v-5d49e1be, .details-toggle.data-v-5d49e1be, .details-toggle__arrow.data-v-5d49e1be, .shopping-toggle.data-v-5d49e1be, .shop-item.data-v-5d49e1be {
     transition: none;

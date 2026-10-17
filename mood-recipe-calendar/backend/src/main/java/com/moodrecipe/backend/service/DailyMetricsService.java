@@ -33,11 +33,20 @@ public class DailyMetricsService {
     private final JdbcTemplate jdbc;
     private final DailyActiveUserRepository actives;
     private final WxPusherNotifier notifier;
+    /** 运营观测聚合（可选依赖，避免测试构造器签名变化）：日报附带留存/渗透/转化/K 因子 */
+    private final OpsMetricsService opsMetrics;
 
     public DailyMetricsService(JdbcTemplate jdbc, DailyActiveUserRepository actives, WxPusherNotifier notifier) {
+        this(jdbc, actives, notifier, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public DailyMetricsService(JdbcTemplate jdbc, DailyActiveUserRepository actives, WxPusherNotifier notifier,
+                               OpsMetricsService opsMetrics) {
         this.jdbc = jdbc;
         this.actives = actives;
         this.notifier = notifier;
+        this.opsMetrics = opsMetrics;
     }
 
     /**
@@ -70,6 +79,22 @@ public class DailyMetricsService {
         long total = countTotalUsers();
         String message = String.format("[锅仔日报] %s 活跃 %d 人 ／ 新增 %d 人 ／ 累计用户 %d 人",
                 day.format(DAY), active, newUsers, total);
+        // 运营观测行：记录渗透率 / 付费 / 会员转化 / 分享 K 因子 / LLM 调用量与估算成本
+        if (opsMetrics != null) {
+            try {
+                message += "\n" + opsMetrics.dailyReportLine(day);
+                // 留存线：昨日注册 cohort 的 D1（观察期已到的最近一天）
+                var retention = opsMetrics.retention(2);
+                if (!retention.isEmpty()) {
+                    var latest = retention.get(retention.size() - 1);
+                    Object d1 = latest.get("d1Pct");
+                    message += String.format("\n昨日新增 D1 留存 %s%%（cohort %s 人）",
+                            d1 == null ? "未到观察期" : d1, latest.get("cohortSize"));
+                }
+            } catch (Exception e) {
+                log.warn("[metrics] 运营观测行推送失败（不影响基础日报）: {}", e.getMessage());
+            }
+        }
         log.info("[metrics] {}", message);
         notifier.send(message);
     }

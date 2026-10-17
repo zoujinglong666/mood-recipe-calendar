@@ -353,8 +353,8 @@ function onDelete() {
 }
 .delete-btn {
   background: var(--mrc-surface);
-  color: #C44732;
-  border: 2rpx solid rgba(196, 71, 50, 0.42);
+  color: var(--mrc-color-danger);
+  border: 2rpx solid var(--mrc-color-danger-soft);
 }
 .save-btn:active,
 .delete-btn:active {

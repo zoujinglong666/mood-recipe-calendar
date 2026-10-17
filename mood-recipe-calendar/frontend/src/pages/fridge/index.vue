@@ -30,6 +30,7 @@ onShareTimeline(() => ({ title: '锅仔 · 按心情帮你决定今天吃什么'
 
 const now = new Date()
 const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+const router = useRouter()
 const items = ref<FridgeItem[]>([])
 const summary = ref<FridgeSummary>({ total: 0, soon: 0, expired: 0, priorityItems: [] })
 const loading = ref(true)
@@ -68,6 +69,15 @@ watch(() => form.value.name, (name) => {
 const soonItems = computed(() => items.value.filter(item => item.status === 'SOON'))
 const expiredItems = computed(() => items.value.filter(item => item.status === 'EXPIRED'))
 const otherItems = computed(() => items.value.filter(item => item.status === 'FRESH' || item.status === 'NO_DATE'))
+
+/** 现有食材可做：新鲜/临期优先，去重取前 8 个；点食材名直达菜谱库竖滑流搜索 */
+const cookable = computed(() => {
+  const names = [...soonItems.value, ...otherItems.value].map(item => item.name.trim()).filter(Boolean)
+  return [...new Set(names)].slice(0, 8)
+})
+function searchWith(name: string) {
+  router.push({ name: 'recipe-library', query: { keyword: name } })
+}
 
 /**
  * 需要优先处理的数量 = 已过期 + 临期。
@@ -397,6 +407,26 @@ function statusText(item: FridgeItem) {
       <view v-if="!items.length" class="empty-card"><text class="empty-card__title">冰箱还没开张</text><text class="empty-card__copy">把手边的食材放进来，锅仔才能帮你优先消耗、少买一点。</text><GuozaiButton aria-label="添加第一项食材" @click="openCreate">添加第一项食材</GuozaiButton></view>
 
       <template v-else>
+        <!-- 现有食材可做（借鉴竞品食材页推荐区）：点食材名，直达菜谱库竖滑流看能做的菜 -->
+        <view v-if="cookable.length" class="cookable">
+          <view class="cookable__head">
+            <text class="cookable__title">现有食材可做</text>
+            <text class="cookable__sub">点食材，看锅仔的拿手做法</text>
+          </view>
+          <scroll-view scroll-x class="cookable__scroll">
+            <view class="cookable__row">
+              <view
+                v-for="name in cookable"
+                :key="name"
+                class="cookable__chip"
+                role="button"
+                :aria-label="`看用${name}能做的菜`"
+                @click="searchWith(name)"
+              >{{ name }}</view>
+            </view>
+          </scroll-view>
+        </view>
+
         <view v-if="expiredItems.length" class="inventory-section">
           <view class="section-title"><text>已经过期</text><text>{{ expiredItems.length }} 项 · 该扔就扔</text></view>
           <view v-for="item in expiredItems" :key="item.id" class="food-row food-row--expired">
@@ -637,6 +667,27 @@ function statusText(item: FridgeItem) {
 .food-row__act.is-quiet { padding: 0 12rpx; color: var(--mrc-text-light); font-weight: 600; }
 .food-row--expired .food-row__act { color: var(--mrc-text-sub); }
 .food-row__act:active { opacity: .6; }
+
+/* ===== 现有食材可做：库存到菜谱的直通车（借鉴竞品食材页推荐区，主题化） ===== */
+.cookable { margin-bottom: 18rpx; padding: 22rpx 24rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; background: linear-gradient(135deg, var(--mrc-surface), var(--mrc-surface-mint)); box-shadow: var(--mrc-shadow-soft); }
+.cookable__head { display: flex; align-items: baseline; gap: 12rpx; margin-bottom: 14rpx; }
+.cookable__title { color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 800; }
+.cookable__sub { color: var(--mrc-text-light); font-size: 20rpx; }
+.cookable__scroll { white-space: nowrap; }
+.cookable__row { display: inline-flex; gap: 12rpx; padding: 2rpx; }
+.cookable__chip {
+  flex: 0 0 auto;
+  padding: 14rpx 28rpx;
+  border-radius: 999rpx;
+  background: var(--mrc-surface);
+  border: 2rpx solid var(--mrc-border-light);
+  color: var(--mrc-text-deep);
+  font-size: 24rpx;
+  font-weight: 700;
+  box-shadow: var(--mrc-shadow-sm);
+  transition: transform .15s ease;
+}
+.cookable__chip:active { transform: scale(.94); }
 
 /* ===== 临期提醒：出现在食材旁边，而不是页面顶部 ===== */
 .rake { display: flex; align-items: center; gap: 18rpx; margin-bottom: 18rpx; padding: 22rpx 24rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; background: var(--mrc-surface-warn, #FDF3E0); box-shadow: var(--mrc-shadow-soft); }

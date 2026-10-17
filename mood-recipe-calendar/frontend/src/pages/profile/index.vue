@@ -136,10 +136,6 @@ const achievementUnread = ref(0)
 function goGallery() {
   router.push({ name: 'gallery' })
 }
-/** 成就入口：直达形象馆并聚焦成就墙（focus=achievements 触发滚动）。 */
-function goAchievements() {
-  router.push({ name: 'gallery', query: { focus: 'achievements' } })
-}
 function goSettings() {
   router.push({ name: 'settings' })
 }
@@ -284,7 +280,21 @@ function goFeedback() {
   router.push({ name: 'feedback' })
 }
 
-/** 「我的」页内联签到：非会员签到领今日 3 次锅仔对话，避免跳转形象馆再操作。 */
+/** 「我的」页内联签到：签到随机领对话券或三餐券，弹窗确认后直达对应功能页。 */
+const checkinGiftType = computed(() => checkinStatus.value?.giftType || 'CONVERSATION')
+const checkinGiftTitle = computed(() => {
+  if (!checkinStatus.value?.checkedIn) return '每日签到 · 领随机赠礼'
+  return checkinGiftType.value === 'MEAL_PLAN' ? '今日已签到 · 三餐券 ×2' : '今日已签到 · 对话券 ×3'
+})
+const checkinGiftSub = computed(() => {
+  if (!checkinStatus.value?.checkedIn) return '签到随机领对话券或三餐搭配券'
+  return `已连续 ${checkinStatus.value.streak} 天，明天再来`
+})
+const checkinGiftBtn = computed(() => checkinGiftType.value === 'MEAL_PLAN' ? '看今日三餐' : '去和锅仔聊聊')
+function onCheckinGiftConfirm() {
+  showCheckinModal.value = false
+  router.push({ name: checkinGiftType.value === 'MEAL_PLAN' ? 'daily-meal-plan' : 'meal-agent' })
+}
 async function quickCheckin() {
   if (!userStore.isLoggedIn) {
     navigateToLogin()
@@ -508,20 +518,7 @@ function openStat(type: 'records' | 'days' | 'streak') {
       </text>
     </view>
 
-    <!-- 我的成就入口：直达形象馆成就墙 -->
-    <view class="profile-achv" role="button" aria-label="查看我的成就徽章" @click="goAchievements">
-      <view class="profile-achv__icon">🏅</view>
-      <view class="profile-achv__main">
-        <text class="profile-achv__title">我的成就</text>
-        <text class="profile-achv__sub">
-          {{ achievementUnread > 0 ? `有 ${achievementUnread} 个新成就，去点亮` : '记录 · 分享 · 连续打卡，徽章一个个解锁' }}
-        </text>
-      </view>
-      <view v-if="achievementUnread > 0" class="profile-achv__dot">{{ achievementUnread }}</view>
-      <text class="profile-achv__arrow">›</text>
-    </view>
-
-    <!-- 锅仔形象馆入口（核心变现模块） -->
+    <!-- 锅仔形象馆入口：成就墙 + 表情包 + 订单三馆合一 -->
     <view class="profile-gallery" role="button" aria-label="打开锅仔形象馆" @click="goGallery">
       <image :src="`${STATIC_BASE_URL}/static/guozai/mood_06_hungry.png`" class="profile-gallery__guozai"
              mode="aspectFit"/>
@@ -530,7 +527,7 @@ function openStat(type: 'records' | 'days' | 'streak') {
           锅仔形象馆
         </text>
         <text class="profile-gallery__sub">
-          表情包 · 主题素材 · 成就徽章
+          {{ achievementUnread > 0 ? `有 ${achievementUnread} 个新成就，去点亮` : '成就徽章 · 表情包 · 我的订单' }}
         </text>
       </view>
       <view class="profile-gallery__badges">
@@ -546,19 +543,19 @@ function openStat(type: 'records' | 'days' | 'streak') {
       </text>
     </view>
 
-    <!-- 内联签到：非会员今日签到领 3 次锅仔对话，留在「我的」页一步完成 -->
+    <!-- 内联签到：非会员签到随机领对话券或三餐券，留在「我的」页一步完成 -->
     <view
       class="profile-checkin"
       role="button"
-      :aria-label="checkinStatus?.checkedIn ? '今日已签到' : '签到领取今日锅仔对话'"
+      :aria-label="checkinStatus?.checkedIn ? '今日已签到' : '签到领取今日随机赠礼'"
       @click="quickCheckin"
     >
       <view class="profile-checkin__main">
         <text class="profile-checkin__title">
-          {{ checkinStatus?.checkedIn ? '今日已签到' : '每日签到 · 领 3 轮对话' }}
+          {{ checkinGiftTitle }}
         </text>
         <text class="profile-checkin__sub">
-          {{ checkinStatus?.checkedIn ? `已连续 ${checkinStatus.streak} 天，明天再来` : '签到后今天可和锅仔聊 3 轮' }}
+          {{ checkinGiftSub }}
         </text>
       </view>
       <view
@@ -569,13 +566,15 @@ function openStat(type: 'records' | 'days' | 'streak') {
       </view>
     </view>
 
-    <!-- 签到成功弹窗（与打卡记录成功同款） -->
+    <!-- 签到成功弹窗：按今日随机赠礼类型定制，确认即直达使用页 -->
     <SuccessModal
       :visible="showCheckinModal"
       title="签到成功！"
-      :subtitle="`今日锅仔对话 +3 轮，已连续签到 ${checkinStatus?.streak ?? 1} 天`"
-      confirm-text="好的"
-      @confirm="showCheckinModal = false"
+      :subtitle="checkinGiftType === 'MEAL_PLAN'
+        ? `今日赠礼：三餐搭配券 ×2，已连续签到 ${checkinStatus?.streak ?? 1} 天`
+        : `今日赠礼：锅仔对话 ×3，已连续签到 ${checkinStatus?.streak ?? 1} 天`"
+      :confirm-text="checkinGiftBtn"
+      @confirm="onCheckinGiftConfirm"
     />
 
     <!-- 功能按钮 -->
@@ -926,50 +925,6 @@ function openStat(type: 'records' | 'days' | 'streak') {
   transform: scale(0.98);
 }
 
-/* 我的成就入口卡 */
-.profile-achv {
-  display: flex;
-  align-items: center;
-  gap: 20rpx;
-  margin-bottom: 24rpx;
-  padding: 22rpx 26rpx;
-  border: 2rpx solid var(--mrc-border);
-  border-radius: 32rpx;
-  min-height: 138rpx;
-  box-sizing: border-box;
-  background: var(--mrc-surface);
-  box-shadow: var(--mrc-shadow-soft);
-  transition: transform 0.15s ease;
-}
-.profile-achv:active { transform: scale(0.98); }
-.profile-achv__icon {
-  display: flex;
-  width: 88rpx;
-  height: 88rpx;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  border-radius: 24rpx;
-  background: linear-gradient(145deg, var(--mrc-surface-sun), var(--mrc-surface-peach));
-  font-size: 44rpx;
-}
-.profile-achv__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8rpx; }
-.profile-achv__title { font-size: 31rpx; font-weight: 800; color: var(--mrc-text-deep); }
-.profile-achv__sub { font-size: 22rpx; color: var(--mrc-text-sub); }
-.profile-achv__dot {
-  min-width: 34rpx;
-  height: 34rpx;
-  padding: 0 8rpx;
-  border-radius: 999rpx;
-  background: var(--mrc-accent);
-  color: #fff;
-  font-size: 20rpx;
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.profile-achv__arrow { color: var(--mrc-text-light); font-size: 40rpx; }
 .profile-gallery__guozai {
   width: 88rpx;
   height: 88rpx;

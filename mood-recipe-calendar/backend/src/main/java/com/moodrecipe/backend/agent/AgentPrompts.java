@@ -63,6 +63,17 @@ public final class AgentPrompts {
     }
 
     public static String planMenu(String constraintsText, String daysText, int dishesPerDay, String rejectedText, String referenceDishes) {
+        return planMenu(constraintsText, daysText, dishesPerDay, rejectedText, referenceDishes, "");
+    }
+
+    /**
+     * safetyRules：食品安全红线（高风险搭配等），由 FoodSafetyService 知识库动态生成注入，
+     * 保证提示词与知识库单一事实来源；为空时使用通用安全底线。
+     */
+    public static String planMenu(String constraintsText, String daysText, int dishesPerDay,
+                                  String rejectedText, String referenceDishes, String safetyRules) {
+        String safety = "- 不出现生食、生腌、未煮熟豆浆、发芽土豆等高风险食材。\n"
+                + (safetyRules == null || safetyRules.isBlank() ? "" : safetyRules);
         return system() + "\n\n"
                 + """
                         请为这位用户排出一周家常菜菜单。
@@ -74,6 +85,12 @@ public final class AgentPrompts {
                 + """
                         菜名硬要求：只能使用真实存在、有出处的家常菜名（优先从参考菜谱里选，其次是广为人知的经典菜如番茄炒蛋、麻婆豆腐、可乐鸡翅）；严禁把两种菜硬拼成不存在的自创菜名（如「清火汤里脊」这类组合），严禁生造词。用户点名的每道菜/每个食材必须由各自独立的菜满足，一道菜绝不允许同时凑两个点名。
                         要求：每个做饭日必须严格生成指定数量且菜名不重复；普通餐兼顾荤素，4 道及以上按宴席思路搭配主菜、清爽菜、汤羹或主食；跨天复用食材减少浪费；避开最近吃过的菜；照顾老人小孩；做法家常可复现。
+                        食品安全红线（必须遵守）：
+                        """
+                + safety
+                + """
+                        - 涉及菠菜/苋菜/空心菜的菜，食材名后注明「（焯水）」，步骤里必须包含焯水步骤。
+                        - 四季豆/豆角/扁豆类菜品，步骤必须写明「彻底煮熟焖透」。
                         食材只写食材名和用量，不要把“撒、加入、切”等动作写进食材名；每一步只表达一个主要动作，步骤之间不要重复同一种食材或重复同一句话；使用普通家庭能看懂的中文，例如西兰花用“掰成小朵”，不要写“切朵”；不要输出英文、乱码、问号或生造词。
                         只输出一个 JSON 对象：
                         {"days":[{"weekday":0,"dishes":[{"name":"","role":"MAIN","ingredients":[""],"steps":["",""],"cookingTime":30,"difficulty":"简单"}]}],"notes":"一句话说明这周的安排思路"}
@@ -112,6 +129,7 @@ public final class AgentPrompts {
                 + "1) 每道菜名是否真实存在、有出处？是否把两种菜硬拼成不存在的菜（如点名“糖醋里脊和清火汤”却出现“清火汤里脊”）？是否生造词？\n"
                 + "2) 用户点名是否被如实满足？点名是完整菜名时必须原样成菜，一道菜只能满足一个点名。\n"
                 + "3) 搭配是否合理：荤素结构、主次分明、跨天复用、老人小孩能否吃。\n"
+                + "4) 食品安全：柿子/山楂是否与螃蟹虾牛奶同日出现；四季豆豆角是否有彻底煮熟步骤；菠菜是否标注焯水。发现违反食品安全红线的必须列入 issues。\n"
                 + "只输出一个 JSON 对象：\n"
                 + "{\"ok\":true/false,\"issues\":[{\"dish\":\"问题菜名\",\"problem\":\"问题说明\"}],"
                 + "\"replacements\":[{\"badDish\":\"问题菜名\",\"goodDish\":\"真实存在的菜名\",\"reason\":\"替换理由\"}]}\n"

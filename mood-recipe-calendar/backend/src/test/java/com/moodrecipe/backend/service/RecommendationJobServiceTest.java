@@ -39,7 +39,7 @@ class RecommendationJobServiceTest {
     }
 
     @Test
-    void reusesRunningJobWhenMoodChanges() throws Exception {
+    void createsNewJobWhenMoodChanges() throws Exception {
         RecommendationJobService service = new RecommendationJobService(Duration.ofSeconds(1));
         CountDownLatch releaseWork = new CountDownLatch(1);
         AtomicInteger reservations = new AtomicInteger();
@@ -50,12 +50,47 @@ class RecommendationJobServiceTest {
                 recipe.setName("番茄炒蛋");
                 return recipe;
             });
-            var reused = service.start("user-1", "疲惫", reservations::incrementAndGet, progress -> null);
+            var fresh = service.start("user-1", "疲惫", reservations::incrementAndGet, progress -> null);
 
-            assertEquals(first.jobId(), reused.jobId());
-            assertEquals(1, reservations.get());
+            assertFalse(first.jobId().equals(fresh.jobId()));
+            assertEquals(2, reservations.get());
             releaseWork.countDown();
             waitForTerminal(service, first.jobId());
+            waitForTerminal(service, fresh.jobId());
+        } finally {
+            releaseWork.countDown();
+            service.close();
+        }
+    }
+
+    @Test
+    void createsNewJobWhenMealTypeChanges() throws Exception {
+        RecommendationJobService service = new RecommendationJobService(Duration.ofSeconds(1));
+        CountDownLatch releaseWork = new CountDownLatch(1);
+        AtomicInteger reservations = new AtomicInteger();
+        try {
+            var first = service.start("user-1", "平静", null, reservations::incrementAndGet, progress -> {
+                try { releaseWork.await(); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+                Recipe recipe = new Recipe();
+                recipe.setName("番茄炒蛋");
+                return recipe;
+            });
+            // 同样心情选了早餐：不能复用之前无餐别的任务（否则早餐也会拿到炒菜）
+            var breakfast = service.start("user-1", "平静", "BREAKFAST", reservations::incrementAndGet, progress -> {
+                try { releaseWork.await(); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+                Recipe recipe = new Recipe();
+                recipe.setName("小米粥");
+                return recipe;
+            });
+            // 餐别大小写差异视为同一餐别，可复用
+            var sameMeal = service.start("user-1", "平静", "breakfast", reservations::incrementAndGet, progress -> null);
+
+            assertFalse(first.jobId().equals(breakfast.jobId()));
+            assertEquals(breakfast.jobId(), sameMeal.jobId());
+            assertEquals(2, reservations.get());
+            releaseWork.countDown();
+            waitForTerminal(service, first.jobId());
+            waitForTerminal(service, breakfast.jobId());
         } finally {
             releaseWork.countDown();
             service.close();

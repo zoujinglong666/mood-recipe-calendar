@@ -729,6 +729,10 @@
 .coach-composer button[disabled].data-v-de58d624 {
   opacity: 0.4;
 }
+.cooking-safety.data-v-de58d624 {
+  grid-column: 1/-1;
+  margin-top: 0;
+}
 @media (max-width: 350px) {
 .ingredients-list.data-v-de58d624 {
     grid-template-columns: 1fr;

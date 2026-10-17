@@ -19,6 +19,7 @@ declare global {
   const MOOD_EMOJI: typeof import('./utils/albumLayout')['MOOD_EMOJI']
   const MRC_EVENTS: typeof import('./utils/bus')['MRC_EVENTS']
   const RECORD_DRAFT_KEY: typeof import('./utils/cookingDraft')['RECORD_DRAFT_KEY']
+  const SCHEDULE_TEMPLATE_ID: typeof import('./api/weeklyPlans')['SCHEDULE_TEMPLATE_ID']
   const STATIC_BASE_URL: typeof import('./utils/assets')['STATIC_BASE_URL']
   const acceptHMRUpdate: typeof import('pinia')['acceptHMRUpdate']
   const acceptShareInvite: typeof import('./api/share')['acceptShareInvite']
@@ -110,6 +111,7 @@ declare global {
   const fetchFavorites: typeof import('./api/favorites')['fetchFavorites']
   const fetchFoodMemory: typeof import('./api/preferences')['fetchFoodMemory']
   const fetchFoodPreference: typeof import('./api/preferences')['fetchFoodPreference']
+  const fetchFoodTips: typeof import('./api/foodSafety')['fetchFoodTips']
   const fetchFridgeItems: typeof import('./api/fridge')['fetchFridgeItems']
   const fetchFridgeSummary: typeof import('./api/fridge')['fetchFridgeSummary']
   const fetchMemberBenefits: typeof import('./api/virtualCommerce')['fetchMemberBenefits']
@@ -141,6 +143,7 @@ declare global {
   const fetchWeeklyPlanQuota: typeof import('./api/weeklyPlans')['fetchWeeklyPlanQuota']
   const fetchYearStats: typeof import('./api/records')['fetchYearStats']
   const forgetAgentMemory: typeof import('./api/auth')['forgetAgentMemory']
+  const funnel: typeof import('./utils/funnel')['funnel']
   const generateDailyMealCover: typeof import('./api/dailyMealPlan')['generateDailyMealCover']
   const generateDailyMenuCover: typeof import('./api/dailyMenu')['generateDailyMenuCover']
   const generatePlanDayCover: typeof import('./api/weeklyPlans')['generatePlanDayCover']
@@ -163,6 +166,7 @@ declare global {
   const getWeeklyPlanHistory: typeof import('./api/weeklyPlans')['getWeeklyPlanHistory']
   const getWeeklyPlanJob: typeof import('./api/weeklyPlans')['getWeeklyPlanJob']
   const getWindowInfo: typeof import('./utils/wxSystem')['getWindowInfo']
+  const goToMeituanBuy: typeof import('./utils/cps')['goToMeituanBuy']
   const h: typeof import('vue')['h']
   const hideLoading: typeof import('./utils/toast')['hideLoading']
   const humanizeMemoryValue: typeof import('./utils/memoryLabels')['humanizeMemoryValue']
@@ -269,6 +273,7 @@ declare global {
   const replaceDailyMealPlanMeal: typeof import('./api/dailyMealPlan')['replaceDailyMealPlanMeal']
   const replacePlanDay: typeof import('./api/weeklyPlans')['replacePlanDay']
   const reportPlanDishOutcome: typeof import('./api/weeklyPlans')['reportPlanDishOutcome']
+  const requestDailyReminderNotice: typeof import('./api/weeklyPlans')['requestDailyReminderNotice']
   const requestDeepRecipe: typeof import('./api/recipes')['requestDeepRecipe']
   const requestWechatVirtualPayment: typeof import('./api/virtualCommerce')['requestWechatVirtualPayment']
   const requestWeeklyPlanCompletionNotice: typeof import('./api/weeklyPlans')['requestWeeklyPlanCompletionNotice']
@@ -545,6 +550,7 @@ declare module 'vue' {
     readonly MOOD_EMOJI: UnwrapRef<typeof import('./utils/albumLayout')['MOOD_EMOJI']>
     readonly MRC_EVENTS: UnwrapRef<typeof import('./utils/bus')['MRC_EVENTS']>
     readonly RECORD_DRAFT_KEY: UnwrapRef<typeof import('./utils/cookingDraft')['RECORD_DRAFT_KEY']>
+    readonly SCHEDULE_TEMPLATE_ID: UnwrapRef<typeof import('./api/weeklyPlans')['SCHEDULE_TEMPLATE_ID']>
     readonly STATIC_BASE_URL: UnwrapRef<typeof import('./utils/assets')['STATIC_BASE_URL']>
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>
     readonly acceptShareInvite: UnwrapRef<typeof import('./api/share')['acceptShareInvite']>
@@ -635,6 +641,7 @@ declare module 'vue' {
     readonly fetchFavorites: UnwrapRef<typeof import('./api/favorites')['fetchFavorites']>
     readonly fetchFoodMemory: UnwrapRef<typeof import('./api/preferences')['fetchFoodMemory']>
     readonly fetchFoodPreference: UnwrapRef<typeof import('./api/preferences')['fetchFoodPreference']>
+    readonly fetchFoodTips: UnwrapRef<typeof import('./api/foodSafety')['fetchFoodTips']>
     readonly fetchFridgeItems: UnwrapRef<typeof import('./api/fridge')['fetchFridgeItems']>
     readonly fetchFridgeSummary: UnwrapRef<typeof import('./api/fridge')['fetchFridgeSummary']>
     readonly fetchMemberBenefits: UnwrapRef<typeof import('./api/virtualCommerce')['fetchMemberBenefits']>
@@ -666,6 +673,7 @@ declare module 'vue' {
     readonly fetchWeeklyPlanQuota: UnwrapRef<typeof import('./api/weeklyPlans')['fetchWeeklyPlanQuota']>
     readonly fetchYearStats: UnwrapRef<typeof import('./api/records')['fetchYearStats']>
     readonly forgetAgentMemory: UnwrapRef<typeof import('./api/auth')['forgetAgentMemory']>
+    readonly funnel: UnwrapRef<typeof import('./utils/funnel')['funnel']>
     readonly generateDailyMealCover: UnwrapRef<typeof import('./api/dailyMealPlan')['generateDailyMealCover']>
     readonly generateDailyMenuCover: UnwrapRef<typeof import('./api/dailyMenu')['generateDailyMenuCover']>
     readonly generatePlanDayCover: UnwrapRef<typeof import('./api/weeklyPlans')['generatePlanDayCover']>
@@ -688,6 +696,7 @@ declare module 'vue' {
     readonly getWeeklyPlanHistory: UnwrapRef<typeof import('./api/weeklyPlans')['getWeeklyPlanHistory']>
     readonly getWeeklyPlanJob: UnwrapRef<typeof import('./api/weeklyPlans')['getWeeklyPlanJob']>
     readonly getWindowInfo: UnwrapRef<typeof import('./utils/wxSystem')['getWindowInfo']>
+    readonly goToMeituanBuy: UnwrapRef<typeof import('./utils/cps')['goToMeituanBuy']>
     readonly h: UnwrapRef<typeof import('vue')['h']>
     readonly hideLoading: UnwrapRef<typeof import('./utils/toast')['hideLoading']>
     readonly humanizeMemoryValue: UnwrapRef<typeof import('./utils/memoryLabels')['humanizeMemoryValue']>
@@ -794,6 +803,7 @@ declare module 'vue' {
     readonly replaceDailyMealPlanMeal: UnwrapRef<typeof import('./api/dailyMealPlan')['replaceDailyMealPlanMeal']>
     readonly replacePlanDay: UnwrapRef<typeof import('./api/weeklyPlans')['replacePlanDay']>
     readonly reportPlanDishOutcome: UnwrapRef<typeof import('./api/weeklyPlans')['reportPlanDishOutcome']>
+    readonly requestDailyReminderNotice: UnwrapRef<typeof import('./api/weeklyPlans')['requestDailyReminderNotice']>
     readonly requestDeepRecipe: UnwrapRef<typeof import('./api/recipes')['requestDeepRecipe']>
     readonly requestWechatVirtualPayment: UnwrapRef<typeof import('./api/virtualCommerce')['requestWechatVirtualPayment']>
     readonly requestWeeklyPlanCompletionNotice: UnwrapRef<typeof import('./api/weeklyPlans')['requestWeeklyPlanCompletionNotice']>

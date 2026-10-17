@@ -551,69 +551,6 @@
 .profile-gallery.data-v-f97f9319:active {
   transform: scale(0.98);
 }
-
-/* 我的成就入口卡 */
-.profile-achv.data-v-f97f9319 {
-  display: flex;
-  align-items: center;
-  gap: 20rpx;
-  margin-bottom: 24rpx;
-  padding: 22rpx 26rpx;
-  border: 2rpx solid var(--mrc-border);
-  border-radius: 32rpx;
-  min-height: 138rpx;
-  box-sizing: border-box;
-  background: var(--mrc-surface);
-  box-shadow: var(--mrc-shadow-soft);
-  transition: transform 0.15s ease;
-}
-.profile-achv.data-v-f97f9319:active {
-  transform: scale(0.98);
-}
-.profile-achv__icon.data-v-f97f9319 {
-  display: flex;
-  width: 88rpx;
-  height: 88rpx;
-  flex: 0 0 auto;
-  align-items: center;
-  justify-content: center;
-  border-radius: 24rpx;
-  background: linear-gradient(145deg, var(--mrc-surface-sun), var(--mrc-surface-peach));
-  font-size: 44rpx;
-}
-.profile-achv__main.data-v-f97f9319 {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8rpx;
-}
-.profile-achv__title.data-v-f97f9319 {
-  font-size: 31rpx;
-  font-weight: 800;
-  color: var(--mrc-text-deep);
-}
-.profile-achv__sub.data-v-f97f9319 {
-  font-size: 22rpx;
-  color: var(--mrc-text-sub);
-}
-.profile-achv__dot.data-v-f97f9319 {
-  min-width: 34rpx;
-  height: 34rpx;
-  padding: 0 8rpx;
-  border-radius: 999rpx;
-  background: var(--mrc-accent);
-  color: #fff;
-  font-size: 20rpx;
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.profile-achv__arrow.data-v-f97f9319 {
-  color: var(--mrc-text-light);
-  font-size: 40rpx;
-}
 .profile-gallery__guozai.data-v-f97f9319 {
   width: 88rpx;
   height: 88rpx;

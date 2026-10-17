@@ -86,7 +86,7 @@ public class WeeklyMealPlanController {
         // 无缝长对话：历史超限不再判停，只保留最近一段；更早往来由 Compactor 压成摘要进模型背景
         if (request != null && request.history() != null && request.history().size() > MAX_TURN_HISTORY) {
             request = new AgentTurnRequest(request.message(), request.state(), request.conversationId(),
-                    request.requestId(), request.preset(),
+                    request.requestId(), request.preset(), request.webSearch(),
                     request.history().subList(request.history().size() - MAX_TURN_HISTORY, request.history().size()));
         }
         if (request != null && !contentSafety.allowsText(openid, request.message())) return ApiResponse.error(400, "文字未通过安全检查");
@@ -107,7 +107,8 @@ public class WeeklyMealPlanController {
                         request == null ? null : request.state());
             }
             DialogueState.Turn turn = mealAgent.turn(openid, request == null ? "" : request.message(), serverState,
-                    previousAction, request == null ? null : request.history());
+                    previousAction, request == null ? null : request.history(),
+                    request != null && Boolean.TRUE.equals(request.webSearch()));
             conversations.save(openid, conversationId, turn, request == null ? null : request.history());
             return ApiResponse.ok(turn);
         } catch (RuntimeException e) {
@@ -129,8 +130,9 @@ public class WeeklyMealPlanController {
     @PostMapping("/{id}/shopping/{name}") public ApiResponse<?> toggle(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @PathVariable Long id, @PathVariable String name) { return plans.toggleShopping(openid, id, name).map(ApiResponse::ok).orElseGet(() -> ApiResponse.error(404, "购物项不存在")); }
     public record AgentReplyRequest(String message, String nextQuestion) {}
     public record AgentReply(String reply) {}
+    /** webSearch：前端「联网搜索」开关（会员专享）。开启后本轮对话要求模型优先联网查证事实性问题。 */
     public record AgentTurnRequest(String message, DialogueState.AgentState state, String conversationId,
-                                   String requestId, String preset,
+                                   String requestId, String preset, Boolean webSearch,
                                    java.util.List<AgentConversationService.TranscriptMessage> history) {}
     public record AgentRatingRequest(String rating, String comment) {}
 

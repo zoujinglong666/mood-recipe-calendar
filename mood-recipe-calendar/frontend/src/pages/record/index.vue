@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import type { LearningReceipt } from '../../api/records'
 import { computed, ref } from 'vue'
 import { STATIC_BASE_URL } from '@/utils/assets'
@@ -15,6 +15,8 @@ import { ensureLogin } from '../../utils/login'
 import { toast, toastError, toastSuccess } from '../../utils/toast'
 import { bus, MRC_EVENTS } from '@/utils/bus'
 import { useUserStore } from '../../stores/user'
+import { requestDailyReminderNotice } from '../../api/weeklyPlans'
+import { funnel } from '../../utils/funnel'
 
 /** 与 calendar 页约定：历史补记时由 calendar 写入，record 页 onShow 读取作为记录日期。 */
 const RECORD_DATE_KEY = 'mrc_record_date'
@@ -248,6 +250,8 @@ async function publish() {
       const result = await saveRecord(payload)
       saved = result.record
       learningReceipt.value = result.learningReceipt
+      // P0 留存召回：记录完一顿饭后请求「日程提醒」订阅授权，后端每天 10:30 推「今天的菜已留好」
+      requestDailyReminderNotice()
       // 新解锁成就随保存响应返回：轻量庆祝 + 累计未读，点亮「我的」页形象馆入口红点
       if (result.newlyUnlocked?.length) {
         toastSuccess(`🎉 解锁成就：${result.newlyUnlocked.join('、')}`)
@@ -256,6 +260,7 @@ async function publish() {
       }
     }
     savedRecordId.value = saved.id
+    funnel('record_saved', { dish: dishName.value, mood: selectedMood.value })
     uni.removeStorageSync(RECORD_DRAFT_KEY)
     uni.removeStorageSync('mrc_companion_message')
     // 记录已落库，通知日历等页面刷新；并清除历史补记意图（下次默认记今天）

@@ -490,8 +490,8 @@ function askDeleteAccount() {
 .memory-empty { padding: 30rpx 0 10rpx; text-align: center; }
 .memory-item { display: flex; min-height: 92rpx; align-items: center; gap: 20rpx; border-bottom: 2rpx solid var(--mrc-border-light); }
 .memory-item__copy { flex: 1; min-width: 0; }
-.memory-item__delete { color: #D94841; font-size: 22rpx; font-weight: 700; }
-.memory-clear { display: flex; min-height: 76rpx; align-items: center; justify-content: center; margin-top: 18rpx; border-radius: 38rpx; color: #D94841; background: rgba(217, 72, 65, .08); font-size: 23rpx; font-weight: 700; }
+.memory-item__delete { color: var(--mrc-color-danger); font-size: 22rpx; font-weight: 700; }
+.memory-clear { display: flex; min-height: 76rpx; align-items: center; justify-content: center; margin-top: 18rpx; border-radius: 38rpx; color: var(--mrc-color-danger); background: var(--mrc-color-danger-soft); font-size: 23rpx; font-weight: 700; }
 .account-card { display: flex; align-items: flex-start; gap: 26rpx; }
 .avatar-button { width: 136rpx; height: 136rpx; flex-shrink: 0; margin: 0; padding: 0; border: 0; border-radius: 50%; background: transparent; line-height: 1; }
 .avatar-button::after { border: 0; }
@@ -545,7 +545,7 @@ function askDeleteAccount() {
 .about-row__desc { color: var(--mrc-text-sub); font-size: 21rpx; }
 .about-check { justify-content: space-between; }
 .about-row__arrow { margin-left: auto; color: var(--mrc-text-light); font-size: 32rpx; font-weight: 800; }
-.logout-button { display: flex; min-height: 96rpx; align-items: center; justify-content: center; margin-top: 44rpx; border: 2rpx solid rgba(217, 72, 65, .42); border-radius: 48rpx; color: #D94841; background: var(--mrc-surface); font-size: 28rpx; font-weight: 700; }
+.logout-button { display: flex; min-height: 96rpx; align-items: center; justify-content: center; margin-top: 44rpx; border: 2rpx solid var(--mrc-color-danger-soft); border-radius: 48rpx; color: var(--mrc-color-danger); background: var(--mrc-surface); font-size: 28rpx; font-weight: 700; }
 .delete-account { display: flex; min-height: 78rpx; align-items: center; justify-content: center; margin-top: 16rpx; color: var(--mrc-text-light); font-size: 23rpx; text-decoration: underline; }
 .settings-footnote { display: block; padding: 18rpx 28rpx 0; color: var(--mrc-text-light); font-size: 21rpx; line-height: 1.55; text-align: center; }
 .pressable { transition: transform 180ms ease, opacity 180ms ease; }

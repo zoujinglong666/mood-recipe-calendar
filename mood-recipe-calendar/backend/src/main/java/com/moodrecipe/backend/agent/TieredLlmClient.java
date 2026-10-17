@@ -33,6 +33,7 @@ public class TieredLlmClient implements LlmClient {
     private final LlmClient freeClient;
     private final LlmClient paidClient;
     private final UsageQuotaService quota;
+    private final LlmUsageCounter usageCounter;
     private final boolean paidEnabled;
     private final String planningModel;
     private final String flashModel;
@@ -48,8 +49,25 @@ public class TieredLlmClient implements LlmClient {
                            @Value("${ai.llm.max-attempts:2}") int maxAttempts,
                            @Value("${ai.llm.tool-calling:true}") boolean toolCallingEnabled,
                            @Value("${ai.llm.paid.max-concurrency:16}") int paidMaxConcurrency) {
+        this(freeClient, quota, new LlmUsageCounter(), json, paidEnabled, paidApiKey, paidBaseUrl,
+                planningModel, flashModel, maxAttempts, toolCallingEnabled, paidMaxConcurrency);
+    }
+
+    public TieredLlmClient(FallbackLlmClient freeClient,
+                           UsageQuotaService quota,
+                           LlmUsageCounter usageCounter,
+                           ObjectMapper json,
+                           @Value("${ai.llm.paid.enabled:false}") boolean paidEnabled,
+                           @Value("${ai.llm.paid.api-key:}") String paidApiKey,
+                           @Value("${ai.llm.paid.base-url:https://api.deepseek.com/chat/completions}") String paidBaseUrl,
+                           @Value("${ai.llm.paid.planning-model:deepseek-v4-pro}") String planningModel,
+                           @Value("${ai.llm.paid.flash-model:deepseek-flash}") String flashModel,
+                           @Value("${ai.llm.max-attempts:2}") int maxAttempts,
+                           @Value("${ai.llm.tool-calling:true}") boolean toolCallingEnabled,
+                           @Value("${ai.llm.paid.max-concurrency:16}") int paidMaxConcurrency) {
         this.freeClient = freeClient;
         this.quota = quota;
+        this.usageCounter = usageCounter;
         this.paidEnabled = paidEnabled;
         this.planningModel = planningModel == null || planningModel.isBlank() ? "deepseek-v4-pro" : planningModel.trim();
         this.flashModel = flashModel == null || flashModel.isBlank() ? "deepseek-flash" : flashModel.trim();
@@ -62,7 +80,9 @@ public class TieredLlmClient implements LlmClient {
     @Override
     public LlmResult complete(LlmRequest request) {
         if (!paidEnabled) {
-            return freeClient.complete(request);
+            LlmResult result = freeClient.complete(request);
+            usageCounter.record(LlmUsageCounter.FREE, result);
+            return result;
         }
         boolean paidConfigured = paidClient.isConfigured();
         boolean isMember = request.openid() != null && !request.openid().isBlank() && quota.member(request.openid());
@@ -70,11 +90,16 @@ public class TieredLlmClient implements LlmClient {
             if (isMember && !paidConfigured) {
                 log.warn("会员请求本应走 DeepSeek，但 DeepSeek 未配置，回落免费模型 purpose={}", request.purpose());
             }
-            return freeClient.complete(request);
+            LlmResult result = freeClient.complete(request);
+            usageCounter.record(LlmUsageCounter.FREE, result);
+            return result;
         }
-        String model = FLASH_PURPOSE.equals(request.purpose()) ? flashModel : planningModel;
+        boolean flash = FLASH_PURPOSE.equals(request.purpose());
+        String model = flash ? flashModel : planningModel;
         log.info("会员请求走 DeepSeek purpose={} model={} openid={}", request.purpose(), model, mask(request.openid()));
-        return paidClient.complete(request.withModelOverride(model));
+        LlmResult result = paidClient.complete(request.withModelOverride(model));
+        usageCounter.record(flash ? LlmUsageCounter.PAID_FLASH : LlmUsageCounter.PAID_PRO, result);
+        return result;
     }
 
     @Override

@@ -8,6 +8,7 @@ const api_recipes = require("../../api/recipes.js");
 const api_dailyMenu = require("../../api/dailyMenu.js");
 const utils_cookingDraft = require("../../utils/cookingDraft.js");
 const stores_user = require("../../stores/user.js");
+const utils_funnel = require("../../utils/funnel.js");
 const utils_assets = require("../../utils/assets.js");
 const __unplugin_components_1 = () => "../../node-modules/@wot-ui/ui/components/wd-popup/wd-popup.js";
 const __unplugin_components_0 = () => "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar.js";
@@ -218,8 +219,11 @@ const _sfc_defineComponent = common_vendor.defineComponent({
     }
     const todayBoard = common_vendor.ref();
     async function loadTodayBoard() {
+      var _a;
       try {
         todayBoard.value = await api_dailyMenu.fetchDailyBoard();
+        if ((_a = todayBoard.value) == null ? void 0 : _a.recipe)
+          utils_funnel.funnel("recipe_delivered", { name: todayBoard.value.recipe.name });
         backfillBoardCover();
       } catch {
         todayBoard.value = void 0;
@@ -454,9 +458,27 @@ const _sfc_defineComponent = common_vendor.defineComponent({
       }).catch(() => {
       });
     });
+    const FAV_TIP_KEY = "mrc_fav_tip_dismissed";
+    const FAV_TIP_COUNT_KEY = "mrc_fav_tip_shown_count";
+    const showFavTip = common_vendor.ref(false);
+    function maybeShowFavTip() {
+      if (common_vendor.index.getStorageSync(FAV_TIP_KEY))
+        return;
+      const n = Number(common_vendor.index.getStorageSync(FAV_TIP_COUNT_KEY) || 0);
+      if (n >= 3)
+        return;
+      common_vendor.index.setStorageSync(FAV_TIP_COUNT_KEY, n + 1);
+      showFavTip.value = true;
+    }
+    function dismissFavTip() {
+      showFavTip.value = false;
+      common_vendor.index.setStorageSync(FAV_TIP_KEY, "1");
+    }
     common_vendor.onShow(() => {
       now.value = /* @__PURE__ */ new Date();
       loadData();
+      maybeShowFavTip();
+      utils_funnel.funnel("home_view");
     });
     common_vendor.onShareAppMessage(() => {
       var _a, _b;
@@ -486,6 +508,7 @@ const _sfc_defineComponent = common_vendor.defineComponent({
     }
     function pickMeal(type) {
       showMealSheet.value = false;
+      utils_funnel.funnel("recommend_click", { mealType: type });
       const mood = MOODS[Math.floor(Math.random() * MOODS.length)];
       router.push({ name: "recipe", params: { mood }, query: { mood, mealType: type } });
     }
@@ -559,42 +582,46 @@ const _sfc_defineComponent = common_vendor.defineComponent({
         J: `锅仔今天留了${todayBoard.value.recipe.name}，打开看做法`,
         K: common_vendor.o(goCookToday)
       }) : {}, {
-        L: common_vendor.t(recipeQuotaText.value),
-        M: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_10_thinking.png",
-        N: common_vendor.o(openMealSheet),
-        O: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_08_peek.png",
-        P: common_vendor.o(openWheel),
-        Q: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_09_celebrate.png",
-        R: common_vendor.o(openNine),
-        S: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_02_soup.png",
-        T: common_vendor.o(openFlip),
-        U: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_06_glasses.png",
-        V: common_vendor.o(($event) => goto("meal-agent")),
+        L: showFavTip.value
+      }, showFavTip.value ? {
+        M: common_vendor.o(dismissFavTip)
+      } : {}, {
+        N: common_vendor.t(recipeQuotaText.value),
+        O: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_10_thinking.png",
+        P: common_vendor.o(openMealSheet),
+        Q: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_08_peek.png",
+        R: common_vendor.o(openWheel),
+        S: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_09_celebrate.png",
+        T: common_vendor.o(openNine),
+        U: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_02_soup.png",
+        V: common_vendor.o(openFlip),
         W: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_06_glasses.png",
-        X: common_vendor.o(($event) => goto("recipe-library")),
-        Y: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_01_bowl.png",
-        Z: common_vendor.o(($event) => goto("daily-meal-plan")),
-        aa: common_vendor.o(($event) => pickMeal("BREAKFAST")),
-        ab: common_vendor.o(($event) => pickMeal("LUNCH")),
-        ac: common_vendor.o(($event) => pickMeal("DINNER")),
-        ad: common_vendor.o(($event) => showMealSheet.value = false),
-        ae: common_vendor.o(($event) => showMealSheet.value = $event),
-        af: common_vendor.p({
+        X: common_vendor.o(($event) => goto("meal-agent")),
+        Y: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_06_glasses.png",
+        Z: common_vendor.o(($event) => goto("recipe-library")),
+        aa: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_01_bowl.png",
+        ab: common_vendor.o(($event) => goto("daily-meal-plan")),
+        ac: common_vendor.o(($event) => pickMeal("BREAKFAST")),
+        ad: common_vendor.o(($event) => pickMeal("LUNCH")),
+        ae: common_vendor.o(($event) => pickMeal("DINNER")),
+        af: common_vendor.o(($event) => showMealSheet.value = false),
+        ag: common_vendor.o(($event) => showMealSheet.value = $event),
+        ah: common_vendor.p({
           position: "bottom",
           ["safe-area-inset-bottom"]: true,
           ["custom-style"]: "border-radius: 40rpx 40rpx 0 0; overflow: hidden; background: var(--mrc-surface);",
           modelValue: showMealSheet.value
         }),
-        ag: common_vendor.t(currentMonthLabel.value),
-        ah: common_vendor.t(monthRecordMap.value.size),
-        ai: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_08_peek.png",
-        aj: common_vendor.f(weekCN, (w, k0, i0) => {
+        ai: common_vendor.t(currentMonthLabel.value),
+        aj: common_vendor.t(monthRecordMap.value.size),
+        ak: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_08_peek.png",
+        al: common_vendor.f(weekCN, (w, k0, i0) => {
           return {
             a: common_vendor.t(w),
             b: w
           };
         }),
-        ak: common_vendor.f(calCells.value, (c, i, i0) => {
+        am: common_vendor.f(calCells.value, (c, i, i0) => {
           var _a, _b;
           return common_vendor.e({
             a: c
@@ -618,35 +645,35 @@ const _sfc_defineComponent = common_vendor.defineComponent({
             l: i
           });
         }),
-        al: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_12_heart.png",
-        am: common_vendor.t(calendarMemory.value),
-        an: common_vendor.o(($event) => goto("calendar")),
-        ao: common_vendor.sr(wheelRef, "83a5a03c-3,83a5a03c-0", {
+        an: common_vendor.unref(utils_assets.STATIC_BASE_URL) + "/static/guozai/action_12_heart.png",
+        ao: common_vendor.t(calendarMemory.value),
+        ap: common_vendor.o(($event) => goto("calendar")),
+        aq: common_vendor.sr(wheelRef, "83a5a03c-3,83a5a03c-0", {
           "k": "wheelRef"
         }),
-        ap: common_vendor.o(onWheelSpin),
-        aq: common_vendor.o(($event) => showWheel.value = false),
-        ar: common_vendor.p({
+        ar: common_vendor.o(onWheelSpin),
+        as: common_vendor.o(($event) => showWheel.value = false),
+        at: common_vendor.p({
           visible: showWheel.value,
           items: wheelPool.value
         }),
-        as: common_vendor.sr(nineRef, "83a5a03c-4,83a5a03c-0", {
+        av: common_vendor.sr(nineRef, "83a5a03c-4,83a5a03c-0", {
           "k": "nineRef"
         }),
-        at: common_vendor.o(onNineStart),
-        av: common_vendor.o(onNineCook),
-        aw: common_vendor.o(($event) => showNine.value = false),
-        ax: common_vendor.p({
+        aw: common_vendor.o(onNineStart),
+        ax: common_vendor.o(onNineCook),
+        ay: common_vendor.o(($event) => showNine.value = false),
+        az: common_vendor.p({
           visible: showNine.value,
           items: nineItems.value
         }),
-        ay: common_vendor.sr(flipRef, "83a5a03c-5,83a5a03c-0", {
+        aA: common_vendor.sr(flipRef, "83a5a03c-5,83a5a03c-0", {
           "k": "flipRef"
         }),
-        az: common_vendor.o(onFlipStart),
-        aA: common_vendor.o(onFlipCook),
-        aB: common_vendor.o(($event) => showFlip.value = false),
-        aC: common_vendor.p({
+        aB: common_vendor.o(onFlipStart),
+        aC: common_vendor.o(onFlipCook),
+        aD: common_vendor.o(($event) => showFlip.value = false),
+        aE: common_vendor.p({
           visible: showFlip.value,
           items: flipItems.value
         })

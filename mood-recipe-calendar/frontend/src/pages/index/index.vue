@@ -77,6 +77,7 @@ import GuozaiWheel from '../../components/guozai/GuozaiWheel.vue'
 import GuozaiNine from '../../components/guozai/GuozaiNine.vue'
 import GuozaiFlip from '../../components/guozai/GuozaiFlip.vue'
 import { useUserStore } from '../../stores/user'
+import { funnel } from '../../utils/funnel'
 
 definePage({ name: 'home', layout: 'tabbar', style: { navigationStyle: 'custom', navigationBarTitleText: '首页' } })
 const userStore = useUserStore()
@@ -211,6 +212,7 @@ const todayBoard = ref<DailyBoard>()
 async function loadTodayBoard() {
   try {
     todayBoard.value = await fetchDailyBoard()
+    if (todayBoard.value?.recipe) funnel('recipe_delivered', { name: todayBoard.value.recipe.name })
     backfillBoardCover()
   }
   catch {
@@ -468,9 +470,27 @@ onLoad((query) => {
     .catch(() => {})
 })
 
+// P1：引导加"我的小程序"。前 3 次进首页显示一次，用户点"知道了"永久关闭。
+const FAV_TIP_KEY = 'mrc_fav_tip_dismissed'
+const FAV_TIP_COUNT_KEY = 'mrc_fav_tip_shown_count'
+const showFavTip = ref(false)
+function maybeShowFavTip() {
+  if (uni.getStorageSync(FAV_TIP_KEY)) return
+  const n = Number(uni.getStorageSync(FAV_TIP_COUNT_KEY) || 0)
+  if (n >= 3) return
+  uni.setStorageSync(FAV_TIP_COUNT_KEY, n + 1)
+  showFavTip.value = true
+}
+function dismissFavTip() {
+  showFavTip.value = false
+  uni.setStorageSync(FAV_TIP_KEY, '1')
+}
+
 onShow(() => {
   now.value = new Date()
   loadData()
+  maybeShowFavTip()
+  funnel('home_view')
 })
 
 /** 转发给好友/群：必须定义 onShareAppMessage 胶囊「···」里的转发才可用 */
@@ -502,6 +522,7 @@ const showMealSheet = ref(false)
 function openMealSheet() { showMealSheet.value = true }
 function pickMeal(type: 'BREAKFAST' | 'LUNCH' | 'DINNER') {
   showMealSheet.value = false
+  funnel('recommend_click', { mealType: type })
   const mood = MOODS[Math.floor(Math.random() * MOODS.length)]
   router.push({ name: 'recipe', params: { mood }, query: { mood, mealType: type } })
 }
@@ -572,14 +593,41 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
         </view>
       </view>
 
-      <!-- 组件墙：入口分层（三餐主卡 / 抽奖小卡 / 双宽卡），HOT 标重点功能 -->
+      <!-- P1：引导加"我的小程序"。气泡指向右上角 ⋯，前 3 次首页可见，点"知道了"永久关闭 -->
+      <view v-if="showFavTip" class="fav-tip">
+        <view class="fav-tip__arrow" />
+        <view class="fav-tip__body">
+          <text class="fav-tip__emoji">⭐</text>
+          <view class="fav-tip__text">
+            <text class="fav-tip__title">点右上角 ⋯ → 收藏</text>
+            <text class="fav-tip__sub">明天打开不迷路，锅仔每天给你留菜</text>
+          </view>
+          <text class="fav-tip__close" role="button" aria-label="关闭提示" @click="dismissFavTip">知道了</text>
+        </view>
+      </view>
+
+      <!-- 组件墙：决策收敛——今日三餐是每日主入口（打开即答案），心情推荐降为宽卡，抽奖为子玩法垫底 -->
       <view class="home-bento">
-        <view class="home-bento__card home-bento__card--guanfan" role="button" aria-label="今天吃什么，选一顿让锅仔推荐" @click="openMealSheet">
+        <view class="home-bento__card home-bento__card--guanfan" role="button" aria-label="打开今日三餐，锅仔已搭配好早午晚" @click="goto('daily-meal-plan')">
+          <view class="home-bento__hot">每日主推</view>
+          <text class="home-bento__label">打开就有答案</text>
+          <text class="home-bento__title">今日三餐</text>
+          <text class="home-bento__hint">早午晚已搭配好 · 可换菜</text>
+          <image class="home-bento__hero-img" :src="STATIC_BASE_URL + '/static/guozai/action_01_bowl.png'" mode="aspectFit" />
+        </view>
+        <view class="home-bento__card home-bento__card--lucky" role="button" aria-label="选一顿让锅仔按心情推荐" @click="openMealSheet">
+          <view class="home-bento__lucky-copy">
+            <text class="home-bento__lucky-main">今天吃什么</text>
+            <text class="home-bento__lucky-sub">{{ recipeQuotaText }}</text>
+          </view>
+          <image class="home-bento__lucky-img" :src="STATIC_BASE_URL + '/static/guozai/action_10_thinking.png'" mode="aspectFit" />
+          <text class="home-bento__lucky-arrow">›</text>
+        </view>
+        <view class="home-bento__card home-bento__card--agent" role="button" aria-label="打开锅仔管饭，对话式安排一整周" @click="goto('meal-agent')">
           <view class="home-bento__hot">HOT</view>
-          <text class="home-bento__label">锅仔推荐</text>
-          <text class="home-bento__title">今天吃什么</text>
-          <text class="home-bento__hint">{{ recipeQuotaText }}</text>
-          <image class="home-bento__hero-img" :src="STATIC_BASE_URL + '/static/guozai/action_10_thinking.png'" mode="aspectFit" />
+          <image class="home-bento__img" :src="STATIC_BASE_URL + '/static/guozai/action_06_glasses.png'" mode="aspectFit" />
+          <text class="home-bento__name">锅仔管饭</text>
+          <text class="home-bento__hint">安排一整周</text>
         </view>
         <view class="home-bento__card home-bento__card--wheel" role="button" aria-label="转盘抽一道菜" @click="openWheel">
           <image class="home-bento__img" :src="STATIC_BASE_URL + '/static/guozai/action_08_peek.png'" mode="aspectFit" />
@@ -593,26 +641,12 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
           <image class="home-bento__img" :src="STATIC_BASE_URL + '/static/guozai/action_02_soup.png'" mode="aspectFit" />
           <text class="home-bento__name">翻一翻</text>
         </view>
-        <view class="home-bento__card home-bento__card--agent" role="button" aria-label="打开锅仔管饭，对话式安排一整周" @click="goto('meal-agent')">
-          <view class="home-bento__hot">HOT</view>
-          <image class="home-bento__img" :src="STATIC_BASE_URL + '/static/guozai/action_06_glasses.png'" mode="aspectFit" />
-          <text class="home-bento__name">锅仔管饭</text>
-          <text class="home-bento__hint">安排一整周</text>
-        </view>
         <view class="home-bento__card home-bento__card--library" role="button" aria-label="打开菜谱库，搜索和分类浏览菜谱" @click="goto('recipe-library')">
           <view class="home-bento__record-copy">
             <text class="home-bento__name">菜谱库</text>
             <text class="home-bento__sub">搜菜·按心情挑</text>
           </view>
           <image class="home-bento__record-img" :src="STATIC_BASE_URL + '/static/guozai/action_06_glasses.png'" mode="aspectFit" />
-        </view>
-        <view class="home-bento__card home-bento__card--lucky" role="button" aria-label="打开今日三餐，查看锅仔搭配" @click="goto('daily-meal-plan')">
-          <view class="home-bento__lucky-copy">
-            <text class="home-bento__lucky-main">今日三餐</text>
-            <text class="home-bento__lucky-sub">锅仔替你搭配好</text>
-          </view>
-          <image class="home-bento__lucky-img" :src="STATIC_BASE_URL + '/static/guozai/action_01_bowl.png'" mode="aspectFit" />
-          <text class="home-bento__lucky-arrow">›</text>
         </view>
       </view>
 
@@ -743,7 +777,7 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
 /* 朱红印章：竖排「今日」，微旋转的盖章感 */
 .home-board__stamp { position: absolute; top: 12rpx; left: 12rpx; display: flex; flex-direction: column; align-items: center; padding: 10rpx 9rpx 12rpx; border-radius: 10rpx; background: linear-gradient(160deg, #FF7A5C 0%, #E14E34 100%); color: #FFFFFF; font-size: 23rpx; font-weight: 800; line-height: 1.18; letter-spacing: 0; box-shadow: 0 4rpx 12rpx rgba(180, 52, 28, .38); transform: rotate(-5deg); }
 .home-board__stamp text { display: block; }
-/* 组件墙：4 列网格，入口分层——三餐主卡(2×2 HOT) / 抽奖小卡(1×1) / 双宽卡(2×1) */
+/* P1 收藏引导 */ .fav-tip { position: relative; margin: 16rpx 0 0; padding: 0 24rpx; } .fav-tip__arrow { position: absolute; top: -10rpx; right: 80rpx; width: 0; height: 0; border-left: 12rpx solid transparent; border-right: 12rpx solid transparent; border-bottom: 12rpx solid #FFF7E6; } .fav-tip__body { display: flex; align-items: center; gap: 16rpx; padding: 18rpx 20rpx; border-radius: 20rpx; background: #FFF7E6; border: 2rpx solid #FFE4B5; box-shadow: 0 4rpx 12rpx rgba(255,180,80,0.15); } .fav-tip__emoji { font-size: 36rpx; } .fav-tip__text { flex: 1; display: flex; flex-direction: column; gap: 4rpx; min-width: 0; } .fav-tip__title { font-size: 26rpx; font-weight: 700; color: #8B5A00; } .fav-tip__sub { font-size: 22rpx; color: #B07930; line-height: 1.4; } .fav-tip__close { flex-shrink: 0; padding: 8rpx 18rpx; border-radius: 999rpx; background: #FFB98C; color: #fff; font-size: 22rpx; font-weight: 600; } /* 组件墙：4 列网格，入口分层——三餐主卡(2×2 HOT) / 抽奖小卡(1×1) / 双宽卡(2×1) */
 .home-bento { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: 158rpx; gap: 14rpx; margin: 24rpx 0 32rpx; }
 .home-bento__card { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8rpx; overflow: hidden; min-width: 0; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); box-sizing: border-box; transition: transform .15s ease; }
 .home-bento__card:active { transform: scale(.97); }

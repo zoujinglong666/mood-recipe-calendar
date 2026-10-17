@@ -4,6 +4,7 @@
   "usingComponents": {
     "wd-popup": "../../node-modules/@wot-ui/ui/components/wd-popup/wd-popup",
     "wd-navbar": "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar",
-    "icon": "../../components/common/Icon"
+    "icon": "../../components/common/Icon",
+    "food-safety-tips": "../../components/guozai/FoodSafetyTips"
   }
 }

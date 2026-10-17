@@ -140,9 +140,6 @@ const _sfc_defineComponent = common_vendor.defineComponent({
     function goGallery() {
       router.push({ name: "gallery" });
     }
-    function goAchievements() {
-      router.push({ name: "gallery", query: { focus: "achievements" } });
-    }
     function goSettings() {
       router.push({ name: "settings" });
     }
@@ -356,49 +353,44 @@ const _sfc_defineComponent = common_vendor.defineComponent({
         N: common_vendor.o(goPreferences),
         O: `${common_vendor.unref(utils_assets.STATIC_BASE_URL)}/static/guozai/action_06_glasses.png`,
         P: common_vendor.o(goWeeklyPlan),
-        Q: common_vendor.t(achievementUnread.value > 0 ? `有 ${achievementUnread.value} 个新成就，去点亮` : "记录 · 分享 · 连续打卡，徽章一个个解锁"),
-        R: achievementUnread.value > 0
+        Q: `${common_vendor.unref(utils_assets.STATIC_BASE_URL)}/static/guozai/mood_06_hungry.png`,
+        R: common_vendor.t(achievementUnread.value > 0 ? `有 ${achievementUnread.value} 个新成就，去点亮` : "成就徽章 · 表情包 · 我的订单"),
+        S: achievementUnread.value > 0
       }, achievementUnread.value > 0 ? {
-        S: common_vendor.t(achievementUnread.value)
+        T: common_vendor.t(achievementUnread.value)
       } : {}, {
-        T: common_vendor.o(goAchievements),
-        U: `${common_vendor.unref(utils_assets.STATIC_BASE_URL)}/static/guozai/mood_06_hungry.png`,
-        V: achievementUnread.value > 0
-      }, achievementUnread.value > 0 ? {
-        W: common_vendor.t(achievementUnread.value)
-      } : {}, {
-        X: shareStatus.value.isSharer
+        U: shareStatus.value.isSharer
       }, shareStatus.value.isSharer ? {} : {}, {
-        Y: common_vendor.o(goGallery),
-        Z: common_vendor.t(((_e = checkinStatus.value) == null ? void 0 : _e.checkedIn) ? "今日已签到" : "每日签到 · 领 3 轮对话"),
-        aa: common_vendor.t(((_f = checkinStatus.value) == null ? void 0 : _f.checkedIn) ? `已连续 ${checkinStatus.value.streak} 天，明天再来` : "签到后今天可和锅仔聊 3 轮"),
-        ab: common_vendor.t(((_g = checkinStatus.value) == null ? void 0 : _g.checkedIn) ? "已签" : checkingIn.value ? "签到中" : "签到"),
-        ac: ((_h = checkinStatus.value) == null ? void 0 : _h.checkedIn) ? 1 : "",
-        ad: ((_i = checkinStatus.value) == null ? void 0 : _i.checkedIn) ? "今日已签到" : "签到领取今日锅仔对话",
-        ae: common_vendor.o(quickCheckin),
-        af: common_vendor.o(($event) => showCheckinModal.value = false),
-        ag: common_vendor.p({
+        V: common_vendor.o(goGallery),
+        W: common_vendor.t(((_e = checkinStatus.value) == null ? void 0 : _e.checkedIn) ? "今日已签到" : "每日签到 · 领 3 轮对话"),
+        X: common_vendor.t(((_f = checkinStatus.value) == null ? void 0 : _f.checkedIn) ? `已连续 ${checkinStatus.value.streak} 天，明天再来` : "签到后今天可和锅仔聊 3 轮"),
+        Y: common_vendor.t(((_g = checkinStatus.value) == null ? void 0 : _g.checkedIn) ? "已签" : checkingIn.value ? "签到中" : "签到"),
+        Z: ((_h = checkinStatus.value) == null ? void 0 : _h.checkedIn) ? 1 : "",
+        aa: ((_i = checkinStatus.value) == null ? void 0 : _i.checkedIn) ? "今日已签到" : "签到领取今日锅仔对话",
+        ab: common_vendor.o(quickCheckin),
+        ac: common_vendor.o(($event) => showCheckinModal.value = false),
+        ad: common_vendor.p({
           visible: showCheckinModal.value,
           title: "签到成功！",
           subtitle: `今日锅仔对话 +3 轮，已连续签到 ${((_j = checkinStatus.value) == null ? void 0 : _j.streak) ?? 1} 天`,
           ["confirm-text"]: "好的"
         }),
-        ah: `${common_vendor.unref(utils_assets.STATIC_BASE_URL)}/static/guozai/action_09_celebrate.png`,
-        ai: common_vendor.o(goReport),
-        aj: `${common_vendor.unref(utils_assets.STATIC_BASE_URL)}/static/guozai/action_06_glasses.png`,
-        ak: common_vendor.o(goTimeline),
-        al: `${common_vendor.unref(utils_assets.STATIC_BASE_URL)}/static/guozai/action_08_peek.png`,
-        am: common_vendor.t(common_vendor.unref(favorites).length ? `已收藏 ${common_vendor.unref(favorites).length} 道` : "以后想做的菜"),
-        an: common_vendor.o(goWishlist),
-        ao: `${common_vendor.unref(utils_assets.STATIC_BASE_URL)}/static/guozai/action_02_soup.png`,
-        ap: common_vendor.o(goRecommendationHistory),
-        aq: common_vendor.t(stats.value.totalRecords),
-        ar: common_vendor.o(goTimeline),
-        as: history.value.length === 0
+        ae: `${common_vendor.unref(utils_assets.STATIC_BASE_URL)}/static/guozai/action_09_celebrate.png`,
+        af: common_vendor.o(goReport),
+        ag: `${common_vendor.unref(utils_assets.STATIC_BASE_URL)}/static/guozai/action_06_glasses.png`,
+        ah: common_vendor.o(goTimeline),
+        ai: `${common_vendor.unref(utils_assets.STATIC_BASE_URL)}/static/guozai/action_08_peek.png`,
+        aj: common_vendor.t(common_vendor.unref(favorites).length ? `已收藏 ${common_vendor.unref(favorites).length} 道` : "以后想做的菜"),
+        ak: common_vendor.o(goWishlist),
+        al: `${common_vendor.unref(utils_assets.STATIC_BASE_URL)}/static/guozai/action_02_soup.png`,
+        am: common_vendor.o(goRecommendationHistory),
+        an: common_vendor.t(stats.value.totalRecords),
+        ao: common_vendor.o(goTimeline),
+        ap: history.value.length === 0
       }, history.value.length === 0 ? {
-        at: `${common_vendor.unref(utils_assets.STATIC_BASE_URL)}/static/guozai/action_08_peek.png`
+        aq: `${common_vendor.unref(utils_assets.STATIC_BASE_URL)}/static/guozai/action_08_peek.png`
       } : {}, {
-        av: common_vendor.f(history.value, (item, i, i0) => {
+        ar: common_vendor.f(history.value, (item, i, i0) => {
           var _a2;
           return common_vendor.e({
             a: item.dishName,
@@ -419,34 +411,34 @@ const _sfc_defineComponent = common_vendor.defineComponent({
             n: common_vendor.o(($event) => openHistoryRecord(item), item.id)
           });
         }),
-        aw: history.value.length
+        as: history.value.length
       }, history.value.length ? {
-        ax: `${common_vendor.unref(utils_assets.STATIC_BASE_URL)}/static/guozai/action_08_peek.png`
+        at: `${common_vendor.unref(utils_assets.STATIC_BASE_URL)}/static/guozai/action_08_peek.png`
       } : {}, {
-        ay: common_vendor.o(showPrivacy),
-        az: common_vendor.o(goFeedback),
-        aA: common_vendor.o(goAbout),
-        aB: `${common_vendor.unref(utils_assets.STATIC_BASE_URL)}/static/guozai/mood_01_happy.png`,
-        aC: common_vendor.p({
+        av: common_vendor.o(showPrivacy),
+        aw: common_vendor.o(goFeedback),
+        ax: common_vendor.o(goAbout),
+        ay: `${common_vendor.unref(utils_assets.STATIC_BASE_URL)}/static/guozai/mood_01_happy.png`,
+        az: common_vendor.p({
           name: "close",
           size: "22px",
           color: "#A1826A"
         }),
-        aD: common_vendor.o(($event) => showEdit.value = false),
-        aE: ((_k = common_vendor.unref(userStore).userInfo) == null ? void 0 : _k.avatarUrl) || `${common_vendor.unref(utils_assets.STATIC_BASE_URL)}/static/guozai/mood_01_happy.png`,
-        aF: avatarUpdating.value
+        aA: common_vendor.o(($event) => showEdit.value = false),
+        aB: ((_k = common_vendor.unref(userStore).userInfo) == null ? void 0 : _k.avatarUrl) || `${common_vendor.unref(utils_assets.STATIC_BASE_URL)}/static/guozai/mood_01_happy.png`,
+        aC: avatarUpdating.value
       }, avatarUpdating.value ? {} : {}, {
-        aG: avatarUpdating.value,
-        aH: common_vendor.o(onChooseWechatAvatar),
-        aI: common_vendor.o(onChooseAvatar),
-        aJ: common_vendor.o(saveEditNickname),
-        aK: editNickname.value,
-        aL: common_vendor.o(($event) => editNickname.value = $event.detail.value),
-        aM: common_vendor.t(nicknameSaving.value ? "保存中…" : "保存昵称"),
-        aN: nicknameSaving.value || !editNickname.value.trim() || editNickname.value.trim() === ((_l = common_vendor.unref(userStore).userInfo) == null ? void 0 : _l.nickname) ? 1 : "",
-        aO: common_vendor.o(saveEditNickname),
-        aP: common_vendor.o(($event) => showEdit.value = $event),
-        aQ: common_vendor.p({
+        aD: avatarUpdating.value,
+        aE: common_vendor.o(onChooseWechatAvatar),
+        aF: common_vendor.o(onChooseAvatar),
+        aG: common_vendor.o(saveEditNickname),
+        aH: editNickname.value,
+        aI: common_vendor.o(($event) => editNickname.value = $event.detail.value),
+        aJ: common_vendor.t(nicknameSaving.value ? "保存中…" : "保存昵称"),
+        aK: nicknameSaving.value || !editNickname.value.trim() || editNickname.value.trim() === ((_l = common_vendor.unref(userStore).userInfo) == null ? void 0 : _l.nickname) ? 1 : "",
+        aL: common_vendor.o(saveEditNickname),
+        aM: common_vendor.o(($event) => showEdit.value = $event),
+        aN: common_vendor.p({
           position: "bottom",
           ["z-index"]: 30,
           ["close-on-click-modal"]: true,

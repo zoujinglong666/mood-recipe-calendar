@@ -5,9 +5,11 @@ import { useImagePreview } from '@wot-ui/ui'
 import { computed, nextTick, ref } from 'vue'
 import { navBack } from '@/composables/useNavBar'
 import { STATIC_BASE_URL } from '@/utils/assets'
-import { createRecommendationJob, fetchRecipeDetail, fetchRecipeFeedback, fetchRecommendationJob, requestDeepRecipe, sendRecipeFeedback } from '../../api/recipes'
+import { createRecommendationJob, fetchRecipeDetail, fetchRecipeFeedback, fetchRecommendationJob, fetchRecipePoster, requestDeepRecipe, sendRecipeFeedback } from '../../api/recipes'
 import { createVirtualOrder, fetchVirtualOrder, fetchVirtualProducts, getVirtualPaymentParams, requestWechatVirtualPayment } from '../../api/virtualCommerce'
 import Icon from '../../components/common/Icon.vue'
+import FoodSafetyTips from '../../components/guozai/FoodSafetyTips.vue'
+import NutritionCard from '../../components/guozai/NutritionCard.vue'
 import ErrorState from '../../components/guozai/ErrorState.vue'
 import GuozaiChoiceChips from '../../components/guozai/GuozaiChoiceChips.vue'
 import GuozaiInsightCard from '../../components/guozai/GuozaiInsightCard.vue'
@@ -131,6 +133,41 @@ function normalizeStepList(list: string[]): string[] {
 
 const ingredients = computed(() => parseStringList(recipe.value?.ingredients))
 const steps = computed(() => normalizeStepList(parseStringList(recipe.value?.steps)))
+
+/** 保存教程海报：服务端模板排版（免费），下载后存相册；无封面菜谱先出品牌占位并排队补拍 */
+const posterSaving = ref(false)
+async function saveRecipePoster() {
+  if (!recipe.value?.id || posterSaving.value)
+    return
+  posterSaving.value = true
+  try {
+    const url = await fetchRecipePoster(recipe.value.id)
+    if (!url)
+      throw new Error('海报生成失败，请稍后再试')
+    uni.downloadFile({
+      url,
+      success: (res) => {
+        if (res.statusCode === 200 && res.tempFilePath) {
+          uni.saveImageToPhotosAlbum({
+            filePath: res.tempFilePath,
+            success: () => toastSuccess('海报已保存到相册，转发给想一起吃的人吧'),
+            fail: () => toast('保存失败，请检查相册权限'),
+          })
+        }
+        else {
+          toast('海报下载失败，请稍后重试')
+        }
+      },
+      fail: () => toast('海报下载失败，请检查网络'),
+    })
+  }
+  catch (e: any) {
+    toastError(e, e?.message || '海报生成失败')
+  }
+  finally {
+    posterSaving.value = false
+  }
+}
 const feedbackAvailable = computed(() => Number(recipe.value?.id) > 0 || Boolean(recipe.value?.exposureId))
 const recipeImageAvailable = computed(() => Boolean(recipe.value?.image) && !imageFailed.value)
 const healingText = computed(() => recipe.value?.recommendationReason?.trim() || HEALING_TEXTS[mood.value] || recipe.value?.description || '好好吃饭，锅仔会陪你慢慢找到喜欢的味道。')
@@ -203,7 +240,9 @@ async function loadRecipe() {
         const activeJob = await fetchRecommendationJob(activeJobId)
         if (run !== pollRun)
           return
-        if (activeJob.status === 'RUNNING') {
+        // 只有 mood+餐别一致的进行中任务才恢复：选过早餐后不能复用之前无餐别/其他餐别的旧任务，否则早餐也会拿到炒菜
+        const sameMeal = (activeJob.mealType || '').toUpperCase() === (mealType.value || '').toUpperCase()
+        if (activeJob.status === 'RUNNING' && activeJob.mood === mood.value && sameMeal) {
           recommendationJob.value = activeJob
           pollStartedAt = Date.now()
           pollFailures = 0
@@ -255,7 +294,7 @@ onUnload(stopPolling)
 
 onShareAppMessage(() => {
   const sharer = userStore.openid
-  const path = `/pages/recipe/index?mood=${encodeURIComponent(mood.value)}${sharer ? `&sharer=${encodeURIComponent(sharer)}` : ''}`
+  const path = `/pages/recipe/index?mood=${encodeURIComponent(mood.value)}${mealType.value ? `&mealType=${encodeURIComponent(mealType.value)}` : ''}${sharer ? `&sharer=${encodeURIComponent(sharer)}` : ''}`
   // 记录分享：发放「分享家」徽章 + 非会员当日 +1 次对话激励（失败静默，不影响转发）
   void recordShare('recipe').catch(() => {})
   return {
@@ -844,6 +883,8 @@ async function waitForDelivery(orderNo: string) {
           <view v-else class="content-empty">
             锅仔还没拿到食材清单，先看看做法吧。
           </view>
+          <NutritionCard v-if="recipe?.id" :recipe-id="recipe.id" :name="recipe.name" :ingredients="ingredients" />
+          <FoodSafetyTips v-if="ingredients.length" :ingredients="ingredients" />
         </view>
 
         <view id="recipe-steps" class="recipe-section recipe-section--steps">
@@ -873,6 +914,17 @@ async function waitForDelivery(orderNo: string) {
           </view>
           <view v-else class="content-empty">
             这道菜暂时没有详细步骤，你仍然可以记录自己的做法。
+          </view>
+          <view
+            class="poster-entry"
+            :class="{ 'is-busy': posterSaving }"
+            role="button"
+            aria-label="生成并保存菜谱教程海报"
+            @click="saveRecipePoster"
+          >
+            <text class="poster-entry__emoji">🖼</text>
+            <text class="poster-entry__text">{{ posterSaving ? '锅仔正在排版海报…' : '保存教程海报（图文可分享）' }}</text>
+            <text class="poster-entry__arrow">›</text>
           </view>
         </view>
       </view>
@@ -1149,6 +1201,13 @@ async function waitForDelivery(orderNo: string) {
 .ingredient-item { display: flex; align-items: center; gap: 14rpx; min-height: 80rpx; padding: 12rpx 20rpx; box-sizing: border-box; border: 2rpx solid var(--mrc-border-light); border-radius: 20rpx; color: var(--mrc-text-deep); background: var(--mrc-surface); font-size: 26rpx; line-height: 1.45; }
 .ingredient-item__dot { width: 10rpx; height: 10rpx; flex-shrink: 0; border-radius: 50%; background: var(--mrc-primary-deep); }
 .content-empty, .steps-preview { padding: 28rpx; border: 2rpx dashed var(--mrc-border); border-radius: 24rpx; color: var(--mrc-text-sub); background: var(--mrc-surface); font-size: 25rpx; line-height: 1.6; }
+
+/* 教程海报入口：安静的信息行，不与主 CTA 抢权重 */
+.poster-entry { display: flex; align-items: center; gap: 14rpx; margin-top: 20rpx; padding: 20rpx 24rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 24rpx; background: var(--mrc-surface-sun); transition: opacity .15s ease; }
+.poster-entry.is-busy { opacity: .6; pointer-events: none; }
+.poster-entry__emoji { font-size: 30rpx; }
+.poster-entry__text { flex: 1; color: var(--mrc-text-deep); font-size: 25rpx; font-weight: 700; }
+.poster-entry__arrow { color: var(--mrc-text-light); font-size: 38rpx; }
 .step-list { display: flex; flex-direction: column; gap: 16rpx; }
 .step-item { display: flex; align-items: flex-start; gap: 18rpx; padding: 24rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 24rpx; background: var(--mrc-surface); }
 .step-item__number { display: flex; align-items: center; justify-content: center; width: 48rpx; height: 48rpx; flex-shrink: 0; border-radius: 50%; color: #fff; background: var(--mrc-primary-deep); font-size: 23rpx; font-weight: 800; }

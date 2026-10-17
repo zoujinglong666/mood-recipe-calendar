@@ -9,6 +9,8 @@ const utils_login = require("../../utils/login.js");
 const utils_toast = require("../../utils/toast.js");
 const utils_bus = require("../../utils/bus.js");
 const stores_user = require("../../stores/user.js");
+const api_weeklyPlans = require("../../api/weeklyPlans.js");
+const utils_funnel = require("../../utils/funnel.js");
 const api_share = require("../../api/share.js");
 const __unplugin_components_0 = () => "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar.js";
 if (!Array) {
@@ -219,6 +221,7 @@ const _sfc_defineComponent = common_vendor.defineComponent({
           const result = await api_records.saveRecord(payload);
           saved = result.record;
           learningReceipt.value = result.learningReceipt;
+          api_weeklyPlans.requestDailyReminderNotice();
           if ((_c = result.newlyUnlocked) == null ? void 0 : _c.length) {
             utils_toast.toastSuccess(`🎉 解锁成就：${result.newlyUnlocked.join("、")}`);
             const unread = Number(common_vendor.index.getStorageSync("mrc_achv_unread") || 0);
@@ -226,6 +229,7 @@ const _sfc_defineComponent = common_vendor.defineComponent({
           }
         }
         savedRecordId.value = saved.id;
+        utils_funnel.funnel("record_saved", { dish: dishName.value, mood: selectedMood.value });
         common_vendor.index.removeStorageSync(utils_cookingDraft.RECORD_DRAFT_KEY);
         common_vendor.index.removeStorageSync("mrc_companion_message");
         utils_bus.bus.emit(utils_bus.MRC_EVENTS.RECORDS_CHANGED);

@@ -25,6 +25,7 @@ public class WeeklyMealPlanService {
     private final AgentMemoryStore memory;
     private final AgnesRecipeImageService images;
     private final WechatSubscriptionMessageService subscriptions;
+    private final FoodSafetyService foodSafety;
     private final ObjectMapper json;
     /** 成就检测：可选依赖（setter 注入，测试构造器签名不变），为空时跳过。 */
     private AchievementService achievementService;
@@ -37,12 +38,21 @@ public class WeeklyMealPlanService {
     public WeeklyMealPlanService(WeeklyMealPlanRepository plans, GuozaiAgent agent, MenuPlannerAgent planner,
                                  AgentMemoryStore memory, AgnesRecipeImageService images,
                                  WechatSubscriptionMessageService subscriptions, ObjectMapper json) {
+        this(plans, agent, planner, memory, images, subscriptions, null, json);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public WeeklyMealPlanService(WeeklyMealPlanRepository plans, GuozaiAgent agent, MenuPlannerAgent planner,
+                                 AgentMemoryStore memory, AgnesRecipeImageService images,
+                                 WechatSubscriptionMessageService subscriptions, FoodSafetyService foodSafety,
+                                 ObjectMapper json) {
         this.plans = plans;
         this.agent = agent;
         this.planner = planner;
         this.memory = memory;
         this.images = images;
         this.subscriptions = subscriptions;
+        this.foodSafety = foodSafety;
         this.json = json;
     }
 
@@ -80,7 +90,7 @@ public class WeeklyMealPlanService {
         plan.setOpenid(openid);
         plan.setPlanJson(write(result));
         plan.setShoppingJson(write(merge(result, List.of())));
-        plan.setAgentJson(write(audit(planned)));
+        plan.setAgentJson(write(audit(planned, result)));
         progress.update(WeeklyPlanJobService.Stage.SAVE, WeeklyPlanJobService.StepStatus.RUNNING, "保存周菜单");
         PlanView view = view(plans.save(plan));
         if (achievementService != null) {
@@ -137,16 +147,33 @@ public class WeeklyMealPlanService {
                 String.join(",", names), 0.6, AgentMemoryStore.SRC_BEHAVIOR, "最近一次生成的周菜单", 21));
     }
 
-    private PlanAudit audit(MenuPlannerAgent.PlanResult planned) {
+    /** 质量审计 + 食品安全搭配扫描：命中高风险组合（如柿子×螃蟹）写入 issues，前端在计划页提示用户错开食用 */
+    private PlanAudit audit(MenuPlannerAgent.PlanResult planned, List<PlanDay> days) {
+        List<String> issues = planned != null && planned.quality() != null
+                ? planned.quality().soft().stream().map(MenuQualityScorer.Issue::message).limit(5).toList()
+                : List.of();
+        if (foodSafety != null && days != null && !days.isEmpty()) {
+            List<String> texts = new ArrayList<>();
+            days.forEach(day -> {
+                String ingredients = String.join("|", day.ingredients() == null ? List.<String>of() : day.ingredients());
+                if (day.dishes() != null) {
+                    for (PlanDish dish : day.dishes()) {
+                        ingredients += "|" + String.join("|", dish.ingredients() == null ? List.<String>of() : dish.ingredients());
+                    }
+                }
+                texts.add(ingredients);
+            });
+            issues = new ArrayList<>(issues);
+            issues.addAll(foodSafety.riskyCombos(texts));
+        }
         if (planned == null) {
-            return new PlanAudit(null, List.of("规划智能体不可用，已退回菜谱库排菜"), List.of(), List.of(), null);
+            return new PlanAudit(null, List.of("规划智能体不可用，已退回菜谱库排菜"), List.of(), issues, null);
         }
         MenuQualityScorer.MenuQuality quality = planned.quality();
         return new PlanAudit(quality == null ? null : quality.score(),
                 planned.degradeReasons() == null ? List.of() : planned.degradeReasons(),
                 planned.memoryUsed() == null ? List.of() : planned.memoryUsed(),
-                quality == null ? List.of() : quality.soft().stream()
-                        .map(MenuQualityScorer.Issue::message).limit(5).toList(),
+                issues,
                 planned.traceId());
     }
 
