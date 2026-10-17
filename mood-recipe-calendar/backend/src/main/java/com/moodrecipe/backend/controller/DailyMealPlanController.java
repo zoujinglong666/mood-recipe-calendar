@@ -4,6 +4,8 @@ import com.moodrecipe.backend.common.ApiResponse;
 import com.moodrecipe.backend.config.AppClock;
 import com.moodrecipe.backend.config.SessionAuthInterceptor;
 import com.moodrecipe.backend.service.DailyMealPlanService;
+import com.moodrecipe.backend.service.OperationalEventService;
+import com.moodrecipe.backend.service.UsageQuotaService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PathVariable;

@@ -63,17 +63,25 @@ public final class AgentPrompts {
     }
 
     public static String planMenu(String constraintsText, String daysText, int dishesPerDay, String rejectedText, String referenceDishes) {
-        return planMenu(constraintsText, daysText, dishesPerDay, rejectedText, referenceDishes, "");
+        return planMenu(constraintsText, daysText, dishesPerDay, rejectedText, referenceDishes, "", "");
+    }
+
+    public static String planMenu(String constraintsText, String daysText, int dishesPerDay,
+                                  String rejectedText, String referenceDishes, String safetyRules) {
+        return planMenu(constraintsText, daysText, dishesPerDay, rejectedText, referenceDishes, safetyRules, "");
     }
 
     /**
      * safetyRules：食品安全红线（高风险搭配等），由 FoodSafetyService 知识库动态生成注入，
      * 保证提示词与知识库单一事实来源；为空时使用通用安全底线。
+     * nutritionRules：膳食知识库按健康目标检索出的营养搭配要点（GuidelineRagService），
+     * 让排菜真正遵守营养知识，而不只依赖模型常识；为空时跳过该段。
      */
     public static String planMenu(String constraintsText, String daysText, int dishesPerDay,
-                                  String rejectedText, String referenceDishes, String safetyRules) {
+                                  String rejectedText, String referenceDishes, String safetyRules, String nutritionRules) {
         String safety = "- 不出现生食、生腌、未煮熟豆浆、发芽土豆等高风险食材。\n"
                 + (safetyRules == null || safetyRules.isBlank() ? "" : safetyRules);
+        String nutrition = nutritionRules == null || nutritionRules.isBlank() ? "" : nutritionRules;
         return system() + "\n\n"
                 + """
                         请为这位用户排出一周家常菜菜单。
@@ -85,6 +93,9 @@ public final class AgentPrompts {
                 + """
                         菜名硬要求：只能使用真实存在、有出处的家常菜名（优先从参考菜谱里选，其次是广为人知的经典菜如番茄炒蛋、麻婆豆腐、可乐鸡翅）；严禁把两种菜硬拼成不存在的自创菜名（如「清火汤里脊」这类组合），严禁生造词。用户点名的每道菜/每个食材必须由各自独立的菜满足，一道菜绝不允许同时凑两个点名。
                         要求：每个做饭日必须严格生成指定数量且菜名不重复；普通餐兼顾荤素，4 道及以上按宴席思路搭配主菜、清爽菜、汤羹或主食；跨天复用食材减少浪费；避开最近吃过的菜；照顾老人小孩；做法家常可复现。
+                        """
+                + (nutrition.isBlank() ? "" : "营养搭配要点（来自膳食知识库，排菜时遵守）：\n" + nutrition + "\n")
+                + """
                         食品安全红线（必须遵守）：
                         """
                 + safety

@@ -440,6 +440,21 @@ function askDeleteAccount() {
           <text class="settings-heading__title">关于锅仔</text>
           <text class="settings-heading__hint">新版本由微信自动推送，也可手动检查</text>
         </view>
+
+        <!-- 我们的初心：这个产品为什么存在 -->
+        <view class="mission-card">
+          <image class="mission-card__gz" :src="`${STATIC_BASE_URL}/static/guozai/action_02_soup.png`" mode="aspectFit" aria-hidden="true" />
+          <text class="mission-card__eyebrow">OUR PROMISE</text>
+          <text class="mission-card__title">我们的初心</text>
+          <text class="mission-card__line">让每一顿普通的家常饭，都有营养学的底气。</text>
+          <text class="mission-card__para">
+            锅仔把《中国居民膳食指南》和权威机构的营养知识装进你的厨房——推荐的每道菜有依据，做法有讲究。你不用成为营养专家，也能把一日三餐吃明白。好好吃饭，是我们能想到的、最朴素的自我照顾。
+          </text>
+          <text class="mission-card__src">
+            知识来源：《中国居民膳食指南》、世界卫生组织公开资料等，经改写整理入库；仅供日常饮食参考，不构成医疗建议。
+          </text>
+        </view>
+
         <view class="about-card">
           <view class="about-row about-check pressable" role="button" aria-label="检查更新" @click="checkForUpdate">
             <Icon name="info" :size="30" color="#EF5A3C" />
@@ -538,6 +553,13 @@ function askDeleteAccount() {
 .backend-option__check { color: var(--mrc-accent); font-size: 30rpx; font-weight: 800; }
 .backend-note { display: block; padding-top: 16rpx; border-top: 2rpx solid var(--mrc-border-light); color: var(--mrc-text-light); font-size: 20rpx; line-height: 1.5; }
 .about-card { padding: 8rpx 26rpx 6rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 30rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); }
+.mission-card { position: relative; display: flex; flex-direction: column; gap: 10rpx; margin-bottom: 18rpx; padding: 34rpx 30rpx 28rpx; border: 2rpx solid var(--mrc-border); border-radius: 30rpx; background: linear-gradient(160deg, #fffdf6, var(--mrc-surface-sun)); box-shadow: var(--mrc-shadow-lift), var(--mrc-gloss); overflow: hidden; }
+.mission-card__gz { position: absolute; top: 14rpx; right: 16rpx; width: 120rpx; height: 120rpx; opacity: .9; }
+.mission-card__eyebrow { color: var(--mrc-accent); font-size: 18rpx; font-weight: 800; letter-spacing: 3rpx; }
+.mission-card__title { color: var(--mrc-text-strong); font-size: 32rpx; font-weight: 900; }
+.mission-card__line { color: var(--mrc-accent); font-size: 26rpx; font-weight: 800; line-height: 1.5; }
+.mission-card__para { color: var(--mrc-text-deep); font-size: 24rpx; line-height: 1.8; }
+.mission-card__src { margin-top: 4rpx; color: var(--mrc-text-light); font-size: 19rpx; line-height: 1.6; }
 .about-row { display: flex; min-height: 100rpx; align-items: center; gap: 16rpx; border-bottom: 2rpx solid var(--mrc-border-light); }
 .about-row:last-child { border-bottom: 0; }
 .about-row__text { display: flex; min-width: 0; flex-direction: column; gap: 4rpx; }

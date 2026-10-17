@@ -2,6 +2,8 @@
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import type { TourStep } from '@wot-ui/ui/components/wd-tour/types'
 import { createFridgeItem, consumeFridgeItem, deleteFridgeItem, fetchFridgeItems, fetchFridgeSummary, fetchStorageAdvice, notifyFridgeExpiring, recognizeFridgeImage, updateFridgeItem, type FridgeItem, type FridgeSummary, type RecognizedItem } from '@/api/fridge'
+import { fetchRecipeDetail, fetchRecipeLibrary, type RecipeItem } from '@/api/recipes'
+import { saveCookingDraft } from '@/utils/cookingDraft'
 import GuozaiButton from '@/components/guozai/GuozaiButton.vue'
 import { navBack } from '@/composables/useNavBar'
 import { STATIC_BASE_URL } from '@/utils/assets'
@@ -77,6 +79,48 @@ const cookable = computed(() => {
 })
 function searchWith(name: string) {
   router.push({ name: 'recipe-library', query: { keyword: name } })
+}
+
+/** 组合找菜：把冰箱现有食材（最多 4 样）一次带去菜谱库搜索，结果就地展示——不再把用户丢去搜索页自己翻 */
+const comboOpen = ref(false)
+const comboLoading = ref(false)
+const comboError = ref('')
+const comboResults = ref<RecipeItem[]>([])
+const comboKeyword = ref('')
+
+async function openComboSearch() {
+  if (!cookable.value.length || comboLoading.value)
+    return
+  comboKeyword.value = cookable.value.slice(0, 4).join(' ')
+  comboOpen.value = true
+  comboLoading.value = true
+  comboError.value = ''
+  comboResults.value = []
+  try {
+    const page = await fetchRecipeLibrary({ page: 0, size: 8, keyword: comboKeyword.value })
+    comboResults.value = page.list
+    if (!page.list.length)
+      comboError.value = '这些食材暂时没凑出现成菜谱，点下面的食材单独看看'
+  }
+  catch {
+    comboError.value = '菜谱暂时打不开，请稍后再试'
+  }
+  finally {
+    comboLoading.value = false
+  }
+}
+
+async function cookComboDish(recipe: RecipeItem) {
+  if (!recipe.id)
+    return
+  try {
+    const detail = await fetchRecipeDetail(recipe.id)
+    saveCookingDraft(detail, '满足')
+    router.push({ name: 'cooking' })
+  }
+  catch (e) {
+    toastError(e, '这道菜暂时打不开')
+  }
 }
 
 /**
@@ -410,8 +454,11 @@ function statusText(item: FridgeItem) {
         <!-- 现有食材可做（借鉴竞品食材页推荐区）：点食材名，直达菜谱库竖滑流看能做的菜 -->
         <view v-if="cookable.length" class="cookable">
           <view class="cookable__head">
-            <text class="cookable__title">现有食材可做</text>
-            <text class="cookable__sub">点食材，看锅仔的拿手做法</text>
+            <view class="cookable__head-copy">
+              <text class="cookable__title">现有食材可做</text>
+              <text class="cookable__sub">点食材，看锅仔的拿手做法</text>
+            </view>
+            <GuozaiButton variant="secondary" :block="false" :loading="comboLoading" aria-label="按现有食材组合找菜" @click="openComboSearch">组合找菜</GuozaiButton>
           </view>
           <scroll-view scroll-x class="cookable__scroll">
             <view class="cookable__row">
@@ -497,6 +544,29 @@ function statusText(item: FridgeItem) {
           </view>
         </view>
         <GuozaiButton :loading="saving" aria-label="确认放入冰箱" @click="confirmRecognize">放入冰箱（{{ recognizedCount }} 项）</GuozaiButton>
+      </view>
+    </view>
+
+    <!-- 组合找菜结果：现有食材能做的菜就地展示，点开直达做菜页 -->
+    <view v-if="comboOpen" class="form-mask" @click="comboOpen = false">
+      <view class="form-sheet" @click.stop>
+        <view class="form-sheet__grab" />
+        <view class="form-sheet__head">
+          <view><text class="eyebrow">COOK WITH WHAT YOU HAVE</text><text class="form-sheet__title">用「{{ comboKeyword }}」能做的菜</text></view>
+          <view class="sheet-close" role="button" aria-label="关闭" @click="comboOpen = false"><text>×</text></view>
+        </view>
+        <view v-if="comboLoading" class="combo-state">锅仔正在翻菜谱…</view>
+        <view v-else-if="comboError" class="combo-state">{{ comboError }}</view>
+        <view v-else class="combo-list">
+          <view v-for="recipe in comboResults" :key="recipe.id" class="combo-row" role="button" :aria-label="`做${recipe.name}`" @click="cookComboDish(recipe)">
+            <image class="combo-row__img" :src="recipe.image || GZ_INSPECT" mode="aspectFill" />
+            <view class="combo-row__main">
+              <text class="combo-row__name">{{ recipe.name }}</text>
+              <text class="combo-row__meta">{{ [recipe.cookingTime ? `${recipe.cookingTime} 分钟` : '', recipe.difficulty].filter(Boolean).join(' · ') }}</text>
+            </view>
+            <text class="combo-row__go">做这道 ›</text>
+          </view>
+        </view>
       </view>
     </view>
 
@@ -670,7 +740,16 @@ function statusText(item: FridgeItem) {
 
 /* ===== 现有食材可做：库存到菜谱的直通车（借鉴竞品食材页推荐区，主题化） ===== */
 .cookable { margin-bottom: 18rpx; padding: 22rpx 24rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; background: linear-gradient(135deg, var(--mrc-surface), var(--mrc-surface-mint)); box-shadow: var(--mrc-shadow-soft); }
-.cookable__head { display: flex; align-items: baseline; gap: 12rpx; margin-bottom: 14rpx; }
+.cookable__head { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; margin-bottom: 14rpx; }
+.cookable__head-copy { display: flex; align-items: baseline; gap: 12rpx; min-width: 0; }
+.combo-state { padding: 60rpx 0; color: var(--mrc-text-sub); font-size: 26rpx; text-align: center; }
+.combo-list { display: flex; flex-direction: column; gap: 18rpx; }
+.combo-row { display: flex; align-items: center; gap: 18rpx; padding: 16rpx; border: 2rpx solid var(--mrc-border-light); border-radius: var(--mrc-radius-md); background: var(--mrc-surface-2); }
+.combo-row__img { width: 96rpx; height: 96rpx; flex: 0 0 96rpx; border-radius: var(--mrc-radius-md); background: var(--mrc-surface-3); }
+.combo-row__main { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 6rpx; }
+.combo-row__name { overflow: hidden; color: var(--mrc-text-strong); font-size: 28rpx; font-weight: 700; white-space: nowrap; text-overflow: ellipsis; }
+.combo-row__meta { color: var(--mrc-text-sub); font-size: 22rpx; }
+.combo-row__go { flex: 0 0 auto; color: var(--mrc-accent); font-size: 24rpx; font-weight: 700; }
 .cookable__title { color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 800; }
 .cookable__sub { color: var(--mrc-text-light); font-size: 20rpx; }
 .cookable__scroll { white-space: nowrap; }

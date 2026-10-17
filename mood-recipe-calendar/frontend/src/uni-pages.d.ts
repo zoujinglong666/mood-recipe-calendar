@@ -7,6 +7,7 @@ type _LocationUrl =
   "/pages/index/index" |
   "/pages/about/index" |
   "/pages/album/index" |
+  "/pages/almanac/index" |
   "/pages/calendar/index" |
   "/pages/cooking/index" |
   "/pages/daily-meal-plan/index" |
@@ -18,6 +19,7 @@ type _LocationUrl =
   "/pages/membership/index" |
   "/pages/mood/index" |
   "/pages/nutrition-report/index" |
+  "/pages/personality/index" |
   "/pages/preferences/index" |
   "/pages/privacy/index" |
   "/pages/profile/index" |

@@ -99,6 +99,16 @@ export interface ApiResult<T = any> {
   data: T
 }
 
+/** 携带后端业务错误码的 Error：调用方按 code 分支（如 403=会员专享），不再靠错误文案字符串匹配 */
+export class ApiError extends Error {
+  code: number
+  constructor(message: string, code: number) {
+    super(message)
+    this.name = 'ApiError'
+    this.code = code
+  }
+}
+
 /** 登录过期时清除本地登录状态，避免残留昵称导致无法重新登录 */
 function clearLocalAuth() {
   try {
@@ -134,7 +144,7 @@ function handleResponse<T>(res: any, resolve: (v: T) => void, reject: (e: Error)
     resolve(data.data)
   }
   else {
-    reject(new Error(data?.message || '请求失败'))
+    reject(new ApiError(data?.message || '请求失败', data?.code ?? res?.statusCode ?? 500))
   }
 }
 

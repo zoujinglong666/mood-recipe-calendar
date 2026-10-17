@@ -8,6 +8,7 @@ import com.moodrecipe.backend.agent.MenuPlannerAgent;
 import com.moodrecipe.backend.agent.MenuQualityScorer;
 import com.moodrecipe.backend.entity.Recipe;
 import com.moodrecipe.backend.entity.WeeklyMealPlan;
+import com.moodrecipe.backend.repository.UserRecordRepository;
 import com.moodrecipe.backend.repository.WeeklyMealPlanRepository;
 import org.springframework.stereotype.Service;
 
@@ -34,6 +35,20 @@ public class WeeklyMealPlanService {
     void setAchievementService(AchievementService achievementService) {
         this.achievementService = achievementService;
     }
+
+    /** 冰箱库存 / 想吃清单：可选依赖（setter 注入），为空时排菜上下文退回纯表单参数。 */
+    private FridgeInventoryService fridge;
+    private RecipeFavoriteService favoriteService;
+    private UserRecordRepository records;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setFridgeInventoryService(FridgeInventoryService fridge) { this.fridge = fridge; }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setRecipeFavoriteService(RecipeFavoriteService favoriteService) { this.favoriteService = favoriteService; }
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setUserRecordRepository(UserRecordRepository records) { this.records = records; }
 
     public WeeklyMealPlanService(WeeklyMealPlanRepository plans, GuozaiAgent agent, MenuPlannerAgent planner,
                                  AgentMemoryStore memory, AgnesRecipeImageService images,
@@ -72,13 +87,15 @@ public class WeeklyMealPlanService {
         String healthGoal = request.healthGoal() == null || request.healthGoal().isBlank()
                 ? "BALANCED" : request.healthGoal();
         String notes = request.conversationNotes() == null ? "" : request.conversationNotes().trim();
+        // 情绪 / 收藏 / 冰箱库存接进排菜上下文：让既有数据真正参与决策，而不是各链路互不相认
+        String fullNotes = appendPlanContext(openid, request, notes);
 
-        MenuPlannerAgent.PlanResult planned = planWithAgent(openid, cookingDays, dishesPerDay, healthGoal, budget, notes);
+        MenuPlannerAgent.PlanResult planned = planWithAgent(openid, cookingDays, dishesPerDay, healthGoal, budget, fullNotes);
         List<PlanDay> result = planned == null || planned.days() == null || planned.days().isEmpty()
-                ? legacyDays(openid, cookingDays, dishesPerDay, healthGoal, budget, notes)
+                ? legacyDays(openid, cookingDays, dishesPerDay, healthGoal, budget, fullNotes)
                 : fromPlanned(planned.days());
         if (!displayablePlan(result)) {
-            result = legacyDays(openid, cookingDays, dishesPerDay, healthGoal, budget, notes);
+            result = legacyDays(openid, cookingDays, dishesPerDay, healthGoal, budget, fullNotes);
         }
         if (!displayablePlan(result)) {
             throw new IllegalStateException("本次菜单数据异常，请重新生成");
@@ -89,7 +106,7 @@ public class WeeklyMealPlanService {
         WeeklyMealPlan plan = new WeeklyMealPlan();
         plan.setOpenid(openid);
         plan.setPlanJson(write(result));
-        plan.setShoppingJson(write(merge(result, List.of())));
+        plan.setShoppingJson(write(merge(result, List.of(), fridgeNames(openid))));
         plan.setAgentJson(write(audit(planned, result)));
         progress.update(WeeklyPlanJobService.Stage.SAVE, WeeklyPlanJobService.StepStatus.RUNNING, "保存周菜单");
         PlanView view = view(plans.save(plan));
@@ -247,7 +264,7 @@ public class WeeklyMealPlanService {
                 days.set(index, toDay(source, 0, weekday, dishesPerDay, "BALANCED"));
             }
             plan.setPlanJson(write(days));
-            plan.setShoppingJson(write(merge(days, readShopping(plan.getShoppingJson()))));
+            plan.setShoppingJson(write(merge(days, readShopping(plan.getShoppingJson()), fridgeNames(openid))));
             return view(plans.save(plan));
         });
     }
@@ -308,10 +325,71 @@ public class WeeklyMealPlanService {
         return new PlanDish(recipe.getName(), ingredients, steps.stream().limit(5).toList(), recipe.getImage(), null);
     }
 
-    private List<ShoppingItem> merge(List<PlanDay> days, List<ShoppingItem> old) {
+    private List<ShoppingItem> merge(List<PlanDay> days, List<ShoppingItem> old, Set<String> fridgeNames) {
         List<PlanDish> dishes = new ArrayList<>();
         days.forEach(day -> dishes.addAll(dishesFor(day)));
-        return aggregateShopping(dishes, old);
+        return aggregateShopping(dishes, old, fridgeNames);
+    }
+
+    /**
+     * 排菜上下文：把用户最近的情绪、想吃清单（收藏）、冰箱库存拼进 notes，
+     * 让「选心情」「收藏」「录冰箱」这三条既有链路真正影响周计划——补全数据回流闭环。
+     * 任何一块数据缺失或读取失败都静默跳过，绝不阻断生成主流程。
+     */
+    private String appendPlanContext(String openid, GenerateRequest request, String notes) {
+        List<String> parts = new ArrayList<>();
+        String mood = request.mood() == null || request.mood().isBlank() ? latestMoodTag(openid) : request.mood().trim();
+        if (!mood.isBlank()) parts.add("用户最近的心情是「" + mood + "」，排菜时照顾这个情绪");
+        List<String> wanted = favoriteDishNames(openid);
+        if (!wanted.isEmpty()) parts.add("用户收藏了想吃：" + String.join("、", wanted) + "，可优先安排其中 1-2 道");
+        Set<String> inFridge = fridgeNames(openid);
+        if (!inFridge.isEmpty()) parts.add("冰箱现有食材：" + String.join("、", inFridge) + "，优先消耗这些、少买");
+        if (parts.isEmpty() || notes.isBlank()) {
+            return (notes + " " + String.join("。", parts)).trim();
+        }
+        return notes + "。" + String.join("。", parts);
+    }
+
+    /** 用户最近一次记录的心情标签（周计划表单没有情绪输入，从记录链路回采）。 */
+    private String latestMoodTag(String openid) {
+        if (records == null) return "";
+        try {
+            return records.findTop30ByOpenidOrderByCreatedAtDesc(openid).stream()
+                    .map(record -> record.getMoodTag())
+                    .filter(tag -> tag != null && !tag.isBlank())
+                    .findFirst().orElse("");
+        }
+        catch (RuntimeException e) {
+            return "";
+        }
+    }
+
+    /** 想吃清单菜名（最近收藏在前，最多 6 道）。 */
+    private List<String> favoriteDishNames(String openid) {
+        if (favoriteService == null) return List.of();
+        try {
+            return favoriteService.list(openid).stream()
+                    .map(RecipeFavoriteService.FavoriteView::name)
+                    .filter(name -> name != null && !name.isBlank())
+                    .limit(6).toList();
+        }
+        catch (RuntimeException e) {
+            return List.of();
+        }
+    }
+
+    /** 冰箱现有食材名（最多 12 项），用于排菜上下文与购物清单「已有」标注。 */
+    private Set<String> fridgeNames(String openid) {
+        if (fridge == null) return Set.of();
+        try {
+            return fridge.list(openid).stream()
+                    .map(FridgeInventoryService.ItemView::name)
+                    .filter(name -> name != null && !name.isBlank())
+                    .limit(12).collect(java.util.stream.Collectors.toCollection(java.util.LinkedHashSet::new));
+        }
+        catch (RuntimeException e) {
+            return Set.of();
+        }
     }
 
     /** 一条食材串解析出的名称与用量："生抽 10 毫升" → 生抽/10/毫升；"盐 适量" → 盐/0/""。 */
@@ -380,6 +458,11 @@ public class WeeklyMealPlanService {
 
     /** 采购清单聚合：同名食材若都带同单位用量则求和成真实数量（"生抽 15毫升"），否则回退"出现份数"。 */
     static List<ShoppingItem> aggregateShopping(List<PlanDish> dishes, List<ShoppingItem> old) {
+        return aggregateShopping(dishes, old, Set.of());
+    }
+
+    /** 冰箱感知版：家里已有的食材打上 inFridge 标记，用户不用重复买（补全冰箱↔周计划闭环）。 */
+    static List<ShoppingItem> aggregateShopping(List<PlanDish> dishes, List<ShoppingItem> old, Set<String> fridgeNames) {
         Map<String, Boolean> bought = new HashMap<>();
         old.forEach(item -> bought.put(item.name(), item.purchased));
         Map<String, List<IngredientAmount>> grouped = new LinkedHashMap<>();
@@ -412,8 +495,19 @@ public class WeeklyMealPlanService {
                     ? formatAmount(total) + unit
                     : items.size() + " 份";
             return new ShoppingItem(entry.getKey(), category(entry.getKey()), quantity,
-                    bought.getOrDefault(entry.getKey(), false));
+                    bought.getOrDefault(entry.getKey(), false),
+                    matchesFridge(entry.getKey(), fridgeNames));
         }).toList();
+    }
+
+    /** 冰箱命中判断：食材名与冰箱条目相等或互为包含（"鸡蛋"命中"土鸡蛋"），短于 2 字不参与避免误命中。 */
+    static boolean matchesFridge(String name, Set<String> fridgeNames) {
+        if (fridgeNames == null || fridgeNames.isEmpty() || name == null || name.length() < 2) return false;
+        for (String fridge : fridgeNames) {
+            if (fridge == null || fridge.length() < 2) continue;
+            if (fridge.equals(name) || fridge.contains(name) || name.contains(fridge)) return true;
+        }
+        return false;
     }
 
     private static String formatAmount(double value) {
@@ -494,18 +588,24 @@ public class WeeklyMealPlanService {
 
     public record GenerateRequest(int people, int days, List<Integer> cookingDays, String healthGoal,
                                   boolean sendNotification, int dishesPerDay, String budget, String conversationNotes,
-                                  String requestId) {
+                                  String requestId, String mood) {
         public GenerateRequest(int people, int days, List<Integer> cookingDays, String healthGoal,
                                boolean sendNotification, int dishesPerDay) {
-            this(people, days, cookingDays, healthGoal, sendNotification, dishesPerDay, "DAILY", "", null);
+            this(people, days, cookingDays, healthGoal, sendNotification, dishesPerDay, "DAILY", "", null, null);
         }
         public GenerateRequest(int people, int days, List<Integer> cookingDays, String healthGoal,
                                boolean sendNotification, int dishesPerDay, String budget) {
-            this(people, days, cookingDays, healthGoal, sendNotification, dishesPerDay, budget, "", null);
+            this(people, days, cookingDays, healthGoal, sendNotification, dishesPerDay, budget, "", null, null);
         }
         public GenerateRequest(int people, int days, List<Integer> cookingDays, String healthGoal,
                                boolean sendNotification, int dishesPerDay, String budget, String conversationNotes) {
-            this(people, days, cookingDays, healthGoal, sendNotification, dishesPerDay, budget, conversationNotes, null);
+            this(people, days, cookingDays, healthGoal, sendNotification, dishesPerDay, budget, conversationNotes, null, null);
+        }
+        /** 兼容旧 9 参构造（无 mood）。 */
+        public GenerateRequest(int people, int days, List<Integer> cookingDays, String healthGoal,
+                               boolean sendNotification, int dishesPerDay, String budget, String conversationNotes,
+                               String requestId) {
+            this(people, days, cookingDays, healthGoal, sendNotification, dishesPerDay, budget, conversationNotes, requestId, null);
         }
     }
     public record PlanView(Long id, List<PlanDay> days, List<ShoppingItem> shopping, boolean favorite,
@@ -521,5 +621,5 @@ public class WeeklyMealPlanService {
     public record PlanDish(String name, List<String> ingredients, List<String> steps, String fallbackImageUrl, String imageUrl) {
         PlanDish withImage(String imageUrl) { return new PlanDish(name, ingredients, steps, fallbackImageUrl, imageUrl); }
     }
-    public static class ShoppingItem { public String name; public String category; public String quantity; public boolean purchased; public ShoppingItem() {} ShoppingItem(String n, String c, String q, boolean p) { name = n; category = c; quantity = q; purchased = p; } public String name() { return name; } }
+    public static class ShoppingItem { public String name; public String category; public String quantity; public boolean purchased; public boolean inFridge; public ShoppingItem() {} ShoppingItem(String n, String c, String q, boolean p) { this(n, c, q, p, false); } ShoppingItem(String n, String c, String q, boolean p, boolean inFridge) { name = n; category = c; quantity = q; purchased = p; this.inFridge = inFridge; } public String name() { return name; } }
 }

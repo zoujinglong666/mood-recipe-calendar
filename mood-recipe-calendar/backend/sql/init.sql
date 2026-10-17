@@ -145,6 +145,7 @@ CREATE TABLE IF NOT EXISTS fridge_items (
   purchased_on DATE,
   expires_on   DATE,
   note         VARCHAR(240),
+  expiry_notified_on DATE,
   created_at   DATETIME NOT NULL,
   updated_at   DATETIME NOT NULL,
   KEY idx_fridge_openid_expiry (openid, expires_on)

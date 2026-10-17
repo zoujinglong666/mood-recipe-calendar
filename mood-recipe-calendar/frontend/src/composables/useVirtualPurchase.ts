@@ -29,7 +29,8 @@ export function useVirtualPurchase() {
       uni.showLoading({ title: '锅仔正在确认权益…', mask: true })
       const delivered = await waitForDelivery(order.orderNo)
       onDelivered?.()
-      toast(delivered ? '权益已到账，去看看吧' : '支付已完成，权益确认中')
+      // 轮询未到账时给出明确预期：后端有定时对账+重试兜底，用户知道去哪等，不再像"没下文"
+      toast(delivered ? '权益已到账，去看看吧' : '支付已完成，权益确认中——稍后重新进入本页即可看到')
     }
     catch (e: any) {
       toastError(e, '暂时无法发起支付')

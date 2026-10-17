@@ -55,7 +55,7 @@ public class NutritionController {
                 // 食材串可能是 JSON 数组文本或顿号分隔文本，两种都兼容
                 : normalize(ingredientsText);
         return nutrition.analyze(name, ingredients)
-                .<Map<String, Object>>map(advice -> ApiResponse.ok(Map.of("advice", advice, "estimated", true)))
+                .map(advice -> ApiResponse.<Map<String, Object>>ok(Map.of("advice", advice, "estimated", true)))
                 .orElseGet(() -> ApiResponse.error(404, "营养分析暂不可用"));
     }
 

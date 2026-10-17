@@ -35,6 +35,7 @@ declare global {
   const adminRecipeUpdate: typeof import('./api/admin')['adminRecipeUpdate']
   const adminRunGenerationNow: typeof import('./api/admin')['adminRunGenerationNow']
   const adminUpdateGenerationConfig: typeof import('./api/admin')['adminUpdateGenerationConfig']
+  const analyzeNutrition: typeof import('./api/nutrition')['analyzeNutrition']
   const askMealAgent: typeof import('./api/weeklyPlans')['askMealAgent']
   const assetUrl: typeof import('./utils/assets')['assetUrl']
   const asyncComputed: typeof import('@vueuse/core')['asyncComputed']
@@ -124,7 +125,9 @@ declare global {
   const fetchRecipeDetail: typeof import('./api/recipes')['fetchRecipeDetail']
   const fetchRecipeFeedback: typeof import('./api/recipes')['fetchRecipeFeedback']
   const fetchRecipeLibrary: typeof import('./api/recipes')['fetchRecipeLibrary']
+  const fetchRecipeNutrition: typeof import('./api/nutrition')['fetchRecipeNutrition']
   const fetchRecipePool: typeof import('./api/recipes')['fetchRecipePool']
+  const fetchRecipePoster: typeof import('./api/recipes')['fetchRecipePoster']
   const fetchRecipeQuota: typeof import('./api/recipes')['fetchRecipeQuota']
   const fetchRecipesByMood: typeof import('./api/recipes')['fetchRecipesByMood']
   const fetchRecommendationHistory: typeof import('./api/recipes')['fetchRecommendationHistory']
@@ -566,6 +569,7 @@ declare module 'vue' {
     readonly adminRecipeUpdate: UnwrapRef<typeof import('./api/admin')['adminRecipeUpdate']>
     readonly adminRunGenerationNow: UnwrapRef<typeof import('./api/admin')['adminRunGenerationNow']>
     readonly adminUpdateGenerationConfig: UnwrapRef<typeof import('./api/admin')['adminUpdateGenerationConfig']>
+    readonly analyzeNutrition: UnwrapRef<typeof import('./api/nutrition')['analyzeNutrition']>
     readonly askMealAgent: UnwrapRef<typeof import('./api/weeklyPlans')['askMealAgent']>
     readonly assetUrl: UnwrapRef<typeof import('./utils/assets')['assetUrl']>
     readonly asyncComputed: UnwrapRef<typeof import('@vueuse/core')['asyncComputed']>
@@ -654,7 +658,9 @@ declare module 'vue' {
     readonly fetchRecipeDetail: UnwrapRef<typeof import('./api/recipes')['fetchRecipeDetail']>
     readonly fetchRecipeFeedback: UnwrapRef<typeof import('./api/recipes')['fetchRecipeFeedback']>
     readonly fetchRecipeLibrary: UnwrapRef<typeof import('./api/recipes')['fetchRecipeLibrary']>
+    readonly fetchRecipeNutrition: UnwrapRef<typeof import('./api/nutrition')['fetchRecipeNutrition']>
     readonly fetchRecipePool: UnwrapRef<typeof import('./api/recipes')['fetchRecipePool']>
+    readonly fetchRecipePoster: UnwrapRef<typeof import('./api/recipes')['fetchRecipePoster']>
     readonly fetchRecipeQuota: UnwrapRef<typeof import('./api/recipes')['fetchRecipeQuota']>
     readonly fetchRecipesByMood: UnwrapRef<typeof import('./api/recipes')['fetchRecipesByMood']>
     readonly fetchRecommendationHistory: UnwrapRef<typeof import('./api/recipes')['fetchRecommendationHistory']>

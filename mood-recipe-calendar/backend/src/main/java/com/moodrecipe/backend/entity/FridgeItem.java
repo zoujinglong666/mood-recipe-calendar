@@ -37,6 +37,10 @@ public class FridgeItem {
     @Column(length = 240)
     private String note;
 
+    /** 最近一次收到临期提醒的日期：定时任务按此限频，同一天绝不重复打扰。 */
+    @Column(name = "expiry_notified_on")
+    private LocalDate expiryNotifiedOn;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 

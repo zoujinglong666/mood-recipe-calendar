@@ -51,6 +51,42 @@ public class MenuPlannerAgent {
     private final RecipePool recipePool;
     /** 食品安全知识库：高风险搭配规则注入规划提示词（单一事实来源，与知识库同步） */
     private final com.moodrecipe.backend.service.FoodSafetyService foodSafety;
+    /** 膳食知识 RAG：按健康目标检索营养搭配要点注入排菜提示词；可选依赖（setter 注入），缺失时退回通用营养要求。 */
+    private com.moodrecipe.backend.service.GuidelineRagService guidelineRag;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setGuidelineRag(com.moodrecipe.backend.service.GuidelineRagService guidelineRag) {
+        this.guidelineRag = guidelineRag;
+    }
+
+    /**
+     * 营养搭配要点：从膳食知识库按健康目标检索（均衡/增肌/控油各配专用查询词），
+     * 与 safetyRules() 同一注入模式——知识库是单一事实来源，检索失败静默退回空串。
+     */
+    private String nutritionRules(String healthGoal) {
+        if (guidelineRag == null || !guidelineRag.isReady()) return "";
+        try {
+            String goal = switch (healthGoal == null ? "" : healthGoal) {
+                case "FITNESS" -> "增肌 优质蛋白 主食";
+                case "LEAN" -> "控油 减脂 蔬菜";
+                default -> "均衡饮食 荤素搭配";
+            };
+            List<Map<String, Object>> points = guidelineRag.search(
+                    "一周家常菜 营养搭配 " + goal + " 蔬菜 主食 蛋白质", 4);
+            if (points == null || points.isEmpty()) return "";
+            StringBuilder sb = new StringBuilder();
+            for (Map<String, Object> p : points) {
+                Object content = p.get("content");
+                String line = content == null ? "" : String.valueOf(content).trim();
+                if (line.isEmpty()) continue;
+                if (line.length() > 100) line = line.substring(0, 100);
+                sb.append("- ").append(line).append("\n");
+            }
+            return sb.toString();
+        } catch (RuntimeException e) {
+            return "";
+        }
+    }
 
     public MenuPlannerAgent(LlmClient llm, AgentMemoryStore store, RecipeRepository recipes,
                             ObjectMapper json, SearchClient search, RecipePool recipePool) {
@@ -60,6 +96,11 @@ public class MenuPlannerAgent {
     /** 食品安全红线文案（知识库动态生成）；知识库缺失时返回空串，planMenu 会兜底通用底线 */
     private String safetyRules() {
         return foodSafety == null ? "" : foodSafety.comboRulesForPrompt();
+    }
+
+    /** 营养要点全文（排菜主流程用）：按健康目标检索一次，主排与分批排共用同一份。 */
+    private String nutritionRulesFor(String healthGoal) {
+        return nutritionRules(healthGoal);
     }
 
     @org.springframework.beans.factory.annotation.Autowired
@@ -89,6 +130,8 @@ public class MenuPlannerAgent {
         List<MenuQualityScorer.DayInput> candidate = null;
         MenuQualityScorer.MenuQuality quality = null;
         Set<String> rejected = new LinkedHashSet<>();
+        // 营养知识检索一次，主排与分批排共用；失败静默退回通用要求
+        String nutritionRules = nutritionRulesFor(request.healthGoal());
         int requestedDays = request.cookingDays() == null || request.cookingDays().isEmpty()
                 ? 3 : request.cookingDays().size();
         int planTokens = Math.min(8_000, Math.max(2_400,
@@ -104,7 +147,7 @@ public class MenuPlannerAgent {
                 long start = System.currentTimeMillis();
                 LlmResult result = llm.complete(LlmRequest.json("agent-plan-menu", AgentPrompts.system(),
                         AgentPrompts.planMenu(constraintsText(profile, request, independentMeal), daysText(request.cookingDays()),
-                                request.dishesPerDay(), String.join("、", rejected), referenceDishes(), safetyRules()),
+                                request.dishesPerDay(), String.join("、", rejected), referenceDishes(), safetyRules(), nutritionRules),
                         Math.min(0.9, 0.5 + round * 0.15), planTokens,
                         round == 0 ? TimeoutTier.STANDARD : TimeoutTier.LONG).withOpenid(request.openid()));
                 if (!result.ok()) {
@@ -221,13 +264,14 @@ public class MenuPlannerAgent {
                 ? List.of(0, 1, 2) : request.cookingDays();
         List<MenuQualityScorer.DayInput> result = new ArrayList<>();
         Set<String> used = new LinkedHashSet<>();
+        String nutritionRules = nutritionRulesFor(request.healthGoal());
         for (int weekday : days) {
             PlanRequest batch = new PlanRequest(request.openid(), List.of(weekday), request.dishesPerDay(),
                     request.healthGoal(), request.budget(), request.notes());
             long start = System.currentTimeMillis();
             LlmResult response = llm.complete(LlmRequest.json("agent-plan-menu", AgentPrompts.system(),
                     AgentPrompts.planMenu(constraintsText(profile, batch, independentMeal), daysText(batch.cookingDays()),
-                            batch.dishesPerDay(), String.join("、", rejected), referenceDishes(), safetyRules()), 0.55,
+                            batch.dishesPerDay(), String.join("、", rejected), referenceDishes(), safetyRules(), nutritionRules), 0.55,
                     Math.max(2_400, batch.dishesPerDay() * 420), TimeoutTier.STANDARD).withOpenid(batch.openid()));
             if (!response.ok()) {
                 degradeReasons.add("周" + (weekday + 1) + "菜单生成失败：" + response.reason());

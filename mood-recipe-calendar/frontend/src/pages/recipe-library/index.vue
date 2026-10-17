@@ -71,11 +71,15 @@ watch([sourceFilter, timeFilter, moodFilter], () => {
   activeCollection.value = matched?.label || ''
 })
 
-/** 支持外部入口带预设进入：冰箱页「现有食材可做」带食材名， Dietary 页可带 time */
+/** 支持外部入口带预设进入：冰箱页「现有食材可做」带食材名，干饭人格带心情，Dietary 页可带 time */
 onLoad((query) => {
   const kw = typeof query?.keyword === 'string' ? decodeURIComponent(query.keyword) : ''
   if (kw) {
     keyword.value = kw
+    activeCollection.value = ''
+  }
+  if (typeof query?.mood === 'string' && query.mood) {
+    moodFilter.value = decodeURIComponent(query.mood)
     activeCollection.value = ''
   }
   if (query?.time === 'FAST' || query?.time === 'SLOW')

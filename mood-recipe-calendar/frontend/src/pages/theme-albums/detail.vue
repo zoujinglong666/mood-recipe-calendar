@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { STATIC_BASE_URL } from '@/utils/assets'
 import { fetchThemeAlbumDetail, type ThemeAlbumDish } from '@/api/themeAlbums'
 import { fetchRecipeDetail } from '@/api/recipes'
@@ -62,13 +62,23 @@ async function openDish(dish: ThemeAlbumDish) {
   }
   try {
     const recipe = await fetchRecipeDetail(dish.id)
-    saveCookingDraft(recipe, '满足')
+    // 专辑语境是「翻开新菜单想试做」，心情取语境词而非写死「满足」
+    saveCookingDraft(recipe, '期待')
     router.push({ name: 'cooking' })
   }
   catch (e: any) {
     toastError(e, '这道菜暂时打不开')
   }
 }
+
+// 已购用户转发专辑是自然发生的口碑传播，补齐分享链路（此前本页不可转发）
+onShareAppMessage(() => ({
+  title: album.value ? `锅仔专辑「${album.value.title}」：${album.value.subtitle}` : '锅仔主题专辑',
+  path: album.value ? `/pages/theme-albums/detail?sku=${album.value.sku}` : '/pages/theme-albums/index',
+}))
+onShareTimeline(() => ({
+  title: album.value ? `锅仔专辑「${album.value.title}」：${album.value.subtitle}` : '锅仔主题专辑',
+}))
 </script>
 
 <template>

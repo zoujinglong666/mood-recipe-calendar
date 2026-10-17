@@ -76,8 +76,12 @@ import { saveCookingDraft } from '../../utils/cookingDraft'
 import GuozaiWheel from '../../components/guozai/GuozaiWheel.vue'
 import GuozaiNine from '../../components/guozai/GuozaiNine.vue'
 import GuozaiFlip from '../../components/guozai/GuozaiFlip.vue'
+import { getTodayYi } from '../../data/growth'
 import { useUserStore } from '../../stores/user'
 import { funnel } from '../../utils/funnel'
+
+/** 老黄历钩子卡文案：当日「宜」第一条（按日期种子轮换，当天恒定） */
+const todayYi = getTodayYi()[0] || '好好吃饭'
 
 definePage({ name: 'home', layout: 'tabbar', style: { navigationStyle: 'custom', navigationBarTitleText: '首页' } })
 const userStore = useUserStore()
@@ -648,6 +652,21 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
           </view>
           <image class="home-bento__record-img" :src="STATIC_BASE_URL + '/static/guozai/action_06_glasses.png'" mode="aspectFit" />
         </view>
+        <!-- 增长钩子：老黄历（玄学钩子，文案每天轮换） + 干饭人格（裂变钩子），填满 4×4 网格 -->
+        <view class="home-bento__card home-bento__card--almanac" role="button" aria-label="打开锅仔老黄历，看今日宜吃" @click="goto('almanac')">
+          <view class="home-bento__record-copy">
+            <text class="home-bento__name">锅仔老黄历</text>
+            <text class="home-bento__sub">今日宜 · {{ todayYi }}</text>
+          </view>
+          <image class="home-bento__record-img" :src="STATIC_BASE_URL + '/static/guozai/action_08_peek.png'" mode="aspectFit" />
+        </view>
+        <view class="home-bento__card home-bento__card--quiz" role="button" aria-label="测试你的干饭人格" @click="goto('personality')">
+          <view class="home-bento__record-copy">
+            <text class="home-bento__name">干饭人格</text>
+            <text class="home-bento__sub">5 道题测出你的干饭人格</text>
+          </view>
+          <image class="home-bento__record-img" :src="STATIC_BASE_URL + '/static/guozai/mood_01_happy.png'" mode="aspectFit" />
+        </view>
       </view>
 
       <wd-popup v-model="showMealSheet" position="bottom" :safe-area-inset-bottom="true" custom-style="border-radius: 40rpx 40rpx 0 0; overflow: hidden; background: var(--mrc-surface);">
@@ -807,6 +826,11 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
 .home-bento__card--library .home-bento__name { font-size: 27rpx; }
 .home-bento__record-copy { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; gap: 6rpx; }
 .home-bento__record-img { width: 92rpx; height: 92rpx; flex-shrink: 0; filter: drop-shadow(0 4rpx 8rpx rgba(96, 52, 28, 0.10)); }
+/* 增长钩子宽卡：老黄历（暖黄→桃）与干饭人格（薄荷→奶油），版式与菜谱库宽卡同族 */
+.home-bento__card--almanac { grid-column: span 2; flex-direction: row; justify-content: space-between; padding: 0 20rpx 0 26rpx; border-color: transparent; background: linear-gradient(135deg, var(--mrc-surface-sun), var(--mrc-surface-peach)); }
+.home-bento__card--almanac .home-bento__name { font-size: 27rpx; }
+.home-bento__card--quiz { grid-column: span 2; flex-direction: row; justify-content: space-between; padding: 0 20rpx 0 26rpx; border-color: transparent; background: linear-gradient(135deg, var(--mrc-surface-mint), var(--mrc-surface)); }
+.home-bento__card--quiz .home-bento__name { font-size: 27rpx; }
 
 .meal-sheet { padding: 28rpx 28rpx calc(28rpx + env(safe-area-inset-bottom)); }
 .meal-sheet__head { padding: 8rpx 8rpx 20rpx; }

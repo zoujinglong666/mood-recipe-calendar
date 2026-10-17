@@ -46,6 +46,15 @@ public class GuozaiPersona {
     }
 
     public String recipePrompt(String mood, String userAnalysis, String preference, String mealType) {
+        return recipePrompt(mood, userAnalysis, preference, mealType, null);
+    }
+
+    /**
+     * 带营养知识注入的推荐 prompt。
+     * nutritionFocus 是从膳食知识库（guideline RAG）检索到的、与本次心情/餐别相关的知识要点——
+     * 让知识真正参与生成决策，而不是只作推荐结果下方的"依据卡片"。
+     */
+    public String recipePrompt(String mood, String userAnalysis, String preference, String mealType, String nutritionFocus) {
         String pref = preference == null || preference.isBlank() ? "无明确偏好" : preference;
         String analysis = userAnalysis == null || userAnalysis.isBlank() ? "暂无用户分析" : userAnalysis;
         StringBuilder prompt = new StringBuilder();
@@ -64,6 +73,10 @@ public class GuozaiPersona {
             } else {
                 prompt.append("请只推荐适合该餐别的菜式，并贴合该餐的能量与营养结构（参考《中国居民膳食指南》的餐别搭配原则）。\n");
             }
+        }
+        if (nutritionFocus != null && !nutritionFocus.isBlank()) {
+            prompt.append("\n以下是知识库中与这次推荐相关的营养搭配要点（生成时遵守，融进选菜与做法，不要在文案里生硬复述）：\n")
+                    .append(nutritionFocus).append("\n");
         }
         prompt.append("请结合以上分析和心情，推荐一道适合此刻的中国家常菜。")
                 .append("如果用户最近总吃类似的菜，可以适当换个口味；如果用户情绪低落，推荐暖胃治愈的菜。\n");

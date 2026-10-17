@@ -116,8 +116,11 @@ public class GuozaiAgent {
                         ? "已记起你连续记录 " + snapshot.streak() + " 天，最近常做 " + snapshot.topDish()
                         : "还在了解你的口味，这次先按心情推荐");
 
-        // 本次推荐的《中国居民膳食指南》依据，随推荐结果返回（失败不影响推荐本身）
-        String guidelineBasis = buildGuidelineBasis(mood, mealType);
+        // 本次推荐的《中国居民膳食指南》依据：检索一次、两用——
+        // 既作为可见依据随结果返回，也注入生成 prompt 让营养知识真正影响推荐（失败不影响推荐本身）
+        List<Map<String, Object>> guidelinePoints = guidelinePoints(mood, mealType);
+        String guidelineBasis = guidelineBasisJson(guidelinePoints);
+        String nutritionFocus = nutritionFocusText(guidelinePoints);
 
         // 早餐是硬约束：优先从现成早餐组合池（BreakfastPoolSeeder 生成的「主食 · 配饮品」）直接挑，
         // 不交给文本模型即兴生成——prompt 软约束拦不住炒菜混进早餐；池子被忌口/曝光过滤光才走 AI 生成。
@@ -133,7 +136,7 @@ public class GuozaiAgent {
         // 优先 AI 智能体推荐（基于记忆主动分析，不是简单传 mood+preference）
         try {
             String preferenceText = preferencePrompt(preference);
-            String smartPrompt = persona.recipePrompt(mood, userAnalysis, preferenceText, mealType);
+            String smartPrompt = persona.recipePrompt(mood, userAnalysis, preferenceText, mealType, nutritionFocus);
             // 封面延后生成：生图 30-90s 是推荐慢的主因，文本就绪即出结果
             Optional<Recipe> aiRecipe = aiRecipeService.recommendWithPersona(mood, smartPrompt,
                     event -> updateAiProgress(openid, progress, event), true);
@@ -237,13 +240,23 @@ public class GuozaiAgent {
         return img != null && !img.isBlank() && !img.startsWith("/static/") && !img.contains("doubaocdn.com");
     }
 
-    /** 检索《中国居民膳食指南》要点作为本次推荐的可见依据；失败则静默返回 null，不影响推荐本身。 */
-    private String buildGuidelineBasis(String mood, String mealType) {
+    /** 检索与本次心情/餐别相关的膳食知识要点；失败则静默返回空，不影响推荐本身。 */
+    private List<Map<String, Object>> guidelinePoints(String mood, String mealType) {
         try {
             String label = GuozaiPersona.mealTypeLabel(mealType);
             String query = (label.isEmpty() ? "" : label + " 餐 ") + "膳食搭配 营养均衡 " + mood;
             List<Map<String, Object>> points = guidelineRag.search(query, 3);
-            if (points == null || points.isEmpty()) return null;
+            return points == null ? List.of() : points;
+        } catch (Exception e) {
+            log.warn("膳食知识检索失败，本次推荐不注入营养依据: {}", e.toString());
+            return List.of();
+        }
+    }
+
+    /** 可见依据（JSON 卡片）；无检索结果返回 null。 */
+    private String guidelineBasisJson(List<Map<String, Object>> points) {
+        if (points == null || points.isEmpty()) return null;
+        try {
             List<Map<String, Object>> slim = points.stream().map(p -> {
                 Map<String, Object> m = new LinkedHashMap<>();
                 m.put("title", p.get("title"));
@@ -253,9 +266,25 @@ public class GuozaiAgent {
             }).toList();
             return JSON.writeValueAsString(slim);
         } catch (Exception e) {
-            log.warn("膳食指南依据检索失败，本次推荐不附带依据: {}", e.toString());
+            log.warn("膳食指南依据序列化失败，本次推荐不附带依据: {}", e.toString());
             return null;
         }
+    }
+
+    /** 注入生成 prompt 的营养要点文本：标题+要点，逐条截断防止撑爆 prompt。 */
+    private String nutritionFocusText(List<Map<String, Object>> points) {
+        if (points == null || points.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder();
+        for (Map<String, Object> p : points) {
+            Object title = p.get("title");
+            Object content = p.get("content");
+            String line = (title == null ? "" : title + "：") + (content == null ? "" : content);
+            line = line.trim();
+            if (line.isEmpty()) continue;
+            if (line.length() > 120) line = line.substring(0, 120);
+            sb.append("- ").append(line).append("\n");
+        }
+        return sb.toString();
     }
 
     /** 深度推荐（已购权益）——结合用户输入的食材、时长、口味 + 锅仔记忆分析。 */

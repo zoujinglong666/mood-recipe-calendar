@@ -328,7 +328,8 @@ function copyShoppingList() {
  * 未配置推广位或跳转失败时自动降级为复制清单兜底（utils/cps.ts 统一处理）。
  */
 async function buyAllIngredients() {
-  const pending = (plan.value?.shopping || []).filter(i => !i.purchased)
+  // 冰箱已有的不用买：inFridge 标记项不进导购清单
+  const pending = (plan.value?.shopping || []).filter(i => !i.purchased && !i.inFridge)
   if (!pending.length) {
     toastSuccess('都买齐了，真棒')
     return
@@ -650,6 +651,9 @@ async function shareDay(day: PlanDay, index: number) {
                 <text class="shop-item__name" :class="{ done: item.purchased }">
                   {{ item.name }}
                 </text>
+                <text v-if="item.inFridge" class="shop-item__fridge">
+                  冰箱已有
+                </text>
                 <text class="shop-item__quantity">
                   {{ item.quantity }}
                 </text>
@@ -780,6 +784,7 @@ async function shareDay(day: PlanDay, index: number) {
 .shop-item__check { width: 38rpx; color: var(--mrc-primary); font-size: 30rpx; text-align: center; }
 .shop-item__name { flex: 1; color: var(--mrc-text); font-size: 25rpx; }
 .shop-item__quantity { color: var(--mrc-text-sub); font-size: 22rpx; }
+.shop-item__fridge { padding: 4rpx 14rpx; border-radius: 999rpx; background: var(--mrc-surface-mint); color: var(--mrc-mint); font-size: 18rpx; font-weight: 700; }
 .done { color: var(--mrc-text-light) !important; text-decoration: line-through; }
 .checked { font-weight: 800; }
 

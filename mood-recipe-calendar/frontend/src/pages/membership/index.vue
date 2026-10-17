@@ -294,7 +294,8 @@ async function purchase(sku: string) {
     uni.showLoading({ title: '正在确认会员…', mask: true })
     const delivered = await waitForDelivery(order.orderNo)
     if (!delivered) {
-      toast('支付已完成，会员正在到账，请稍后刷新')
+      // 后端有定时查单对账+发货重试兜底；给出明确预期，避免"付了钱没反应"的焦虑
+      toast('支付已完成，会员确认中——到账后自动生效，稍后重新进入本页即可')
       return
     }
     await refreshUserInfo(true)

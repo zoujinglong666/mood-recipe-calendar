@@ -95,10 +95,22 @@ function toggleCookingDay(index: number) {
   cookingDays.value = [...cookingDays.value, index].sort((a, b) => a - b)
 }
 
+const loadError = ref(false)
+
 async function load() {
   loading.value = true
+  loadError.value = false
   const [current, saved] = await Promise.allSettled([getCurrentPlan(), getWeeklyPlanHistory()])
-  currentPlan.value = current.status === 'fulfilled' ? current.value : undefined
+  // 「没生成过」(404) 与「加载失败」分开呈现：失败时给重试入口，不再伪装成空态诱导用户重新生成
+  if (current.status === 'fulfilled') {
+    currentPlan.value = current.value
+  }
+  else {
+    currentPlan.value = undefined
+    const code = (current.reason as any)?.code
+    loadError.value = code !== 404
+    if (loadError.value) toastError(current.reason, '本周菜单暂时打不开')
+  }
   history.value = saved.status === 'fulfilled' ? saved.value : []
   loading.value = false
   await startTour()
@@ -248,6 +260,20 @@ const toggleFavorite = throttleClick(async (id: number) => {
                 </view>
                 <view class="active-menu__footer">
                   <text>翻开本周菜单</text><text>从第一餐开始 ›</text>
+                </view>
+              </view>
+
+              <view v-else-if="loadError" id="weekly-plan-current-action" class="first-menu first-menu--error" role="button" aria-label="重试加载本周菜单" @click="load">
+                <view class="first-menu__number">
+                  !
+                </view>
+                <view class="first-menu__copy">
+                  <text class="first-menu__title">
+                    本周菜单暂时打不开
+                  </text><text>网络好像不太顺，点这里重试；你的菜单还在，放心。</text>
+                </view>
+                <view class="start-button" role="button" aria-label="重试加载" @click.stop="load">
+                  <text>重试</text><text>›</text>
                 </view>
               </view>
 

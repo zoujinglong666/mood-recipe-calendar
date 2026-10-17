@@ -161,11 +161,18 @@ async function removeSelected() {
   if (!selected.value) return
   const choice = await uni.showModal({ title: '删除这条记录？', content: '删除后无法恢复。', confirmColor: '#D94A43' })
   if (!choice.confirm) return
-  await ensureLogin()
-  await deleteRecord(selected.value.id)
-  records.value = records.value.filter(item => item.id !== selected.value?.id)
-  selected.value = null
-  toastSuccess('记录已删除')
+  const target = selected.value
+  try {
+    await ensureLogin()
+    // 后端删成功才动本地列表：失败时弹窗保留，本地与后端永不分叉
+    await deleteRecord(target.id)
+    records.value = records.value.filter(item => item.id !== target.id)
+    selected.value = null
+    toastSuccess('记录已删除')
+  }
+  catch (e) {
+    toastError(e, '删除失败，请重试')
+  }
 }
 
 /** 有照片的记录，按时光机顺序用于左右翻看 */

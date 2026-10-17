@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { onShow } from '@dcloudio/uni-app'
+import { onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app'
 import { STATIC_BASE_URL } from '@/utils/assets'
 import { fetchThemeAlbums, type ThemeAlbumItem } from '@/api/themeAlbums'
 import { toastError } from '@/utils/toast'
@@ -31,6 +31,10 @@ onShow(async () => {
 function openAlbum(album: ThemeAlbumItem) {
   router.push({ name: 'theme-album-detail', params: { sku: album.sku } })
 }
+
+// 专辑是适合转发的付费内容，补齐与全站一致的分享链路（此前两页均不可转发）
+onShareAppMessage(() => ({ title: '锅仔主题专辑 · 一整套认真搭配的菜单', path: '/pages/theme-albums/index' }))
+onShareTimeline(() => ({ title: '锅仔主题专辑 · 一整套认真搭配的菜单' }))
 </script>
 
 <template>

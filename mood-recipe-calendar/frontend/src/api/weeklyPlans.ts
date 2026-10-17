@@ -5,7 +5,7 @@ export type UsageQuotaView = RecipeUsageQuotaView
 export interface PlanDish { name: string, ingredients: string[], steps: string[], fallbackImageUrl?: string, imageUrl?: string }
 export interface PlanDay { day: string, dishName: string, ingredients: string[], steps: string[], reuseHint: string, healthTip: string, imageUrl?: string, fallbackImageUrl?: string, dishes?: PlanDish[] }
 export interface PlanAudit { score?: number | null, degradeReasons: string[], memoryUsed: string[], issues: string[], traceId?: string | null }
-export interface ShoppingItem { name: string, category: string, quantity: string, purchased: boolean }
+export interface ShoppingItem { name: string, category: string, quantity: string, purchased: boolean, inFridge?: boolean }
 export interface WeeklyPlan { id: number, days: PlanDay[], shopping: ShoppingItem[], favorite: boolean, createdAt: string, agent?: PlanAudit | null }
 export interface PlanOutcomeAck { cuisineAffinity: Record<string, number>, skipQuestions: string[], maxCookingMinutes: number | null, preferSimple: boolean, avoidDishes: string[] }
 export interface WeeklyPlanSummary { id: number, createdAt: string, favorite: boolean, days: PlanDay[] }

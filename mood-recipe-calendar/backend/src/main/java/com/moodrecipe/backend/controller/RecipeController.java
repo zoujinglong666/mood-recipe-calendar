@@ -39,7 +39,7 @@ public class RecipeController {
                             GuozaiAgent guozaiAgent, VirtualCommerceService virtualCommerceService,
                             OperationalEventService operationalEvents, RecommendationJobService recommendationJobs,
                             RecommendationExposureService exposures) {
-        this(repository, interactions, guozaiAgent, virtualCommerceService, operationalEvents, recommendationJobs, exposures, null);
+        this(repository, interactions, guozaiAgent, virtualCommerceService, operationalEvents, recommendationJobs, exposures, null, null);
     }
 
     @Autowired
@@ -103,11 +103,19 @@ public class RecipeController {
             sub.select(cb.min(r2.<Long>get("id"))).groupBy(r2.get("name"));
             predicates.add(root.get("id").in(sub));
             if (keyword != null && !keyword.isBlank()) {
-                String kw = "%" + keyword.trim() + "%";
-                predicates.add(cb.or(
-                        cb.like(root.get("name"), kw),
-                        cb.like(root.get("description"), kw),
-                        cb.like(root.get("ingredients"), kw)));
+                // 多食材组合：空格/逗号分隔的多个关键词按 OR 命中（任一食材出现即可），
+                // 冰箱页「现有食材可做」一次带多个食材搜索依赖此口径；单关键词行为不变
+                List<String> tokens = new ArrayList<>(List.of(keyword.trim().split("[\\s,，、+]+")));
+                tokens.removeIf(String::isBlank);
+                List<jakarta.persistence.criteria.Predicate> keywordPredicates = new ArrayList<>();
+                for (String token : (tokens.size() <= 1 ? List.of(keyword.trim()) : tokens)) {
+                    String kw = "%" + token + "%";
+                    keywordPredicates.add(cb.or(
+                            cb.like(root.get("name"), kw),
+                            cb.like(root.get("description"), kw),
+                            cb.like(root.get("ingredients"), kw)));
+                }
+                predicates.add(cb.or(keywordPredicates.toArray(new jakarta.persistence.criteria.Predicate[0])));
             }
             if (source != null && !source.isBlank()) {
                 predicates.add(cb.equal(root.get("source"), source));

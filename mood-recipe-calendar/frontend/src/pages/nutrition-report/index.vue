@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { onShareAppMessage, onShareTimeline } from '@dcloudio/uni-app'
 import { onMounted, ref } from 'vue'
 import { STATIC_BASE_URL } from '@/utils/assets'
 import { fetchNutritionReport, type NutritionReport } from '@/api/nutritionReport'
+import { ApiError } from '@/api/request'
 import { toastError } from '@/utils/toast'
 
 definePage({
@@ -20,7 +22,8 @@ onMounted(async () => {
     report.value = await fetchNutritionReport()
   }
   catch (e: any) {
-    if (String(e?.message || '').includes('会员'))
+    // 会员专享走后端结构化错误码（403），不再靠错误文案字符串匹配——后端改一个字也不会误判
+    if (e instanceof ApiError && e.code === 403)
       needMember.value = true
     else
       toastError(e, '月报加载失败')
@@ -29,6 +32,16 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+// 月报是最值得晒的内容：补齐与全站一致的分享链路，落地本页
+onShareAppMessage(() => {
+  const days = report.value?.days || 0
+  return {
+    title: days > 0 ? `这个月我认真吃了 ${days} 天饭，锅仔给我写了封信` : '锅仔 · 把认真吃饭写成信',
+    path: '/pages/nutrition-report/index',
+  }
+})
+onShareTimeline(() => ({ title: '锅仔 · 把认真吃饭写成信' }))
 
 function goMembership() {
   router.push({ name: 'membership' })
