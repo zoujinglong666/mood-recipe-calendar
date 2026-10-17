@@ -44,6 +44,8 @@ public class AchievementController {
             item.put("name", a.name());
             item.put("desc", a.desc());
             item.put("emoji", a.emoji());
+            // 徽章图为 COS 相对路径（/static/badges/xxx.png），前端拼 STATIC_BASE_URL
+            item.put("badgeImage", a.badgeImage());
             item.put("unlocked", isUnlocked);
             return item;
         }).toList();

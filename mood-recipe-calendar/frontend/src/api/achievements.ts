@@ -6,6 +6,8 @@ export interface AchievementItem {
   name: string
   desc: string
   emoji: string
+  /** 徽章图 COS 相对路径（/static/badges/xxx.png），前端拼 STATIC_BASE_URL */
+  badgeImage?: string
   unlocked: boolean
 }
 

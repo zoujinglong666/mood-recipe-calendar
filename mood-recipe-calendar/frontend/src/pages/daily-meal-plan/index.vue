@@ -219,7 +219,11 @@ function toggle(i: number) {
   expanded[i] = !expanded[i]
 }
 
+const loading = ref(false)
 async function load() {
+  // onLoad 与 onShow 在首次进入时都会触发 load，串行守卫防止并发双请求
+  if (loading.value) return
+  loading.value = true
   error.value = ''
   showLoading('锅仔搭配中…')
   try {
@@ -237,6 +241,7 @@ async function load() {
     toastError(e, '一日三餐加载失败')
   }
   finally {
+    loading.value = false
     hideLoading()
   }
 }

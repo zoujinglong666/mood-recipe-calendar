@@ -64,6 +64,12 @@ function layerCls(index: number) {
   <view class="nutri-advice" role="note" aria-label="营养建议">
     <view class="nutri-advice__badge">营养建议</view>
 
+    <!-- advice 异步到达，未到达时绝不渲染正文——裸读 advice.groups 曾导致整页白屏（微信体验评分报告） -->
+    <view v-if="!advice" class="na-loading">
+      <text>营养分析生成中…</text>
+    </view>
+    <template v-else>
+
     <!-- 结论区：关键营养素 + 整体结论 + 人群建议网格 -->
     <view class="na-top">
       <view class="na-verdict">
@@ -117,6 +123,7 @@ function layerCls(index: number) {
     </view>
 
     <text v-if="estimated !== false" class="na-estimate">AI 估算值，仅供参考，不能替代专业营养建议</text>
+    </template>
   </view>
 </template>
 
@@ -141,6 +148,9 @@ function layerCls(index: number) {
   font-size: 28rpx;
   font-weight: 800;
 }
+
+/* 加载占位 */
+.na-loading { padding: 30rpx 0 10rpx; color: var(--mrc-text-light); font-size: 23rpx; text-align: center; }
 
 /* 结论区 */
 .na-top { display: flex; gap: 20rpx; margin-top: 20rpx; }

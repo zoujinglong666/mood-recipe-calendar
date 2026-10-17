@@ -59,6 +59,8 @@ const checking = ref(false)
 const showCheckinModal = ref(false)
 /** 锅仔成就墙：记录/探索/连续天数等，记录落库后自动检测解锁 */
 const achievements = ref<AchievementView | null>(null)
+/** 徽章图加载失败的成就 code → 回退显示 emoji（COS 偶发抽风不至于开天窗） */
+const badgeErrors = ref<Record<string, boolean>>({})
 const achievementPct = computed(() => {
   const a = achievements.value
   if (!a || !a.total) return 0
@@ -361,7 +363,15 @@ function onBuy() {}
               role="button"
               @click="showAchievement(item)"
             >
-              <text class="achv-item__emoji">{{ item.unlocked ? item.emoji : '🔒' }}</text>
+              <!-- 解锁态优先显示 COS 徽章图（本地 PNG 已下线换 COS），挂了回退 emoji；锁定态保持锁图标 -->
+              <image
+                v-if="item.unlocked && item.badgeImage && !badgeErrors[item.code]"
+                class="achv-item__img"
+                :src="STATIC_BASE_URL + item.badgeImage"
+                mode="aspectFit"
+                @error="badgeErrors[item.code] = true"
+              />
+              <text v-else class="achv-item__emoji">{{ item.unlocked ? item.emoji : '🔒' }}</text>
               <text class="achv-item__name">{{ item.name }}</text>
             </view>
           </view>
@@ -695,6 +705,10 @@ function onBuy() {}
 .achv-item__emoji {
   font-size: 44rpx;
   line-height: 1.2;
+}
+.achv-item__img {
+  width: 88rpx;
+  height: 88rpx;
 }
 .achv-item__name {
   font-size: 20rpx;
