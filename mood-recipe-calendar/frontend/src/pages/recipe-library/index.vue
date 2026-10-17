@@ -11,7 +11,7 @@ import { toastError } from '@/utils/toast'
 definePage({
   name: 'recipe-library',
   layout: 'default',
-  style: { navigationStyle: 'custom', navigationBarTitleText: '菜谱库' },
+  style: { navigationStyle: 'custom', navigationBarTitleText: '锅仔藏菜阁' },
 })
 
 const router = useRouter()
@@ -34,8 +34,8 @@ const moodTags = ref<string[]>([])
 
 const SOURCE_OPTIONS = [
   { value: 'ALL', label: '全部' },
-  { value: 'AI', label: 'AI 菜' },
-  { value: 'LOCAL', label: '本地菜' },
+  { value: 'AI', label: '锅仔新创' },
+  { value: 'LOCAL', label: '阁藏经典' },
 ] as const
 const TIME_OPTIONS = [
   { value: 'ALL', label: '不限时长' },
@@ -142,7 +142,7 @@ async function loadPage(reset: boolean) {
   }
   catch (e: any) {
     if (seq !== reqSeq) return
-    if (reset) toastError(e, '菜谱库加载失败')
+    if (reset) toastError(e, '藏菜阁打了个盹，再试试')
     else page.value = Math.max(1, page.value - 1) // 加载失败回退页码，可再次触底重试
   }
   finally {
@@ -226,14 +226,14 @@ function openCook(r: RecipeItem) {
 
 <template>
   <view class="library mrc-hero">
-    <wd-navbar title="菜谱库" left-arrow safe-area-inset-top custom-style="background-color: transparent !important;" @click-left="navBack" />
+    <wd-navbar title="锅仔藏菜阁" left-arrow safe-area-inset-top custom-style="background-color: transparent !important;" @click-left="navBack" />
 
     <view class="library-search">
       <wd-icon name="search" size="32rpx" color="var(--mrc-text-sub)" />
       <input
         v-model="keyword"
         class="library-search__field"
-        placeholder="搜菜名、食材或做法，比如「番茄」"
+        placeholder="报个菜名或食材，锅仔去阁里翻，比如「番茄」"
         placeholder-class="library-search__placeholder"
         confirm-type="search"
         @confirm="onSearchConfirm"
@@ -301,14 +301,14 @@ function openCook(r: RecipeItem) {
     </scroll-view>
 
     <view class="library-count">
-      <text>共 {{ total }} 道菜</text>
+      <text>阁里共藏 {{ total }} 道菜</text>
       <text v-if="hasFilters" class="library-count__reset" @click="resetFilters">清空筛选</text>
     </view>
 
-    <view v-if="loading" class="library-empty"><text>锅仔正在翻菜谱…</text></view>
+    <view v-if="loading" class="library-empty"><text>锅仔正在阁里翻箱倒柜…</text></view>
     <view v-else-if="!recipes.length" class="library-empty">
       <image :src="`${STATIC_BASE_URL}/static/guozai/action_08_peek.png`" mode="aspectFit" />
-      <text>没有匹配的菜，换个关键词试试</text>
+      <text>阁里没翻到这道菜，换个词让锅仔再找找</text>
     </view>
 
     <!-- 沉浸竖滑流：全屏海报卡上下滑切换，滑近尾部自动翻页 -->
@@ -332,7 +332,7 @@ function openCook(r: RecipeItem) {
             <view class="lib-card__info">
               <view class="lib-card__title-row">
                 <text class="lib-card__name">{{ r.name }}</text>
-                <text class="lib-card__src">{{ r.source === 'AI' ? 'AI 菜' : '本地菜' }}</text>
+                <text class="lib-card__src">{{ r.source === 'AI' ? '锅仔新创' : '阁藏经典' }}</text>
               </view>
               <text v-if="r.description" class="lib-card__desc">{{ r.description }}</text>
               <view class="lib-card__meta">
@@ -360,7 +360,7 @@ function openCook(r: RecipeItem) {
 
     <!-- 加载状态浮层：不占布局，叠在滑动流上 -->
     <view v-if="!loading && recipes.length" class="library-toast" :class="{ 'is-visible': loadingMore || finished }">
-      <text>{{ loadingMore ? '加载中…' : finished ? `已经到底啦，共 ${total} 道菜` : '' }}</text>
+      <text>{{ loadingMore ? '锅仔踮脚去够下一页…' : finished ? `阁底翻完啦，共 ${total} 道菜` : '' }}</text>
     </view>
   </view>
 </template>

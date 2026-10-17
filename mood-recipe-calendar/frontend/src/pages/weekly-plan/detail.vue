@@ -5,6 +5,7 @@ import { useImagePreview } from '@wot-ui/ui'
 import { computed, nextTick, ref, onUnmounted } from 'vue'
 import { resolveAssetUrl } from '@/api/request'
 import { generatePlanDishCover, getCurrentPlan, getWeeklyPlan, replacePlanDay, reportPlanDishOutcome, toggleShoppingItem } from '@/api/weeklyPlans'
+import { assignFamilyCook, fetchFamilyMenus, type FamilyDayMenu, type FamilyMenusView } from '@/api/family'
 import { fetchFoodTips } from '@/api/foodSafety'
 import { goToMeituanBuy } from '@/utils/cps'
 import { navBack } from '@/composables/useNavBar'
@@ -39,6 +40,26 @@ const router = useRouter()
 const { previewImage } = useImagePreview()
 const plan = ref<WeeklyPlan>()
 const loading = ref(true)
+/* ---- 家庭/双人共享：成员都能看这份菜单，每天谁掌勺点一下就换 ---- */
+const familyMenus = ref<FamilyMenusView | null>(null)
+const myOpenid = String(uni.getStorageSync('openid') || '')
+const familyDays = computed(() =>
+  familyMenus.value?.members.find(m => m.planId === plan.value?.id)?.days || [])
+/** 掌勺轮换：未定 → 我 → 家人 → 未定；请求失败保持原状并提示 */
+async function cycleCook(day: FamilyDayMenu) {
+  if (!plan.value?.id)
+    return
+  const openids = familyMenus.value?.members.map(m => m.openid) || []
+  const order: (string | null)[] = [null, ...openids]
+  const currentIdx = order.indexOf(day.cookOpenid)
+  const next = order[(currentIdx + 1) % order.length] ?? null
+  try {
+    familyMenus.value = await assignFamilyCook(plan.value.id, day.dayIndex, next)
+  }
+  catch (e) {
+    toastError(e, '分工没保存上，再点一次试试')
+  }
+}
 const requestedPlanId = ref<number>()
 const swapping = ref(-1)
 const activeDay = ref(0)
@@ -210,6 +231,8 @@ async function load(opts: { preserveDay?: boolean } = {}) {
     if (!opts.preserveDay) activeDay.value = 0
     queueCovers(0)
     void loadSafetyTips(loaded)
+    // 家庭共享：静默拉取（不在家庭/未登录时后端返回空视图，前端整块隐藏）
+    fetchFamilyMenus().then((v) => { familyMenus.value = v }).catch(() => {})
   }
   catch (err) {
     if (sequence !== loadSequence) return
@@ -411,6 +434,34 @@ async function shareDay(day: PlanDay, index: number) {
           <text class="hero-copy">
             一次只想一桌，慢慢把每餐做好。
           </text>
+        </view>
+      </view>
+
+      <!-- 家庭/双人共享：成员都能看到这份菜单，谁掌勺点一下就换 -->
+      <view v-if="familyMenus?.inFamily && familyDays.length" class="family-strip">
+        <view class="family-strip__head">
+          <text class="family-strip__title">这周谁掌勺</text>
+          <text class="family-strip__sub">点一下换人，家人打开就能看到</text>
+        </view>
+        <view class="family-strip__members">
+          <view v-for="m in familyMenus.members" :key="m.openid" class="family-strip__member">
+            <image class="family-strip__avatar" :src="m.avatarUrl || `${STATIC_BASE_URL}/static/guozai/mood_01_happy.png`" mode="aspectFill" />
+            <text class="family-strip__name">{{ m.nickname }}</text>
+          </view>
+        </view>
+        <view class="family-strip__days">
+          <view
+            v-for="day in familyDays"
+            :key="day.dayIndex"
+            class="family-day"
+            role="button"
+            :aria-label="`${day.day} ${day.dishName}，掌勺：${day.cookNickname || '未定'}，点击换人`"
+            @click="cycleCook(day)"
+          >
+            <text class="family-day__day">{{ day.day }}</text>
+            <text class="family-day__dish">{{ day.dishName }}</text>
+            <text class="family-day__cook" :class="{ 'is-none': !day.cookOpenid }">{{ day.cookNickname || '未定' }}</text>
+          </view>
         </view>
       </view>
 
@@ -785,6 +836,23 @@ async function shareDay(day: PlanDay, index: number) {
 .shop-item__name { flex: 1; color: var(--mrc-text); font-size: 25rpx; }
 .shop-item__quantity { color: var(--mrc-text-sub); font-size: 22rpx; }
 .shop-item__fridge { padding: 4rpx 14rpx; border-radius: 999rpx; background: var(--mrc-surface-mint); color: var(--mrc-mint); font-size: 18rpx; font-weight: 700; }
+
+/* ===== 家庭/双人共享：谁掌勺分工条 ===== */
+.family-strip { margin-top: 20rpx; padding: 24rpx 26rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; background: linear-gradient(160deg, var(--mrc-surface), var(--mrc-surface-sun)); box-shadow: var(--mrc-shadow-soft); }
+.family-strip__head { display: flex; align-items: baseline; gap: 12rpx; }
+.family-strip__title { color: var(--mrc-text-strong); font-size: 27rpx; font-weight: 800; }
+.family-strip__sub { color: var(--mrc-text-light); font-size: 20rpx; }
+.family-strip__members { display: flex; gap: 18rpx; margin-top: 14rpx; }
+.family-strip__member { display: flex; align-items: center; gap: 8rpx; }
+.family-strip__avatar { width: 44rpx; height: 44rpx; border-radius: 50%; background: var(--mrc-surface-2); }
+.family-strip__name { color: var(--mrc-text-sub); font-size: 20rpx; }
+.family-strip__days { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12rpx; margin-top: 16rpx; }
+.family-day { display: flex; flex-direction: column; gap: 4rpx; padding: 14rpx 18rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 16rpx; background: var(--mrc-surface); }
+.family-day:active { transform: scale(0.97); }
+.family-day__day { color: var(--mrc-text-light); font-size: 19rpx; font-weight: 700; }
+.family-day__dish { overflow: hidden; color: var(--mrc-text-deep); font-size: 22rpx; font-weight: 700; white-space: nowrap; text-overflow: ellipsis; }
+.family-day__cook { align-self: flex-start; padding: 2rpx 14rpx; border-radius: 999rpx; background: var(--mrc-accent-soft); color: var(--mrc-accent); font-size: 18rpx; font-weight: 800; }
+.family-day__cook.is-none { background: var(--mrc-surface-2); color: var(--mrc-text-light); }
 .done { color: var(--mrc-text-light) !important; text-decoration: line-through; }
 .checked { font-weight: 800; }
 

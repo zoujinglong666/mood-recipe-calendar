@@ -46,11 +46,11 @@ public class RecipePool {
     private synchronized void reload() {
         if (all != null && System.currentTimeMillis() - loadedAt <= TTL_MS) return;
         try {
-            List<Recipe> loaded = recipes.findAll();
+            List<Recipe> loaded = RecipeTextGuard.clean(recipes.findAll());
             all = loaded == null ? List.of() : List.copyOf(loaded);
             // 直接复用 DB 层 findAiWithImages 的过滤（source=AI 且有图、非 /static/ 占位），
             // 与改造前各服务调用 findAiWithImages 的语义一致，也避免重复全表后在内存再过滤。
-            List<Recipe> ai = recipes.findAiWithImages();
+            List<Recipe> ai = RecipeTextGuard.clean(recipes.findAiWithImages());
             aiWithImages = ai == null ? List.of() : List.copyOf(ai);
             loadedAt = System.currentTimeMillis();
         } catch (Exception e) {

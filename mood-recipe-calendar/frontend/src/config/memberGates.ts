@@ -32,6 +32,6 @@ export const MEMBER_GATES: Record<MemberGateKey, MemberGateConfig> = {
   },
   meal_agent_web_search: {
     title: '会员专享功能',
-    content: '锅仔联网搜索（问到菜谱库外的知识也能答）为会员功能，开通后即可使用。',
+    content: '锅仔联网搜索（问到藏菜阁之外的知识也能答）为会员功能，开通后即可使用。',
   },
 }

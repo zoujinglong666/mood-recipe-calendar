@@ -35,6 +35,10 @@ public class DailyMenu {
     @Column(length = 16, nullable = false)
     private String source = "POOL";
 
+    /** 生成时的餐别窗口（BREAKFAST/LUNCH/DINNER/LATE）：跨餐自动换菜 + 餐别智能推荐的依据。 */
+    @Column(name = "meal_type", length = 20)
+    private String mealType;
+
     /** 当日换了几次，0 = 首次生成。 */
     @Column(nullable = false)
     private Integer variant = 0;

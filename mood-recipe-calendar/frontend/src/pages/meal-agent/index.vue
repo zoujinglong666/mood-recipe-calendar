@@ -901,10 +901,16 @@ onShareTimeline(() => {
       </view>
       <view v-if="canUseAgent && (generating || completed)" class="composer composer--fixed">
         <input v-model="composerText" :disabled="agentBusy || agentTyping" confirm-type="send" placeholder="还想补充什么？直接告诉锅仔" aria-label="告诉锅仔你的安排" @confirm="submitComposer">
-        <GuozaiButton class="composer__send" variant="primary" :block="false" :disabled="agentBusy || agentTyping || !composerText.trim()" :loading="agentBusy || agentTyping" :aria-label="agentBusy || agentTyping ? '锅仔正在思考' : '发送'" @click="submitComposer">
-          <Icon v-if="!agentBusy && !agentTyping" name="send" :size="30" color="#fff" />
-          <text v-else class="composer__send-loading">…</text>
-        </GuozaiButton>
+        <view
+          class="composer-send"
+          :class="{ 'is-ready': !agentBusy && !agentTyping && !!composerText.trim(), 'is-busy': agentBusy || agentTyping }"
+          role="button"
+          :aria-label="agentBusy || agentTyping ? '锅仔正在思考' : '发送'"
+          @click.stop="submitComposer"
+        >
+          <view v-if="agentBusy || agentTyping" class="composer-send__dots" aria-hidden="true"><view /><view /><view /></view>
+          <Icon v-else name="send" :size="32" :color="composerText.trim() ? '#FFFFFF' : '#C9B7A8'" />
+        </view>
       </view>
 
       <view v-else-if="canUseAgent || hasConversation" class="chat-shell" :class="{ 'chat-shell--readonly': !canUseAgent }">
@@ -1012,7 +1018,7 @@ onShareTimeline(() => {
             <button class="household-confirm" :disabled="!householdSelection.length || agentBusy" @click="confirmHousehold">
               确认选择
             </button>
-            <view v-if="otherInput" class="other-input"><input v-model="composerText" class="other-input__field" :disabled="agentBusy" inputmode="text" confirm-type="send" placeholder="直接告诉锅仔你的情况" @confirm="submitOther"><GuozaiButton class="other-input__send" variant="primary" :block="false" :disabled="agentBusy || !composerText.trim()" :loading="agentBusy" aria-label="发送自定义家庭情况" @click="submitOther"><Icon v-if="!agentBusy" name="send" :size="30" color="#fff" /><text v-else class="composer__send-loading">…</text></GuozaiButton></view>
+            <view v-if="otherInput" class="other-input"><input v-model="composerText" class="other-input__field" :disabled="agentBusy" inputmode="text" confirm-type="send" placeholder="直接告诉锅仔你的情况" @confirm="submitOther"><view class="composer-send" :class="{ 'is-ready': !agentBusy && !!composerText.trim(), 'is-busy': agentBusy }" role="button" :aria-label="agentBusy ? '锅仔正在思考' : '发送自定义家庭情况'" @click.stop="submitOther"><view v-if="agentBusy" class="composer-send__dots" aria-hidden="true"><view /><view /><view /></view><Icon v-else name="send" :size="32" :color="composerText.trim() ? '#FFFFFF' : '#C9B7A8'" /></view></view>
           </view>
           <view v-else-if="card.type === 'FRIDGE_INVENTORY'" class="fridge-picker">
             <view class="fridge-picker__hint">可多选本次想用的食材，过期食材不会进入推荐。</view>
@@ -1053,7 +1059,7 @@ onShareTimeline(() => {
               @change="value => onCardOptionChange(card, value)"
             />
           </view>
-          <view v-if="otherInput && !householdPickerActive" class="other-input"><input v-model="composerText" class="other-input__field" :disabled="agentBusy" inputmode="text" confirm-type="send" placeholder="直接告诉锅仔你的想法" @confirm="submitOther"><GuozaiButton class="other-input__send" variant="primary" :block="false" :disabled="agentBusy || !composerText.trim()" :loading="agentBusy" aria-label="发送自定义回答" @click="submitOther"><Icon v-if="!agentBusy" name="send" :size="30" color="#fff" /><text v-else class="composer__send-loading">…</text></GuozaiButton></view>
+          <view v-if="otherInput && !householdPickerActive" class="other-input"><input v-model="composerText" class="other-input__field" :disabled="agentBusy" inputmode="text" confirm-type="send" placeholder="直接告诉锅仔你的想法" @confirm="submitOther"><view class="composer-send" :class="{ 'is-ready': !agentBusy && !!composerText.trim(), 'is-busy': agentBusy }" role="button" :aria-label="agentBusy ? '锅仔正在思考' : '发送自定义回答'" @click.stop="submitOther"><view v-if="agentBusy" class="composer-send__dots" aria-hidden="true"><view /><view /><view /></view><Icon v-else name="send" :size="32" :color="composerText.trim() ? '#FFFFFF' : '#C9B7A8'" /></view></view>
         </view>
 
         <view class="composer composer--fixed">
@@ -1063,10 +1069,16 @@ onShareTimeline(() => {
             <text v-if="!isMember" class="composer__web-lock">会员</text>
           </view>
           <input v-model="composerText" :disabled="agentBusy || agentTyping || !canUseAgent" inputmode="text" confirm-type="send" placeholder="也可以直接说：周三不做饭，想减脂" aria-label="告诉锅仔你的安排" @confirm="submitComposer">
-          <GuozaiButton class="composer__send" variant="primary" :block="false" :disabled="agentBusy || agentTyping || !canUseAgent || !composerText.trim()" :loading="agentBusy || agentTyping" :aria-label="agentBusy || agentTyping ? '锅仔正在思考' : '发送'" @click="submitComposer">
-            <Icon v-if="!agentBusy && !agentTyping" name="send" :size="30" color="#fff" />
-            <text v-else class="composer__send-loading">…</text>
-          </GuozaiButton>
+          <view
+            class="composer-send"
+            :class="{ 'is-ready': !agentBusy && !agentTyping && canUseAgent && !!composerText.trim(), 'is-busy': agentBusy || agentTyping }"
+            role="button"
+            :aria-label="agentBusy || agentTyping ? '锅仔正在思考' : '发送'"
+            @click.stop="submitComposer"
+          >
+            <view v-if="agentBusy || agentTyping" class="composer-send__dots" aria-hidden="true"><view /><view /><view /></view>
+            <Icon v-else name="send" :size="32" :color="canUseAgent && composerText.trim() ? '#FFFFFF' : '#C9B7A8'" />
+          </view>
         </view>
         <view class="archive-link" role="button" aria-label="查看备餐档案" @click="router.push({ name: 'weekly-plan' })">
           查看以前的菜单 ›
@@ -1175,17 +1187,19 @@ onShareTimeline(() => {
 .composer__web.is-locked { color: #B9A99C; }
 .composer__web-text { line-height: 1; }
 .composer__web-lock { padding: 1rpx 8rpx; border-radius: 16rpx; background: var(--mrc-accent-soft); color: var(--mrc-accent); font-size: 15rpx; }
-/* 发送按钮：70rpx 圆形图标钮，与 other-input__send 同款（原来 136rpx 文字大钮太胖，挤压输入区） */
-.composer__send { display: flex; width: 70rpx; height: 32rpx; min-width: 70rpx;  flex: 0 0 auto; align-items: center; justify-content: center; padding: 0 !important; border-radius: 50% !important; }
-.composer__send.is-disabled { background: var(--mrc-surface-sun) !important; color: #C9B7A8 !important; box-shadow: none !important; text-shadow: none !important; opacity: 1; }
-.composer__send.is-disabled .composer__send-text { color: #C9B7A8; }
-.composer__send-loading { color: #fff; font-size: 30rpx; font-weight: 800; line-height: 1; }
-.composer__send.is-disabled .composer__send-loading { color: #C9B7A8; }
+/* 手写发送键（弃用 GuozaiButton：组件默认样式与其打架，曾被压成 70×32 扁椭圆）。
+   状态三态：禁用=沙色静默、就绪=暖橙渐变+柔光、忙碌=呼吸三点 */
+.composer-send { display: flex; width: 68rpx; height: 68rpx; min-width: 68rpx; flex: 0 0 auto; align-items: center; justify-content: center; border-radius: 50%; background: var(--mrc-surface-sun); transition: transform .15s ease, background .18s ease, box-shadow .18s ease; }
+.composer-send.is-ready { background: var(--mrc-primary-grad); box-shadow: 0 6rpx 18rpx rgba(239, 90, 60, .32); }
+.composer-send.is-ready:active { transform: scale(.88); }
+.composer-send__dots { display: flex; gap: 6rpx; }
+.composer-send__dots view { width: 8rpx; height: 8rpx; border-radius: 50%; background: var(--mrc-accent); animation: composer-dots 1s ease-in-out infinite; }
+.composer-send__dots view:nth-child(2) { animation-delay: .16s; }
+.composer-send__dots view:nth-child(3) { animation-delay: .32s; }
+@keyframes composer-dots { 0%, 100% { opacity: .25; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-4rpx); } }
 .archive-link { display: flex; min-height: 82rpx; align-items: center; justify-content: center; color: var(--mrc-text-sub); font-size: 21rpx; }
 .archive-link--new { margin-top: -8rpx; color: var(--mrc-accent); }
 .other-input { display: flex; align-items: center; gap: 12rpx; margin-top: 16rpx; padding: 10rpx 12rpx 10rpx 20rpx; border: 2rpx solid var(--mrc-border); border-radius: 24rpx; background: var(--mrc-surface-sun); box-sizing: border-box; }.other-input__field { min-width: 0; flex: 1; color: var(--mrc-text-deep); font-size: 23rpx; line-height: 1.35; }.other-input__field[disabled] { opacity: .58; }
-.other-input__send { display: flex; width: 70rpx; height: 70rpx; min-width: 70rpx; min-height: 70rpx; flex: 0 0 auto; align-items: center; justify-content: center; padding: 0 !important; border-radius: 50% !important; }
-.other-input__send.is-disabled { background: var(--mrc-surface) !important; color: #C9B7A8 !important; box-shadow: none !important; text-shadow: none !important; opacity: 1; }
 .conversation-rating { display: flex; flex-direction: column; gap: 16rpx; margin-top: 18rpx; padding-top: 22rpx; border-top: 2rpx solid var(--mrc-border-light); color: var(--mrc-text-deep); font-size: 25rpx; font-weight: 750; }
 .tool-panel { margin-top: 8rpx; padding: 26rpx; }.tool-panel__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24rpx; color: var(--mrc-text-deep); font-size: 28rpx; font-weight: 800; }.tool-panel__head text:last-child { padding: 7rpx 13rpx; border-radius: 999rpx; background: var(--mrc-accent-soft); color: var(--mrc-accent); font-size: 20rpx; }.tool-step { display: flex; align-items: center; gap: 18rpx; min-height: 98rpx; opacity: .46; }.tool-step--active, .tool-step--done { opacity: 1; }.tool-step__state { display: flex; width: 54rpx; height: 54rpx; flex: 0 0 auto; align-items: center; justify-content: center; border: 2rpx solid var(--mrc-border); border-radius: 50%; color: var(--mrc-text-sub); background: var(--mrc-surface); font-size: 20rpx; }.tool-step--done .tool-step__state { border-color: var(--mrc-primary-deep); background: var(--mrc-primary-grad); color: #fff; box-shadow: 0 6rpx 14rpx rgba(239, 90, 60, .2); }.tool-step--active .tool-step__state { border-color: var(--mrc-accent); background: var(--mrc-surface-peach); box-shadow: 0 0 0 6rpx var(--mrc-accent-soft); }.tool-step__pulse { width: 15rpx; height: 15rpx; border-radius: 50%; background: var(--mrc-accent); animation: pulse 1s ease-in-out infinite; }.tool-step > view:last-child { display: flex; min-width: 0; flex-direction: column; gap: 6rpx; }.tool-step__title { color: var(--mrc-text-deep); font-size: 24rpx; font-weight: 750; }.tool-step__copy { color: var(--mrc-text-sub); font-size: 20rpx; }.tool-step + .tool-step { border-top: 2rpx solid var(--mrc-border-light); }
 @keyframes pulse { 50% { opacity: .35; transform: scale(.7); } }

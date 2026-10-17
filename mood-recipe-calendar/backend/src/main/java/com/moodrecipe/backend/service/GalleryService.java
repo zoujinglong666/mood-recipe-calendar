@@ -35,6 +35,9 @@ public class GalleryService {
     /** 签到随机赠礼判定（可选依赖，setter 注入保持测试构造器不变） */
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     private UsageQuotaService usageQuota;
+    /** 锅仔养成：签到喂锅仔（可选依赖，setter 注入） */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private GrowthService growth;
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     private static final ZoneId ZONE = AppClock.ZONE;
 
@@ -57,6 +60,8 @@ public class GalleryService {
                 .openid(openid)
                 .checkinDate(today)
                 .build());
+            // 签到喂锅仔 +5（首次签到当天才计，重复签到幂等不计）
+            if (growth != null) growth.award(openid, GrowthService.Event.CHECKIN);
         }
         return checkinStatus(openid);
     }

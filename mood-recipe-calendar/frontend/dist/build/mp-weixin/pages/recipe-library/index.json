@@ -1,6 +1,6 @@
 {
   "navigationStyle": "custom",
-  "navigationBarTitleText": "菜谱库",
+  "navigationBarTitleText": "锅仔藏菜阁",
   "usingComponents": {
     "wd-icon": "../../node-modules/@wot-ui/ui/components/wd-icon/wd-icon",
     "wd-navbar": "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar"

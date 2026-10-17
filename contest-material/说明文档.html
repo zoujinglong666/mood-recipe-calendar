@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>心情菜谱日历 · 参赛说明文档</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #2b2620; line-height: 1.8; font-size: 11.5pt; margin: 0;
+  }
+  .cover { text-align: center; padding: 60mm 0 20mm; page-break-after: always; }
+  .cover .logo { width: 120px; height: 120px; object-fit: contain; }
+  .cover h1 { font-size: 30pt; margin: 18px 0 6px; color: #e8623a; letter-spacing: 2px; }
+  .cover .sub { font-size: 13pt; color: #6b6157; margin-bottom: 40px; }
+  .cover .meta { font-size: 10.5pt; color: #8a7f74; line-height: 2.1; }
+  .cover .qr { width: 130px; margin: 26px auto 6px; }
+  .cover .qr-cap { font-size: 10pt; color: #8a7f74; }
+  h2 { font-size: 16pt; color: #e8623a; border-left: 6px solid #e8623a; padding-left: 10px; margin: 30px 0 12px; }
+  h3 { font-size: 12.5pt; color: #3d352e; margin: 18px 0 6px; }
+  p { margin: 6px 0; }
+  ul { margin: 6px 0 6px 0; padding-left: 22px; }
+  li { margin: 4px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 10.5pt; }
+  th, td { border: 1px solid #ddd0c4; padding: 7px 9px; text-align: left; vertical-align: top; }
+  th { background: #fbf0e8; color: #5a4636; }
+  .tag { display: inline-block; background: #fbe7dd; color: #c04e27; border-radius: 4px; padding: 1px 8px; font-size: 9.5pt; margin-right: 4px; }
+  .pagebreak { page-break-before: always; }
+  .note { background: #faf6f1; border-radius: 8px; padding: 12px 14px; color: #6b6157; font-size: 10.5pt; }
+  .kpi { display: flex; gap: 12px; margin: 12px 0; }
+  .kpi div { flex: 1; background: #fbf0e8; border-radius: 8px; padding: 12px; text-align: center; }
+  .kpi b { display: block; font-size: 15pt; color: #e8623a; }
+  .kpi span { font-size: 9.5pt; color: #7a6f64; }
+</style>
+</head>
+<body>
+
+<!-- 封面 -->
+<div class="cover">
+  <div class="sub" style="color:#8a7f74">2026 微信小程序开发大赛 · 参赛命题「与 AI 共生」</div>
+  <h1>心情菜谱日历</h1>
+  <div class="sub">把每天的心情，变成一道合适的菜，再把每一餐沉淀成可回看的生活画册</div>
+  <img class="qr" src="miniprogram-code.jpg" alt="小程序码">
+  <div class="qr-cap">微信扫码即可体验小程序</div>
+  <div class="meta" style="margin-top:30px">
+    作品名称：心情菜谱日历<br>
+    AppID：wx4da25d0ce1a4938c<br>
+    参赛命题：「与 AI 共生」— 来微信做个小程序<br>
+    参赛身份：个人开发者
+  </div>
+</div>
+
+<!-- 一、创作背景 -->
+<h2>一、创作背景：一个每天都要面对的小难题</h2>
+<p>「今天吃什么」是大多数人每天都会卡壳的问题。出门买菜面对一整排食材不知道搭配，点外卖又常常又贵又腻，一个人做饭容易做多、做剩，想记录自己吃过什么却很难坚持。吃饭这件每天发生三次的小事，长期缺少一个轻量、有温度、能长期坚持的陪伴工具。</p>
+<p>「心情菜谱日历」从这个真实日常出发：不做一个冷冰冰的菜谱搜索引擎，而是先关心「你现在是什么状态」，再由 AI 结合心情、口味偏好、家里现有食材和近期吃过的菜，给出一道当下合适的菜，并把每一次记录沉淀下来，最终长成属于用户自己的月度画册和年度干饭报告。</p>
+
+<h2>二、创作思路：从情绪入口到生活沉淀的闭环</h2>
+<p>产品围绕一条主线设计：<b>选心情 → AI 推荐一道菜 → 跟着做 / 记录这一餐 → 日历与画册沉淀 → AI 越用越懂你</b>。</p>
+<ul>
+  <li><b>情绪入口，而不是食材入口：</b>用户先选当下的心情（疲惫、开心、想换换口味、想吃点清淡的等），AI 据此推荐，降低「从零想菜」的决策成本。</li>
+  <li><b>陪伴式 IP「锅仔」：</b>一个拟人化的小汤锅形象，在选菜、做菜、记录各环节给出陪伴式提示，把工具感转成生活感。</li>
+  <li><b>记录即资产：</b>每一顿饭都可记录，月末自动汇总成月度画册，年末生成年度干饭报告，让坚持吃饭记录有看得见的回报。</li>
+  <li><b>AI 作为「懂你的后厨助手」，而非一次性生成器：</b>AI 会记住偏好、发现冲突、自我复盘改进，并可调用工具查冰箱、查历史、查饮食禁忌。</li>
+</ul>
+
+<!-- 二、核心功能 -->
+<div class="pagebreak"></div>
+<h2>三、核心功能一览</h2>
+<table>
+  <tr><th style="width:26%">模块</th><th>解决的问题与做法</th></tr>
+  <tr><td>选一个心情吧</td><td>以心情作为选菜起点，代替「对着几百道菜无从下手」，降低决策压力。</td></tr>
+  <tr><td>今日推荐</td><td>结合心情、口味、时长、家里食材与近期记录，给出一道合适的菜，含食材、步骤、时长与难度；本地菜谱库作为兜底。</td></tr>
+  <tr><td>跟锅仔做菜</td><td>分步引导，分步讲解、可随时追问，边做边提醒，帮助第一次下厨的人完成一道菜。</td></tr>
+  <tr><td>记录今日伙食</td><td>随手记录一餐，可配图、备注，本地存储与云端同步，后端不可用时前端仍可演示。</td></tr>
+  <tr><td>食光日历 / 菜谱时光机</td><td>月视图回看吃过什么，时光机按时间线翻看过往记录。</td></tr>
+  <tr><td>月度画册 / 年度报告</td><td>月末自动汇总成专属画册，年末生成年度干饭报告（吃了多少顿、口味分布、常做菜系等）。</td></tr>
+  <tr><td>我的冰箱</td><td>登记家里现有食材，AI 推荐时优先利用库存，减少浪费与重复采购。</td></tr>
+  <tr><td>今日三餐 / 锅仔备餐小本</td><td>按天规划三餐、按周排菜，周菜单规划智能体观察—规划—验证—重试并本地修复。</td></tr>
+  <tr><td>锅仔管饭（AI 对话）</td><td>多轮对话式点菜备餐，AI 动态追问、发现需求冲突、给出可选卡片并说明依据。</td></tr>
+  <tr><td>锅仔记忆 / 锅仔藏菜阁 / 推荐记录</td><td>沉淀个人口味偏好、收藏菜与历史推荐，让推荐持续贴合本人。</td></tr>
+</table>
+
+<!-- 四、AI 共生 -->
+<h2>四、「与 AI 共生」：AI 在产品里如何工作</h2>
+<p>本作品不是「在菜谱页加一句 AI 生成」，而是把 AI 作为一个可持续协作、会记忆、会复盘的后厨助手，落在后端一个可观测的智能体系统里。</p>
+
+<h3>1. 工具调用循环（ReAct）</h3>
+<p>智能体按「思考 → 选择工具 → 执行 → 观察 → 再思考」循环推进，直到给出结论。供应商支持原生 function calling 时走原生工具调用；不支持时自动降级为 JSON 工具协议，因此切换大模型供应商不会让智能体退化成纯文本回答。</p>
+
+<h3>2. 可调用的工具集</h3>
+<ul>
+  <li>查冰箱库存、查近期吃过的菜、召回个人口味画像；</li>
+  <li>检查饮食禁忌与膳食冲突（如「有小孩却要重辣」「一个人做三道菜」这类冲突会被优先指出）；</li>
+  <li>检索本地菜谱库、调用网页搜索、检索饮食指南知识（RAG）；</li>
+  <li>对生成的周菜单打分并给出问题清单。</li>
+</ul>
+
+<h3>3. 长期记忆</h3>
+<p>记忆带置信度、来源、证据与时效地写入；召回时按场景检索，过期或衰减到阈值以下的事实自动归档，不再进入提示词，避免记忆污染。</p>
+
+<h3>4. 反思自进化</h3>
+<p>用户对一次推荐点「不满意」，模型会自己复盘会话、提炼教训，滚入滚动记忆窗口并在后续对话中注入——用户一次反馈，下一轮的行为就会不同。</p>
+
+<h3>5. 分层模型与稳健兜底</h3>
+<p>后端采用分层 LLM 客户端与超时降级策略；模型不可用或调用失败时，自动回退到本地高质量菜谱库，保证小程序在任何情况下都能给出结果，而不是报错空白。</p>
+
+<!-- 五、技术架构 -->
+<div class="pagebreak"></div>
+<h2>五、技术架构与实现</h2>
+<table>
+  <tr><th style="width:22%">层</th><th>技术选型</th><th>说明</th></tr>
+  <tr><td>前端</td><td>uni-app（Vue3 + Vite）+ Wot Design Uni v2</td><td>一套代码面向微信小程序，页面由 uni-pages 自动注册。</td></tr>
+  <tr><td>后端</td><td>Spring Boot（Java 21）</td><td>RESTful 接口、JPA 持久化、全局异常处理与输入校验。</td></tr>
+  <tr><td>数据库</td><td>MySQL 8</td><td>菜谱库、用户记录、偏好、智能体记忆与菜单结果分表存储。</td></tr>
+  <tr><td>AI 层</td><td>兼容 OpenAI Chat Completions 的 LLM 客户端 + 自研智能体框架</td><td>工具协议兼容、分层降级、记忆与反思模块独立。</td></tr>
+  <tr><td>图片存储</td><td>腾讯云 COS（项目前缀隔离），未配置时回退本地目录</td><td>菜品/记录图与头像分目录存放，密钥只走环境变量，不入库不入仓。</td></tr>
+</table>
+
+<h2>六、实践过程</h2>
+<ul>
+  <li><b>先建高质量菜谱底座：</b>以真实、可操作的菜谱库为基础，AI 负责在此之上做个性化变体与对话，而不是凭空现编，保证每道菜有真实食材与步骤。</li>
+  <li><b>AI 生成与人工审核结合：</b>AI 扩展的菜品与配图进入待审核区，人工确认后再入库，避免低质内容直接面向用户。</li>
+  <li><b>可观测的智能体：</b>每一步用到了哪些工具、记忆、为何降级、菜单得分与问题，都可在后台追踪，便于调试与优化。</li>
+  <li><b>稳健兜底优先：</b>任何 AI 链路失败都回退本地库，保证基础推荐始终可用。</li>
+</ul>
+
+<h2>七、价值与愿景</h2>
+<p>「心情菜谱日历」希望成为一个愿意长期留在用户手机里的小工具：它不替用户做重大决策，只在「今天吃什么」这个每天三次的小关口，给一个合心情、合口味、合库存的建议，并把平淡的一日三餐，攒成一本可以回看的生活画册。后续计划继续加深 AI 与个人口味、营养目标、家庭场景的结合，让「与 AI 共生」落在真实的一日三餐里。</p>
+
+<div class="note" style="margin-top:24px">
+说明：本文所述功能均为作品当前已实现内容；未在文中写具体用户规模、排名或外部认证数据。作品以微信小程序形式提供，可通过封面小程序码扫码体验。
+</div>
+
+</body>
+</html>

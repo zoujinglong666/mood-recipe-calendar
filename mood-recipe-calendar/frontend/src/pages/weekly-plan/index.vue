@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import type { TourStep } from '@wot-ui/ui/components/wd-tour/types'
 import type { PlanDay, WeeklyPlan, WeeklyPlanSummary } from '@/api/weeklyPlans'
+import { onLoad } from '@dcloudio/uni-app'
 import { computed, nextTick, onUnmounted, ref } from 'vue'
 import { generateWeeklyPlan, getCurrentPlan, getWeeklyPlanHistory, pollWeeklyPlanJob, requestWeeklyPlanCompletionNotice, toggleWeeklyPlanFavorite } from '@/api/weeklyPlans'
 import { navBack } from '@/composables/useNavBar'
 import { STATIC_BASE_URL } from '@/utils/assets'
-import { toastError } from '@/utils/toast'
+import { toastError, toastSuccess } from '@/utils/toast'
 import { getWindowInfo } from '@/utils/wxSystem'
 
 definePage({ name: 'weekly-plan', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '锅仔管饭' } })
@@ -37,6 +38,24 @@ const showTour = ref(false)
 const tourCurrent = ref(0)
 const currentPlan = ref<WeeklyPlan>()
 const history = ref<WeeklyPlanSummary[]>([])
+
+/* ---- 每周主题：首页运营位带进来的预设（健康目标/预算/排菜备注），编排时自动生效 ---- */
+interface ThemePreset { code: string, title: string, emoji: string, healthGoal: string, budget: string, notes: string }
+const themePreset = ref<ThemePreset | null>(null)
+onLoad(() => {
+  try {
+    const raw = uni.getStorageSync('mrc_theme_preset') as string
+    if (raw) {
+      uni.removeStorageSync('mrc_theme_preset')
+      const preset = JSON.parse(raw) as ThemePreset
+      if (preset?.code) {
+        themePreset.value = preset
+        healthGoal.value = preset.healthGoal || healthGoal.value
+        toastSuccess(`${preset.emoji} 主题已就位：${preset.title}，口味按主题调好了`)
+      }
+    }
+  } catch {}
+})
 const WEEKLY_PLAN_TOUR_KEY = 'mrc-weekly-plan-tour-version'
 const WEEKLY_PLAN_TOUR_VERSION = 1
 const tourSteps: TourStep[] = [
@@ -158,7 +177,17 @@ async function generate() {
   generating.value = true
   try {
     const notify = await requestWeeklyPlanCompletionNotice()
-    const job = await generateWeeklyPlan({ people: people.value, days: cookingDays.value.length, cookingDays: cookingDays.value, healthGoal: healthGoal.value, sendNotification: notify, dishesPerDay: dishesPerDay.value })
+    const job = await generateWeeklyPlan({
+      people: people.value,
+      days: cookingDays.value.length,
+      cookingDays: cookingDays.value,
+      healthGoal: healthGoal.value,
+      sendNotification: notify,
+      dishesPerDay: dishesPerDay.value,
+      // 主题预设：预算与排菜备注随主题带入（10 元周/减脂周等），无主题时不传
+      budget: themePreset.value?.budget || undefined,
+      conversationNotes: themePreset.value?.notes || undefined,
+    })
     const planId = await pollWeeklyPlanJob(job.jobId, 90000, 2000, () => !pageAlive)
     if (planId != null) router.replace({ name: 'weekly-plan-detail', params: { id: String(planId) } })
     else if (pageAlive) toastError(null, '锅仔还在努力排这周，稍后在锅仔管饭里看结果')
@@ -220,6 +249,11 @@ const toggleFavorite = throttleClick(async (id: number) => {
           使用帮助 ›
         </view>
       </view>
+    </view>
+
+    <!-- 每周主题就位提示：从首页运营位点进来时，口味已按主题调好 -->
+    <view v-if="themePreset" class="theme-chip">
+      <text>{{ themePreset.emoji }} 主题已就位 · {{ themePreset.title }}</text>
     </view>
 
     <view v-if="loading" class="loading" aria-live="polite">
@@ -519,6 +553,8 @@ const toggleFavorite = throttleClick(async (id: number) => {
 .cover-title { display: block; margin-top: 12rpx; color: var(--mrc-text-strong); font-size: 48rpx; font-weight: 800; line-height: 1.13; }.cover-sub { display: block; margin-top: 14rpx; color: var(--mrc-text-sub); font-size: 22rpx; line-height: 1.55; }
 .cover-character { position: absolute; right: -16rpx; bottom: -20rpx; width: 285rpx; height: 285rpx; }.cover-character__ring { position: absolute; inset: 24rpx; border: 2rpx solid var(--mrc-border); border-radius: 50%; }.cover-character image { position: relative; width: 100%; height: 100%; }
 .menu-cover__footer { position: relative; z-index: 1; margin-top: 14rpx; padding-top: 18rpx; border-top: 2rpx solid var(--mrc-border-light); }.loading { padding: 84rpx 0; color: var(--mrc-text-sub); font-size: 24rpx; text-align: center; }
+.theme-chip { display: flex; justify-content: center; margin-top: 18rpx; }
+.theme-chip text { padding: 10rpx 28rpx; border-radius: 999rpx; background: linear-gradient(135deg, #FFF5DF, #FFEAD0); border: 2rpx solid rgba(230, 160, 120, 0.22); color: var(--mrc-text-deep); font-size: 22rpx; font-weight: 700; }
 .tour-replay { min-height: 88rpx; display: flex; align-items: center; padding-left: 24rpx; color: var(--mrc-accent); }
 .first-menu { position: relative; overflow: hidden; padding: 34rpx 30rpx 30rpx; }.first-menu__number { color: var(--mrc-surface-peach); font-size: 112rpx; font-weight: 800; line-height: .7; }.first-menu__copy { position: relative; margin-top: 24rpx; }
 .first-menu__title, .active-menu__dish, .archive__title, .composer__title { display: block; color: var(--mrc-text-strong); font-size: 34rpx; font-weight: 800; }.first-menu__copy text:last-child, .active-menu__copy, .archive-empty text:last-child, .archive-card__copy, .notice { display: block; margin-top: 10rpx; color: var(--mrc-text-sub); font-size: 24rpx; line-height: 1.58; }

@@ -1,0 +1,11 @@
+{
+  "builds": [
+    {
+      "date": "2026-10-17",
+      "surface": "mood-recipe-calendar · P1 增长引擎（家庭共享菜单 / 锅仔养成 / 每周主题位）",
+      "register": "product",
+      "note": "设计系统锁定模式：全部复用 mrc token 体系与锅仔 IP，无新灵魂。三处新 UI：gallery 养成卡（米金渐变+灰度锁皮肤）、index 主题横幅（米金底+朱红 CTA，与 bento 同温）、weekly-plan detail 分工条（surface→sun 渐变，accent-soft 掌勺 chip）",
+      "color": "暖色家族锁死：珊瑚红=唯一浓色，杏金/蜜桃/胭脂粉为辅助层，薄荷绿已从首页清除"
+    }
+  ]
+}

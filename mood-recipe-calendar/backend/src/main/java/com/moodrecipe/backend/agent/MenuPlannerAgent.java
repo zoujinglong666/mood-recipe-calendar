@@ -53,6 +53,9 @@ public class MenuPlannerAgent {
     private final com.moodrecipe.backend.service.FoodSafetyService foodSafety;
     /** 膳食知识 RAG：按健康目标检索营养搭配要点注入排菜提示词；可选依赖（setter 注入），缺失时退回通用营养要求。 */
     private com.moodrecipe.backend.service.GuidelineRagService guidelineRag;
+    /** 调味时序知识库（可选依赖）：排菜 prompt 注入「什么时候放调料」。 */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private com.moodrecipe.backend.service.SeasoningTimingService seasoningTiming;
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     void setGuidelineRag(com.moodrecipe.backend.service.GuidelineRagService guidelineRag) {
@@ -103,6 +106,11 @@ public class MenuPlannerAgent {
         return nutritionRules(healthGoal);
     }
 
+    /** 调味时机红线：排菜备注要求步骤自带放调料时机（SeasoningTimingService 单一事实来源）。 */
+    private String seasoningRules() {
+        return seasoningTiming == null ? "" : seasoningTiming.promptRules();
+    }
+
     @org.springframework.beans.factory.annotation.Autowired
     public MenuPlannerAgent(LlmClient llm, AgentMemoryStore store, RecipeRepository recipes,
                             ObjectMapper json, SearchClient search, RecipePool recipePool,
@@ -147,7 +155,7 @@ public class MenuPlannerAgent {
                 long start = System.currentTimeMillis();
                 LlmResult result = llm.complete(LlmRequest.json("agent-plan-menu", AgentPrompts.system(),
                         AgentPrompts.planMenu(constraintsText(profile, request, independentMeal), daysText(request.cookingDays()),
-                                request.dishesPerDay(), String.join("、", rejected), referenceDishes(), safetyRules(), nutritionRules),
+                                request.dishesPerDay(), String.join("、", rejected), referenceDishes(), safetyRules() + seasoningRules(), nutritionRules),
                         Math.min(0.9, 0.5 + round * 0.15), planTokens,
                         round == 0 ? TimeoutTier.STANDARD : TimeoutTier.LONG).withOpenid(request.openid()));
                 if (!result.ok()) {
@@ -271,7 +279,7 @@ public class MenuPlannerAgent {
             long start = System.currentTimeMillis();
             LlmResult response = llm.complete(LlmRequest.json("agent-plan-menu", AgentPrompts.system(),
                     AgentPrompts.planMenu(constraintsText(profile, batch, independentMeal), daysText(batch.cookingDays()),
-                            batch.dishesPerDay(), String.join("、", rejected), referenceDishes(), safetyRules(), nutritionRules), 0.55,
+                            batch.dishesPerDay(), String.join("、", rejected), referenceDishes(), safetyRules() + seasoningRules(), nutritionRules), 0.55,
                     Math.max(2_400, batch.dishesPerDay() * 420), TimeoutTier.STANDARD).withOpenid(batch.openid()));
             if (!response.ok()) {
                 degradeReasons.add("周" + (weekday + 1) + "菜单生成失败：" + response.reason());

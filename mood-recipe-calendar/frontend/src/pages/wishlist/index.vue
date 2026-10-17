@@ -96,8 +96,8 @@ function goLibrary() {
     <view v-else-if="!items.length" class="wl-empty">
       <image :src="`${STATIC_BASE_URL}/static/guozai/action_08_peek.png`" mode="aspectFit" />
       <text class="wl-empty__title">清单还是空的</text>
-      <text class="wl-empty__sub">去菜谱库逛逛，遇到想做的点 ♥ 收进来</text>
-      <view class="wl-empty__btn" role="button" @click="goLibrary">去菜谱库看看</view>
+      <text class="wl-empty__sub">去藏菜阁逛逛，遇到想做的点 ♥ 收进来</text>
+      <view class="wl-empty__btn" role="button" @click="goLibrary">去藏菜阁看看</view>
     </view>
 
     <view v-else class="wl-list">

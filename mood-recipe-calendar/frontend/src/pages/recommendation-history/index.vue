@@ -70,7 +70,7 @@ onShow(load)
         <view v-for="item in dayItems" :key="`${item.id}-${item.recommendedAt}`" class="history-card">
           <image class="history-card__image" :src="item.image || `${STATIC_BASE_URL}/static/guozai/action_01_bowl.png`" mode="aspectFill" />
           <view class="history-card__body" role="button" :aria-label="`查看${item.name}`" @click="open(item)">
-            <text class="history-card__source">{{ item.source === 'AI' ? '锅仔智能推荐' : '菜谱库推荐' }}</text>
+            <text class="history-card__source">{{ item.source === 'AI' ? '锅仔智能推荐' : '藏菜阁推荐' }}</text>
             <text class="history-card__name">{{ item.name }}</text>
             <text class="history-card__meta">{{ dateText(item.recommendedAt) }} · {{ item.cookingTime || 30 }} 分钟</text>
           </view>

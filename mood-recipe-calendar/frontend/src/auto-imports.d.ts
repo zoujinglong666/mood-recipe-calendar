@@ -9,6 +9,7 @@ declare global {
   const ALBUM_PAGE_SIZE: typeof import('./utils/albumLayout')['ALBUM_PAGE_SIZE']
   const ALBUM_PRODUCT_SKU: typeof import('./api/virtualCommerce')['ALBUM_PRODUCT_SKU']
   const API_BACKENDS: typeof import('./api/request')['API_BACKENDS']
+  const ApiError: typeof import('./api/request')['ApiError']
   const COOKING_DRAFT_KEY: typeof import('./utils/cookingDraft')['COOKING_DRAFT_KEY']
   const COOKING_PROGRESS_KEY: typeof import('./utils/cookingDraft')['COOKING_PROGRESS_KEY']
   const CommonUtil: typeof import('@wot-ui/ui')['CommonUtil']
@@ -27,17 +28,21 @@ declare global {
   const adminCheck: typeof import('./api/admin')['adminCheck']
   const adminGetGenerationConfig: typeof import('./api/admin')['adminGetGenerationConfig']
   const adminRecipeBatchImage: typeof import('./api/admin')['adminRecipeBatchImage']
+  const adminRecipeBatchSetImage: typeof import('./api/admin')['adminRecipeBatchSetImage']
   const adminRecipeDelete: typeof import('./api/admin')['adminRecipeDelete']
   const adminRecipeDetail: typeof import('./api/admin')['adminRecipeDetail']
   const adminRecipeGenImage: typeof import('./api/admin')['adminRecipeGenImage']
   const adminRecipeList: typeof import('./api/admin')['adminRecipeList']
+  const adminRecipeSetImage: typeof import('./api/admin')['adminRecipeSetImage']
   const adminRecipeStats: typeof import('./api/admin')['adminRecipeStats']
   const adminRecipeUpdate: typeof import('./api/admin')['adminRecipeUpdate']
   const adminRunGenerationNow: typeof import('./api/admin')['adminRunGenerationNow']
   const adminUpdateGenerationConfig: typeof import('./api/admin')['adminUpdateGenerationConfig']
   const analyzeNutrition: typeof import('./api/nutrition')['analyzeNutrition']
+  const analyzePersonality: typeof import('./api/personality')['analyzePersonality']
   const askMealAgent: typeof import('./api/weeklyPlans')['askMealAgent']
   const assetUrl: typeof import('./utils/assets')['assetUrl']
+  const assignFamilyCook: typeof import('./api/family')['assignFamilyCook']
   const asyncComputed: typeof import('@vueuse/core')['asyncComputed']
   const autoCheckUpdate: typeof import('./utils/update')['autoCheckUpdate']
   const autoLayout: typeof import('./utils/albumLayout')['autoLayout']
@@ -109,12 +114,14 @@ declare global {
   const fetchDailyMealPlan: typeof import('./api/dailyMealPlan')['fetchDailyMealPlan']
   const fetchEntitlements: typeof import('./api/virtualCommerce')['fetchEntitlements']
   const fetchFamily: typeof import('./api/family')['fetchFamily']
+  const fetchFamilyMenus: typeof import('./api/family')['fetchFamilyMenus']
   const fetchFavorites: typeof import('./api/favorites')['fetchFavorites']
   const fetchFoodMemory: typeof import('./api/preferences')['fetchFoodMemory']
   const fetchFoodPreference: typeof import('./api/preferences')['fetchFoodPreference']
   const fetchFoodTips: typeof import('./api/foodSafety')['fetchFoodTips']
   const fetchFridgeItems: typeof import('./api/fridge')['fetchFridgeItems']
   const fetchFridgeSummary: typeof import('./api/fridge')['fetchFridgeSummary']
+  const fetchGrowthStatus: typeof import('./api/growth')['fetchGrowthStatus']
   const fetchMemberBenefits: typeof import('./api/virtualCommerce')['fetchMemberBenefits']
   const fetchMonthAlbum: typeof import('./api/albums')['fetchMonthAlbum']
   const fetchMoodTags: typeof import('./api/recipes')['fetchMoodTags']
@@ -135,6 +142,7 @@ declare global {
   const fetchRecord: typeof import('./api/records')['fetchRecord']
   const fetchRecords: typeof import('./api/records')['fetchRecords']
   const fetchRecordsByMonth: typeof import('./api/records')['fetchRecordsByMonth']
+  const fetchSeasoningTips: typeof import('./api/seasoningTiming')['fetchSeasoningTips']
   const fetchShareStatus: typeof import('./api/share')['fetchShareStatus']
   const fetchStats: typeof import('./api/records')['fetchStats']
   const fetchStorageAdvice: typeof import('./api/fridge')['fetchStorageAdvice']
@@ -144,6 +152,7 @@ declare global {
   const fetchVirtualOrders: typeof import('./api/virtualCommerce')['fetchVirtualOrders']
   const fetchVirtualProducts: typeof import('./api/virtualCommerce')['fetchVirtualProducts']
   const fetchWeeklyPlanQuota: typeof import('./api/weeklyPlans')['fetchWeeklyPlanQuota']
+  const fetchWeeklyTheme: typeof import('./api/weeklyTheme')['fetchWeeklyTheme']
   const fetchYearStats: typeof import('./api/records')['fetchYearStats']
   const forgetAgentMemory: typeof import('./api/auth')['forgetAgentMemory']
   const funnel: typeof import('./utils/funnel')['funnel']
@@ -543,6 +552,7 @@ declare module 'vue' {
     readonly ALBUM_PAGE_SIZE: UnwrapRef<typeof import('./utils/albumLayout')['ALBUM_PAGE_SIZE']>
     readonly ALBUM_PRODUCT_SKU: UnwrapRef<typeof import('./api/virtualCommerce')['ALBUM_PRODUCT_SKU']>
     readonly API_BACKENDS: UnwrapRef<typeof import('./api/request')['API_BACKENDS']>
+    readonly ApiError: UnwrapRef<typeof import('./api/request')['ApiError']>
     readonly COOKING_DRAFT_KEY: UnwrapRef<typeof import('./utils/cookingDraft')['COOKING_DRAFT_KEY']>
     readonly COOKING_PROGRESS_KEY: UnwrapRef<typeof import('./utils/cookingDraft')['COOKING_PROGRESS_KEY']>
     readonly CommonUtil: UnwrapRef<typeof import('@wot-ui/ui')['CommonUtil']>
@@ -561,17 +571,21 @@ declare module 'vue' {
     readonly adminCheck: UnwrapRef<typeof import('./api/admin')['adminCheck']>
     readonly adminGetGenerationConfig: UnwrapRef<typeof import('./api/admin')['adminGetGenerationConfig']>
     readonly adminRecipeBatchImage: UnwrapRef<typeof import('./api/admin')['adminRecipeBatchImage']>
+    readonly adminRecipeBatchSetImage: UnwrapRef<typeof import('./api/admin')['adminRecipeBatchSetImage']>
     readonly adminRecipeDelete: UnwrapRef<typeof import('./api/admin')['adminRecipeDelete']>
     readonly adminRecipeDetail: UnwrapRef<typeof import('./api/admin')['adminRecipeDetail']>
     readonly adminRecipeGenImage: UnwrapRef<typeof import('./api/admin')['adminRecipeGenImage']>
     readonly adminRecipeList: UnwrapRef<typeof import('./api/admin')['adminRecipeList']>
+    readonly adminRecipeSetImage: UnwrapRef<typeof import('./api/admin')['adminRecipeSetImage']>
     readonly adminRecipeStats: UnwrapRef<typeof import('./api/admin')['adminRecipeStats']>
     readonly adminRecipeUpdate: UnwrapRef<typeof import('./api/admin')['adminRecipeUpdate']>
     readonly adminRunGenerationNow: UnwrapRef<typeof import('./api/admin')['adminRunGenerationNow']>
     readonly adminUpdateGenerationConfig: UnwrapRef<typeof import('./api/admin')['adminUpdateGenerationConfig']>
     readonly analyzeNutrition: UnwrapRef<typeof import('./api/nutrition')['analyzeNutrition']>
+    readonly analyzePersonality: UnwrapRef<typeof import('./api/personality')['analyzePersonality']>
     readonly askMealAgent: UnwrapRef<typeof import('./api/weeklyPlans')['askMealAgent']>
     readonly assetUrl: UnwrapRef<typeof import('./utils/assets')['assetUrl']>
+    readonly assignFamilyCook: UnwrapRef<typeof import('./api/family')['assignFamilyCook']>
     readonly asyncComputed: UnwrapRef<typeof import('@vueuse/core')['asyncComputed']>
     readonly autoCheckUpdate: UnwrapRef<typeof import('./utils/update')['autoCheckUpdate']>
     readonly autoLayout: UnwrapRef<typeof import('./utils/albumLayout')['autoLayout']>
@@ -642,12 +656,14 @@ declare module 'vue' {
     readonly fetchDailyMealPlan: UnwrapRef<typeof import('./api/dailyMealPlan')['fetchDailyMealPlan']>
     readonly fetchEntitlements: UnwrapRef<typeof import('./api/virtualCommerce')['fetchEntitlements']>
     readonly fetchFamily: UnwrapRef<typeof import('./api/family')['fetchFamily']>
+    readonly fetchFamilyMenus: UnwrapRef<typeof import('./api/family')['fetchFamilyMenus']>
     readonly fetchFavorites: UnwrapRef<typeof import('./api/favorites')['fetchFavorites']>
     readonly fetchFoodMemory: UnwrapRef<typeof import('./api/preferences')['fetchFoodMemory']>
     readonly fetchFoodPreference: UnwrapRef<typeof import('./api/preferences')['fetchFoodPreference']>
     readonly fetchFoodTips: UnwrapRef<typeof import('./api/foodSafety')['fetchFoodTips']>
     readonly fetchFridgeItems: UnwrapRef<typeof import('./api/fridge')['fetchFridgeItems']>
     readonly fetchFridgeSummary: UnwrapRef<typeof import('./api/fridge')['fetchFridgeSummary']>
+    readonly fetchGrowthStatus: UnwrapRef<typeof import('./api/growth')['fetchGrowthStatus']>
     readonly fetchMemberBenefits: UnwrapRef<typeof import('./api/virtualCommerce')['fetchMemberBenefits']>
     readonly fetchMonthAlbum: UnwrapRef<typeof import('./api/albums')['fetchMonthAlbum']>
     readonly fetchMoodTags: UnwrapRef<typeof import('./api/recipes')['fetchMoodTags']>
@@ -668,6 +684,7 @@ declare module 'vue' {
     readonly fetchRecord: UnwrapRef<typeof import('./api/records')['fetchRecord']>
     readonly fetchRecords: UnwrapRef<typeof import('./api/records')['fetchRecords']>
     readonly fetchRecordsByMonth: UnwrapRef<typeof import('./api/records')['fetchRecordsByMonth']>
+    readonly fetchSeasoningTips: UnwrapRef<typeof import('./api/seasoningTiming')['fetchSeasoningTips']>
     readonly fetchShareStatus: UnwrapRef<typeof import('./api/share')['fetchShareStatus']>
     readonly fetchStats: UnwrapRef<typeof import('./api/records')['fetchStats']>
     readonly fetchStorageAdvice: UnwrapRef<typeof import('./api/fridge')['fetchStorageAdvice']>
@@ -677,6 +694,7 @@ declare module 'vue' {
     readonly fetchVirtualOrders: UnwrapRef<typeof import('./api/virtualCommerce')['fetchVirtualOrders']>
     readonly fetchVirtualProducts: UnwrapRef<typeof import('./api/virtualCommerce')['fetchVirtualProducts']>
     readonly fetchWeeklyPlanQuota: UnwrapRef<typeof import('./api/weeklyPlans')['fetchWeeklyPlanQuota']>
+    readonly fetchWeeklyTheme: UnwrapRef<typeof import('./api/weeklyTheme')['fetchWeeklyTheme']>
     readonly fetchYearStats: UnwrapRef<typeof import('./api/records')['fetchYearStats']>
     readonly forgetAgentMemory: UnwrapRef<typeof import('./api/auth')['forgetAgentMemory']>
     readonly funnel: UnwrapRef<typeof import('./utils/funnel')['funnel']>

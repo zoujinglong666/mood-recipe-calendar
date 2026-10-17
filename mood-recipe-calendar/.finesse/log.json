@@ -1,21 +1,38 @@
 [
-  {
-    "date": "2026-10-17",
-    "project": "mood-recipe-calendar",
-    "surface": "pages/almanac + pages/personality + home bento entries",
-    "register": "h5(小程序页) · 全部沿用 mrc token 体系（theme.scss V4 锁定）",
-    "axes": {
-      "palette": "奶油底 + 珊瑚渐变 CTA（theme.scss 锁定，未引入新色）",
-      "type": "PingFang SC 800 标题 / 400 正文，与全站一致",
-      "layout": "mrc-card 纵向堆叠 + 首页 bento span-2 宽卡（4×4 填满无空洞）",
-      "engine": "CSS keyframes（摇签/呼吸/弹入）+ conic-gradient 默契环，零 canvas 零依赖",
-      "material": "签筒拟物 + 黄历宜忌双栏 + 人格结果卡"
-    },
-    "dials": { "SOUL": 7, "SPECTACLE": 3, "DENSITY": 5 },
-    "principles": [
-      "诚实抽签：签文菜品永远来自真实接口（fetchRecipePool）",
-      "诚实计分：人格由真实答案 argmax 算出，默契度逐题比对",
-      "默契模式零后端：答案编码进分享链接 ?dual=01234"
-    ]
-  }
+ {
+  "ts": "2026-10-17",
+  "target": "frontend/src/pages/almanac/index.vue",
+  "command": "animate",
+  "axes": {
+   "A": "mrc-token(warm-amber)",
+   "B": "800/600",
+   "C": "card-stack",
+   "D": "css-keyframes(decay-shake+arc-toss)",
+   "E": "bamboo-lottery-props"
+  },
+  "note": "摇签 1s 衰减颠簸节拍 + 出签上抛 + 签级按心情荐菜（签决定推荐）"
+ },
+ {
+  "date": "2026-10-17",
+  "project": "mood-recipe-calendar",
+  "surface": "pages/almanac + pages/personality + home bento entries",
+  "register": "h5(小程序页) · 全部沿用 mrc token 体系（theme.scss V4 锁定）",
+  "axes": {
+   "palette": "奶油底 + 珊瑚渐变 CTA（theme.scss 锁定，未引入新色）",
+   "type": "PingFang SC 800 标题 / 400 正文，与全站一致",
+   "layout": "mrc-card 纵向堆叠 + 首页 bento span-2 宽卡（4×4 填满无空洞）",
+   "engine": "CSS keyframes（摇签/呼吸/弹入）+ conic-gradient 默契环，零 canvas 零依赖",
+   "material": "签筒拟物 + 黄历宜忌双栏 + 人格结果卡"
+  },
+  "dials": {
+   "SOUL": 7,
+   "SPECTACLE": 3,
+   "DENSITY": 5
+  },
+  "principles": [
+   "诚实抽签：签文菜品永远来自真实接口（fetchRecipePool）",
+   "诚实计分：人格由真实答案 argmax 算出，默契度逐题比对",
+   "默契模式零后端：答案编码进分享链接 ?dual=01234"
+  ]
+ }
 ]

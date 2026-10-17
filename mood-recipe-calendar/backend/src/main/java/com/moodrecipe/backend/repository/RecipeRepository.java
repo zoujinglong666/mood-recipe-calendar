@@ -41,6 +41,9 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long>, JpaSpecif
 
     Optional<Recipe> findByName(String name);
 
+    /** 管理批量配图：菜名包含匹配（取第一条命中）。 */
+    List<Recipe> findByNameContainingOrderByIdAsc(String keyword);
+
     /** 仅取 mood_tags 列（不含大 TEXT 字段），供菜谱库标签云聚合（分页接口拿不到全量）。 */
     @Query("SELECT r.moodTags FROM Recipe r WHERE r.moodTags IS NOT NULL")
     List<String> findAllMoodTags();

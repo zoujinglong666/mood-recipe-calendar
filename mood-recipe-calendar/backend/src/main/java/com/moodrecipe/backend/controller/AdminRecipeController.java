@@ -190,23 +190,101 @@ public class AdminRecipeController {
     /**
      * 为无图/占位图菜谱异步生成 AI 配图（Agnes 文生图 → COS 转存 → 回写 image）。
      * 生图需 30-90s，超过小程序 POST 超时（60s），故走异步补拍线程，前端轮询详情获取结果。
+     * force=true（管理端「重新配图」）：已有真实图也强制重拍并覆盖。
      */
     @PostMapping("/{id}/image")
     public ApiResponse<Map<String, Object>> generateImage(
             @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
-            @PathVariable Long id) {
+            @PathVariable Long id,
+            @RequestParam(required = false, defaultValue = "false") boolean force) {
         requireAdmin(openid);
         Recipe recipe = repository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("菜谱不存在"));
         Map<String, Object> data = new LinkedHashMap<>();
-        if (coverBackfill.hasRealImage(recipe)) {
+        if (!force && coverBackfill.hasRealImage(recipe)) {
             data.put("started", false);
             data.put("image", recipe.getImage());
             return ApiResponse.ok(data);
         }
-        coverBackfill.schedule(id);
+        coverBackfill.schedule(id, force);
         data.put("started", true);
         return ApiResponse.ok(data);
+    }
+
+    /**
+     * 管理员手动设置菜谱配图（自定义 URL，绕过 AI 生图）。
+     * 供运营从图库/素材系统直接贴图；URL 必须是 http(s) 外链。
+     */
+    @PostMapping("/{id}/set-image")
+    public ApiResponse<Map<String, Object>> setImage(
+            @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
+            @PathVariable Long id,
+            @RequestBody(required = false) Map<String, Object> body) {
+        requireAdmin(openid);
+        Recipe recipe = repository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("菜谱不存在"));
+        String url = body == null || body.get("imageUrl") == null ? "" : body.get("imageUrl").toString().trim();
+        if (!url.matches("^https?://\\S+$")) {
+            return ApiResponse.error(400, "请输入合法的图片链接（http/https 开头）");
+        }
+        recipe.setImage(url);
+        repository.save(recipe);
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("id", id);
+        data.put("image", url);
+        return ApiResponse.ok(data);
+    }
+
+    /**
+     * 批量自定义配图：每条 {key, imageUrl}，key 依次按「菜谱 ID 精确 → 菜名精确 → 菜名包含」解析。
+     * 单条失败不阻断批次，逐条返回原因——运营贴一整段素材清单即可，不必逐条点。
+     */
+    @PostMapping("/batch-set-image")
+    public ApiResponse<Map<String, Object>> batchSetImage(
+            @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
+            @RequestBody(required = false) Map<String, Object> body) {
+        requireAdmin(openid);
+        if (body == null || !(body.get("items") instanceof List<?> rawItems) || rawItems.isEmpty()) {
+            return ApiResponse.error(400, "请至少提供一条配图（菜名或ID + 图片URL）");
+        }
+        int updated = 0;
+        List<Map<String, Object>> failed = new java.util.ArrayList<>();
+        for (Object raw : rawItems) {
+            if (!(raw instanceof Map<?, ?> item)) continue;
+            String key = String.valueOf(item.get("key") == null ? "" : item.get("key")).trim();
+            String url = String.valueOf(item.get("imageUrl") == null ? "" : item.get("imageUrl")).trim();
+            if (key.isEmpty() || url.isEmpty()) {
+                failed.add(Map.of("key", key, "reason", "菜名/ID 或图片链接缺失"));
+                continue;
+            }
+            if (!url.matches("^https?://\\S+$")) {
+                failed.add(Map.of("key", key, "reason", "图片链接不合法"));
+                continue;
+            }
+            Recipe recipe = resolveRecipe(key);
+            if (recipe == null) {
+                failed.add(Map.of("key", key, "reason", "找不到对应菜谱"));
+                continue;
+            }
+            recipe.setImage(url);
+            repository.save(recipe);
+            updated++;
+        }
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("updated", updated);
+        data.put("failed", failed);
+        return ApiResponse.ok(data);
+    }
+
+    /** key 解析：纯数字按 ID 精确；否则菜名精确；再否则菜名包含（取第一条）。 */
+    private Recipe resolveRecipe(String key) {
+        if (key.matches("\\d+")) {
+            return repository.findById(Long.parseLong(key)).orElse(null);
+        }
+        Recipe exact = repository.findByName(key).orElse(null);
+        if (exact != null) return exact;
+        List<Recipe> fuzzy = repository.findByNameContainingOrderByIdAsc(key);
+        return fuzzy.isEmpty() ? null : fuzzy.get(0);
     }
 
     /**

@@ -28,6 +28,7 @@ declare module 'vue' {
     GuozaiLoadingState: typeof import('./components/guozai/LoadingState.vue')['default']
     GuozaiMoodPicker: typeof import('./components/guozai/MoodPicker.vue')['default']
     GuozaiNutritionCard: typeof import('./components/guozai/NutritionCard.vue')['default']
+    GuozaiSeasoningTimingTips: typeof import('./components/guozai/SeasoningTimingTips.vue')['default']
     GuozaiSuccessModal: typeof import('./components/guozai/SuccessModal.vue')['default']
     PrivacyPopup: typeof import('./components/PrivacyPopup.vue')['default']
     RecipeRecipeCard: typeof import('./components/recipe/RecipeCard.vue')['default']

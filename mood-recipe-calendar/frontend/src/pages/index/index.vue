@@ -72,6 +72,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import { fetchCompanionMessage, fetchRecordsByMonth, type CompanionMessage, type RecordItem } from '../../api/records'
 import { fetchRecipePool, fetchRecipeQuota, type RecipeItem, type UsageQuotaView } from '../../api/recipes'
 import { fetchDailyBoard, refreshDailyBoard, generateDailyMenuCover, splitComboDishName, type DailyBoard } from '../../api/dailyMenu'
+import { fetchWeeklyTheme, type WeeklyTheme } from '../../api/weeklyTheme'
 import { saveCookingDraft } from '../../utils/cookingDraft'
 import GuozaiWheel from '../../components/guozai/GuozaiWheel.vue'
 import GuozaiNine from '../../components/guozai/GuozaiNine.vue'
@@ -163,6 +164,36 @@ const calCells = computed(() => {
   return cells
 })
 const loading = ref(false)
+
+/* ---- 每周主题运营位：按周轮换的运营钩子，点一下带预设去周计划 ---- */
+const weeklyTheme = ref<WeeklyTheme | null>(null)
+const THEME_BANNER_KEY = 'mrc_theme_banner_week'
+function weekIndexOf(): number {
+  const d = new Date()
+  return d.getFullYear() * 100 + Math.ceil(((+d - +new Date(d.getFullYear(), 0, 1)) / 86400000 + 1) / 7)
+}
+async function loadWeeklyTheme() {
+  const theme = await fetchWeeklyTheme()
+  weeklyTheme.value = theme
+}
+function dismissThemeBanner() {
+  try { uni.setStorageSync(THEME_BANNER_KEY, String(weekIndexOf())) } catch {}
+  weeklyTheme.value = null
+}
+const showThemeBanner = computed(() => {
+  if (!weeklyTheme.value) return false
+  try { return Number(uni.getStorageSync(THEME_BANNER_KEY) || 0) < weekIndexOf() } catch { return true }
+})
+function goWithTheme(theme: WeeklyTheme) {
+  try {
+    uni.setStorageSync('mrc_theme_preset', JSON.stringify({
+      code: theme.code, title: theme.title, emoji: theme.emoji,
+      healthGoal: theme.healthGoal, budget: theme.budget, notes: theme.notes,
+    }))
+  } catch {}
+  router.push({ name: 'weekly-plan' })
+}
+
 async function loadData() {
   if (loading.value) return
   loading.value = true
@@ -174,6 +205,7 @@ async function loadData() {
     fetchRecipeQuota().then((q) => { recipeQuota.value = q }).catch(() => {})
     loadCompanion().catch(() => {})
     loadTodayBoard().catch(() => {})
+    loadWeeklyTheme().catch(() => {})
     // 菜池提前加载：转盘/九宫格/翻牌点开即用，不等点击后再拉
     void preloadRecipePool()
   } catch (e: any) {
@@ -574,6 +606,17 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
         <text v-if="inviteBonus" class="share-welcome__bonus">你和好友各得 1 次对话额度</text>
       </view>
 
+      <!-- 每周主题运营位：本周轮换主题，点一下带预设去锅仔管饭 -->
+      <view v-if="weeklyTheme && showThemeBanner" class="theme-banner pressable" role="button" :aria-label="`本周主题：${weeklyTheme.title}，去排这一周的菜单`" @click="goWithTheme(weeklyTheme)">
+        <text class="theme-banner__emoji">{{ weeklyTheme.emoji }}</text>
+        <view class="theme-banner__copy">
+          <text class="theme-banner__title">本周主题 · {{ weeklyTheme.title }}</text>
+          <text class="theme-banner__sub">{{ weeklyTheme.seasonalTip || weeklyTheme.subtitle }}</text>
+        </view>
+        <text class="theme-banner__go">去开饭 ›</text>
+        <text class="theme-banner__close" role="button" aria-label="关闭本周主题" @click.stop="dismissThemeBanner">×</text>
+      </view>
+
       <!-- 今日菜单（TodayBoard）：今日菜牌——菜图右侧通栏出血，信息在左 -->
       <view v-if="todayBoard" class="home-entry home-board" role="button" :aria-label="`锅仔今天留了${todayBoard.recipe.name}，打开看做法`" @click="goCookToday">
         <view class="home-board__text">
@@ -645,27 +688,36 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
           <image class="home-bento__img" :src="STATIC_BASE_URL + '/static/guozai/action_02_soup.png'" mode="aspectFit" />
           <text class="home-bento__name">翻一翻</text>
         </view>
-        <view class="home-bento__card home-bento__card--library" role="button" aria-label="打开菜谱库，搜索和分类浏览菜谱" @click="goto('recipe-library')">
+        <view class="home-bento__card home-bento__card--library" role="button" aria-label="打开锅仔藏菜阁，翻找藏起来的好菜" @click="goto('recipe-library')">
           <view class="home-bento__record-copy">
-            <text class="home-bento__name">菜谱库</text>
-            <text class="home-bento__sub">搜菜·按心情挑</text>
+            <text class="home-bento__name">锅仔藏菜阁</text>
+            <text class="home-bento__sub">好菜都藏在阁里</text>
           </view>
           <image class="home-bento__record-img" :src="STATIC_BASE_URL + '/static/guozai/action_06_glasses.png'" mode="aspectFit" />
         </view>
         <!-- 增长钩子：老黄历（玄学钩子，文案每天轮换） + 干饭人格（裂变钩子），填满 4×4 网格 -->
         <view class="home-bento__card home-bento__card--almanac" role="button" aria-label="打开锅仔老黄历，看今日宜吃" @click="goto('almanac')">
+          <view class="home-bento__seal" aria-hidden="true">
+            宜
+          </view>
           <view class="home-bento__record-copy">
             <text class="home-bento__name">锅仔老黄历</text>
-            <text class="home-bento__sub">今日宜 · {{ todayYi }}</text>
+            <view class="home-bento__sub-row">
+              <text class="home-bento__sub-chip">今日宜</text>
+              <text class="home-bento__sub">{{ todayYi }}</text>
+            </view>
           </view>
-          <image class="home-bento__record-img" :src="STATIC_BASE_URL + '/static/guozai/action_08_peek.png'" mode="aspectFit" />
+          <image class="home-bento__record-img" :src="STATIC_BASE_URL + '/static/guozai/action_16_chopsticks.png'" mode="aspectFit" />
         </view>
         <view class="home-bento__card home-bento__card--quiz" role="button" aria-label="测试你的干饭人格" @click="goto('personality')">
           <view class="home-bento__record-copy">
             <text class="home-bento__name">干饭人格</text>
             <text class="home-bento__sub">5 道题测出你的干饭人格</text>
+            <view class="home-bento__dots" aria-hidden="true">
+              <view v-for="i in 5" :key="i" class="home-bento__dot" />
+            </view>
           </view>
-          <image class="home-bento__record-img" :src="STATIC_BASE_URL + '/static/guozai/mood_01_happy.png'" mode="aspectFit" />
+          <image class="home-bento__record-img" :src="STATIC_BASE_URL + '/static/guozai/action_09_celebrate.png'" mode="aspectFit" />
         </view>
       </view>
 
@@ -762,6 +814,27 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
 .home-hero__profile image { width: 58rpx; height: 58rpx; }
 
 /* 三个首页入口共享同一高度和节奏，内容层级通过颜色区分。 */
+/* ===== 每周主题运营位：米金底 + 朱红 CTA，与 bento 暖色家族同温 ===== */
+.theme-banner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-top: 18rpx;
+  padding: 20rpx 24rpx;
+  border: 2rpx solid rgba(230, 160, 120, 0.22);
+  border-radius: 24rpx;
+  background: linear-gradient(135deg, #FFF5DF, #FFEAD0);
+  box-shadow: var(--mrc-shadow-soft);
+}
+.theme-banner__emoji { flex: 0 0 auto; font-size: 40rpx; }
+.theme-banner__copy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 4rpx; }
+.theme-banner__title { color: var(--mrc-text-strong); font-size: 26rpx; font-weight: 800; }
+.theme-banner__sub { overflow: hidden; color: var(--mrc-text-sub); font-size: 21rpx; white-space: nowrap; text-overflow: ellipsis; }
+.theme-banner__go { flex: 0 0 auto; padding: 10rpx 22rpx; border-radius: 999rpx; background: var(--mrc-primary-grad); color: #fff; font-size: 21rpx; font-weight: 800; box-shadow: var(--mrc-shadow-coral); }
+.theme-banner__close { position: absolute; top: 4rpx; right: 12rpx; padding: 6rpx 10rpx; color: var(--mrc-text-light); font-size: 30rpx; line-height: 1; }
+.theme-banner__close:active { opacity: .6; }
+
 .share-welcome {
   display: flex;
   align-items: center;
@@ -806,10 +879,12 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
 .home-bento__card--guanfan .home-bento__title { color: #fff; font-size: 40rpx; font-weight: 800; letter-spacing: 1rpx; }
 .home-bento__card--guanfan .home-bento__hint { color: rgba(255, 255, 255, 0.9); font-size: 20rpx; }
 .home-bento__hero-img { position: absolute; right: 0; bottom: 0; width: 172rpx; height: 172rpx; filter: drop-shadow(0 8rpx 14rpx rgba(120, 40, 20, 0.22)); }
-.home-bento__card--wheel { background: var(--mrc-surface); }
-.home-bento__card--nine { background: var(--mrc-surface); }
-.home-bento__card--flip { background: var(--mrc-surface); }
-.home-bento__card--agent { border-color: transparent; background: linear-gradient(135deg, var(--mrc-surface-mint), var(--mrc-surface)); }
+/* 抽奖三小卡：暖色家族三段微层次（暖阳黄 / 蜜桃 / 奶油），告别灰白，与红主卡同一色温 */
+.home-bento__card--wheel { border-color: rgba(230, 160, 120, 0.20); background: linear-gradient(150deg, #FFF8E8, #FFEDCB); }
+.home-bento__card--nine { border-color: rgba(230, 160, 120, 0.20); background: linear-gradient(150deg, #FFF3EA, #FFE7D6); }
+.home-bento__card--flip { border-color: rgba(230, 160, 120, 0.20); background: linear-gradient(150deg, #FFFBF4, #FFF1DF); }
+/* 锅仔管饭：薄荷绿 → 暖杏金（智能体的暖光感），HOT 红徽章与红主卡呼应 */
+.home-bento__card--agent { border-color: transparent; background: linear-gradient(135deg, #FFF3DC, #FFE6C4); }
 .home-bento__img { width: 78rpx; height: 78rpx; filter: drop-shadow(0 4rpx 8rpx rgba(96, 52, 28, 0.10)); }
 .home-bento__name { color: var(--mrc-text-deep); font-size: 24rpx; font-weight: 800; }
 .home-bento__sub { color: var(--mrc-text-sub); font-size: 18rpx; }
@@ -821,16 +896,38 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
 .home-bento__lucky-img { width: 88rpx; height: 88rpx; flex-shrink: 0; margin-right: 2rpx; filter: drop-shadow(0 4rpx 8rpx rgba(120, 40, 20, 0.18)); }
 .home-bento__lucky-arrow { flex-shrink: 0; color: rgba(255, 255, 255, 0.95); font-size: 44rpx; font-weight: 300; }
 .home-bento__card--record { grid-column: span 2; flex-direction: row; justify-content: space-between; padding: 0 20rpx 0 26rpx; background: var(--mrc-surface-mint); }
-.home-bento__card--library { grid-column: span 2; flex-direction: row; justify-content: space-between; padding: 0 20rpx 0 26rpx; border-color: transparent; background: linear-gradient(135deg, var(--mrc-surface-sun), var(--mrc-surface-peach)); }
+.home-bento__card--library { grid-column: span 2; flex-direction: row; justify-content: space-between; padding: 0 20rpx 0 26rpx; border-color: transparent; background: linear-gradient(135deg, #FFEFE2, #FFDFC8); }
 /* 与右侧今日三餐宽卡对齐标题字号字重（通用 name 24rpx 是给小卡用的） */
 .home-bento__card--library .home-bento__name { font-size: 27rpx; }
 .home-bento__record-copy { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; gap: 6rpx; }
 .home-bento__record-img { width: 92rpx; height: 92rpx; flex-shrink: 0; filter: drop-shadow(0 4rpx 8rpx rgba(96, 52, 28, 0.10)); }
-/* 增长钩子宽卡：老黄历（暖黄→桃）与干饭人格（薄荷→奶油），版式与菜谱库宽卡同族 */
-.home-bento__card--almanac { grid-column: span 2; flex-direction: row; justify-content: space-between; padding: 0 20rpx 0 26rpx; border-color: transparent; background: linear-gradient(135deg, var(--mrc-surface-sun), var(--mrc-surface-peach)); }
+/* 增长钩子宽卡：老黄历（米金黄，宜字朱印）与干饭人格（胭脂粉，五题进度点），与红卡同色温不同调 */
+.home-bento__card--almanac { position: relative; grid-column: span 2; flex-direction: row; justify-content: space-between; padding: 0 20rpx 0 26rpx; border-color: transparent; background: linear-gradient(135deg, #FFF5DF, #FFEAD0); overflow: hidden; }
 .home-bento__card--almanac .home-bento__name { font-size: 27rpx; }
-.home-bento__card--quiz { grid-column: span 2; flex-direction: row; justify-content: space-between; padding: 0 20rpx 0 26rpx; border-color: transparent; background: linear-gradient(135deg, var(--mrc-surface-mint), var(--mrc-surface)); }
+.home-bento__seal {
+  position: absolute;
+  top: -14rpx;
+  right: 118rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52rpx;
+  height: 52rpx;
+  border: 3rpx solid rgba(198, 60, 40, 0.55);
+  border-radius: 12rpx;
+  color: rgba(198, 60, 40, 0.72);
+  font-size: 26rpx;
+  font-weight: 900;
+  transform: rotate(10deg);
+  opacity: .85;
+}
+.home-bento__sub-row { display: flex; align-items: center; gap: 10rpx; min-width: 0; }
+.home-bento__sub-chip { flex-shrink: 0; padding: 2rpx 12rpx; border-radius: 999rpx; background: rgba(198, 60, 40, 0.12); color: #C63C28; font-size: 18rpx; font-weight: 800; }
+.home-bento__card--quiz { grid-column: span 2; flex-direction: row; justify-content: space-between; padding: 0 20rpx 0 26rpx; border-color: transparent; background: linear-gradient(135deg, #FFEEE9, #FFE3DA); }
 .home-bento__card--quiz .home-bento__name { font-size: 27rpx; }
+.home-bento__dots { display: flex; align-items: center; gap: 8rpx; margin-top: 2rpx; }
+.home-bento__dot { width: 10rpx; height: 10rpx; border-radius: 50%; background: var(--mrc-mint); opacity: .55; }
+.home-bento__dot:nth-child(odd) { opacity: .3; }
 
 .meal-sheet { padding: 28rpx 28rpx calc(28rpx + env(safe-area-inset-bottom)); }
 .meal-sheet__head { padding: 8rpx 8rpx 20rpx; }

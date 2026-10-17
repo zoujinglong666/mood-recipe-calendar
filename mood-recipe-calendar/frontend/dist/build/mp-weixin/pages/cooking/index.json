@@ -6,6 +6,7 @@
     "wd-navbar": "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar",
     "icon": "../../components/common/Icon",
     "food-safety-tips": "../../components/guozai/FoodSafetyTips",
+    "seasoning-timing-tips": "../../components/guozai/SeasoningTimingTips",
     "success-modal": "../../components/guozai/SuccessModal"
   }
 }

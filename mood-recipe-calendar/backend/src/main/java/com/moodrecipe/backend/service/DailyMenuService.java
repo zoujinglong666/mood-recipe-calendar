@@ -45,6 +45,9 @@ public class DailyMenuService {
 
     private static final int RECENT_DISH_DEDUPE_DAYS = 5;
 
+    /** 今日卡窗口去重天数：近 3 天（含今天）今日卡推荐过的菜不再参与挑选，保证「每天不一样」。 */
+    private static final int BOARD_RECENT_DAYS = 3;
+
     private final DailyMenuRepository dailyMenus;
     private final RecipeRepository recipes;
     private final RecipeInteractionRepository interactions;
@@ -79,28 +82,26 @@ public class DailyMenuService {
         this.cosImageStorage = cosImageStorage;
     }
 
-    /** 今日菜单：命中当日缓存直接返回；未命中挑选并落缓存。挑选失败返回 empty。 */
+    /** 今日菜单：命中「当日 + 当前餐别」缓存直接返回；跨餐（早→午→晚）自动换菜。挑选失败返回 empty。 */
     public Optional<Board> today(String openid) {
         LocalDate today = AppClock.today();
+        String meal = currentMealType();
         Optional<DailyMenu> cached = dailyMenus.findByOpenidAndMenuDate(openid, today);
-        if (cached.isPresent()) {
-            return toBoard(cached.get()).or(() -> create(openid, today, Set.of()));
+        if (cached.isPresent() && meal.equals(cached.get().getMealType())) {
+            return toBoard(cached.get()).or(() -> create(openid, today, meal));
         }
-        return create(openid, today, Set.of());
+        // 首次打开或跨餐：排除今天已推过的所有菜，让早/午/晚各吃各的、顿顿不重样
+        return create(openid, today, meal);
     }
 
-    /** 换一道：重新挑选并排除当前这道；没有别的可换时返回 empty，当前缓存保持不动。 */
+    /** 换一道：排除今天已推过的所有菜重新挑选；没有别的可换时返回 empty，当前缓存保持不动。 */
     public Optional<Board> refresh(String openid) {
-        LocalDate today = AppClock.today();
-        Set<Long> exclude = dailyMenus.findByOpenidAndMenuDate(openid, today)
-                .map(row -> Set.of(row.getRecipeId()))
-                .orElseGet(Set::of);
-        return create(openid, today, exclude);
+        return create(openid, AppClock.today(), currentMealType());
     }
 
-    private Optional<Board> create(String openid, LocalDate date, Set<Long> excludeIds) {
+    private Optional<Board> create(String openid, LocalDate date, String mealType) {
         UserFoodPreference preference = preferences.findByOpenid(openid).orElse(null);
-        Recipe picked = pick(openid, preference, excludeIds);
+        Recipe picked = pick(openid, preference, todaysBoardRecipeIds(openid), mealType);
         if (picked == null) return Optional.empty();
 
         Optional<DailyMenu> existing = dailyMenus.findByOpenidAndMenuDate(openid, date);
@@ -111,13 +112,39 @@ public class DailyMenuService {
             return fresh;
         });
         row.setRecipeId(picked.getId());
-        row.setGuozaiLine(guozaiLine(picked));
+        row.setGuozaiLine(guozaiLine(picked, mealType));
         row.setSource("POOL");
+        row.setMealType(mealType);
         row.setVariant(existing.map(item -> item.getVariant() + 1).orElse(0));
         dailyMenus.save(row);
 
         markShown(openid, picked.getId());
         return toBoard(row);
+    }
+
+    /** 当前餐别窗口：早餐 5-10 点、午餐 10-16 点、晚餐 16-22 点、其余算夜宵轻食。 */
+    public static String mealTypeOf(java.time.LocalDateTime now) {
+        int hour = now.getHour();
+        if (hour >= 5 && hour < 10) return "BREAKFAST";
+        if (hour >= 10 && hour < 16) return "LUNCH";
+        if (hour >= 16 && hour < 22) return "DINNER";
+        return "LATE";
+    }
+
+    private String currentMealType() {
+        return mealTypeOf(AppClock.now());
+    }
+
+    /** 今天今日卡已推过的全部菜（含此前餐别）：跨餐与「换一道」都不重复。 */
+    private Set<Long> todaysBoardRecipeIds(String openid) {
+        try {
+            return dailyMenus.findByOpenidAndMenuDateGreaterThanEqual(openid, AppClock.today()).stream()
+                    .map(DailyMenu::getRecipeId)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+        } catch (RuntimeException e) {
+            return Set.of();
+        }
     }
 
     /**
@@ -151,12 +178,18 @@ public class DailyMenuService {
                         row.getGuozaiLine(), row.getVariant(), row.getSource()));
     }
 
-    /** 挑选逻辑：硬过滤（忌口/过敏/明确不喜欢/今天已出/近期吃过）+ 软加分（反馈/口味/随机）。 */
-    private Recipe pick(String openid, UserFoodPreference preference, Set<Long> excludeIds) {
+    /**
+     * 挑选逻辑：硬过滤（忌口/过敏/明确不喜欢/今天已出/近期吃过/近几天今日卡出过）+ 软加分（反馈/口味/餐别/随机）。
+     * 餐别是软偏置而不是硬过滤：早餐池为空时自然降级到普通菜，永不空窗。
+     * 近几日今日卡去重是两轮的：第一轮排除；候选被排除光时第二轮放开（保底有菜可推）。
+     * 随机权重（0~5）必须足以抗衡单项加分差距，否则"收藏+做过"的高分菜会天天霸榜。
+     */
+    private Recipe pick(String openid, UserFoodPreference preference, Set<Long> excludeIds, String mealType) {
         Set<Long> rejected = interactions.findByOpenidAndAction(openid, "DISLIKE").stream()
                 .map(RecipeInteraction::getRecipeId).filter(Objects::nonNull).collect(Collectors.toSet());
         Set<String> recentDishes = recentDishNames(openid);
         List<String> blocked = blockedTerms(preference);
+        Set<Long> recentBoard = recentBoardRecipeIds(openid);
         Map<Long, Integer> feedback = new HashMap<>();
         interactions.findTop30ByOpenidOrderByCreatedAtDesc(openid).forEach(interaction ->
                 feedback.merge(interaction.getRecipeId(), switch (interaction.getAction()) {
@@ -168,29 +201,81 @@ public class DailyMenuService {
         List<Recipe> pool = new ArrayList<>(recipePool.aiWithImages());
         if (pool.isEmpty()) pool = recipePool.all();
 
-        List<Recipe> candidates = pool.stream()
-                .filter(this::isDisplayableRecipe)
-                .filter(recipe -> recipe.getName() != null && !recipe.getName().isBlank())
-                .filter(recipe -> !rejected.contains(recipe.getId()))
-                .filter(recipe -> !excludeIds.contains(recipe.getId()))
-                .filter(recipe -> !recentDishes.contains(recipe.getName().trim()))
-                .filter(recipe -> allowedByPreference(recipe, blocked))
-                .toList();
-        if (candidates.isEmpty()) return null;
-
         // 收藏菜集合（权重×3）
         Set<Long> favoriteIds = favorites.findTop200ByOpenidOrderByCreatedAtDesc(openid).stream()
                 .map(RecipeFavorite::getRecipeId).collect(Collectors.toSet());
 
-        return candidates.stream()
-                .max(Comparator.comparingInt((Recipe recipe) ->
-                        feedback.getOrDefault(recipe.getId(), 0)
-                                + preferenceBonus(recipe, preference)
-                                + quickBonus(recipe)
-                                + profileBonus(recipe, preference)
-                                + (favoriteIds.contains(recipe.getId()) ? 5 : 0)
-                                + ThreadLocalRandom.current().nextInt(4)))
-                .orElse(null);
+        for (boolean skipBoardDedupe : new boolean[]{false, true}) {
+            List<Recipe> candidates = pool.stream()
+                    .filter(this::isDisplayableRecipe)
+                    .filter(recipe -> recipe.getName() != null && !recipe.getName().isBlank())
+                    .filter(recipe -> !rejected.contains(recipe.getId()))
+                    .filter(recipe -> !excludeIds.contains(recipe.getId()))
+                    .filter(recipe -> skipBoardDedupe || !recentBoard.contains(recipe.getId()))
+                    .filter(recipe -> !recentDishes.contains(recipe.getName().trim()))
+                    .filter(recipe -> allowedByPreference(recipe, blocked))
+                    .toList();
+            if (candidates.isEmpty()) continue;
+
+            return candidates.stream()
+                    .max(Comparator.comparingInt((Recipe recipe) ->
+                            feedback.getOrDefault(recipe.getId(), 0)
+                                    + preferenceBonus(recipe, preference)
+                                    + quickBonus(recipe)
+                                    + profileBonus(recipe, preference)
+                                    + mealBonus(recipe, mealType)
+                                    + (favoriteIds.contains(recipe.getId()) ? 5 : 0)
+                                    + ThreadLocalRandom.current().nextInt(6)))
+                    .orElse(null);
+        }
+        return null;
+    }
+
+    /** 早餐语境关键词：菜名/标签命中即视为早餐组合（与 BreakfastPoolSeeder 的「主食 · 配饮品」池同口径）。 */
+    private static final List<String> BREAKFAST_KEYWORDS = List.of(
+            "粥", "豆浆", "牛奶", "包子", "馒头", "蒸饺", "煎饺", "烧麦", "肠粉", "米粉",
+            "汤面", "蛋饼", "鸡蛋饼", "燕麦", "吐司", "三明治", "蒸蛋", "煎蛋", "馄饨", "早餐");
+
+    /** 餐别偏置：早/午/晚/夜宵各有各的吃法——这是「打开就对」的智能感来源。软偏置，不硬过滤。 */
+    static int mealBonus(Recipe recipe, String mealType) {
+        String name = recipe.getName() == null ? "" : recipe.getName();
+        String tags = recipe.getTags() == null ? "" : recipe.getTags();
+        String taste = recipe.getTaste() == null ? "" : recipe.getTaste();
+        String moodTags = recipe.getMoodTags() == null ? "" : recipe.getMoodTags();
+        String headline = (name + " " + tags).toLowerCase();
+        boolean breakfastish = moodTags.contains("早餐")
+                || BREAKFAST_KEYWORDS.stream().anyMatch(headline::contains);
+        boolean heavy = headline.contains("油炸") || headline.contains("烧烤") || headline.contains("麻辣")
+                || headline.contains("干锅") || headline.contains("烤肉");
+        boolean light = taste.contains("清淡") || taste.contains("鲜")
+                || headline.contains("蒸") || headline.contains("炖") || headline.contains("汤")
+                || headline.contains("白灼") || headline.contains("凉拌");
+
+        return switch (mealType == null ? "" : mealType) {
+            // 早餐：早餐组合强势加分，正餐菜压分；早餐池为空时靠软偏置自然降级，不空窗
+            case "BREAKFAST" -> breakfastish ? 8 : -6;
+            // 午餐：正餐主场，家常炒菜小幅加分，油炸烧烤中午也压一手
+            case "LUNCH" -> (headline.contains("炒") || headline.contains("家常") ? 2 : 0) - (heavy ? 2 : 0);
+            // 晚餐：清淡蒸炖汤加分，重油重辣压分
+            case "DINNER" -> (light ? 3 : 0) - (heavy ? 3 : 0);
+            // 夜宵：只留轻的，粥汤蛋羹最合适
+            case "LATE" -> (headline.contains("粥") || headline.contains("汤") || headline.contains("蒸蛋")
+                    || headline.contains("面") || light ? 4 : 0) - (heavy || (name.contains("炒") && !light) ? 3 : 0);
+            default -> 0;
+        };
+    }
+
+    /** 近几日今日卡已推荐过的菜：连续多天同菜是今日卡最大的体验杀手。查询失败静默放行。 */
+    private Set<Long> recentBoardRecipeIds(String openid) {
+        try {
+            return dailyMenus.findByOpenidAndMenuDateGreaterThanEqual(
+                            openid, AppClock.today().minusDays(BOARD_RECENT_DAYS - 1L)).stream()
+                    .map(DailyMenu::getRecipeId)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+        } catch (RuntimeException e) {
+            return Set.of();
+        }
     }
 
     /** 今日菜单是首页入口，菜名、描述和做法出现编码污染时必须整道拦截。 */
@@ -290,24 +375,38 @@ public class DailyMenuService {
         return false;
     }
 
-    /** 锅仔今日一句话：本地模板 + 轻随机，避免每天同一句。 */
-    private String guozaiLine(Recipe recipe) {
+    /** 锅仔今日一句话：分餐别模板 + 轻随机——早上是早饭话术，晚上是晚餐话术，智能感落在每一句话里。 */
+    private String guozaiLine(Recipe recipe, String mealType) {
         String name = safe(recipe.getName());
         String minutes = recipe.getCookingTime() != null && recipe.getCookingTime() > 0
                 ? "，" + recipe.getCookingTime() + " 分钟就能端上桌" : "";
-        String[] lines = {
-                "今天不用纠结，锅仔替你定了：" + name + minutes,
-                "就它了——" + name + "，锅仔觉得和今天很配",
-                "今天这份 " + name + " 已经帮你留好啦" + minutes,
-                "别想太多，今晚 " + name + "，吃过再说",
-                "周五了吃点好的，" + name + " 犒劳一下自己",
-                "打工人辛苦了，这道 " + name + " 给你充充电",
-                "今天天气不错，配 " + name + " 刚刚好",
-                "不想做饭的时候，" + name + " 就是你的救星",
-                "连续吃外卖好几天了，试试这道 " + name + " 换换口味",
-                "一个人吃饭也要认真，" + name + " 安排上了",
-                "锅仔偷偷说：这道菜我自己也很喜欢 " + name,
-                "今天的快乐是 " + name + " 给的" + minutes,
+        String[][] pools = {
+                // 早餐
+                {"早餐不用纠结，锅仔替你定了：" + name + minutes,
+                        "一日之计在于晨，" + name + " 给今天开个好头",
+                        "起床就有主意了——" + name + "，锅仔早上就想到了你",
+                        "早饭要认真吃，这份 " + name + " 已经帮你留好啦" + minutes},
+                // 午餐
+                {"中午这顿 " + name + " 正合适" + minutes,
+                        "今天不用纠结，锅仔替你定了：" + name + minutes,
+                        "就它了——" + name + "，锅仔觉得和今天很配",
+                        "干饭人辛苦了，这道 " + name + " 给你充充电",
+                        "一个人吃也要认真，" + name + " 安排上了"},
+                // 晚餐
+                {"今晚 " + name + "，吃过再说" + minutes,
+                        "晚上吃点舒坦的，" + name + " 刚刚好",
+                        "今天这份 " + name + " 已经帮你留好啦" + minutes,
+                        "忙碌一天了，" + name + " 犒劳一下自己"},
+                // 夜宵轻食
+                {"这个点就吃口轻的：锅仔留了 " + name,
+                        "夜里别糊弄，" + name + " 温温柔柔刚刚好",
+                        "饿了就吃，" + name + " 不给肠胃添负担"},
+        };
+        String[] lines = switch (mealType == null ? "" : mealType) {
+            case "BREAKFAST" -> pools[0];
+            case "LUNCH" -> pools[1];
+            case "DINNER" -> pools[2];
+            default -> pools[3];
         };
         return lines[ThreadLocalRandom.current().nextInt(lines.length)];
     }

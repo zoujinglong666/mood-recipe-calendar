@@ -1,0 +1,1 @@
+"use strict";const s=require("./request.js");exports.fetchSeasoningTips=function(e,i){return s.post("/seasoning-tips",{ingredients:(e||[]).slice(0,40),steps:(i||[]).slice(0,30)},15e3).then((s=>Array.isArray(null==s?void 0:s.tips)?s.tips:[]))};

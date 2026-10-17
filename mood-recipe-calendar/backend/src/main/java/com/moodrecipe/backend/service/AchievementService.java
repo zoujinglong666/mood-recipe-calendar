@@ -33,6 +33,9 @@ public class AchievementService {
     private ShareRecordRepository shareRecords;
     /** 周菜单类成就数据源（可空，测试降级）。 */
     private WeeklyMealPlanRepository weeklyPlans;
+    /** 锅仔养成（可选）：解锁成就 = 喂锅仔。 */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private GrowthService growth;
 
     public AchievementService(UserAchievementRepository achievements,
                                UserRecordRepository records,
@@ -149,6 +152,8 @@ public class AchievementService {
             achievements.save(ua);
             newlyUnlocked.add(code);
             log.info("成就解锁: openid={}, code={}", openid, code);
+            // 喂锅仔：解锁成就 +20（养成失败静默，不影响成就主流程）
+            if (growth != null) growth.award(openid, GrowthService.Event.ACHIEVEMENT);
         }
     }
 

@@ -1,7 +1,7 @@
 ﻿<script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { adminRecipeList, adminRecipeStats, adminRecipeDetail, adminRecipeDelete, adminRecipeGenImage, adminRecipeBatchImage, adminGetGenerationConfig, adminUpdateGenerationConfig, adminRunGenerationNow, type AdminRecipe, type AdminStats, type GenerationConfig } from '@/api/admin'
+import { adminRecipeList, adminRecipeStats, adminRecipeDetail, adminRecipeDelete, adminRecipeGenImage, adminRecipeBatchImage, adminRecipeSetImage, adminRecipeBatchSetImage, adminGetGenerationConfig, adminUpdateGenerationConfig, adminRunGenerationNow, type AdminRecipe, type AdminStats, type GenerationConfig } from '@/api/admin'
 import { resolveAssetUrl } from '@/api/request'
 import { navBack } from '@/composables/useNavBar'
 import { toast, toastError, toastSuccess } from '@/utils/toast'
@@ -29,11 +29,14 @@ const generating = ref<Record<number, boolean>>({})  // 各菜谱配图进行中
 
 const batchCount = ref(10)        // 批量补图数量
 const batchRunning = ref(false)   // 批量补图进行中
+const batchMode = ref<'ai' | 'custom'>('ai')  // 批量配图模式：AI 生成 / 自定义 URL
+const customText = ref('')        // 自定义批量：每行「菜名或ID | 图片URL」
+const customRunning = ref(false)
 
 const SOURCE_OPTIONS = [
-  { value: 'ALL', label: '全部来源' },
-  { value: 'AI', label: 'AI 生成' },
-  { value: 'LOCAL', label: '本地种子' },
+  { value: 'ALL', label: '全部' },
+  { value: 'AI', label: 'AI' },
+  { value: 'LOCAL', label: '本地' },
 ] as const
 
 async function loadStats() {
@@ -91,23 +94,26 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 /**
  * 配图闭环：POST 触发异步生图（Agnes 文生图→COS 转存→回写）→ 轮询详情取回真实图 URL。
  * 生图 30-90s 超过请求超时，因此不在请求里等结果；轮询 5s × 20 次（约 100s）兜底。
+ * force=true（重新配图）：已有真实图也重拍，轮询成功条件从「有图」变成「图变了」。
  */
-async function genImage(item: AdminRecipe) {
+async function genImage(item: AdminRecipe, force = false) {
   if (generating.value[item.id]) return
   generating.value[item.id] = true
+  const imageBefore = item.image
   try {
-    const res = await adminRecipeGenImage(item.id)
+    const res = await adminRecipeGenImage(item.id, force)
     if (!res.started && res.image) {
       item.image = res.image
       toastSuccess('该菜谱已有配图')
       return
     }
-    toast('AI 配图生成中，约需 1 分钟')
+    toast(force ? '重新配图生成中，约需 1 分钟' : 'AI 配图生成中，约需 1 分钟')
     for (let i = 0; i < 20; i++) {
       await sleep(5000)
       const detail = await adminRecipeDetail(item.id).catch(() => null)
-      if (detail && !needsImage(detail.image)) {
-        item.image = detail.image
+      const changed = detail && detail.image !== imageBefore && !needsImage(detail.image)
+      if (changed) {
+        item.image = detail!.image
         toastSuccess('配图生成完成')
         loadStats()
         return
@@ -118,6 +124,92 @@ async function genImage(item: AdminRecipe) {
     toastError(e.message || '配图生成失败')
   } finally {
     generating.value[item.id] = false
+  }
+}
+
+/** 重新配图：覆盖现有封面（旧图不保留），二次确认防误触 */
+function askRegenImage(item: AdminRecipe) {
+  uni.showModal({
+    title: '重新配图',
+    content: `用最新生图 prompt 为「${item.name}」重拍封面？当前图片会被替换。`,
+    confirmText: '重拍',
+    success: (res) => {
+      if (res.confirm) void genImage(item, true)
+    },
+  })
+}
+
+/** 单个自定义设图：弹输入框贴 URL，立即回写 */
+function askSetImage(item: AdminRecipe) {
+  uni.showModal({
+    title: `自定义配图 · ${item.name}`,
+    editable: true,
+    placeholderText: '粘贴图片链接（http/https 开头）',
+    success: (res) => {
+      if (!res.confirm) return
+      const url = (res.content || '').trim()
+      if (!url) return
+      void doSetImage(item, url)
+    },
+  })
+}
+
+async function doSetImage(item: AdminRecipe, url: string) {
+  try {
+    const res = await adminRecipeSetImage(item.id, url)
+    item.image = res.image
+    toastSuccess('配图已更新')
+    loadStats()
+  } catch (e: any) {
+    toastError(e.message || '设置失败')
+  }
+}
+
+/** 解析批量自定义文本：每行「菜名或ID | 图片URL」，也兼容「菜名或ID URL」空格分隔 */
+function parseCustomLines(text: string): { key: string, imageUrl: string }[] {
+  return text.split('\n')
+    .map(l => l.trim())
+    .filter(Boolean)
+    .map((line) => {
+      if (line.includes('|')) {
+        const [key, url] = line.split('|')
+        return key?.trim() && url?.trim() ? { key: key.trim(), imageUrl: url.trim() } : null
+      }
+      const m = line.match(/^(\S+)\s+(https?:\/\/\S+)$/)
+      return m ? { key: m[1]!, imageUrl: m[2]! } : null
+    })
+    .filter((v): v is { key: string, imageUrl: string } => Boolean(v))
+}
+
+/** 批量自定义配图：整段粘贴 → 逐条解析提交 → 弹窗汇报成功/失败明细 */
+async function submitCustomImages() {
+  if (customRunning.value) return
+  const items = parseCustomLines(customText.value)
+  if (!items.length) {
+    toastError('没有解析到有效行，检查格式：菜名或ID | 图片URL')
+    return
+  }
+  customRunning.value = true
+  try {
+    const res = await adminRecipeBatchSetImage(items)
+    const failText = res.failed.length
+      ? `\n失败 ${res.failed.length} 条：\n` + res.failed.slice(0, 5).map(f => `${f.key}：${f.reason}`).join('\n')
+      : ''
+    uni.showModal({
+      title: '批量配图完成',
+      content: `成功更新 ${res.updated} 道${failText}`,
+      showCancel: false,
+      confirmText: '好的',
+    })
+    if (res.updated) {
+      customText.value = ''
+      await loadStats()
+      await loadList()
+    }
+  } catch (e: any) {
+    toastError(e.message || '批量设置失败')
+  } finally {
+    customRunning.value = false
   }
 }
 
@@ -230,504 +322,328 @@ onShow(() => {
     <wd-navbar title="菜谱管理中心" left-arrow safe-area-inset-top custom-style="background-color: transparent !important;" @click-left="navBack" />
 
     <view class="admin-content">
-    <!-- 统计卡片 -->
-    <view class="stats-row" v-if="stats">
-      <view class="stat-card">
-        <text class="stat-num">{{ stats.total }}</text>
-        <text class="stat-label">总菜谱</text>
-      </view>
-      <view class="stat-card warn">
-        <text class="stat-num">{{ stats.placeholderImage }}</text>
-        <text class="stat-label">占位图</text>
-      </view>
-      <view class="stat-card">
-        <text class="stat-num">{{ stats.ai }}</text>
-        <text class="stat-label">AI 生成</text>
-      </view>
-      <view class="stat-card">
-        <text class="stat-num">{{ stats.local }}</text>
-        <text class="stat-label">本地种子</text>
-      </view>
-    </view>
-
-    <!-- 定时任务配置 -->
-    <view class="gen-card" v-if="genConfig">
-      <view class="gen-header">
-        <text class="gen-title">每日自动生成</text>
-        <switch :checked="genConfig.enabled" @change="toggleEnabled" color="#EF5A3C" />
-      </view>
-      <view class="gen-row">
-        <text class="gen-label">每天生成数量</text>
-        <view class="gen-count">
-          <text class="gen-btn" @click="changeCount(-1)">−</text>
-          <text class="gen-num">{{ genConfig.dailyCount }} 道</text>
-          <text class="gen-btn" @click="changeCount(1)">＋</text>
+      <!-- 统计条：一行四格，数字主导 -->
+      <view v-if="stats" class="stats-row">
+        <view class="stat-cell">
+          <text class="stat-num">{{ stats.total }}</text>
+          <text class="stat-label">总菜谱</text>
+        </view>
+        <view class="stat-cell stat-cell--warn">
+          <text class="stat-num">{{ stats.placeholderImage }}</text>
+          <text class="stat-label">缺图</text>
+        </view>
+        <view class="stat-cell">
+          <text class="stat-num">{{ stats.ai }}</text>
+          <text class="stat-label">AI 生成</text>
+        </view>
+        <view class="stat-cell">
+          <text class="stat-num">{{ stats.local }}</text>
+          <text class="stat-label">本地种子</text>
         </view>
       </view>
-      <view class="gen-row" v-if="genConfig.lastRunAt">
-        <text class="gen-label">上次运行</text>
-        <text class="gen-value">{{ genConfig.lastRunAt?.substring(0,16) }} · 入库 {{ genConfig.lastRunCount }} 道</text>
-      </view>
-      <view class="gen-row">
-        <text class="gen-label">执行时间</text>
-        <text class="gen-value">{{ genConfig.cron }}</text>
-      </view>
-      <button class="gen-run-btn" :disabled="runningGen" @click="runNow">
-        {{ runningGen ? '生成中...' : '立即生成一次' }}
-      </button>
-    </view>
 
-    <!-- 批量生成配图 -->
-    <view class="gen-card" v-if="stats">
-      <view class="gen-header">
-        <text class="gen-title">批量生成配图</text>
-        <text class="gen-sub">已有真实图的自动跳过</text>
-      </view>
-      <view class="gen-row">
-        <text class="gen-label">处理缺图数量</text>
-        <view class="gen-count">
-          <text class="gen-btn" @click="batchChangeCount(-1)">−</text>
-          <text class="gen-num">{{ batchCount }} 道</text>
-          <text class="gen-btn" @click="batchChangeCount(1)">＋</text>
+      <!-- 配图工作台：AI 批量 / 自定义 URL 双模式 -->
+      <view v-if="stats" class="tool-card">
+        <view class="tool-head">
+          <text class="tool-title">配图工作台</text>
+          <text class="tool-sub">缺图 {{ stats.placeholderImage }} 道</text>
+        </view>
+        <view class="mode-tabs">
+          <view class="mode-tab" :class="{ active: batchMode === 'ai' }" role="tab" :aria-selected="batchMode === 'ai'" @click="batchMode = 'ai'">
+            AI 批量生成
+          </view>
+          <view class="mode-tab" :class="{ active: batchMode === 'custom' }" role="tab" :aria-selected="batchMode === 'custom'" @click="batchMode = 'custom'">
+            自定义图片
+          </view>
+        </view>
+
+        <!-- AI 批量模式 -->
+        <view v-if="batchMode === 'ai'" class="mode-body">
+          <view class="tool-row">
+            <text class="tool-label">处理缺图数量</text>
+            <view class="stepper">
+              <text class="stepper-btn" @click="batchChangeCount(-1)">−</text>
+              <text class="stepper-num">{{ batchCount }} 道</text>
+              <text class="stepper-btn" @click="batchChangeCount(1)">＋</text>
+            </view>
+          </view>
+          <button class="tool-btn" :disabled="batchRunning" @click="batchImages">
+            {{ batchRunning ? '排队中...' : `批量生成 ${batchCount} 道配图` }}
+          </button>
+          <text class="tool-hint">已有真实图的自动跳过；生图约 1 分钟/道，后台异步执行</text>
+        </view>
+
+        <!-- 自定义 URL 模式 -->
+        <view v-else class="mode-body">
+          <textarea
+            v-model="customText"
+            class="custom-input"
+            :maxlength="-1"
+            placeholder="每行一条：菜名或ID | 图片URL&#10;例：&#10;酱油焖饭 | https://cdn.example.com/soy-rice.jpg&#10;128 | https://cdn.example.com/2.jpg"
+          />
+          <button class="tool-btn" :disabled="customRunning" @click="submitCustomImages">
+            {{ customRunning ? '提交中...' : '批量设置自定义配图' }}
+          </button>
+          <text class="tool-hint">按「ID 精确 → 菜名精确 → 菜名包含」依次匹配；失败条目会单独列出原因</text>
         </view>
       </view>
-      <view class="gen-row">
-        <text class="gen-label">当前缺图</text>
-        <text class="gen-value">{{ stats.placeholderImage }} 道</text>
-      </view>
-      <button class="gen-run-btn" :disabled="batchRunning" @click="batchImages">
-        {{ batchRunning ? '排队中...' : `批量生成 ${batchCount} 道配图` }}
-      </button>
-    </view>
 
-    <!-- 搜索栏 -->
-    <view class="search-bar">
-      <input
-        v-model="keyword"
-        class="search-input"
-        placeholder="搜索菜名..."
-        confirm-type="search"
-        @confirm="onSearch"
+      <!-- 每日自动生成（紧凑） -->
+      <view v-if="genConfig" class="tool-card">
+        <view class="tool-head">
+          <text class="tool-title">每日自动生成</text>
+          <switch :checked="genConfig.enabled" @change="toggleEnabled" color="#EF5A3C" />
+        </view>
+        <view class="tool-row">
+          <text class="tool-label">每天数量</text>
+          <view class="stepper">
+            <text class="stepper-btn" @click="changeCount(-1)">−</text>
+            <text class="stepper-num">{{ genConfig.dailyCount }} 道</text>
+            <text class="stepper-btn" @click="changeCount(1)">＋</text>
+          </view>
+        </view>
+        <view class="tool-row" v-if="genConfig.lastRunAt">
+          <text class="tool-label">上次运行</text>
+          <text class="tool-value">{{ genConfig.lastRunAt?.substring(0, 16) }} · 入库 {{ genConfig.lastRunCount }} 道</text>
+        </view>
+        <view class="tool-row">
+          <text class="tool-label">执行时间</text>
+          <text class="tool-value">{{ genConfig.cron }}</text>
+        </view>
+        <button class="tool-btn tool-btn--ghost" :disabled="runningGen" @click="runNow">
+          {{ runningGen ? '生成中...' : '立即生成一次' }}
+        </button>
+      </view>
+
+      <!-- 搜索 + 筛选工具栏 -->
+      <view class="toolbar">
+        <view class="search-bar">
+          <input
+            v-model="keyword"
+            class="search-input"
+            placeholder="搜索菜名..."
+            confirm-type="search"
+            @confirm="onSearch"
+          />
+          <button class="search-btn" @click="onSearch">搜索</button>
+        </view>
+        <view class="filter-bar">
+          <view
+            v-for="opt in SOURCE_OPTIONS"
+            :key="opt.value"
+            class="filter-chip"
+            :class="{ active: sourceFilter === opt.value }"
+            :aria-label="`按${opt.label}筛选`"
+            role="button"
+            @click="sourceFilter = opt.value; onFilterChange()"
+          >{{ opt.label }}</view>
+          <view
+            class="filter-chip"
+            :class="{ active: onlyPlaceholder }"
+            role="button"
+            aria-label="仅看缺图"
+            @click="onlyPlaceholder = !onlyPlaceholder; onFilterChange()"
+          >仅看缺图</view>
+        </view>
+      </view>
+
+      <!-- 列表 -->
+      <view class="recipe-list">
+        <view v-for="item in list" :key="item.id" class="recipe-card">
+          <view class="recipe-media" @click="goEdit(item)">
+            <image
+              v-if="item.image"
+              :src="resolveAssetUrl(item.image)"
+              class="recipe-img"
+              mode="aspectFill"
+            />
+            <view v-else class="recipe-img recipe-img--empty">
+              <text>无图</text>
+            </view>
+            <text v-if="needsImage(item.image) && item.image" class="recipe-flag">假图</text>
+            <text v-else-if="needsImage(item.image)" class="recipe-flag">无图</text>
+          </view>
+          <view class="recipe-body" @click="goEdit(item)">
+            <view class="recipe-name-row">
+              <text class="recipe-name">{{ item.name }}</text>
+              <text class="recipe-id">#{{ item.id }}</text>
+            </view>
+            <text class="recipe-desc">{{ item.description || '暂无描述' }}</text>
+            <view class="recipe-meta">
+              <text class="meta-tag">{{ item.source || '-' }}</text>
+              <text class="meta-tag">{{ item.cookingTime || '?' }} 分钟</text>
+              <text class="meta-tag">{{ item.difficulty || '-' }}</text>
+            </view>
+            <view class="recipe-actions">
+              <view
+                class="act-btn act-btn--primary"
+                role="button"
+                :aria-label="`为${item.name}自定义配图`"
+                @click.stop="askSetImage(item)"
+              >设图</view>
+              <view
+                v-if="needsImage(item.image)"
+                class="act-btn"
+                :class="{ 'is-busy': generating[item.id] }"
+                role="button"
+                :aria-label="`为${item.name}生成 AI 配图`"
+                @click.stop="genImage(item)"
+              >{{ generating[item.id] ? '生成中…' : 'AI 配图' }}</view>
+              <view
+                v-else
+                class="act-btn"
+                :class="{ 'is-busy': generating[item.id] }"
+                role="button"
+                :aria-label="`为${item.name}重新生成配图`"
+                @click.stop="askRegenImage(item)"
+              >{{ generating[item.id] ? '重拍中…' : '重新配图' }}</view>
+              <view class="act-btn" role="button" :aria-label="`编辑${item.name}`" @click.stop="goEdit(item)">编辑</view>
+              <view class="act-btn act-btn--danger" role="button" :aria-label="`删除${item.name}`" @click.stop="askDelete(item)">删除</view>
+            </view>
+          </view>
+        </view>
+
+        <view v-if="loading" class="loading-tip">加载中...</view>
+        <view v-else-if="!list.length && !loading" class="empty-tip">暂无数据</view>
+      </view>
+
+      <!-- 分页：后端真分页（筛选下推），total 为筛选后条数 -->
+      <wd-pagination
+        v-model="page"
+        :total="total"
+        :page-size="size"
+        show-icon
+        hide-if-one-page
+        @change="loadList"
       />
-      <button class="search-btn" @click="onSearch">搜索</button>
-    </view>
-
-    <!-- 筛选栏 -->
-    <view class="filter-bar">
-      <view
-        v-for="opt in SOURCE_OPTIONS"
-        :key="opt.value"
-        class="filter-chip pressable"
-        :class="{ active: sourceFilter === opt.value }"
-        :aria-label="`按${opt.label}筛选`"
-        role="button"
-        @click="sourceFilter = opt.value; onFilterChange()"
-      >{{ opt.label }}</view>
-      <view
-        class="filter-chip pressable"
-        :class="{ active: onlyPlaceholder }"
-        role="button"
-        aria-label="仅看占位图"
-        @click="onlyPlaceholder = !onlyPlaceholder; onFilterChange()"
-      >仅看占位图</view>
-    </view>
-
-    <!-- 列表 -->
-    <view class="recipe-list">
-      <view
-        v-for="item in list"
-        :key="item.id"
-        class="recipe-card pressable"
-        role="button"
-        :aria-label="`编辑菜谱 ${item.name}`"
-        @click="goEdit(item)"
-      >
-        <image
-          v-if="item.image"
-          :src="resolveAssetUrl(item.image)"
-          class="recipe-img"
-          mode="aspectFill"
-        />
-        <view v-else class="recipe-img placeholder">
-          <text>无图</text>
-        </view>
-        <view class="recipe-info">
-          <view class="recipe-name-row">
-            <text class="recipe-name">{{ item.name }}</text>
-            <text v-if="needsImage(item.image) && item.image" class="badge-warn">假图</text>
-            <text v-else-if="needsImage(item.image)" class="badge-none">无图</text>
-          </view>
-          <text class="recipe-desc">{{ item.description || '暂无描述' }}</text>
-          <view class="recipe-meta">
-            <text class="meta-tag">{{ item.source || '-' }}</text>
-            <text class="meta-tag">{{ item.cookingTime || '?' }}分钟</text>
-            <text class="meta-tag">{{ item.difficulty || '-' }}</text>
-          </view>
-          <view class="recipe-actions">
-            <view
-              v-if="needsImage(item.image)"
-              class="action-btn action-btn--primary"
-              :class="{ 'is-busy': generating[item.id] }"
-              role="button"
-              :aria-label="`为${item.name}生成 AI 配图`"
-              @click.stop="genImage(item)"
-            >{{ generating[item.id] ? '配图中…' : '配图' }}</view>
-            <view
-              class="action-btn action-btn--danger"
-              role="button"
-              :aria-label="`删除${item.name}`"
-              @click.stop="askDelete(item)"
-            >删除</view>
-          </view>
-        </view>
-      </view>
-
-      <view v-if="loading" class="loading-tip">加载中...</view>
-      <view v-else-if="!list.length && !loading" class="empty-tip">暂无数据</view>
-    </view>
-
-    <!-- 分页：后端真分页（筛选下推），total 为筛选后条数 -->
-    <wd-pagination
-      v-model="page"
-      :total="total"
-      :page-size="size"
-      show-icon
-      hide-if-one-page
-      @change="loadList"
-    />
     </view>
   </view>
 </template>
 
-<style scoped>
-/* 与全局主题（theme.scss --mrc-* 令牌）统一：暖奶油底 + 珊瑚主色 + 暖褐文字 */
-.admin-page {
-  min-height: 100vh;
-  min-height: 100dvh;
-  box-sizing: border-box;
-  font-family: var(--mrc-font-family);
-  color: var(--mrc-text);
-  background: var(--mrc-bg);
-}
-.admin-content {
-  width: calc(100% - 48rpx);
-  max-width: 820rpx;
-  margin: 0 auto;
-  padding: 20rpx 0 calc(52rpx + env(safe-area-inset-bottom));
-  box-sizing: border-box;
-}
+<style lang="scss" scoped>
+/* finesse · register=product(工作流工具体) · mrc token 体系 · SOUL=4 SPECTACLE=1 DENSITY=7 */
+.admin-page { min-height: 100vh; background: var(--mrc-bg); }
+.admin-content { padding: 20rpx 28rpx calc(48rpx + env(safe-area-inset-bottom)); }
 
-/* 统一卡片基底：近白暖调表面 + 浅描边 + 上色柔和投影 */
-.stat-card,
-.gen-card,
-.recipe-card,
+/* ===== 统计条 ===== */
+.stats-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12rpx; }
+.stat-cell {
+  display: flex; flex-direction: column; align-items: center; gap: 4rpx;
+  padding: 20rpx 8rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 20rpx;
+  background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft);
+}
+.stat-cell--warn { background: linear-gradient(160deg, #fff4ec, #ffe6d8); border-color: rgba(217, 72, 65, 0.18); }
+.stat-num { color: var(--mrc-text-strong); font-size: 34rpx; font-weight: 900; line-height: 1.1; }
+.stat-cell--warn .stat-num { color: #D94841; }
+.stat-label { color: var(--mrc-text-sub); font-size: 20rpx; }
+
+/* ===== 工具卡（配图工作台 / 自动生成） ===== */
+.tool-card {
+  margin-top: 18rpx; padding: 24rpx 26rpx;
+  border: 2rpx solid var(--mrc-border-light); border-radius: 24rpx;
+  background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft);
+}
+.tool-head { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; }
+.tool-title { color: var(--mrc-text-strong); font-size: 28rpx; font-weight: 800; }
+.tool-sub { color: #D94841; font-size: 21rpx; font-weight: 700; }
+.tool-row { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; margin-top: 18rpx; }
+.tool-label { color: var(--mrc-text-sub); font-size: 24rpx; }
+.tool-value { color: var(--mrc-text-deep); font-size: 23rpx; text-align: right; }
+.mode-tabs {
+  display: flex; gap: 8rpx; margin-top: 16rpx; padding: 6rpx;
+  border-radius: 14rpx; background: var(--mrc-surface-2);
+}
+.mode-tab {
+  flex: 1; display: flex; justify-content: center; padding: 12rpx 0;
+  border-radius: 10rpx; color: var(--mrc-text-sub); font-size: 23rpx; font-weight: 700;
+}
+.mode-tab.active { background: var(--mrc-surface); color: var(--mrc-accent); box-shadow: var(--mrc-shadow-soft); }
+.mode-body { margin-top: 4rpx; }
+.stepper { display: flex; align-items: center; gap: 18rpx; }
+.stepper-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 52rpx; height: 52rpx; border-radius: 14rpx;
+  background: var(--mrc-surface-2); color: var(--mrc-text-deep); font-size: 30rpx; font-weight: 800;
+}
+.stepper-btn:active { transform: scale(0.92); }
+.stepper-num { min-width: 90rpx; color: var(--mrc-text-strong); font-size: 26rpx; font-weight: 800; text-align: center; }
+.tool-btn {
+  width: 100%; height: 84rpx; margin: 20rpx 0 0; padding: 0;
+  border: none; border-radius: 18rpx; line-height: 84rpx;
+  background: var(--mrc-primary-grad); color: #fff; font-size: 26rpx; font-weight: 800;
+  box-shadow: var(--mrc-shadow-coral);
+}
+.tool-btn:disabled { opacity: .6; }
+.tool-btn--ghost { background: var(--mrc-surface-2); color: var(--mrc-text-deep); box-shadow: none; }
+.custom-input {
+  width: 100%; height: 220rpx; margin-top: 16rpx; padding: 18rpx 20rpx;
+  border: 2rpx solid var(--mrc-border-light); border-radius: 16rpx;
+  background: var(--mrc-surface-2); box-sizing: border-box;
+  color: var(--mrc-text-deep); font-size: 23rpx; line-height: 1.6;
+}
+.tool-hint { display: block; margin-top: 12rpx; color: var(--mrc-text-light); font-size: 20rpx; line-height: 1.5; }
+
+/* ===== 搜索 + 筛选 ===== */
+.toolbar { margin-top: 18rpx; padding: 20rpx 24rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 24rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); }
+.search-bar { display: flex; gap: 14rpx; }
 .search-input {
-  background: var(--mrc-surface);
-  border: 2rpx solid var(--mrc-border-light);
-  box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss);
-  box-sizing: border-box;
-}
-
-/* ---------- 统计卡 ---------- */
-.stats-row {
-  display: flex;
-  gap: 16rpx;
-  margin-bottom: 24rpx;
-}
-.stat-card {
-  flex: 1;
-  border-radius: 28rpx;
-  padding: 22rpx 0;
-  text-align: center;
-}
-.stat-card.warn {
-  background: var(--mrc-surface-sun);
-}
-.stat-num {
-  display: block;
-  font-size: 36rpx;
-  font-weight: 800;
-  color: var(--mrc-text-strong);
-}
-.stat-card.warn .stat-num {
-  color: var(--mrc-accent);
-}
-.stat-label {
-  font-size: 21rpx;
-  color: var(--mrc-text-sub);
-}
-
-/* ---------- 搜索 ---------- */
-.search-bar {
-  display: flex;
-  gap: 16rpx;
-  margin-bottom: 20rpx;
-}
-.search-input {
-  flex: 1;
-  min-width: 0;
-  height: 88rpx;
-  border-radius: 44rpx;
-  padding: 0 30rpx;
-  font-size: 28rpx;
-  color: var(--mrc-text-deep);
+  flex: 1; height: 72rpx; padding: 0 24rpx;
+  border: 2rpx solid var(--mrc-border-light); border-radius: 16rpx;
+  background: var(--mrc-surface-2); box-sizing: border-box;
+  color: var(--mrc-text-deep); font-size: 24rpx;
 }
 .search-btn {
-  margin: 0;
-  height: 88rpx;
-  padding: 0 38rpx;
-  border-radius: 44rpx;
-  background: var(--mrc-primary-grad);
-  color: #fff;
-  font-size: 28rpx;
-  font-weight: 700;
-  line-height: 88rpx;
-  box-shadow: var(--mrc-shadow-coral), var(--mrc-gloss);
-  transition: transform var(--mrc-motion-fast, 180ms ease-out);
+  flex: 0 0 auto; width: 128rpx; height: 72rpx; margin: 0; padding: 0;
+  border: none; border-radius: 16rpx; line-height: 72rpx;
+  background: var(--mrc-primary-grad); color: #fff; font-size: 24rpx; font-weight: 800;
 }
-.search-btn::after,
-.gen-run-btn::after {
-  border: none;
-}
-.search-btn:active,
-.gen-run-btn:active {
-  transform: scale(0.97);
-}
-
-/* ---------- 筛选 chip ---------- */
-.filter-bar {
-  display: flex;
-  gap: 14rpx;
-  margin-bottom: 22rpx;
-  flex-wrap: wrap;
-}
+.filter-bar { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 16rpx; }
 .filter-chip {
-  padding: 14rpx 28rpx;
-  background: var(--mrc-surface);
-  border: 2rpx solid var(--mrc-border-light);
-  border-radius: 999rpx;
-  font-size: 24rpx;
-  font-weight: 600;
-  color: var(--mrc-text-sub);
-  transition: background-color 180ms ease, color 180ms ease;
+  padding: 8rpx 26rpx; border: 2rpx solid var(--mrc-border-light);
+  border-radius: 999rpx; background: var(--mrc-surface-2);
+  color: var(--mrc-text-sub); font-size: 22rpx; font-weight: 700;
 }
-.filter-chip.active {
-  background: var(--mrc-accent-soft);
-  border-color: transparent;
-  color: var(--mrc-accent);
-}
+.filter-chip.active { border-color: transparent; background: var(--mrc-accent-soft); color: var(--mrc-accent); }
 
-/* ---------- 菜谱列表 ---------- */
-.recipe-list {
-  display: flex;
-  flex-direction: column;
-  gap: 18rpx;
-}
+/* ===== 列表卡片 ===== */
+.recipe-list { display: flex; flex-direction: column; gap: 16rpx; margin-top: 18rpx; }
 .recipe-card {
-  display: flex;
-  border-radius: 28rpx;
-  overflow: hidden;
+  display: flex; align-items: stretch; gap: 20rpx; padding: 20rpx;
+  border: 2rpx solid var(--mrc-border-light); border-radius: 24rpx;
+  background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft);
 }
-.recipe-img {
-  width: 168rpx;
-  height: 168rpx;
-  flex-shrink: 0;
-  background: var(--mrc-surface-2);
+.recipe-media { position: relative; flex: 0 0 176rpx; width: 176rpx; align-self: flex-start; }
+.recipe-img { width: 176rpx; height: 176rpx; border-radius: 18rpx; background: var(--mrc-surface-2); }
+.recipe-img--empty { display: flex; align-items: center; justify-content: center; color: var(--mrc-text-light); font-size: 22rpx; }
+.recipe-flag {
+  position: absolute; top: 8rpx; left: 8rpx;
+  padding: 2rpx 12rpx; border-radius: 8rpx;
+  background: rgba(217, 72, 65, 0.9); color: #fff; font-size: 17rpx; font-weight: 800;
 }
-.recipe-img.placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--mrc-text-light);
-  font-size: 24rpx;
-}
-.recipe-info {
-  flex: 1;
-  min-width: 0;
-  padding: 18rpx 22rpx;
-  display: flex;
-  flex-direction: column;
-  gap: 8rpx;
-  overflow: hidden;
-}
-.recipe-name-row {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-}
-.recipe-name {
-  font-size: 30rpx;
-  font-weight: 700;
-  color: var(--mrc-text-deep);
-}
-.badge-warn,
-.badge-none {
-  flex: 0 0 auto;
-  font-size: 20rpx;
-  font-weight: 600;
-  padding: 4rpx 14rpx;
-  border-radius: 999rpx;
-}
-.badge-warn {
-  background: var(--mrc-accent-soft);
-  color: var(--mrc-accent);
-}
-.badge-none {
-  background: var(--mrc-surface-2);
-  color: var(--mrc-text-sub);
-}
+.recipe-body { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 8rpx; }
+.recipe-name-row { display: flex; align-items: center; gap: 10rpx; }
+.recipe-name { flex-shrink: 0; max-width: 320rpx; overflow: hidden; color: var(--mrc-text-strong); font-size: 29rpx; font-weight: 800; white-space: nowrap; text-overflow: ellipsis; }
+.recipe-id { flex-shrink: 0; color: var(--mrc-text-light); font-size: 19rpx; }
 .recipe-desc {
-  font-size: 24rpx;
-  color: var(--mrc-text-sub);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
+  color: var(--mrc-text-sub); font-size: 22rpx; line-height: 1.5;
 }
-.recipe-meta {
-  display: flex;
-  gap: 12rpx;
-}
-.meta-tag {
-  font-size: 20rpx;
-  color: var(--mrc-text-sub);
-  background: var(--mrc-surface-2);
-  padding: 4rpx 14rpx;
-  border-radius: 999rpx;
-}
+.recipe-meta { display: flex; flex-wrap: wrap; gap: 8rpx; margin-top: 2rpx; }
+.meta-tag { padding: 3rpx 14rpx; border-radius: 8rpx; background: var(--mrc-surface-2); color: var(--mrc-text-sub); font-size: 18rpx; }
 
-/* 卡片内操作按钮：.stop 阻断卡片跳转；胶囊小按钮 + 软色底 */
-.recipe-actions {
-  display: flex;
-  gap: 14rpx;
-  margin-top: 4rpx;
+/* 操作行：横贯内容区底部的四枚等宽按钮——层级统一、删除用危险软底色 */
+.recipe-actions { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12rpx; margin-top: auto; padding-top: 14rpx; border-top: 2rpx dashed var(--mrc-border-light); }
+.act-btn {
+  display: flex; align-items: center; justify-content: center;
+  height: 60rpx; border: none; border-radius: 14rpx;
+  background: var(--mrc-surface-2); color: var(--mrc-text-deep);
+  font-size: 22rpx; font-weight: 700;
+  transition: transform .12s ease;
 }
-.action-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 56rpx;
-  padding: 0 26rpx;
-  border-radius: 999rpx;
-  font-size: 22rpx;
-  font-weight: 700;
-}
-.action-btn--primary {
-  background: var(--mrc-accent-soft);
-  color: var(--mrc-accent);
-}
-.action-btn--primary.is-busy {
-  opacity: 0.55;
-  pointer-events: none;
-}
-.action-btn--danger {
-  background: var(--mrc-color-danger-soft);
-  color: var(--mrc-color-danger);
-}
+.act-btn:active { transform: scale(0.94); }
+.act-btn--primary { background: var(--mrc-accent-soft); color: var(--mrc-accent); }
+.act-btn.is-busy { opacity: .6; }
+.act-btn--danger { background: #FDECEC; color: #D94841; }
 
-/* 分页条 */
-.admin-content > .wd-pagination {
-  margin-top: 28rpx;
-}
-
-.loading-tip, .empty-tip {
-  text-align: center;
-  padding: 48rpx;
-  color: var(--mrc-text-sub);
-  font-size: 26rpx;
-}
-
-/* ---------- 定时任务配置 ---------- */
-.gen-card {
-  border-radius: 28rpx;
-  padding: 26rpx;
-  margin-bottom: 24rpx;
-}
-.gen-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16rpx;
-}
-.gen-title {
-  font-size: 30rpx;
-  font-weight: 800;
-  color: var(--mrc-text-deep);
-}
-.gen-sub {
-  font-size: 21rpx;
-  color: var(--mrc-text-sub);
-  font-weight: 600;
-}
-.gen-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12rpx 0;
-}
-.gen-label {
-  font-size: 26rpx;
-  color: var(--mrc-text);
-}
-.gen-value {
-  font-size: 24rpx;
-  color: var(--mrc-text-sub);
-}
-.gen-count {
-  display: flex;
-  align-items: center;
-  gap: 20rpx;
-}
-.gen-btn {
-  width: 56rpx;
-  height: 56rpx;
-  line-height: 56rpx;
-  text-align: center;
-  background: var(--mrc-surface-2);
-  border-radius: 50%;
-  font-size: 32rpx;
-  font-weight: 700;
-  color: var(--mrc-accent);
-}
-.gen-num {
-  font-size: 28rpx;
-  font-weight: 800;
-  color: var(--mrc-text-deep);
-  min-width: 88rpx;
-  text-align: center;
-}
-.gen-run-btn {
-  margin-top: 20rpx;
-  background: var(--mrc-primary-grad);
-  color: #fff;
-  font-size: 28rpx;
-  font-weight: 700;
-  border-radius: 44rpx;
-  padding: 0;
-  line-height: 88rpx;
-  box-shadow: var(--mrc-shadow-coral), var(--mrc-gloss);
-  transition: transform var(--mrc-motion-fast, 180ms ease-out);
-}
-.gen-run-btn[disabled] {
-  opacity: 0.5;
-}
-
-/* 按压反馈（与其他页面一致） */
-.pressable {
-  transition: transform 180ms ease, opacity 180ms ease;
-}
-.pressable:active {
-  transform: scale(0.97);
-}
-@media (prefers-reduced-motion: reduce) {
-  .pressable,
-  .search-btn,
-  .gen-run-btn {
-    transition: none;
-  }
-  .pressable:active,
-  .search-btn:active,
-  .gen-run-btn:active {
-    transform: none;
-  }
-}
+.loading-tip, .empty-tip { padding: 60rpx 0; color: var(--mrc-text-light); font-size: 24rpx; text-align: center; }
 </style>

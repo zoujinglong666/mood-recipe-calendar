@@ -65,14 +65,30 @@ export function adminRecipeDelete(id: number) {
   return del<{ deleted: number }>(`/admin/recipes/${id}`)
 }
 
-/** 为无图/占位图菜谱异步生成 AI 配图（文生图→COS→回写）。started=false 表示已有真实图，直接返回 image。 */
-export function adminRecipeGenImage(id: number) {
-  return post<{ started: boolean; image?: string }>(`/admin/recipes/${id}/image`, {})
+/** 为无图/占位图菜谱异步生成 AI 配图（文生图→COS→回写）。started=false 表示已有真实图，直接返回 image。
+ *  force=true（管理端「重新配图」）：已有真实图也强制重拍并覆盖，后端会驱逐按名生图缓存。 */
+export function adminRecipeGenImage(id: number, force = false) {
+  return post<{ started: boolean; image?: string }>(`/admin/recipes/${id}/image${force ? '?force=true' : ''}`, {})
 }
 
 /** 批量补拍缺图菜谱配图：按缺图口径取前 count 道（已有真实图自动跳过），逐道异步补拍，立即返回已排队条数。 */
 export function adminRecipeBatchImage(count: number) {
   return post<{ queued: number; scanned: number }>('/admin/recipes/batch-image', { count })
+}
+
+/** 管理员手动设置菜谱配图（自定义图片 URL，绕过 AI 生图）。 */
+export function adminRecipeSetImage(id: number, imageUrl: string) {
+  return post<{ id: number; image: string }>(`/admin/recipes/${id}/set-image`, { imageUrl })
+}
+
+export interface BatchSetImageResult {
+  updated: number
+  failed: { key: string, reason: string }[]
+}
+
+/** 批量自定义配图：key 依次按「ID 精确 → 菜名精确 → 菜名包含」解析，单条失败不阻断批次。 */
+export function adminRecipeBatchSetImage(items: { key: string, imageUrl: string }[]) {
+  return post<BatchSetImageResult>('/admin/recipes/batch-set-image', { items })
 }
 
 export interface GenerationConfig {

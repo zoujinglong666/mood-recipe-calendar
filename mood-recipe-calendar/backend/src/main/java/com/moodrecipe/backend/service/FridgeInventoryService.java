@@ -17,6 +17,9 @@ import java.util.Optional;
 public class FridgeInventoryService {
     private static final ZoneId ZONE = AppClock.ZONE;
     private final FridgeItemRepository repository;
+    /** 锅仔养成（可选）：吃掉临期食材 = 喂锅仔。 */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private GrowthService growth;
 
     public FridgeInventoryService(FridgeItemRepository repository) {
         this.repository = repository;
@@ -56,6 +59,11 @@ public class FridgeInventoryService {
         if (amount.compareTo(item.getQuantity()) > 0) throw new IllegalArgumentException("消耗数量不能超过库存");
         if (amount.compareTo(item.getQuantity()) == 0) {
             repository.delete(item);
+            // 消灭临期/过期食材（3 天内到期）：防浪费行为喂锅仔 +15——养成与冰箱闭环在这里交汇
+            if (growth != null && item.getExpiresOn() != null
+                    && !item.getExpiresOn().isAfter(AppClock.today().plusDays(3))) {
+                growth.award(openid, GrowthService.Event.EXPIRING_CONSUMED);
+            }
             return Optional.empty();
         }
         item.setQuantity(item.getQuantity().subtract(amount));

@@ -8,6 +8,7 @@ import com.moodrecipe.backend.model.RecordRequest;
 import com.moodrecipe.backend.model.RecordSaveResponse;
 import com.moodrecipe.backend.repository.UserRecordRepository;
 import com.moodrecipe.backend.service.AchievementService;
+import com.moodrecipe.backend.service.GrowthService;
 import com.moodrecipe.backend.service.RecordLearningService;
 import com.moodrecipe.backend.service.RecordPosterService;
 import com.moodrecipe.backend.service.OperationalEventService;
@@ -34,6 +35,9 @@ public class RecordController {
     private final AchievementService achievements;
     /** 运营埋点（可选）：记录落库是推荐→记录转化漏斗的末端事实。 */
     private OperationalEventService operationalEvents;
+    /** 锅仔养成（可选）：记录一餐 = 喂锅仔。 */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private GrowthService growth;
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ISO_LOCAL_DATE;
     private static final String DEFAULT_DISH_IMAGE = "/static/dish_tomato_beef.png";
 
@@ -115,6 +119,8 @@ public class RecordController {
         }
         // 记录落库后顺手跑一遍成就检测（几次 count 查询，毫秒级）；新解锁成就随响应返回庆祝
         List<String> newlyUnlocked = unlockedNames(openid);
+        // 喂锅仔：认真记录一餐 +10（养成失败静默，不影响记录主流程）
+        if (growth != null) growth.award(openid, GrowthService.Event.RECORD_MEAL);
         // 漏斗埋点：推荐→记录转化的末端事实（detail 带来源 recipeId 便于归因）
         if (operationalEvents != null) {
             try {

@@ -6,6 +6,7 @@ import Icon from '../../components/common/Icon.vue'
 import LoadingState from '../../components/guozai/LoadingState.vue'
 import ErrorState from '../../components/guozai/ErrorState.vue'
 import { ensureLogin } from '../../utils/login'
+import { fetchGrowthStatus, type GrowthStatus } from '@/api/growth'
 import { toast, toastError, toastSuccess } from '../../utils/toast'
 import SuccessModal from '../../components/guozai/SuccessModal.vue'
 import {
@@ -53,6 +54,7 @@ const selectedProduct = ref<any>(null)
 const buyType = ref<'normal' | 'exchange'>('normal')
 const showBuy = ref(false)
 const checkin = ref<CheckinStatus>({ checkedIn: false, streak: 0, exchangeReady: false, daysToExchange: 30, totalDays: 0 })
+const growth = ref<GrowthStatus | null>(null)
 const checking = ref(false)
 const showCheckinModal = ref(false)
 /** 锅仔成就墙：记录/探索/连续天数等，记录落库后自动检测解锁 */
@@ -137,14 +139,16 @@ async function loadData() {
   error.value = ''
   try {
     await ensureLogin()
-    const [ck, prods, vOrders, achv] = await Promise.all([
+    const [ck, prods, vOrders, achv, gr] = await Promise.all([
       fetchCheckinStatus(),
       fetchVirtualProducts().catch(() => [] as VirtualProduct[]),
       fetchVirtualOrders().catch(() => [] as VirtualOrder[]),
       fetchAchievements().catch(() => null),
+      fetchGrowthStatus().catch(() => null),
     ])
     checkin.value = ck
     achievements.value = achv
+    growth.value = gr
     productTitleMap.value = Object.fromEntries(prods.map(p => [p.sku, p.title]))
     orders.value = vOrders.map(o => ({
       orderNo: o.orderNo,
@@ -298,6 +302,28 @@ function onBuy() {}
             {{ checkin.checkedIn ? '今日已签到' : '签到' }}
           </view>
         </view>
+      </view>
+
+      <!-- 锅仔养成：记录/做菜/消耗临期食材 = 喂锅仔 → 升级解锁新形态（签到/成就/形象在这里汇成一条线） -->
+      <view v-if="growth" class="growth-card">
+        <view class="growth-card__head">
+          <image class="growth-card__gz" :src="STATIC_BASE_URL + growth.skins[Math.min(growth.level - 1, growth.skins.length - 1)].image" mode="aspectFit" aria-hidden="true" />
+          <view class="growth-card__copy">
+            <text class="growth-card__label">锅仔养成 · LV.{{ growth.level }} {{ growth.levelName }}</text>
+            <text class="growth-card__hint">{{ growth.hasNextLevel ? `再喂 ${growth.pointsToNext} 点升级` : '已是满级锅仙，锅仔谢谢你' }} · 今天投喂了 {{ growth.todayPoints }} 点</text>
+          </view>
+          <text class="growth-card__points">{{ growth.points }}</text>
+        </view>
+        <view class="growth-card__bar">
+          <view class="growth-card__bar-fill" :style="{ width: `${Math.min(100, growth.progressPercent)}%` }" />
+        </view>
+        <view class="growth-card__skins">
+          <view v-for="skin in growth.skins" :key="skin.level" class="growth-skin" :class="{ 'is-locked': !skin.unlocked }" :aria-label="skin.unlocked ? `已解锁${skin.name}` : `${skin.name}，${skin.unlockAtPoints} 点解锁`">
+            <image class="growth-skin__img" :src="STATIC_BASE_URL + skin.image" mode="aspectFit" />
+            <text class="growth-skin__lv">LV.{{ skin.level }}</text>
+          </view>
+        </view>
+        <text class="growth-card__foot">记录一餐 / 做计划菜 / 消灭临期食材都会喂锅仔——别让菜坏掉，锅仔会伤心</text>
       </view>
 
       <!-- ============ 三馆合一 Tab：成就 / 表情包 / 订单 ============ -->
@@ -562,6 +588,31 @@ function onBuy() {}
 }
 
 /* Tab */
+/* ===== 锅仔养成卡：等级/进度/皮肤墙，与签到卡同族语言 ===== */
+.growth-card {
+  margin-top: 18rpx;
+  padding: 26rpx 28rpx 22rpx;
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 30rpx;
+  background: linear-gradient(160deg, #fffdf6, var(--mrc-surface-sun));
+  box-shadow: var(--mrc-shadow-soft);
+}
+.growth-card__head { display: flex; align-items: center; gap: 18rpx; }
+.growth-card__gz { width: 96rpx; height: 96rpx; flex: 0 0 96rpx; }
+.growth-card__copy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 6rpx; }
+.growth-card__label { color: var(--mrc-text-strong); font-size: 28rpx; font-weight: 800; }
+.growth-card__hint { color: var(--mrc-text-sub); font-size: 21rpx; }
+.growth-card__points { flex-shrink: 0; color: var(--mrc-accent); font-size: 36rpx; font-weight: 900; }
+.growth-card__bar { height: 14rpx; margin-top: 16rpx; border-radius: 999rpx; background: var(--mrc-surface-2); overflow: hidden; }
+.growth-card__bar-fill { height: 100%; border-radius: 999rpx; background: var(--mrc-primary-grad); transition: width .4s ease; }
+.growth-card__skins { display: flex; justify-content: space-between; gap: 10rpx; margin-top: 20rpx; }
+.growth-skin { display: flex; flex: 1; min-width: 0; flex-direction: column; align-items: center; gap: 4rpx; padding: 10rpx 4rpx; border-radius: 16rpx; background: var(--mrc-surface); }
+.growth-skin__img { width: 64rpx; height: 64rpx; }
+.growth-skin__lv { color: var(--mrc-text-sub); font-size: 17rpx; font-weight: 700; }
+.growth-skin.is-locked .growth-skin__img { filter: grayscale(1); opacity: .35; }
+.growth-skin.is-locked .growth-skin__lv { color: var(--mrc-text-light); }
+.growth-card__foot { display: block; margin-top: 14rpx; color: var(--mrc-text-light); font-size: 19rpx; line-height: 1.5; }
+
 .gallery-tabs {
   display: flex;
   background: var(--mrc-surface-2);

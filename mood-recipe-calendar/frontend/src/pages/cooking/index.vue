@@ -6,6 +6,7 @@ import { navBack } from '@/composables/useNavBar'
 import { STATIC_BASE_URL } from '@/utils/assets'
 import Icon from '../../components/common/Icon.vue'
 import FoodSafetyTips from '../../components/guozai/FoodSafetyTips.vue'
+import SeasoningTimingTips from '../../components/guozai/SeasoningTimingTips.vue'
 import SuccessModal from '../../components/guozai/SuccessModal.vue'
 import { COOKING_PROGRESS_KEY, loadCookingDraft, saveRecordDraft } from '../../utils/cookingDraft'
 import { toast } from '../../utils/toast'
@@ -445,6 +446,7 @@ onUnload(() => {
             <text>{{ index + 1 }}</text><text>{{ item }}</text>
           </view>
           <FoodSafetyTips :ingredients="ingredients" class="cooking-safety" />
+          <SeasoningTimingTips :ingredients="ingredients" :steps="steps" class="cooking-seasoning" />
         </view>
       </view>
 

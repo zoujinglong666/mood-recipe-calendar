@@ -6,6 +6,7 @@ import com.moodrecipe.backend.entity.UserEntitlement;
 import com.moodrecipe.backend.entity.RecipeInteraction;
 import com.moodrecipe.backend.repository.RecipeInteractionRepository;
 import com.moodrecipe.backend.repository.RecipeRepository;
+import com.moodrecipe.backend.service.RecipeTextGuard;
 import com.moodrecipe.backend.service.GuozaiAgent;
 import com.moodrecipe.backend.service.VirtualCommerceService;
 import com.moodrecipe.backend.service.OperationalEventService;
@@ -65,7 +66,7 @@ public class RecipeController {
      */
     @GetMapping
     public ApiResponse<List<Recipe>> list() {
-        return ApiResponse.ok(dedupeByName(repository.findAiWithImages()));
+        return ApiResponse.ok(dedupeByName(RecipeTextGuard.clean(repository.findAiWithImages())));
     }
 
     /**
@@ -97,6 +98,12 @@ public class RecipeController {
             String keyword, String source, String time, String mood) {
         return (root, query, cb) -> {
             List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            // 乱码防线：菜名/简介含 '?' 或 U+FFFD 的行（导入字符集事故）绝不进列表
+            predicates.add(cb.not(cb.or(
+                    cb.like(root.get("name"), "%?%"),
+                    cb.like(root.get("description"), "%?%"),
+                    cb.like(root.get("name"), "%\uFFFD%"),
+                    cb.like(root.get("description"), "%\uFFFD%"))));
             // 同名菜只保留最早入库（id 最小）的一条
             var sub = query.subquery(Long.class);
             var r2 = sub.from(Recipe.class);
@@ -219,7 +226,7 @@ public class RecipeController {
         List<RecipeHistoryItem> items = recent.stream()
                 .map(item -> {
                     Recipe recipe = byId.get(item.getRecipeId());
-                    if (recipe == null) return null;
+                    if (recipe == null || RecipeTextGuard.broken(recipe)) return null;
                     return new RecipeHistoryItem(recipe.getId(), recipe.getName(), recipe.getDescription(),
                             recipe.getImage(), recipe.getIngredients(), recipe.getSteps(),
                             recipe.getCookingTime(), recipe.getDifficulty(), recipe.getSource(), item.getCreatedAt());
@@ -394,7 +401,7 @@ public class RecipeController {
     /** 按心情列表 */
     @GetMapping("/by-mood")
     public ApiResponse<List<Recipe>> byMood(@RequestParam String mood) {
-        return ApiResponse.ok(dedupeByName(repository.findAiWithImages().stream()
+        return ApiResponse.ok(dedupeByName(RecipeTextGuard.clean(repository.findAiWithImages()).stream()
                 .filter(r -> r.getMoodTags() != null && r.getMoodTags().contains(mood)).toList()));
     }
 
@@ -402,9 +409,9 @@ public class RecipeController {
     /** 仅匹配数字 ID，避免 /quota 被旧版或不同 Spring 路由策略误判为 Long。 */
     @GetMapping("/{id:\\d+}")
     public ApiResponse<Recipe> detail(@PathVariable Long id) {
-        return repository.findById(id)
-            .map(ApiResponse::ok)
-            .orElseGet(() -> ApiResponse.error(404, "菜谱不存在"));
+        Recipe recipe = repository.findById(id).orElse(null);
+        if (RecipeTextGuard.broken(recipe)) return ApiResponse.error(404, "菜谱不存在");
+        return ApiResponse.ok(recipe);
     }
 
     public record DeepRecommendRequest(String mood, String ingredients, String maxMinutes, String preference) { }

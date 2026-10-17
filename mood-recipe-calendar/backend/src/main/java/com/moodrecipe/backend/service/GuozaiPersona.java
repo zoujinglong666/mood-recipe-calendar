@@ -10,6 +10,11 @@ import org.springframework.stereotype.Service;
 @Service
 public class GuozaiPersona {
 
+    /** 调味时序知识库（可选注入）：AI 生成菜谱步骤时自带「什么时候放调料」。 */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private SeasoningTimingService seasoningTiming;
+
+
     /** 锅仔基础人格：温暖、务实、克制，只谈吃饭和日常关心。 */
     public String systemPrompt() {
         return "你是锅仔，一只温暖、务实、懂吃饭的小锅精灵。你陪伴用户记录每一餐，"
@@ -77,6 +82,9 @@ public class GuozaiPersona {
         if (nutritionFocus != null && !nutritionFocus.isBlank()) {
             prompt.append("\n以下是知识库中与这次推荐相关的营养搭配要点（生成时遵守，融进选菜与做法，不要在文案里生硬复述）：\n")
                     .append(nutritionFocus).append("\n");
+        }
+        if (seasoningTiming != null) {
+            prompt.append("\n").append(seasoningTiming.promptRules());
         }
         prompt.append("请结合以上分析和心情，推荐一道适合此刻的中国家常菜。")
                 .append("如果用户最近总吃类似的菜，可以适当换个口味；如果用户情绪低落，推荐暖胃治愈的菜。\n");

@@ -40,6 +40,9 @@ public class WeeklyMealPlanService {
     private FridgeInventoryService fridge;
     private RecipeFavoriteService favoriteService;
     private UserRecordRepository records;
+    /** 锅仔养成（可选）：生成周菜单 = 喂锅仔。 */
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private GrowthService growth;
 
     @org.springframework.beans.factory.annotation.Autowired(required = false)
     void setFridgeInventoryService(FridgeInventoryService fridge) { this.fridge = fridge; }
@@ -113,6 +116,8 @@ public class WeeklyMealPlanService {
         if (achievementService != null) {
             try { achievementService.checkAndUnlock(openid); } catch (RuntimeException ignored) { }
         }
+        // 喂锅仔：生成周菜单 +15（养成失败静默，不影响生成主流程）
+        if (growth != null) growth.award(openid, GrowthService.Event.WEEKLY_PLAN);
         if (request.sendNotification()) subscriptions.sendWeeklyPlanCompleted(openid, view.id());
         progress.update(WeeklyPlanJobService.Stage.FINALIZE, WeeklyPlanJobService.StepStatus.COMPLETED, "整理生成结果");
         return view;
