@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moodrecipe.backend.service.UsageQuotaService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
@@ -53,6 +54,7 @@ public class TieredLlmClient implements LlmClient {
                 planningModel, flashModel, maxAttempts, toolCallingEnabled, paidMaxConcurrency);
     }
 
+    @Autowired
     public TieredLlmClient(FallbackLlmClient freeClient,
                            UsageQuotaService quota,
                            LlmUsageCounter usageCounter,
