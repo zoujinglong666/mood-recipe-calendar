@@ -62,7 +62,8 @@ class AgentCardsTest {
         DialogueState.Card card = AgentCards.accept(null, state, "OPTIONS", "选菜系", "描述", options);
         assertEquals("OPTIONS", card.type());
         assertEquals("选菜系", card.title());
-        assertEquals(3, card.options().size());
+        // 2 个模型选项 + 「自己输入」+ 每张追问卡都带的「按我的记忆直接生成」
+        assertEquals(4, card.options().size());
         assertTrue(card.options().stream().anyMatch(o -> "自己输入".equals(o.label())));
     }
 
@@ -74,7 +75,7 @@ class AgentCardsTest {
                 new DialogueState.Option("三", "c"), new DialogueState.Option("四", "d"),
                 new DialogueState.Option("五", "e"), new DialogueState.Option("六", "f"));
         DialogueState.Card card = AgentCards.accept(null, state, "OPTIONS", "t", "d", options);
-        // 5 meaningful + 自己输入
-        assertEquals(6, card.options().size());
+        // 5 meaningful + 自己输入 + 每张追问卡都带的「按我的记忆直接生成」
+        assertEquals(7, card.options().size());
     }
 }

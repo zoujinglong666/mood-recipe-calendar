@@ -272,6 +272,7 @@ public class GuozaiAgent {
 
     /** 检索与本次心情/餐别相关的膳食知识要点；失败则静默返回空，不影响推荐本身。 */
     private List<Map<String, Object>> guidelinePoints(String mood, String mealType) {
+        if (guidelineRag == null) return List.of();
         try {
             String label = GuozaiPersona.mealTypeLabel(mealType);
             String query = (label.isEmpty() ? "" : label + " 餐 ") + "膳食搭配 营养均衡 " + mood;

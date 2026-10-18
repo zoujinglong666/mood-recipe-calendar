@@ -1,6 +1,8 @@
 {
   "pages": [
     "pages/index/index",
+    "pages/recipe-library/index",
+    "pages/personality/index",
     "pages/calendar/index",
     "pages/cooking/index",
     "pages/daily-meal-plan/index",
@@ -13,15 +15,13 @@
     "pages/profile/index",
     "pages/recipe/index",
     "pages/recommendation-history/index",
-    "pages/recipe-library/index",
-    "pages/wishlist/index",
-    "pages/personality/index",
     "pages/record/detail",
     "pages/record/edit",
     "pages/record/index",
     "pages/settings/index",
     "pages/weekly-plan/detail",
     "pages/weekly-plan/index",
+    "pages/wishlist/index",
     "pages/admin/recipes/edit",
     "pages/admin/recipes/index"
   ],

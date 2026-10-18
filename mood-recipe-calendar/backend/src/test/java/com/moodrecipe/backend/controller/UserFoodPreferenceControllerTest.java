@@ -28,9 +28,11 @@ class UserFoodPreferenceControllerTest {
         when(normalizer.normalizeJson(any(), any())).thenReturn("[\"虾\"]");
 
         UserFoodPreference result = controller.save("user-1", new UserFoodPreferenceController.PreferenceRequest(
-                "家常菜", "川菜,湘菜", "番茄炒蛋", "", "", true, false, "NORMAL", "BALANCED")).getData();
+                "家常菜", "川菜,湘菜", "番茄炒蛋", "", "", true, false, "NORMAL", "BALANCED", "四川成都", "NOVICE")).getData();
 
         assertEquals("川菜,湘菜", result.getFavoriteCuisines());
         assertEquals("[\"虾\"]", result.getNormalizedBlockedTerms());
+        assertEquals("四川成都", result.getHometown());
+        assertEquals("NOVICE", result.getCookingSkill());
     }
 }

@@ -224,7 +224,7 @@ class DialogueAgentTest {
                         new DialogueState.Option("四道丰盛一点", "dishes=4"),
                         new DialogueState.Option("自己说", "other")));
 
-        assertEquals(List.of("dishes=2", "dishes=4", "other"),
+        assertEquals(List.of("dishes=2", "dishes=4", "other", "generate"),
                 card.options().stream().map(DialogueState.Option::value).toList());
     }
 
@@ -246,7 +246,8 @@ class DialogueAgentTest {
                 List.of(new DialogueState.Option("酸甜开胃", "想吃酸甜的"),
                         new DialogueState.Option("家常清淡", "清淡但要有滋味")));
 
-        assertEquals(3, card.options().size());
+        // 2 个模型选项 + 「自己输入」+ 每张追问卡都带的「按我的记忆直接生成」
+        assertEquals(4, card.options().size());
         assertTrue(card.options().stream().anyMatch(option -> "想吃酸甜的".equals(option.value())));
         assertTrue(card.options().stream().anyMatch(option -> "other".equals(option.value())));
         assertTrue(card.options().stream().anyMatch(option -> "自己输入".equals(option.label())));

@@ -63,6 +63,7 @@ CREATE TABLE IF NOT EXISTS recipes (
   cooking_time INT COMMENT '烹饪分钟数',
   difficulty   VARCHAR(20) COMMENT '难度',
   mood_tags    VARCHAR(100) COMMENT '匹配心情，逗号分隔',
+  mood_classified_at DATETIME COMMENT '上次 LLM 精准心情分类时间，NULL=未分类',
   season       VARCHAR(20) COMMENT '季节标签',
   source       VARCHAR(16) DEFAULT 'LOCAL' COMMENT '菜谱来源：AI=锅仔智能体生成 LOCAL=初始化种子数据',
   taste        VARCHAR(64) COMMENT '口味：清淡/辣/甜/酸/鲜',
@@ -108,6 +109,8 @@ CREATE TABLE IF NOT EXISTS user_food_preferences (
   eat_cilantro         TINYINT(1) COMMENT '是否吃香菜',
   spice_level          VARCHAR(16) DEFAULT 'NORMAL' COMMENT '辣度 NORMAL/MILD/SPICY/NONE',
   health_goal          VARCHAR(16) DEFAULT 'BALANCED' COMMENT '健康目标 BALANCED/LOW_CAL/HIGH_PROTEIN',
+  hometown             VARCHAR(100) DEFAULT '' COMMENT '籍贯/家乡口味，如四川成都',
+  cooking_skill        VARCHAR(16) DEFAULT 'HOME' COMMENT '做菜水平 NOVICE/HOME/PRO',
   onboarding_completed TINYINT(1) NOT NULL DEFAULT 0 COMMENT '是否完成口味引导',
   updated_at           DATETIME,
   INDEX idx_pref_openid (openid)

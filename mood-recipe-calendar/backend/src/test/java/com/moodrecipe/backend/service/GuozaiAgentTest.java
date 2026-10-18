@@ -17,6 +17,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -42,7 +43,7 @@ class GuozaiAgentTest {
                                    UserFoodPreferenceRepository preferences) {
         AiRecipeService ai = mock(AiRecipeService.class);
         // AI 始终返回 empty，触发本地回退
-        when(ai.recommendWithPersona(anyString(), anyString(), any())).thenReturn(Optional.empty());
+        when(ai.recommendWithPersona(anyString(), anyString(), any(), anyBoolean())).thenReturn(Optional.empty());
         when(ai.recommend(anyString(), anyString(), any())).thenReturn(Optional.empty());
         when(ai.recommend(anyString(), anyString())).thenReturn(Optional.empty());
         when(ai.recommendWeekly(anyString(), anyInt())).thenReturn(Optional.empty());
@@ -161,7 +162,7 @@ class GuozaiAgentTest {
         Recipe generated = recipe(null, "番茄炒蛋", "番茄，鸡蛋");
         generated.setCookingTime(15);
         generated.setDifficulty("简单");
-        when(ai.recommendWithPersona(anyString(), anyString(), any())).thenReturn(Optional.of(generated));
+        when(ai.recommendWithPersona(anyString(), anyString(), any(), anyBoolean())).thenReturn(Optional.of(generated));
         when(preferences.findByOpenid("user-1")).thenReturn(Optional.empty());
         when(recipes.save(generated)).thenReturn(generated);
         GuozaiMemory.MemorySnapshot snapshot = new GuozaiMemory.MemorySnapshot(
@@ -172,7 +173,7 @@ class GuozaiAgentTest {
                 .recommend("user-1", "平静", null);
 
         ArgumentCaptor<String> prompt = ArgumentCaptor.forClass(String.class);
-        verify(ai).recommendWithPersona(anyString(), prompt.capture(), any());
+        verify(ai).recommendWithPersona(anyString(), prompt.capture(), any(), anyBoolean());
         assertTrue(prompt.getValue().contains("35"));
         assertTrue(prompt.getValue().contains("省事"));
         assertEquals(2, result.getRecommendationInsights().size());
@@ -388,7 +389,7 @@ class GuozaiAgentTest {
         RecommendationExposureService exposures = mock(RecommendationExposureService.class);
         Recipe generated = recipe(null, "番茄炒蛋", "番茄 2 个，鸡蛋 3 个");
 
-        when(ai.recommendWithPersona(anyString(), anyString(), any())).thenReturn(Optional.of(generated));
+        when(ai.recommendWithPersona(anyString(), anyString(), any(), anyBoolean())).thenReturn(Optional.of(generated));
         when(preferences.findByOpenid("user-1")).thenReturn(Optional.empty());
         when(recipes.save(generated)).thenAnswer(invocation -> {
             generated.setId(99L);
