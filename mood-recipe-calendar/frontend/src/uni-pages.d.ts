@@ -5,23 +5,16 @@
 
 type _LocationUrl =
   "/pages/index/index" |
-  "/pages/about/index" |
-  "/pages/album/index" |
-  "/pages/almanac/index" |
   "/pages/calendar/index" |
   "/pages/cooking/index" |
   "/pages/daily-meal-plan/index" |
-  "/pages/feedback/index" |
   "/pages/fridge/index" |
-  "/pages/gallery/index" |
   "/pages/login/index" |
   "/pages/meal-agent/index" |
   "/pages/membership/index" |
   "/pages/mood/index" |
-  "/pages/nutrition-report/index" |
   "/pages/personality/index" |
   "/pages/preferences/index" |
-  "/pages/privacy/index" |
   "/pages/profile/index" |
   "/pages/recipe/index" |
   "/pages/recipe-library/index" |
@@ -29,16 +22,23 @@ type _LocationUrl =
   "/pages/record/detail" |
   "/pages/record/edit" |
   "/pages/record/index" |
-  "/pages/report/index" |
   "/pages/settings/index" |
-  "/pages/theme-albums/detail" |
-  "/pages/theme-albums/index" |
-  "/pages/timeline/index" |
   "/pages/weekly-plan/detail" |
   "/pages/weekly-plan/index" |
   "/pages/wishlist/index" |
   "/pages/admin/recipes/edit" |
-  "/pages/admin/recipes/index";
+  "/pages/admin/recipes/index" |
+  "/pages/gallery/index" |
+  "/pages/album/index" |
+  "/pages/theme-albums/detail" |
+  "/pages/theme-albums/index" |
+  "/pages/report/index" |
+  "/pages/timeline/index" |
+  "/pages/nutrition-report/index" |
+  "/pages/feedback/index" |
+  "/pages/about/index" |
+  "/pages/privacy/index" |
+  "/pages/almanac/index";
 
 interface NavigateToOptions {
   url: _LocationUrl;

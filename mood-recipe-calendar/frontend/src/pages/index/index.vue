@@ -710,6 +710,7 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
           <image class="home-bento__record-img" :src="STATIC_BASE_URL + '/static/guozai/action_16_chopsticks.png'" mode="aspectFit" />
         </view>
         <view class="home-bento__card home-bento__card--quiz" role="button" aria-label="测试你的干饭人格" @click="goto('personality')">
+          <view class="home-bento__quiz-deco" aria-hidden="true">？</view>
           <view class="home-bento__record-copy">
             <text class="home-bento__name">干饭人格</text>
             <text class="home-bento__sub">5 道题测出你的干饭人格</text>
@@ -717,7 +718,7 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
               <view v-for="i in 5" :key="i" class="home-bento__dot" />
             </view>
           </view>
-          <image class="home-bento__record-img" :src="STATIC_BASE_URL + '/static/guozai/action_09_celebrate.png'" mode="aspectFit" />
+          <image class="home-bento__record-img home-bento__record-img--quiz" :src="STATIC_BASE_URL + '/static/guozai/action_09_celebrate.png'" mode="aspectFit" />
         </view>
       </view>
 
@@ -923,11 +924,42 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
 }
 .home-bento__sub-row { display: flex; align-items: center; gap: 10rpx; min-width: 0; }
 .home-bento__sub-chip { flex-shrink: 0; padding: 2rpx 12rpx; border-radius: 999rpx; background: rgba(198, 60, 40, 0.12); color: #C63C28; font-size: 18rpx; font-weight: 800; }
-.home-bento__card--quiz { grid-column: span 2; flex-direction: row; justify-content: space-between; padding: 0 20rpx 0 26rpx; border-color: transparent; background: linear-gradient(135deg, #FFEEE9, #FFE3DA); }
-.home-bento__card--quiz .home-bento__name { font-size: 27rpx; }
-.home-bento__dots { display: flex; align-items: center; gap: 8rpx; margin-top: 2rpx; }
-.home-bento__dot { width: 10rpx; height: 10rpx; border-radius: 50%; background: var(--mrc-mint); opacity: .55; }
-.home-bento__dot:nth-child(odd) { opacity: .3; }
+.home-bento__card--quiz { position: relative; overflow: hidden; grid-column: span 2; flex-direction: row; justify-content: space-between; padding: 0 20rpx 0 26rpx; border-color: transparent; background: linear-gradient(135deg, #FFEEE9, #FFE0D4); }
+/* 测题氛围：右上超大半透明问号锁定「测试」语义，右下淡光晕托住锅仔 */
+.home-bento__quiz-deco {
+  position: absolute;
+  top: -30rpx;
+  right: 116rpx;
+  color: rgba(232, 107, 91, 0.15);
+  font-size: 100rpx;
+  font-weight: 900;
+  line-height: 1;
+  pointer-events: none;
+}
+.home-bento__card--quiz::after {
+  content: '';
+  position: absolute;
+  right: -34rpx;
+  bottom: -46rpx;
+  width: 190rpx;
+  height: 190rpx;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(255, 107, 91, 0.16), transparent);
+  pointer-events: none;
+}
+.home-bento__card--quiz .home-bento__name { font-size: 30rpx; font-weight: 900; }
+/* 五个点重做成「答题选项」观感：白底 + 胭脂描边圆点，奇偶错落但个个清晰，不再像脏点 */
+.home-bento__dots { display: flex; align-items: center; gap: 9rpx; margin-top: 4rpx; }
+.home-bento__dot {
+  width: 13rpx;
+  height: 13rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  border: 3rpx solid rgba(232, 107, 91, 0.55);
+  opacity: 1;
+}
+.home-bento__dot:nth-child(odd) { opacity: .5; }
+.home-bento__record-img--quiz { width: 104rpx; height: 104rpx; filter: drop-shadow(0 6rpx 14rpx rgba(96, 52, 28, 0.16)); }
 
 .meal-sheet { padding: 28rpx 28rpx calc(28rpx + env(safe-area-inset-bottom)); }
 .meal-sheet__head { padding: 8rpx 8rpx 20rpx; }

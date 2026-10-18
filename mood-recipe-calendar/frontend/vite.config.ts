@@ -24,6 +24,20 @@ export default defineConfig({
     UniHelperPages({
       dts: 'src/uni-pages.d.ts',
       exclude: ['**/components/**/*.*'],
+      // 分包：把次要页面移出主包，规避微信主包 2MB 体积上限。
+      // 注意：personality / recipe-library / admin 因平台专属标题或 MP 专属逻辑保留在主包。
+      subPackages: [
+        'src/pages/gallery',
+        'src/pages/album',
+        'src/pages/theme-albums',
+        'src/pages/report',
+        'src/pages/timeline',
+        'src/pages/nutrition-report',
+        'src/pages/feedback',
+        'src/pages/about',
+        'src/pages/privacy',
+        'src/pages/almanac',
+      ],
     }),
     // https://github.com/uni-helper/vite-plugin-uni-layouts
     UniHelperLayouts(),

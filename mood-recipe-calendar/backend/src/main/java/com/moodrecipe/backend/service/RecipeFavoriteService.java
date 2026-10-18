@@ -6,6 +6,7 @@ import com.moodrecipe.backend.repository.RecipeFavoriteRepository;
 import com.moodrecipe.backend.repository.RecipeRepository;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
@@ -55,6 +56,12 @@ public class RecipeFavoriteService {
         return true;
     }
 
+    /**
+     * 取消收藏。派生删除（deleteByXxx）不会像 save() 那样自带事务，
+     * 必须显式开启，否则 EntityManager 报「No EntityManager with actual transaction」500。
+     * add() 刻意不加事务：save() 自带独立事务，让唯一键冲突在本方法内被捕获实现幂等。
+     */
+    @Transactional
     public void remove(String openid, Long recipeId) {
         favorites.deleteByOpenidAndRecipeId(openid, recipeId);
     }

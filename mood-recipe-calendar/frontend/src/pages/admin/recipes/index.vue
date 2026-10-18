@@ -379,7 +379,7 @@ onShow(() => {
             v-model="customText"
             class="custom-input"
             :maxlength="-1"
-            placeholder="每行一条：菜名或ID | 图片URL&#10;例：&#10;酱油焖饭 | https://cdn.example.com/soy-rice.jpg&#10;128 | https://cdn.example.com/2.jpg"
+            placeholder="每行一条：菜名或ID | 图片URL（例：酱油焖饭 | https://cdn.example.com/soy-rice.jpg）"
           />
           <button class="tool-btn" :disabled="customRunning" @click="submitCustomImages">
             {{ customRunning ? '提交中...' : '批量设置自定义配图' }}
