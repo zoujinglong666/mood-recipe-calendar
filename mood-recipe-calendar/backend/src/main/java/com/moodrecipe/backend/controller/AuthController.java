@@ -7,6 +7,8 @@ import com.moodrecipe.backend.service.WechatService;
 import com.moodrecipe.backend.service.UserSessionService;
 import com.moodrecipe.backend.service.AccountDeletionService;
 import com.moodrecipe.backend.config.SessionAuthInterceptor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -14,6 +16,8 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthController.class);
 
     private final WechatService wechatService;
     private final UserRepository userRepository;
@@ -42,8 +46,13 @@ public class AuthController {
         try {
             Map<String, Object> result = wechatService.login(code);
             return ApiResponse.ok(result);
-        } catch (Exception e) {
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            // 业务校验失败（如 code 无效）：文案可回显
             return ApiResponse.error(e.getMessage());
+        } catch (Exception e) {
+            // 未预期异常：细节只落日志，不透传给客户端（避免泄露底层 HTTP/IO/DB 信息）
+            log.error("[登录] 未预期异常", e);
+            return ApiResponse.error("登录失败，请稍后重试");
         }
     }
 

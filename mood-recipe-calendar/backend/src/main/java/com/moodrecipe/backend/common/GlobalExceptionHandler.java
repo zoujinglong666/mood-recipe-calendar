@@ -8,8 +8,12 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.server.ResponseStatusException;
+
+import org.apache.tomcat.util.http.InvalidParameterException;
 import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
@@ -103,6 +107,38 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 预期内的 HTTP 状态异常（如权限守卫抛的 403 FORBIDDEN）：按异常自带的状态码原样返回，
+     * 仅记 warn 日志、不推送 500 告警。否则会被下方 catch-all 兜底当成 500 误报——
+     * 例如非管理员访问 /admin 接口被鉴权拒绝（403），本是正常业务分支，却会触发「锅仔后端 500 告警」。
+     */
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ApiResponse<Void>> handleResponseStatus(ResponseStatusException e, HttpServletRequest request) {
+        int status = e.getStatusCode().value();
+        log.warn("[expected-status] {} {} -> {}: {}", request.getMethod(), request.getRequestURI(), status, e.getReason());
+        return ResponseEntity.status(e.getStatusCode()).body(ApiResponse.error(status, e.getReason()));
+    }
+
+    /**
+     * 请求方法不被支持（如客户端用 GET 打了一个只接受 POST 的接口）：本应返回 405，
+     * 但若被兜底 catch-all 当成 500 推送，会产生「锅仔后端 500 告警」误报。这里按 405 原样返回、只记 warn、不推送。
+     */
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMethodNotSupported(HttpRequestMethodNotSupportedException e, HttpServletRequest request) {
+        log.warn("[method-not-allowed] {} {} -> 405，支持的方法: {}", request.getMethod(), request.getRequestURI(), e.getSupportedMethods());
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED).body(ApiResponse.error(405, "请求方法不被支持"));
+    }
+
+    /**
+     * 请求参数解码失败（如 URL 里出现非法百分号编码 / 多字节截断，Tomcat 抛 InvalidParameterException）。
+     * 这是客户端发了畸形请求（探测/爬虫/旧包乱码），不是服务器故障，应返回 400 且不推送 500 告警。
+     */
+    @ExceptionHandler(InvalidParameterException.class)
+    public ResponseEntity<ApiResponse<Void>> handleInvalidParameter(InvalidParameterException e, HttpServletRequest request) {
+        log.warn("[bad-request] {} {} -> 400 参数解码失败: {}", request.getMethod(), request.getRequestURI(), e.getMessage());
+        return ResponseEntity.badRequest().body(ApiResponse.error(400, "请求参数包含无法解码的字符"));
+    }
+
+    /**
      * 响应写出失败：绝大多数情况是客户端在长耗时请求（如周菜单同步生成）期间已断开连接
      * （Broken pipe / Connection reset / Tomcat ClientAbortException）。这是客户端超时或切走导致的，
      * 不是服务器错误，不应作为 500 告警。仅当根因确为客户端断开时按 debug 记日志、不推送；
@@ -154,10 +190,22 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleAll(Exception e, HttpServletRequest request) {
         // 不向前端泄露堆栈，但用日志框架完整记录（带请求路径），方便线上定位；不再用 printStackTrace 丢到 stderr 难检索
         log.error("[uncaught-500] {} {} -> {}: {}", request.getMethod(), request.getRequestURI(), e.getClass().getName(), e.getMessage(), e);
-        // 关键服务器错误推送到微信，便于第一时间感知（异步、失败不影响主流程）
-        wxPusherNotifier.send(String.format("[锅仔后端 500 告警] %s %s%n%s: %s",
-                request.getMethod(), request.getRequestURI(), e.getClass().getSimpleName(), e.getMessage()));
+        // 关键服务器错误推送到微信，便于第一时间感知（异步、失败不影响主流程）。
+        // 但若异常本质属于「客户端错误」（如框架层面的方法不允许 / 4xx 状态异常），只是正常业务分支被错误兜底，
+        // 不应推送 500 告警造成误报——此类已在上方显式处理器里给出正确状态码，这里再兜底一层防漏网。
+        if (!isClientError(e)) {
+            wxPusherNotifier.send(String.format("[锅仔后端 500 告警] %s %s%n%s: %s",
+                    request.getMethod(), request.getRequestURI(), e.getClass().getSimpleName(), e.getMessage()));
+        }
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
             .body(ApiResponse.error(500, "服务器内部错误，请稍后重试"));
+    }
+
+    /** 判断异常是否本质属于「客户端错误」：框架层面已规定状态码的 4xx（方法不允许、参数解码失败、响应状态异常等），不应触发 500 告警。 */
+    private static boolean isClientError(Exception e) {
+        if (e instanceof HttpRequestMethodNotSupportedException) return true;
+        if (e instanceof InvalidParameterException) return true;
+        if (e instanceof ResponseStatusException rs && rs.getStatusCode().is4xxClientError()) return true;
+        return false;
     }
 }

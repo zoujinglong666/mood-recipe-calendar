@@ -7,6 +7,7 @@ import com.moodrecipe.backend.entity.UserRecord;
 import com.moodrecipe.backend.repository.MonthlyAlbumRepository;
 import com.moodrecipe.backend.repository.UserRecordRepository;
 import com.moodrecipe.backend.service.GuozaiAgent;
+import com.moodrecipe.backend.service.UsageQuotaService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moodrecipe.backend.config.SessionAuthInterceptor;
 import org.springframework.web.bind.annotation.*;
@@ -23,13 +24,15 @@ public class AlbumController {
     private final MonthlyAlbumRepository albumRepository;
     private final UserRecordRepository recordRepository;
     private final GuozaiAgent guozaiAgent;
+    private final UsageQuotaService quotas;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public AlbumController(MonthlyAlbumRepository albumRepository, UserRecordRepository recordRepository,
-                           GuozaiAgent guozaiAgent) {
+                           GuozaiAgent guozaiAgent, UsageQuotaService quotas) {
         this.albumRepository = albumRepository;
         this.recordRepository = recordRepository;
         this.guozaiAgent = guozaiAgent;
+        this.quotas = quotas;
     }
 
     /**
@@ -92,6 +95,12 @@ public class AlbumController {
             album.setStats("{}");
         }
 
+        // 走到这里说明缓存失效、需要重新生成寄语（LLM 调用）：扣每日轻量额度；PUT 一条记录即强制重生成不再是免费的
+        try {
+            quotas.consume(openid, UsageQuotaService.Feature.LLM_LIGHT);
+        } catch (IllegalStateException e) {
+            return ApiResponse.error(429, e.getMessage());
+        }
         album.setAiSummary(guozaiAgent.monthlyLetter(month, records));
         album.setGeneratedAt(AppClock.now());
 

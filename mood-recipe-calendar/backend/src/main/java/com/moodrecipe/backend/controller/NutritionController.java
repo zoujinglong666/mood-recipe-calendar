@@ -5,6 +5,7 @@ import com.moodrecipe.backend.config.SessionAuthInterceptor;
 import com.moodrecipe.backend.entity.Recipe;
 import com.moodrecipe.backend.repository.RecipeRepository;
 import com.moodrecipe.backend.service.NutritionAdviceService;
+import com.moodrecipe.backend.service.UsageQuotaService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Arrays;
@@ -22,10 +23,12 @@ public class NutritionController {
 
     private final NutritionAdviceService nutrition;
     private final RecipeRepository recipes;
+    private final UsageQuotaService quotas;
 
-    public NutritionController(NutritionAdviceService nutrition, RecipeRepository recipes) {
+    public NutritionController(NutritionAdviceService nutrition, RecipeRepository recipes, UsageQuotaService quotas) {
         this.nutrition = nutrition;
         this.recipes = recipes;
+        this.quotas = quotas;
     }
 
     /** 按菜谱 id 分析 */
@@ -35,7 +38,7 @@ public class NutritionController {
             @PathVariable Long id) {
         Optional<Recipe> recipe = recipes.findById(id);
         if (recipe.isEmpty()) return ApiResponse.error(404, "菜谱不存在");
-        return analyze(recipe.get().getName(), recipe.get().getIngredients());
+        return analyze(openid, recipe.get().getName(), recipe.get().getIngredients());
     }
 
     /** 按菜名+食材分析（今日三餐每餐用） */
@@ -46,16 +49,24 @@ public class NutritionController {
             @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
             @RequestBody AnalyzeRequest request) {
         if (request == null) return ApiResponse.error(400, "缺少菜谱信息");
-        return analyze(request.name(), request.ingredients());
+        return analyze(openid, request.name(), request.ingredients());
     }
 
-    private ApiResponse<Map<String, Object>> analyze(String name, String ingredientsText) {
+    private ApiResponse<Map<String, Object>> analyze(String openid, String name, String ingredientsText) {
         List<String> ingredients = ingredientsText == null || ingredientsText.isBlank()
                 ? List.of()
                 // 食材串可能是 JSON 数组文本或顿号分隔文本，两种都兼容
                 : normalize(ingredientsText);
-        return nutrition.analyze(name, ingredients)
-                .map(advice -> ApiResponse.<Map<String, Object>>ok(Map.of("advice", advice, "estimated", true)))
+        // 缓存键含用户输入（换菜名即绕过缓存），必须配额兜底防刷 LLM；分析失败返还额度
+        try {
+            quotas.consume(openid, UsageQuotaService.Feature.LLM_LIGHT);
+        } catch (IllegalStateException e) {
+            return ApiResponse.error(429, e.getMessage());
+        }
+        Optional<Map<String, Object>> result = nutrition.analyze(name, ingredients)
+                .map(advice -> Map.<String, Object>of("advice", advice, "estimated", true));
+        if (result.isEmpty()) quotas.release(openid, UsageQuotaService.Feature.LLM_LIGHT);
+        return result.map(ApiResponse::<Map<String, Object>>ok)
                 .orElseGet(() -> ApiResponse.error(404, "营养分析暂不可用"));
     }
 

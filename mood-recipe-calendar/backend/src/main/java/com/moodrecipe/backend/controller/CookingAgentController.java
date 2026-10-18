@@ -5,6 +5,7 @@ import com.moodrecipe.backend.config.SessionAuthInterceptor;
 import com.moodrecipe.backend.service.CookingAgentService;
 import com.moodrecipe.backend.service.CookingLearningService;
 import com.moodrecipe.backend.service.WechatContentSafetyService;
+import com.moodrecipe.backend.service.UsageQuotaService;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -13,10 +14,11 @@ public class CookingAgentController {
     private final CookingAgentService agent;
     private final CookingLearningService learning;
     private final WechatContentSafetyService contentSafety;
+    private final UsageQuotaService quotas;
 
     public CookingAgentController(CookingAgentService agent, CookingLearningService learning,
-                                  WechatContentSafetyService contentSafety) {
-        this.agent = agent; this.learning = learning; this.contentSafety = contentSafety;
+                                  WechatContentSafetyService contentSafety, UsageQuotaService quotas) {
+        this.agent = agent; this.learning = learning; this.contentSafety = contentSafety; this.quotas = quotas;
     }
 
     @PostMapping("/turn")
@@ -25,6 +27,12 @@ public class CookingAgentController {
         if (request == null || request.recipeId() == null) return ApiResponse.error(400, "缺少菜谱信息");
         if (request.message() != null && request.message().length() > 500) return ApiResponse.error(400, "一次最多输入500个字");
         if (!contentSafety.allowsText(openid, request.message())) return ApiResponse.error(400, "文字未通过安全检查");
+        // 对话每轮真实调 LLM：接入每日轻量额度（与陪伴寄语/营养分析等共享桶）
+        try {
+            quotas.consume(openid, UsageQuotaService.Feature.LLM_LIGHT);
+        } catch (IllegalStateException e) {
+            return ApiResponse.error(429, e.getMessage());
+        }
         try { return ApiResponse.ok(agent.turn(openid, request)); }
         catch (IllegalArgumentException exception) { return ApiResponse.error(400, exception.getMessage()); }
     }

@@ -3,6 +3,7 @@ package com.moodrecipe.backend.controller;
 import com.moodrecipe.backend.common.ApiResponse;
 import com.moodrecipe.backend.config.SessionAuthInterceptor;
 import com.moodrecipe.backend.service.DailyMenuService;
+import com.moodrecipe.backend.service.UsageQuotaService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
@@ -15,9 +16,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class DailyMenuController {
 
     private final DailyMenuService dailyMenuService;
+    private final UsageQuotaService quotas;
 
-    public DailyMenuController(DailyMenuService dailyMenuService) {
+    public DailyMenuController(DailyMenuService dailyMenuService, UsageQuotaService quotas) {
         this.dailyMenuService = dailyMenuService;
+        this.quotas = quotas;
     }
 
     /** 今日菜单：当日缓存命中秒回；首次进入挑选并落缓存。 */
@@ -43,7 +46,16 @@ public class DailyMenuController {
     @PostMapping("/cover")
     public ApiResponse<DailyMenuService.Board> cover(
             @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
-        return dailyMenuService.ensureCover(openid)
+        // 生图是链路里最贵的大模型调用：每日配额兜底（hasRealImage 幂等防重复，这里防批量代付）
+        try {
+            quotas.consume(openid, UsageQuotaService.Feature.COVER_GENERATE);
+        } catch (IllegalStateException e) {
+            return ApiResponse.error(429, e.getMessage());
+        }
+        var result = dailyMenuService.ensureCover(openid);
+        // 无需补图（404 路径）不消耗额度
+        if (result.isEmpty()) quotas.release(openid, UsageQuotaService.Feature.COVER_GENERATE);
+        return result
                 .map(ApiResponse::ok)
                 .orElseGet(() -> ApiResponse.error(404, "这道菜暂时不需要补图"));
     }

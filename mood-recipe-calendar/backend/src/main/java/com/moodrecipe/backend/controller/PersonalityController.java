@@ -3,6 +3,7 @@ package com.moodrecipe.backend.controller;
 import com.moodrecipe.backend.common.ApiResponse;
 import com.moodrecipe.backend.config.SessionAuthInterceptor;
 import com.moodrecipe.backend.service.PersonalityService;
+import com.moodrecipe.backend.service.UsageQuotaService;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -17,9 +18,11 @@ import java.util.List;
 public class PersonalityController {
 
     private final PersonalityService personality;
+    private final UsageQuotaService quotas;
 
-    public PersonalityController(PersonalityService personality) {
+    public PersonalityController(PersonalityService personality, UsageQuotaService quotas) {
         this.personality = personality;
+        this.quotas = quotas;
     }
 
     /** answers：12 道题各自所选选项的下标（0-3）；test：eat=干饭人格 / cook=做饭人格。 */
@@ -27,6 +30,12 @@ public class PersonalityController {
     public ApiResponse<PersonalityService.PersonalityView> analyze(
             @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
             @RequestBody AnalyzeRequest request) {
+        // AI 判型真实调 LLM：接入每日轻量额度
+        try {
+            quotas.consume(openid, UsageQuotaService.Feature.LLM_LIGHT);
+        } catch (IllegalStateException e) {
+            return ApiResponse.error(429, e.getMessage());
+        }
         try {
             return ApiResponse.ok(personality.analyze(request == null ? "eat" : request.test(), request.answers()));
         }

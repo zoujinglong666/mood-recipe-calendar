@@ -124,8 +124,19 @@ public class WeeklyMealPlanController {
         return ApiResponse.ok();
     }
     @PostMapping("/{id}/favorite") public ApiResponse<?> favorite(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @PathVariable Long id) { return plans.toggleFavorite(openid, id).map(ApiResponse::ok).orElseGet(() -> ApiResponse.error(404, "计划不存在")); }
-    @PostMapping("/{id}/days/{index}/cover") public ApiResponse<?> cover(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @PathVariable Long id, @PathVariable int index) { return plans.ensureCover(openid, id, index).map(ApiResponse::ok).orElseGet(() -> ApiResponse.error(404, "计划不存在")); }
-    @PostMapping("/{id}/days/{index}/cover/{dishIndex}") public ApiResponse<?> dishCover(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @PathVariable Long id, @PathVariable int index, @PathVariable int dishIndex) { return plans.ensureCover(openid, id, index, dishIndex).map(ApiResponse::ok).orElseGet(() -> ApiResponse.error(404, "计划不存在")); }
+    /** 生图每日配额兜底；计划不存在/无需补图（404 路径）自动返还 */
+    private ApiResponse<?> coverGuarded(String openid, java.util.function.Supplier<java.util.Optional<?>> call) {
+        try {
+            quotas.consume(openid, UsageQuotaService.Feature.COVER_GENERATE);
+        } catch (IllegalStateException e) {
+            return ApiResponse.error(429, e.getMessage());
+        }
+        var result = call.get();
+        if (result.isEmpty()) quotas.release(openid, UsageQuotaService.Feature.COVER_GENERATE);
+        return result.map(ApiResponse::ok).orElseGet(() -> ApiResponse.error(404, "计划不存在"));
+    }
+    @PostMapping("/{id}/days/{index}/cover") public ApiResponse<?> cover(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @PathVariable Long id, @PathVariable int index) { return coverGuarded(openid, () -> plans.ensureCover(openid, id, index)); }
+    @PostMapping("/{id}/days/{index}/cover/{dishIndex}") public ApiResponse<?> dishCover(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @PathVariable Long id, @PathVariable int index, @PathVariable int dishIndex) { return coverGuarded(openid, () -> plans.ensureCover(openid, id, index, dishIndex)); }
     @PostMapping("/{id}/days/{index}/replace") public ApiResponse<?> replace(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @PathVariable Long id, @PathVariable int index) { try { quotas.requireMember(openid); } catch (IllegalStateException e) { return ApiResponse.error(403, e.getMessage()); } return plans.replaceDay(openid, id, index).map(ApiResponse::ok).orElseGet(() -> ApiResponse.error(404, "计划不存在")); }
     @PostMapping("/{id}/shopping/{name}") public ApiResponse<?> toggle(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @PathVariable Long id, @PathVariable String name) { return plans.toggleShopping(openid, id, name).map(ApiResponse::ok).orElseGet(() -> ApiResponse.error(404, "购物项不存在")); }
     public record AgentReplyRequest(String message, String nextQuestion) {}

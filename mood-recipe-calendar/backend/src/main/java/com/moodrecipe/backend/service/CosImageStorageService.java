@@ -84,10 +84,18 @@ public class CosImageStorageService {
         try {
             InetAddress addr = InetAddress.getByName(host);
             if (addr.isLoopbackAddress() || addr.isSiteLocalAddress() || addr.isLinkLocalAddress()) return false;
+            // Java 的 isSiteLocalAddress 只覆盖已废弃的 fec0::/10，不含现行 IPv6 ULA fc00::/7，需自行判断
+            if (isIpv6UniqueLocal(addr) || addr.isAnyLocalAddress()) return false;
         } catch (Exception ignored) {
             return false;
         }
         return true;
+    }
+
+    /** 判断是否 IPv6 唯一本地地址（ULA，fc00::/7：首字节 0xfc 或 0xfd）。 */
+    private static boolean isIpv6UniqueLocal(InetAddress addr) {
+        byte[] bytes = addr.getAddress();
+        return bytes.length == 16 && (bytes[0] == (byte) 0xfc || bytes[0] == (byte) 0xfd);
     }
 
     /**

@@ -13,7 +13,7 @@ import java.time.*;
 
 @Service
 public class UsageQuotaService {
-    public enum Feature { HOME_RECOMMEND, SIMPLE_WEEKLY_PLAN, AGENT_CONVERSATION, DAILY_MEAL_PLAN }
+    public enum Feature { HOME_RECOMMEND, SIMPLE_WEEKLY_PLAN, AGENT_CONVERSATION, DAILY_MEAL_PLAN, LLM_LIGHT, COVER_GENERATE }
     /** 签到随机赠礼：当天确定性二选一（对用户即随机），跨日自然过期重抽 */
     public enum DailyGift { CONVERSATION, MEAL_PLAN }
     public record View(boolean member, int limit, int used, int remaining, String resetsAt) {}
@@ -129,6 +129,11 @@ public class UsageQuotaService {
             // 未签到也有 1 次基础体验；签到且抽中三餐券 → 2 次。当日有效，跨日按新周期自然过期
             return checkedInToday(openid, today) && giftOf(openid, today) == DailyGift.MEAL_PLAN ? 2 : 1;
         }
+        // 轻量 LLM 入口（陪伴寄语/营养分析/人格判型/做菜助手/月度画册寄语）共享一个每日桶，
+        // 合并计算防「多入口叠加绕过」；宽限额不影响正常使用，只封刷量
+        if (feature == Feature.LLM_LIGHT) return isMember ? 100 : 50;
+        // 生图懒补：每用户每日上限（hasRealImage 幂等防重复，这里防批量触发缺图菜谱代付生图）
+        if (feature == Feature.COVER_GENERATE) return isMember ? 50 : 20;
         return isMember ? (feature == Feature.HOME_RECOMMEND ? 20 : Integer.MAX_VALUE)
             : (feature == Feature.HOME_RECOMMEND ? 3 : 1);
     }
@@ -137,6 +142,8 @@ public class UsageQuotaService {
         if (feature == Feature.HOME_RECOMMEND) return "今日免费推荐次数已用完，开通会员可享每日20次";
         if (feature == Feature.AGENT_CONVERSATION) return "今日对话券已用完或未抽中，明天签到随机领对话券或三餐券";
         if (feature == Feature.DAILY_MEAL_PLAN) return "今日三餐券已用完，明天签到随机再领三餐券或对话券";
+        if (feature == Feature.LLM_LIGHT) return "今天锅仔的灵感额度用完啦，明天再来找锅仔聊";
+        if (feature == Feature.COVER_GENERATE) return "今天的补图次数已用完，明天再试";
         return "本周简单周菜单已使用，开通会员可不限次使用锅仔智能体";
     }
 

@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.security.MessageDigest;
 import java.util.Map;
 
 /**
@@ -34,7 +35,8 @@ public class KnowledgeOpsController {
     /** 热重建膳食知识检索索引；返回重建后的知识点数量。 */
     @PostMapping("/rebuild")
     public ApiResponse<Map<String, Object>> rebuild(@RequestHeader(value = "X-Ops-Token", required = false) String token) {
-        if (opsToken == null || opsToken.isBlank() || token == null || !opsToken.equals(token))
+        if (opsToken == null || opsToken.isBlank() || token == null
+                || !MessageDigest.isEqual(opsToken.getBytes(java.nio.charset.StandardCharsets.UTF_8), token.getBytes(java.nio.charset.StandardCharsets.UTF_8)))
             return ApiResponse.error(403, "无效的运维令牌");
         guidelineRag.rebuild();
         return ApiResponse.ok(Map.of("ready", guidelineRag.isReady()));

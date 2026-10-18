@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.security.MessageDigest;
 import java.util.Map;
 
 /**
@@ -35,7 +36,8 @@ public class BreakfastPoolController {
     @PostMapping("/seed")
     public ApiResponse<Map<String, Object>> seed(@RequestParam(defaultValue = "12") int target,
                                                  @RequestHeader(value = "X-Ops-Token", required = false) String token) {
-        if (opsToken == null || opsToken.isBlank() || token == null || !opsToken.equals(token))
+        if (opsToken == null || opsToken.isBlank() || token == null
+                || !MessageDigest.isEqual(opsToken.getBytes(java.nio.charset.StandardCharsets.UTF_8), token.getBytes(java.nio.charset.StandardCharsets.UTF_8)))
             return ApiResponse.error(403, "无效的运维令牌");
         int safeTarget = Math.max(1, Math.min(target, 30));
         int saved = seeder.seedIfNeeded(safeTarget);

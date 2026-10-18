@@ -7,6 +7,8 @@ import com.moodrecipe.backend.repository.ProductRepository;
 import com.moodrecipe.backend.repository.ShopOrderRepository;
 import com.moodrecipe.backend.service.GalleryService;
 import com.moodrecipe.backend.config.SessionAuthInterceptor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -19,6 +21,8 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/gallery")
 public class GalleryController {
+
+    private static final Logger log = LoggerFactory.getLogger(GalleryController.class);
 
     private final GalleryService galleryService;
     private final ProductRepository productRepository;
@@ -61,8 +65,12 @@ public class GalleryController {
         try {
             ShopOrder order = galleryService.createOrder(openid, Long.valueOf(String.valueOf(pid)), (String) body.get("payType"));
             return ApiResponse.ok(order);
-        } catch (Exception e) {
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            // 业务校验失败（如商品不存在/签到不足）：文案可回显
             return ApiResponse.error(e.getMessage());
+        } catch (Exception e) {
+            log.error("[商城下单] 未预期异常 openid={}", openid, e);
+            return ApiResponse.error("下单失败，请稍后重试");
         }
     }
 

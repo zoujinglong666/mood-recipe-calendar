@@ -74,7 +74,15 @@ public class DailyMealPlanController {
                                 @PathVariable int mealIndex, @RequestParam(required = false) String date) {
         try {
             LocalDate target = date == null || date.isBlank() ? AppClock.today() : LocalDate.parse(date);
-            return plans.ensureCover(openid, target, mealIndex).map(ApiResponse::ok)
+            // 生图每日配额兜底；无需补图（404 路径）自动返还
+            try {
+                quotas.consume(openid, UsageQuotaService.Feature.COVER_GENERATE);
+            } catch (IllegalStateException e) {
+                return ApiResponse.error(429, e.getMessage());
+            }
+            var result = plans.ensureCover(openid, target, mealIndex);
+            if (result.isEmpty()) quotas.release(openid, UsageQuotaService.Feature.COVER_GENERATE);
+            return result.map(ApiResponse::ok)
                     .orElseGet(() -> ApiResponse.error(404, "这道餐暂时不需要补图"));
         } catch (DateTimeParseException e) { return ApiResponse.error(400, "日期格式应为 YYYY-MM-DD"); }
     }

@@ -60,9 +60,7 @@ public class WechatService {
         // —— 配置自检日志（绝不打印 secret 明文）——
         boolean secretConfigured = secret != null && !secret.isEmpty();
         boolean appidConfigured = appid != null && !appid.isEmpty();
-        String maskedSecret = secretConfigured
-            ? (secret.length() <= 4 ? "****" : secret.substring(0, 4) + "****(len=" + secret.length() + ")")
-            : "(空)";
+        String maskedSecret = secretConfigured ? "****(len=" + secret.length() + ")" : "(空)";
         log.info("[微信登录] 入参 code长度={}; 配置 appid={}, appid已配置={}, secret已配置={}, secret前缀={}",
                 (code == null ? "null" : code.length()), appid, appidConfigured, secretConfigured, maskedSecret);
 

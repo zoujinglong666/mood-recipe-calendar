@@ -81,10 +81,12 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
         return (query == null || query.isEmpty()) ? uri : uri + "?" + query;
     }
 
+    /** X-Forwarded-For 为追加模式，取最右侧（本层可信代理追加的 $remote_addr），防客户端伪造。 */
     private String resolveClientIp(HttpServletRequest request) {
         String forwarded = request.getHeader("X-Forwarded-For");
         if (StringUtils.hasText(forwarded)) {
-            return forwarded.split(",")[0].trim();
+            String[] parts = forwarded.split(",");
+            return parts[parts.length - 1].trim();
         }
         return request.getRemoteAddr();
     }
