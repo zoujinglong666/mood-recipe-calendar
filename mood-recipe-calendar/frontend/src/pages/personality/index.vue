@@ -50,6 +50,45 @@ const st = computed(() => states[activeTest.value])
 const cfg = computed(() => TESTS[activeTest.value])
 const OPTION_TAGS = ['A', 'B', 'C', 'D']
 
+/* ---- 锅仔 IP 延展：每题换一个姿势「出题」，配一句锅仔台词；进度条上锅仔随进度走 ---- */
+const QUIZ_AVATARS = [
+  'action_01_bowl',
+  'action_16_chopsticks',
+  'action_10_thinking',
+  'action_06_glasses',
+  'action_13_wave',
+  'action_19_kungfu',
+  'action_08_peek',
+  'action_02_soup',
+  'action_14_clap',
+  'action_09_celebrate',
+  'action_18_cheer',
+  'action_17_full',
+]
+const QUIZ_QUIPS = [
+  '别想太久，第一反应最准',
+  '锅仔在小本本上记了一笔',
+  '嗯…这个选择很 you',
+  '不着急，锅仔等你五秒钟',
+  '这题没有对错，只有好吃不好吃',
+  '选完这题，锅仔又懂你一分',
+  '锅仔发现你有点意思',
+  '别装，装了也会被识破',
+  '过半啦，锅仔已经开始猜你了',
+  '锅仔的眼睛越睁越大了',
+  '快了快了，就差一点点',
+  '最后一题，深呼吸，开炫',
+]
+const quizAvatar = computed(() =>
+  `${STATIC_BASE_URL}/static/guozai/${QUIZ_AVATARS[st.value.qIndex % QUIZ_AVATARS.length]}.png`)
+const quizQuip = computed(() =>
+  cfg.value.quiz[st.value.qIndex]?.quip || QUIZ_QUIPS[st.value.qIndex % QUIZ_QUIPS.length])
+const progressPct = computed(() => `${((st.value.qIndex + 1) / cfg.value.quiz.length) * 100}%`)
+const introQuip = computed(() => {
+  if (activeTest.value === 'eat' && isDual.value) return '饭搭子已下单，接招吧'
+  return activeTest.value === 'cook' ? '颠勺的事，锅仔最懂' : '锅仔出题，你负责说实话'
+})
+
 /** 默契模式（仅干饭人格）：链接里带 ?dual=，好友进来直接进入「接招」状态 */
 const isDual = ref(false)
 const hostAnswers = ref<number[]>([])
@@ -176,6 +215,7 @@ function goLuckyDishes() {
     <!-- 开场 -->
     <view v-if="st.step === 'intro'" class="pea__intro mrc-hero">
       <image class="pea__hero-img guozai-breathe" :src="`${STATIC_BASE_URL}/static/guozai/${activeTest === 'cook' ? 'action_02_soup' : 'action_09_celebrate'}.png`" mode="aspectFit" aria-hidden="true" />
+      <view class="pea__hero-bubble"><text>{{ introQuip }}</text></view>
       <text class="pea__eyebrow">{{ activeTest === 'cook' ? 'COOKING MBTI' : 'FOODIE MBTI' }}</text>
       <text class="pea__title">{{ activeTest === 'cook' ? '做饭人格 4 字母测试' : '干饭人格 4 字母测试' }}</text>
       <text class="pea__sub">
@@ -184,9 +224,18 @@ function goLuckyDishes() {
           : '12 道场景题，四个选项随你挑。锅仔会读完你的每一次选择，认真判断你的人格——像 MBTI 一样认真，比 MBTI 好吃。' }}
       </text>
       <view class="pea__facts">
-        <view class="pea__fact"><text class="pea__fact-num">12</text><text class="pea__fact-label">道场景题</text></view>
-        <view class="pea__fact"><text class="pea__fact-num">4</text><text class="pea__fact-label">个维度</text></view>
-        <view class="pea__fact"><text class="pea__fact-num">16</text><text class="pea__fact-label">型人格</text></view>
+        <view class="pea__fact">
+          <image class="pea__fact-icon" :src="`${STATIC_BASE_URL}/static/guozai/action_16_chopsticks.png`" mode="aspectFit" aria-hidden="true" />
+          <text class="pea__fact-num">12</text><text class="pea__fact-label">道场景题</text>
+        </view>
+        <view class="pea__fact">
+          <image class="pea__fact-icon" :src="`${STATIC_BASE_URL}/static/guozai/action_06_glasses.png`" mode="aspectFit" aria-hidden="true" />
+          <text class="pea__fact-num">4</text><text class="pea__fact-label">个维度</text>
+        </view>
+        <view class="pea__fact">
+          <image class="pea__fact-icon" :src="`${STATIC_BASE_URL}/static/guozai/action_09_celebrate.png`" mode="aspectFit" aria-hidden="true" />
+          <text class="pea__fact-num">16</text><text class="pea__fact-label">型人格</text>
+        </view>
       </view>
       <view v-if="activeTest === 'eat' && isDual" class="pea__dual-banner">
         <text class="pea__dual-text">有饭搭子想跟你比吃饭默契，接招？</text>
@@ -204,11 +253,17 @@ function goLuckyDishes() {
       <view class="pea__progress-row">
         <text class="pea__progress-num">{{ st.qIndex + 1 }} / {{ cfg.quiz.length }}</text>
         <view class="pea__progress-bar">
-          <view class="pea__progress-fill" :style="{ width: `${((st.qIndex + 1) / cfg.quiz.length) * 100}%` }" />
+          <view class="pea__progress-fill" :style="{ width: progressPct }" />
+          <image class="pea__progress-walker" :style="{ left: progressPct }" :src="`${STATIC_BASE_URL}/static/guozai/mood_06_hungry.png`" mode="aspectFit" aria-hidden="true" />
         </view>
       </view>
       <view :key="`${activeTest}-${st.qIndex}`" class="pea__q mrc-card pop-in">
-        <text class="pea__q-emoji">{{ cfg.quiz[st.qIndex]?.emoji }}</text>
+        <view class="pea__q-head">
+          <image class="pea__q-avatar guozai-breathe" :src="quizAvatar" mode="aspectFit" aria-hidden="true" />
+          <view class="pea__q-bubble">
+            <text class="pea__q-quip">{{ quizQuip }}</text>
+          </view>
+        </view>
         <text class="pea__q-text">{{ cfg.quiz[st.qIndex]?.text }}</text>
         <view class="pea__options">
           <view
@@ -225,7 +280,6 @@ function goLuckyDishes() {
             <text class="pea__option-label">{{ option.label }}</text>
           </view>
         </view>
-        <text class="pea__q-hint">别想太久，第一反应最准</text>
       </view>
     </view>
 
@@ -341,6 +395,17 @@ function goLuckyDishes() {
   border-radius: var(--mrc-radius-lg);
 }
 .pea__hero-img { width: 240rpx; height: 240rpx; }
+.pea__hero-bubble {
+  margin-top: 4rpx;
+  padding: 12rpx 28rpx;
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 24rpx 24rpx 24rpx 8rpx;
+  background: var(--mrc-surface);
+  color: var(--mrc-text-deep);
+  font-size: 22rpx;
+  font-weight: 700;
+  box-shadow: var(--mrc-shadow-sm);
+}
 .pea__eyebrow { margin-top: 8rpx; color: var(--mrc-accent); font-size: 18rpx; font-weight: 800; letter-spacing: 3rpx; }
 .pea__title { margin-top: 10rpx; color: var(--mrc-text-strong); font-size: 44rpx; font-weight: 900; text-align: center; }
 .pea__sub { margin-top: 14rpx; max-width: 580rpx; color: var(--mrc-text-sub); font-size: 24rpx; line-height: 1.65; text-align: center; }
@@ -356,6 +421,7 @@ function goLuckyDishes() {
   border-radius: 20rpx;
   background: var(--mrc-surface);
 }
+.pea__fact-icon { width: 44rpx; height: 44rpx; }
 .pea__fact-num { color: var(--mrc-accent); font-size: 36rpx; font-weight: 900; }
 .pea__fact-label { color: var(--mrc-text-sub); font-size: 20rpx; }
 .pea__dual-banner {
@@ -373,10 +439,32 @@ function goLuckyDishes() {
 .pea__quiz { margin-top: 20rpx; }
 .pea__progress-row { display: flex; align-items: center; gap: 16rpx; margin-bottom: 24rpx; }
 .pea__progress-num { flex: 0 0 auto; color: var(--mrc-text-sub); font-size: 22rpx; font-weight: 800; }
-.pea__progress-bar { flex: 1; height: 12rpx; border-radius: 999rpx; background: var(--mrc-surface-3); overflow: hidden; }
+.pea__progress-bar { position: relative; flex: 1; height: 12rpx; border-radius: 999rpx; background: var(--mrc-surface-3); }
 .pea__progress-fill { height: 100%; border-radius: 999rpx; background: var(--mrc-primary-grad); transition: width .3s ease; }
+/* 进度条上的锅仔：举筷饿锅仔随进度往前走，走到头就去看结果 */
+.pea__progress-walker {
+  position: absolute;
+  top: 50%;
+  width: 52rpx;
+  height: 52rpx;
+  transform: translate(-50%, -58%);
+  transition: left .3s ease;
+  pointer-events: none;
+  filter: drop-shadow(0 4rpx 8rpx rgba(120, 40, 20, 0.2));
+}
 .pea__q { display: flex; flex-direction: column; padding: 36rpx 30rpx; }
-.pea__q-emoji { font-size: 72rpx; line-height: 1.2; }
+/* 出题区：锅仔每题换姿势，旁边气泡说一句台词 */
+.pea__q-head { display: flex; align-items: flex-end; gap: 16rpx; }
+.pea__q-avatar { flex: 0 0 96rpx; width: 96rpx; height: 96rpx; }
+.pea__q-bubble {
+  flex: 1;
+  min-width: 0;
+  padding: 14rpx 20rpx;
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 20rpx 20rpx 20rpx 6rpx;
+  background: var(--mrc-surface-2);
+}
+.pea__q-quip { color: var(--mrc-text-sub); font-size: 21rpx; }
 .pea__q-text { margin-top: 14rpx; color: var(--mrc-text-strong); font-size: 32rpx; font-weight: 800; line-height: 1.45; }
 .pea__options { display: flex; flex-direction: column; gap: 16rpx; margin-top: 28rpx; }
 .pea__option {
@@ -412,7 +500,6 @@ function goLuckyDishes() {
 }
 .pea__option-emoji { font-size: 34rpx; }
 .pea__option-label { flex: 1; min-width: 0; color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 600; }
-.pea__q-hint { margin-top: 22rpx; color: var(--mrc-text-light); font-size: 20rpx; text-align: center; }
 
 /* ---- AI 判定中 ---- */
 .pea__analyzing {
@@ -576,10 +663,13 @@ function goLuckyDishes() {
 
 @media (prefers-reduced-motion: reduce) {
   .pea__hero-img.guozai-breathe,
+  .pea__q-avatar.guozai-breathe,
   .pea__analyzing-img.guozai-breathe,
   .pea__q.pop-in,
   .pea__card.pop-in {
     animation: none;
   }
+  .pea__progress-walker,
+  .pea__progress-fill { transition: none; }
 }
 </style>

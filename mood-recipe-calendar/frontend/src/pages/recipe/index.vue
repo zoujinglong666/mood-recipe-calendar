@@ -798,6 +798,67 @@ async function waitForDelivery(orderNo: string) {
           variant="recommendation"
         />
 
+        <view class="recipe-section">
+          <view class="section-heading">
+            <text class="section-heading__eyebrow">
+              PREPARE
+            </text><text class="section-heading__title">
+              食材清单
+            </text>
+          </view>
+          <view v-if="ingredients.length" class="ingredient-list">
+            <view v-for="(ingredient, index) in ingredients" :key="`${ingredient}-${index}`" class="ingredient-item">
+              <text class="ingredient-item__dot" /><text>{{ ingredient }}</text>
+            </view>
+          </view>
+          <view v-else class="content-empty">
+            锅仔还没拿到食材清单，先看看做法吧。
+          </view>
+          <NutritionCard v-if="recipe?.id" :recipe-id="recipe.id" :name="recipe.name" :ingredients="ingredients" />
+          <FoodSafetyTips v-if="ingredients.length" :ingredients="ingredients" />
+        </view>
+
+        <view id="recipe-steps" class="recipe-section recipe-section--steps">
+          <view class="section-heading section-heading--row">
+            <view>
+              <text class="section-heading__eyebrow">
+                COOK
+              </text><text class="section-heading__title">
+                完整做法
+              </text>
+            </view>
+            <view v-if="steps.length" class="section-toggle pressable" role="button" :aria-label="showSteps ? '收起完整做法' : '展开完整做法'" @click="toggleSteps">
+              {{ showSteps ? '收起' : `查看 ${steps.length} 步` }}
+            </view>
+          </view>
+          <view v-if="showSteps && steps.length" class="step-list">
+            <view v-for="(step, index) in steps" :key="index" class="step-item">
+              <text class="step-item__number">
+                {{ Number(index) + 1 }}
+              </text><text class="step-item__text">
+                {{ step }}
+              </text>
+            </view>
+          </view>
+          <view v-else-if="steps.length" class="steps-preview">
+            准备好后再展开，跟着锅仔一步步做。
+          </view>
+          <view v-else class="content-empty">
+            这道菜暂时没有详细步骤，你仍然可以记录自己的做法。
+          </view>
+          <view
+            class="poster-entry"
+            :class="{ 'is-busy': posterSaving }"
+            role="button"
+            aria-label="生成并保存菜谱教程海报"
+            @click="saveRecipePoster"
+          >
+            <text class="poster-entry__emoji">🖼</text>
+            <text class="poster-entry__text">{{ posterSaving ? '锅仔正在排版海报…' : '保存教程海报（图文可分享）' }}</text>
+            <text class="poster-entry__arrow">›</text>
+          </view>
+        </view>
+
         <view v-if="toolTrace.length" class="tool-trace">
           <view class="tool-trace__toggle pressable" role="button" :aria-expanded="showToolTrace" aria-label="查看锅仔本次推荐过程" @click="showToolTrace = !showToolTrace">
             <view>
@@ -865,67 +926,6 @@ async function waitForDelivery(orderNo: string) {
           <text class="custom-entry__link">
             去定制
           </text>
-        </view>
-
-        <view class="recipe-section">
-          <view class="section-heading">
-            <text class="section-heading__eyebrow">
-              PREPARE
-            </text><text class="section-heading__title">
-              食材清单
-            </text>
-          </view>
-          <view v-if="ingredients.length" class="ingredient-list">
-            <view v-for="(ingredient, index) in ingredients" :key="`${ingredient}-${index}`" class="ingredient-item">
-              <text class="ingredient-item__dot" /><text>{{ ingredient }}</text>
-            </view>
-          </view>
-          <view v-else class="content-empty">
-            锅仔还没拿到食材清单，先看看做法吧。
-          </view>
-          <NutritionCard v-if="recipe?.id" :recipe-id="recipe.id" :name="recipe.name" :ingredients="ingredients" />
-          <FoodSafetyTips v-if="ingredients.length" :ingredients="ingredients" />
-        </view>
-
-        <view id="recipe-steps" class="recipe-section recipe-section--steps">
-          <view class="section-heading section-heading--row">
-            <view>
-              <text class="section-heading__eyebrow">
-                COOK
-              </text><text class="section-heading__title">
-                完整做法
-              </text>
-            </view>
-            <view v-if="steps.length" class="section-toggle pressable" role="button" :aria-label="showSteps ? '收起完整做法' : '展开完整做法'" @click="toggleSteps">
-              {{ showSteps ? '收起' : `查看 ${steps.length} 步` }}
-            </view>
-          </view>
-          <view v-if="showSteps && steps.length" class="step-list">
-            <view v-for="(step, index) in steps" :key="index" class="step-item">
-              <text class="step-item__number">
-                {{ Number(index) + 1 }}
-              </text><text class="step-item__text">
-                {{ step }}
-              </text>
-            </view>
-          </view>
-          <view v-else-if="steps.length" class="steps-preview">
-            准备好后再展开，跟着锅仔一步步做。
-          </view>
-          <view v-else class="content-empty">
-            这道菜暂时没有详细步骤，你仍然可以记录自己的做法。
-          </view>
-          <view
-            class="poster-entry"
-            :class="{ 'is-busy': posterSaving }"
-            role="button"
-            aria-label="生成并保存菜谱教程海报"
-            @click="saveRecipePoster"
-          >
-            <text class="poster-entry__emoji">🖼</text>
-            <text class="poster-entry__text">{{ posterSaving ? '锅仔正在排版海报…' : '保存教程海报（图文可分享）' }}</text>
-            <text class="poster-entry__arrow">›</text>
-          </view>
         </view>
       </view>
 

@@ -48,15 +48,12 @@ const ADVICE_CLS: Record<string, string> = {
   建议多吃: 'pill--good',
 }
 
-/** 金字塔层宽：糖/热量/脂肪自上而下递增，还原参考图的三层梯形观感 */
-function layerWidth(index: number) {
-  const widths = ['44%', '72%', '100%']
-  return widths[index] || '100%'
-}
-/** 金字塔层配色：自上而下由浅到深（黄 → 浅绿 → 薄荷绿） */
-function layerCls(index: number) {
-  const cls = ['layer--top', 'layer--mid', 'layer--bottom']
-  return cls[index] || 'layer--bottom'
+/** 建议词语气 → 语义色（少吃/控制=暖红警示，多吃=薄荷正向，其余中性） */
+function adviceTone(advice: string) {
+  if (!advice) return 'neutral'
+  if (advice.includes('多吃')) return 'good'
+  if (advice.includes('少吃') || advice.includes('控制')) return 'warn'
+  return 'neutral'
 }
 </script>
 
@@ -85,33 +82,24 @@ function layerCls(index: number) {
       <view class="na-groups">
         <view v-for="group in advice.groups" :key="group.name" class="na-group">
           <text class="na-group__name">{{ group.name }}</text>
-          <text class="na-group__advice">{{ group.advice }}</text>
+          <text class="na-group__advice" :class="`advice--${adviceTone(group.advice)}`">{{ group.advice }}</text>
         </view>
       </view>
     </view>
 
-    <!-- 营养金字塔：三层宽度递增堆叠，左右交替标注数值与人群 -->
+    <!-- 营养明细：标签式行列表，数值右对齐纵向可扫读（原伪金字塔宽度不编码信息、视线锯齿跳动，已废） -->
     <view class="na-pyramid-head">
       <text class="na-pyramid-head__title">菜谱营养分析</text>
       <text class="na-pyramid-head__sub">（按食材估算）</text>
     </view>
-    <view class="na-pyramid">
-      <view
-        v-for="(layer, index) in advice.pyramid"
-        :key="layer.key"
-        class="na-row"
-        :class="{ 'na-row--flip': index % 2 === 1 }"
-      >
-        <view class="na-row__side">
-          <text class="na-row__value">{{ layer.value }}</text>
-          <text class="na-row__desc">{{ layer.advice }} {{ layer.group }}</text>
+    <view class="na-list">
+      <view v-for="layer in advice.pyramid" :key="layer.key" class="na-item">
+        <text class="na-item__key">{{ layer.key }}</text>
+        <view class="na-item__advice">
+          <text class="na-item__tag" :class="`tag--${adviceTone(layer.advice)}`">{{ layer.advice }}</text>
+          <text v-if="layer.group" class="na-item__group">{{ layer.group }}</text>
         </view>
-        <view class="na-row__center">
-          <view class="na-layer" :class="layerCls(index)" :style="{ width: layerWidth(index) }">
-            <text class="na-layer__key">{{ layer.key }}</text>
-          </view>
-        </view>
-        <view class="na-row__side na-row__side--ghost" />
+        <text class="na-item__value">{{ layer.value }}</text>
       </view>
     </view>
 
@@ -185,33 +173,54 @@ function layerCls(index: number) {
   background: var(--mrc-surface-2);
 }
 .na-group__name { color: var(--mrc-text-deep); font-size: 24rpx; font-weight: 800; }
-.na-group__advice { color: var(--mrc-color-success); font-size: 20rpx; font-weight: 700; }
+.na-group__advice { font-size: 20rpx; font-weight: 700; color: var(--mrc-text-sub); }
+.advice--warn { color: #C24A2E; }
+.advice--good { color: var(--mrc-color-success); }
 
-/* 金字塔 */
+/* 营养明细行列表：名称 | 建议+人群 | 数值右对齐，发丝线分行 */
 .na-pyramid-head { display: flex; align-items: baseline; gap: 8rpx; margin-top: 26rpx; }
 .na-pyramid-head__title { color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 800; }
 .na-pyramid-head__sub { color: var(--mrc-text-light); font-size: 20rpx; }
-.na-pyramid { display: flex; flex-direction: column; gap: 14rpx; margin-top: 18rpx; }
-.na-row { display: flex; align-items: center; gap: 12rpx; }
-.na-row__side { width: 210rpx; display: flex; flex-direction: column; gap: 2rpx; }
-.na-row--flip .na-row__side { order: 3; align-items: flex-end; text-align: right; }
-.na-row__side--ghost { flex: 1; }
-.na-row__center { flex: 1; display: flex; justify-content: center; }
-.na-row__value { color: var(--mrc-accent); font-size: 30rpx; font-weight: 800; }
-.na-row__desc { color: var(--mrc-text-sub); font-size: 19rpx; line-height: 1.4; }
-
-/* 三层塔身：宽度递增 + 由浅到深，圆角块堆叠还原梯形观感 */
-.na-layer {
-  display: flex;
+.na-list { display: flex; flex-direction: column; margin-top: 8rpx; }
+.na-item {
+  display: grid;
+  grid-template-columns: 140rpx minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: center;
-  min-height: 74rpx;
-  border-radius: 14rpx;
+  gap: 12rpx;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid var(--mrc-border-light);
 }
-.layer--top { background: var(--mrc-surface-sun); border: 2rpx solid var(--mrc-border); }
-.layer--mid { background: var(--mrc-accent-soft); }
-.layer--bottom { background: rgba(40, 194, 160, 0.18); }
-.na-layer__key { color: var(--mrc-text-deep); font-size: 25rpx; font-weight: 800; }
+.na-item:last-child { border-bottom: none; padding-bottom: 4rpx; }
+.na-item__key {
+  color: var(--mrc-text-strong);
+  font-size: 25rpx;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.na-item__advice { display: flex; align-items: center; gap: 10rpx; min-width: 0; }
+.na-item__tag {
+  flex: 0 0 auto;
+  padding: 4rpx 14rpx;
+  border-radius: 999rpx;
+  font-size: 19rpx;
+  font-weight: 700;
+  background: var(--mrc-surface-2);
+  color: var(--mrc-text-sub);
+}
+.tag--warn { background: rgba(217, 72, 65, 0.13); color: #C24A2E; }
+.tag--good { background: rgba(40, 194, 160, 0.16); color: var(--mrc-color-success); }
+.na-item__group {
+  flex: 1;
+  min-width: 0;
+  color: var(--mrc-text-light);
+  font-size: 20rpx;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.na-item__value { color: var(--mrc-accent); font-size: 28rpx; font-weight: 800; white-space: nowrap; }
 
 /* 要点列表 */
 .na-bullets { display: flex; flex-direction: column; gap: 10rpx; margin-top: 22rpx; }

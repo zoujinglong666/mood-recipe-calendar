@@ -47,6 +47,20 @@ export const useUserStore = defineStore('user', () => {
     uni.removeStorageSync('userInfo')
   }
 
+  /**
+   * 清除登录态但【不】置 userInitiatedLogout。
+   * 用于「被动会话过期」（auth:expired）：用户并没有主动退出，
+   * 不应污染「主动退出才禁止静默重登」的语义，否则过期后 ensureLogin 会永久拒绝重登。
+   */
+  function clearSession() {
+    openid.value = ''
+    sessionToken.value = ''
+    userInfo.value = null
+    uni.removeStorageSync('openid')
+    uni.removeStorageSync('sessionToken')
+    uni.removeStorageSync('userInfo')
+  }
+
   function clearLogoutFlag() {
     userInitiatedLogout.value = false
   }
@@ -76,6 +90,7 @@ export const useUserStore = defineStore('user', () => {
     userInitiatedLogout,
     setLogin,
     logout,
+    clearSession,
     clearLogoutFlag,
     restoreFromStorage,
   }

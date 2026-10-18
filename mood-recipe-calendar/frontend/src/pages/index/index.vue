@@ -66,7 +66,7 @@ function getPeriod(hour: number) {
 import { computed, ref } from 'vue'
 import Icon from '../../components/common/Icon.vue'
 import { ensureLogin } from '../../utils/login'
-import { toastError, toastSuccess } from '../../utils/toast'
+import { toast, toastError, toastSuccess } from '../../utils/toast'
 import { acceptShareInvite } from '../../api/share'
 import { onLoad } from '@dcloudio/uni-app'
 import { fetchCompanionMessage, fetchRecordsByMonth, type CompanionMessage, type RecordItem } from '../../api/records'
@@ -246,14 +246,25 @@ async function loadCompanion() {
 /** 今日菜单（TodayBoard）：打开即有的零输入答案；加载失败静默，不影响首屏其余内容。 */
 const todayBoard = ref<DailyBoard>()
 async function loadTodayBoard() {
+  boardLoading.value = true
+  boardLoadFailed.value = false
   try {
-    todayBoard.value = await fetchDailyBoard()
+    todayBoard.value = await withTimeout(fetchDailyBoard(), BOARD_LOAD_TIMEOUT, '今日菜单加载超时')
     if (todayBoard.value?.recipe) funnel('recipe_delivered', { name: todayBoard.value.recipe.name })
     backfillBoardCover()
   }
   catch {
     todayBoard.value = undefined
+    boardLoadFailed.value = true
   }
+  finally {
+    boardLoading.value = false
+  }
+}
+
+/** 失败卡点击重试 */
+function retryBoard() {
+  loadTodayBoard().catch(() => {})
 }
 
 /** 今日菜懒补专属封面：没有真实图（锅仔插画兜底）时后台补拍，成功后就地替换；失败保持兜底。 */
@@ -268,6 +279,111 @@ async function backfillBoardCover() {
 
 /** 早餐组合菜「主食 · 配饮品」拆开展示：标题显示主食，饮品作为小标签。 */
 const boardNameParts = computed(() => splitComboDishName(todayBoard.value?.recipe?.name || ''))
+
+/** 今日菜牌上下滑换菜（微创新）：跟手阻尼位移 + 松手过阈值按方向切换。
+ *  上滑换新菜（与转盘同源接口，本地压栈记历史）；下滑弹栈回看上一道；
+ *  入场/离场方向跟随手势（上滑内容从下浮入，下滑从上浮入）；动画期间防抖。 */
+const boardSwitching = ref(false)
+const boardLeaving = ref(false)
+const boardDragging = ref(false)
+const boardDragY = ref(0)
+/** 换菜方向：1=上滑换新，-1=下滑回看，决定入场/离场动画方向 */
+const boardDir = ref<1 | -1>(1)
+/** 回看历史栈：栈顶是上一道；上限 10 道防内存膨胀 */
+const boardHistory = ref<DailyBoard[]>([])
+/** 骨架屏：首载与上滑换菜数据未到时占位，杜绝「空白卡」 */
+const boardLoading = ref(false)
+const boardSkeleton = ref(false)
+/** 首载失败（含超时）：显示「点我重试」卡，骨架屏绝不无限转圈 */
+const boardLoadFailed = ref(false)
+let boardSkeletonTimer: ReturnType<typeof setTimeout> | null = null
+const BOARD_LOAD_TIMEOUT = 10_000
+const BOARD_SWITCH_TIMEOUT = 8_000
+
+/** 看门狗：请求层无超时配置，连接挂起时 Promise 永不落定会把骨架屏卡死——这里兜底强制失败 */
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(label)), ms)
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value) },
+      (error) => { clearTimeout(timer); reject(error) },
+    )
+  })
+}
+let boardTouchStartY: number | null = null
+let boardRawDy = 0
+const BOARD_SWITCH_THRESHOLD = 36
+
+function onBoardTouchStart(e: { touches?: Array<{ clientY?: number }> }) {
+  if (boardSwitching.value) return
+  boardDragging.value = true
+  boardTouchStartY = e.touches?.[0]?.clientY ?? null
+  boardRawDy = 0
+}
+
+function onBoardTouchMove(e: { touches?: Array<{ clientY?: number }> }) {
+  if (boardTouchStartY == null || boardSwitching.value) return
+  boardRawDy = (e.touches?.[0]?.clientY ?? boardTouchStartY) - boardTouchStartY
+  // 上下都跟手，1/3 阻尼且封顶 24px——顶牌只微微抬起，不做大幅位移；松手由 CSS transition 回弹
+  boardDragY.value = Math.max(-24, Math.min(24, boardRawDy / 3))
+}
+
+async function onBoardTouchEnd() {
+  const start = boardTouchStartY
+  boardDragging.value = false
+  boardTouchStartY = null
+  const dy = boardRawDy
+  boardRawDy = 0
+  boardDragY.value = 0
+  if (start == null || boardSwitching.value) return
+  if (dy < -BOARD_SWITCH_THRESHOLD) await switchBoardDish(1)
+  else if (dy > BOARD_SWITCH_THRESHOLD) await switchBoardDish(-1)
+}
+
+async function switchBoardDish(direction: 1 | -1) {
+  if (boardSwitching.value) return
+  const current = todayBoard.value
+  if (!current) return
+  // 下滑回看：弹栈恢复上一道（本地数据即时到位，直接切入场动画）；无历史则轻提示后原样回弹
+  if (direction < 0) {
+    const prev = boardHistory.value.pop()
+    if (!prev) {
+      toast('已经是最早那道啦')
+      return
+    }
+    boardDir.value = -1
+    boardSwitching.value = true
+    todayBoard.value = prev
+    setTimeout(() => { boardSwitching.value = false }, 420)
+    return
+  }
+  // 上滑换新：换成功的当前菜压栈，供下滑回看
+  boardSwitching.value = true
+  boardLeaving.value = true
+  boardDir.value = 1
+  // 离场淡出（.26s）结束后仍无数据才上骨架屏，避免快速返回时闪烁
+  if (boardSkeletonTimer) clearTimeout(boardSkeletonTimer)
+  boardSkeleton.value = false
+  boardSkeletonTimer = setTimeout(() => { boardSkeleton.value = true }, 300)
+  try {
+    const board = await withTimeout(refreshDailyBoard(), BOARD_SWITCH_TIMEOUT, '换菜超时')
+    boardHistory.value.push(current)
+    if (boardHistory.value.length > 10) boardHistory.value.shift()
+    todayBoard.value = board
+    if (boardSkeletonTimer) clearTimeout(boardSkeletonTimer)
+    boardSkeleton.value = false
+    boardLeaving.value = false
+    void backfillBoardCover()
+  }
+  catch (e: any) {
+    boardSkeleton.value = false
+    boardLeaving.value = false
+    toastError(e, '今天没有别的菜可换啦')
+  }
+  finally {
+    setTimeout(() => { boardSwitching.value = false }, 420)
+  }
+}
 
 /** 菜池预加载：转盘/九宫格/翻牌共用。onShow 即拉取并预热图片，打开弹层时秒开不白屏。 */
 const recipePoolCache = ref<RecipeItem[]>([])
@@ -577,6 +693,18 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
 <template>
   <view class="home mrc-hero">
     <wd-navbar title="心情菜谱日历" safe-area-inset-top  custom-style="background-color: transparent !important;" />
+    <!-- P1：引导加"我的小程序"。气泡指向右上角 ⋯，前 3 次首页可见，点"知道了"永久关闭 -->
+    <view v-if="showFavTip" class="fav-tip">
+      <view class="fav-tip__arrow" />
+      <view class="fav-tip__body">
+        <text class="fav-tip__emoji">⭐</text>
+        <view class="fav-tip__text">
+          <text class="fav-tip__title">点右上角 ⋯ → 收藏</text>
+          <text class="fav-tip__sub">明天打开不迷路，锅仔每天给你留菜</text>
+        </view>
+        <text class="fav-tip__close" role="button" aria-label="关闭提示" @click="dismissFavTip">知道了</text>
+      </view>
+    </view>
     <!-- 首页不展示整屏缺省图：直接渲染真实内容，数据就绪后响应式更新 -->
       <view class="home-hero" :class="{ 'home-hero--festival': companion.scene && companion.scene !== 'DAILY' }" role="button" :aria-label="companion.actionText" @click="bounceGuozai">
         <view class="home-hero__intro">
@@ -605,22 +733,26 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
         <text v-if="friendDish" class="share-welcome__text">好友用锅仔安排了「{{ friendDish }}」</text>
         <text v-if="inviteBonus" class="share-welcome__bonus">你和好友各得 1 次对话额度</text>
       </view>
-
-      <!-- 每周主题运营位：本周轮换主题，点一下带预设去锅仔管饭 -->
-      <view v-if="weeklyTheme && showThemeBanner" class="theme-banner pressable" role="button" :aria-label="`本周主题：${weeklyTheme.title}，去排这一周的菜单`" @click="goWithTheme(weeklyTheme)">
-        <text class="theme-banner__emoji">{{ weeklyTheme.emoji }}</text>
-        <view class="theme-banner__copy">
-          <text class="theme-banner__title">本周主题 · {{ weeklyTheme.title }}</text>
-          <text class="theme-banner__sub">{{ weeklyTheme.seasonalTip || weeklyTheme.subtitle }}</text>
-        </view>
-        <text class="theme-banner__go">去开饭 ›</text>
-        <text class="theme-banner__close" role="button" aria-label="关闭本周主题" @click.stop="dismissThemeBanner">×</text>
-      </view>
-
-      <!-- 今日菜单（TodayBoard）：今日菜牌——菜图右侧通栏出血，信息在左 -->
-      <view v-if="todayBoard" class="home-entry home-board" role="button" :aria-label="`锅仔今天留了${todayBoard.recipe.name}，打开看做法`" @click="goCookToday">
-        <view class="home-board__text">
-          <view class="home-board__eyebrow"><text class="home-board__eyebrow-dot" /><text>锅仔今天给你留了</text></view>
+      <!-- 今日菜单（TodayBoard）：今日菜牌——菜图右侧通栏出血，信息在左；上下滑换牌（牌堆式微动效，顶牌动、垫牌不动） -->
+      <view class="home-board-deck">
+      <view
+        v-if="todayBoard && !boardSkeleton"
+        class="home-entry home-board"
+        :class="{ 'is-leaving': boardLeaving, 'is-dragging': boardDragging, 'is-prev': boardDir < 0 }"
+        :style="boardDragY ? `transform: translateY(${boardDragY}px)` : ''"
+        role="button"
+        :aria-label="`锅仔今天留了${todayBoard.recipe.name}，打开看做法，上下滑动可换菜`"
+        @click="goCookToday"
+        @touchstart="onBoardTouchStart"
+        @touchmove.stop.prevent="onBoardTouchMove"
+        @touchend="onBoardTouchEnd"
+        @touchcancel="onBoardTouchEnd"
+      >
+        <view :key="todayBoard.recipe.id ?? todayBoard.recipe.name" class="home-board__text">
+          <view class="home-board__eyebrow">
+            <text class="home-board__eyebrow-dot" /><text>锅仔今天给你留了</text>
+            <text class="home-board__hint">上下滑换一道</text>
+          </view>
           <view class="home-board__name-row">
             <text class="home-board__name">{{ boardNameParts.main }}</text>
             <text v-if="boardNameParts.drink" class="home-board__drink">配{{ boardNameParts.drink }}</text>
@@ -634,10 +766,35 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
           </view>
         </view>
         <view class="home-board__media">
-          <image v-if="todayBoard.recipe.image" class="home-board__img" :src="todayBoard.recipe.image" mode="aspectFill" />
+          <image :key="todayBoard.recipe.image || todayBoard.recipe.name" v-if="todayBoard.recipe.image" class="home-board__img" :src="todayBoard.recipe.image" mode="aspectFill" />
           <image v-else class="home-board__img home-board__img--fallback" :src="STATIC_BASE_URL + '/static/guozai/action_01_bowl.png'" mode="aspectFit" />
           <view class="home-board__stamp"><text>今</text><text>日</text></view>
         </view>
+      </view>
+      <!-- 菜牌骨架屏：首载与换菜等待期占位，杜绝「空白卡」；微光扫过表示锅仔正在想 -->
+      <view v-else-if="boardSkeleton || boardLoading" class="home-entry home-board home-board--skeleton" aria-label="锅仔正在想今天吃什么" aria-busy="true">
+        <view class="home-board__text">
+          <view class="home-board__eyebrow"><view class="sk sk--dot" /><view class="sk sk--eyebrow" /></view>
+          <view class="sk sk--name" />
+          <view class="home-board__meta"><view class="sk sk--chip" /><view class="sk sk--chip sk--chip-short" /></view>
+          <view class="sk sk--cta" />
+        </view>
+        <view class="home-board__media">
+          <view class="sk sk--img" />
+        </view>
+      </view>
+      <!-- 首载失败（含超时）：给可点的重试卡，绝不无限转圈 -->
+      <view v-else-if="boardLoadFailed" class="home-entry home-board home-board--failed" role="button" aria-label="重新加载今日推荐" @click="retryBoard">
+        <view class="home-board__text">
+          <view class="home-board__eyebrow"><text class="home-board__eyebrow-dot" /><text>锅仔走神了</text></view>
+          <view class="home-board__name-row"><text class="home-board__name">今天的菜没拿到</text></view>
+          <view class="home-board__meta"><text class="home-board__chip">网络可能开小差了</text></view>
+          <view class="home-board__cook"><text>点我再试一次</text><text class="home-board__cook-arrow">›</text></view>
+        </view>
+        <view class="home-board__media">
+          <image class="home-board__img home-board__img--fallback" :src="STATIC_BASE_URL + '/static/guozai/action_07_empty.png'" mode="aspectFit" />
+        </view>
+      </view>
       </view>
 
       <!-- P1：引导加"我的小程序"。气泡指向右上角 ⋯，前 3 次首页可见，点"知道了"永久关闭 -->
@@ -851,8 +1008,15 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
 .share-welcome__bonus { margin-left: auto; font-size: 21rpx; color: var(--mrc-accent); font-weight: 700; }
 
 .home-entry { border-radius: 30rpx; box-sizing: border-box; }
-/* 今日菜牌（TodayBoard）：图占满右侧全高、杂志式出血；左侧信息三级（眉标/菜名/标签），CTA 为实心药丸。 */
-.home-board { position: relative; display: flex; align-items: stretch; height: 228rpx; margin-bottom: 16rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 30rpx; background: linear-gradient(120deg, var(--mrc-surface-peach) 0%, var(--mrc-surface) 62%); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); overflow: hidden; }
+/* 牌堆底座：菜牌下面垫两张微旋转的静止牌——换牌时只有顶牌在动，位置感稳定（堆叠卡片语言） */
+.home-board-deck { position: relative; margin-bottom: 16rpx; }
+.home-board-deck::before,
+.home-board-deck::after { content: ''; position: absolute; left: 16rpx; right: 16rpx; top: 0; height: 100%; border: 2rpx solid var(--mrc-border-light); border-radius: 30rpx; background: var(--mrc-surface); pointer-events: none; }
+.home-board-deck::before { top: -10rpx; transform: rotate(-1.1deg); opacity: .5; }
+.home-board-deck::after { top: -5rpx; transform: rotate(.7deg); opacity: .8; }
+/* 今日菜牌（TodayBoard）：图占满右侧全高、杂志式出血；左侧信息三级（眉标/菜名/标签），CTA 为实心药丸。
+   z-index 高于 hero 的立绘(1)/气泡(3)：滑动换牌时顶牌整张压在 hero 装饰之上，像掀牌而不是元素互相穿插。 */
+.home-board { position: relative; z-index: 3; display: flex; align-items: stretch; height: 228rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 30rpx; background: linear-gradient(120deg, var(--mrc-surface-peach) 0%, var(--mrc-surface) 62%); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); overflow: hidden; }
 .home-board__text { display: flex; flex: 1; min-width: 0; flex-direction: column; justify-content: center; gap: 10rpx; padding: 22rpx 6rpx 22rpx 30rpx; }
 .home-board__eyebrow { display: flex; align-items: center; gap: 10rpx; color: var(--mrc-accent); font-size: 19rpx; font-weight: 800; letter-spacing: 2rpx; }
 .home-board__eyebrow-dot { flex: 0 0 auto; width: 10rpx; height: 10rpx; border-radius: 50%; background: var(--mrc-accent); box-shadow: 0 0 0 6rpx var(--mrc-accent-soft); }
@@ -870,6 +1034,75 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
 /* 朱红印章：竖排「今日」，微旋转的盖章感 */
 .home-board__stamp { position: absolute; top: 12rpx; left: 12rpx; display: flex; flex-direction: column; align-items: center; padding: 10rpx 9rpx 12rpx; border-radius: 10rpx; background: linear-gradient(160deg, #FF7A5C 0%, #E14E34 100%); color: #FFFFFF; font-size: 23rpx; font-weight: 800; line-height: 1.18; letter-spacing: 0; box-shadow: 0 4rpx 12rpx rgba(180, 52, 28, .38); transform: rotate(-5deg); }
 .home-board__stamp text { display: block; }
+/* 上滑换菜微动效：跟手位移由内联 transform 负责（拖动中关闭 transition 保证跟手），
+   这里管入场——文字自下而上错落浮现、图片淡入——与离场整体上浮淡出 */
+.home-board { transition: transform .32s cubic-bezier(.22, .61, .36, 1); }
+.home-board.is-dragging { transition: none; }
+.home-board__text,
+.home-board__media { transition: opacity .26s ease, transform .26s ease; }
+.home-board.is-leaving .home-board__text,
+.home-board.is-leaving .home-board__media { opacity: 0; transform: translateY(-16rpx); }
+@keyframes board-text-in {
+  from { opacity: 0; transform: translateY(26rpx); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.home-board__text > .home-board__eyebrow,
+.home-board__text > .home-board__name-row,
+.home-board__text > .home-board__meta,
+.home-board__text > .home-board__cook {
+  animation: board-text-in .48s cubic-bezier(.22, .61, .36, 1) both;
+}
+.home-board__text > .home-board__name-row { animation-delay: .07s; }
+.home-board__text > .home-board__meta { animation-delay: .14s; }
+/* CTA 只做透明度入场：text-in 的 fill 会压过 :active 的 scale 按压反馈 */
+.home-board__text > .home-board__cook { animation-name: board-fade-in; }
+@keyframes board-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes board-img-in {
+  from { opacity: 0; transform: scale(1.05); }
+  to { opacity: 1; transform: scale(1); }
+}
+.home-board__img { animation: board-img-in .5s cubic-bezier(.22, .61, .36, 1) both; }
+/* 「上滑换一道」微提示：轻浮动呼吸，学会手势后自然被忽略 */
+.home-board__hint { margin-left: auto; color: var(--mrc-text-light); font-size: 18rpx; font-weight: 600; letter-spacing: 1rpx; animation: board-hint-float 2.4s ease-in-out 1.2s infinite; }
+@keyframes board-hint-float {
+  0%, 100% { transform: translateY(0); opacity: .55; }
+  50% { transform: translateY(-4rpx); opacity: 1; }
+}
+/* 下滑回看：入场自上而下浮现，离场向下淡出（与上滑镜像） */
+@keyframes board-text-in-down {
+  from { opacity: 0; transform: translateY(-26rpx); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.home-board.is-prev.is-leaving .home-board__text,
+.home-board.is-prev.is-leaving .home-board__media { transform: translateY(16rpx); }
+.home-board.is-prev .home-board__text > .home-board__eyebrow,
+.home-board.is-prev .home-board__text > .home-board__name-row,
+.home-board.is-prev .home-board__text > .home-board__meta {
+  animation-name: board-text-in-down;
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-board__text > .home-board__eyebrow,
+  .home-board__text > .home-board__name-row,
+  .home-board__text > .home-board__meta,
+  .home-board__text > .home-board__cook,
+  .home-board__img,
+  .home-board__hint { animation: none; }
+}
+/* 菜牌骨架屏：复用 .home-board 卡壳，骨架块白色半透明 + 高光横向扫过 */
+.home-board--skeleton { pointer-events: none; }
+.sk { position: relative; overflow: hidden; background: rgba(255, 255, 255, .72); border-radius: 10rpx; }
+.sk::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .95), transparent); animation: sk-sweep 1.4s ease-in-out infinite; }
+@keyframes sk-sweep { to { transform: translateX(100%); } }
+.sk--dot { width: 10rpx; height: 10rpx; border-radius: 50%; }
+.sk--eyebrow { width: 190rpx; height: 18rpx; border-radius: 999rpx; }
+.sk--name { width: 320rpx; max-width: 100%; height: 44rpx; border-radius: 12rpx; }
+.sk--chip { width: 110rpx; height: 30rpx; border-radius: 999rpx; }
+.sk--chip-short { width: 84rpx; }
+.sk--cta { width: 200rpx; height: 52rpx; border-radius: 999rpx; }
+.sk--img { width: 100%; height: 100%; border-radius: 22rpx; }
+@media (prefers-reduced-motion: reduce) {
+  .sk::after { animation: none; transform: translateX(0); opacity: .5; }
+}
 /* P1 收藏引导 */ .fav-tip { position: relative; margin: 16rpx 0 0; padding: 0 24rpx; } .fav-tip__arrow { position: absolute; top: -10rpx; right: 80rpx; width: 0; height: 0; border-left: 12rpx solid transparent; border-right: 12rpx solid transparent; border-bottom: 12rpx solid #FFF7E6; } .fav-tip__body { display: flex; align-items: center; gap: 16rpx; padding: 18rpx 20rpx; border-radius: 20rpx; background: #FFF7E6; border: 2rpx solid #FFE4B5; box-shadow: 0 4rpx 12rpx rgba(255,180,80,0.15); } .fav-tip__emoji { font-size: 36rpx; } .fav-tip__text { flex: 1; display: flex; flex-direction: column; gap: 4rpx; min-width: 0; } .fav-tip__title { font-size: 26rpx; font-weight: 700; color: #8B5A00; } .fav-tip__sub { font-size: 22rpx; color: #B07930; line-height: 1.4; } .fav-tip__close { flex-shrink: 0; padding: 8rpx 18rpx; border-radius: 999rpx; background: #FFB98C; color: #fff; font-size: 22rpx; font-weight: 600; } /* 组件墙：4 列网格，入口分层——三餐主卡(2×2 HOT) / 抽奖小卡(1×1) / 双宽卡(2×1) */
 .home-bento { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: 158rpx; gap: 14rpx; margin: 24rpx 0 32rpx; }
 .home-bento__card { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8rpx; overflow: hidden; min-width: 0; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); box-sizing: border-box; transition: transform .15s ease; }

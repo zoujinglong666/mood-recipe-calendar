@@ -12,9 +12,10 @@ onLaunch(() => {
   // 恢复登录状态
   const userStore = useUserStore()
   userStore.restoreFromStorage()
-  // 全局监听登录过期：请求拦截器清除 storage 后，同步清除内存状态
+  // 全局监听登录过期：被动过期，只清凭证（clearSession 不会置 userInitiatedLogout），
+  // 以便用户后续经 ensureLogin 静默重登，而非被永久卡在「未登录」。
   uni.$on('auth:expired', () => {
-    userStore.logout()
+    userStore.clearSession()
     const pages = getCurrentPages()
     const current = pages[pages.length - 1] as any
     if (current?.route !== 'pages/login/index')

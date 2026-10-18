@@ -117,6 +117,8 @@ export interface QuizQuestion {
   emoji: string
   text: string
   dim: DimensionKey
+  /** 锅仔针对这道题的定制吐槽（答题页气泡）；缺省时页面回退通用台词池 */
+  quip?: string
   /** 恒为 4 项：[A 极, A 极变体, B 极, B 极变体] */
   options: QuizOption[]
 }
@@ -171,6 +173,7 @@ export const DIMENSIONS: Dimension[] = [
 export const QUIZ: QuizQuestion[] = [
   {
     emoji: '🍜', text: '楼下新开一家店，和常去的那家只能选一个？', dim: 'TASTE',
+    quip: '新店旧店打架，锅仔搬小板凳看',
     options: [
       { label: '排队也要试新店', emoji: '🧭' },
       { label: '先看探店笔记再决定', emoji: '📝' },
@@ -180,6 +183,7 @@ export const QUIZ: QuizQuestion[] = [
   },
   {
     emoji: '📜', text: '打开菜单第一眼，先找什么？', dim: 'TASTE',
+    quip: '锅仔点菜全靠鼻子，你靠什么？',
     options: [
       { label: '没吃过的菜名', emoji: '🧪' },
       { label: '今日限定与创新档', emoji: '✨' },
@@ -189,6 +193,7 @@ export const QUIZ: QuizQuestion[] = [
   },
   {
     emoji: '📺', text: '刷到一道从没见过的做法，你的手是？', dim: 'TASTE',
+    quip: '收藏夹吃灰大赛，锅仔也是选手',
     options: [
       { label: '已经收藏三遍了', emoji: '🔥' },
       { label: '立刻研究食材替代', emoji: '🧑‍🍳' },
@@ -198,6 +203,7 @@ export const QUIZ: QuizQuestion[] = [
   },
   {
     emoji: '🍲', text: '周五晚上理想中的一顿是？', dim: 'SCENE',
+    quip: '周五的胃，值得被认真对待',
     options: [
       { label: '一桌人抢菜才香', emoji: '🎉' },
       { label: '组局涮火锅', emoji: '🫕' },
@@ -207,6 +213,7 @@ export const QUIZ: QuizQuestion[] = [
   },
   {
     emoji: '🔥', text: '对火锅，你的真实态度是？', dim: 'SCENE',
+    quip: '锅仔涮什么都好吃，主要是氛围',
     options: [
       { label: '人多才涮得开', emoji: '👥' },
       { label: '鸳鸯锅也要坐大桌', emoji: '🎇' },
@@ -216,6 +223,7 @@ export const QUIZ: QuizQuestion[] = [
   },
   {
     emoji: '📱', text: '吃到好吃的第一反应是？', dim: 'SCENE',
+    quip: '锅仔的第一反应是再吃一口',
     options: [
       { label: '立刻发给饭搭子馋TA', emoji: '😝' },
       { label: '拍照配文发一圈', emoji: '📸' },
@@ -225,6 +233,7 @@ export const QUIZ: QuizQuestion[] = [
   },
   {
     emoji: '🌙', text: '深夜十一点，冰箱里有蛋有面，你？', dim: 'KITCHEN',
+    quip: '深夜的锅仔，比你还馋',
     options: [
       { label: '起锅烧油，说做就做', emoji: '🍳' },
       { label: '翻出收藏的菜谱试一手', emoji: '📖' },
@@ -234,6 +243,7 @@ export const QUIZ: QuizQuestion[] = [
   },
   {
     emoji: '🛒', text: '刷到一款新厨具，你会？', dim: 'KITCHEN',
+    quip: '锅仔家最不缺的就是锅',
     options: [
       { label: '手痒，感觉总能用上', emoji: '🔪' },
       { label: '已经在比价了', emoji: '🏷️' },
@@ -243,6 +253,7 @@ export const QUIZ: QuizQuestion[] = [
   },
   {
     emoji: '💀', text: '做菜大翻车之后，你？', dim: 'KITCHEN',
+    quip: '锅仔翻车时会先把锅藏起来',
     options: [
       { label: '洗锅，下次再来', emoji: '😤' },
       { label: '认真复盘哪一步错了', emoji: '🧐' },
@@ -252,6 +263,7 @@ export const QUIZ: QuizQuestion[] = [
   },
   {
     emoji: '🧋', text: '点奶茶的时候，糖度冰量？', dim: 'ORDER',
+    quip: '锅仔全糖去冰，别学我',
     options: [
       { label: '固定配方，永不更改', emoji: '📐' },
       { label: '按当天状态精确计算', emoji: '🧮' },
@@ -261,6 +273,7 @@ export const QUIZ: QuizQuestion[] = [
   },
   {
     emoji: '🥗', text: '一顿饭的荤素搭配，你有讲究吗？', dim: 'ORDER',
+    quip: '锅仔的搭配是：肉，和更多的肉',
     options: [
       { label: '营养配比必须安排', emoji: '⚖️' },
       { label: '主食蛋白蔬菜缺一不可', emoji: '🍽️' },
@@ -270,6 +283,7 @@ export const QUIZ: QuizQuestion[] = [
   },
   {
     emoji: '⚠️', text: '被一家店伤过心之后，你？', dim: 'ORDER',
+    quip: '伤过心的胃，要靠好菜哄回来',
     options: [
       { label: '记进小本本永不回头', emoji: '📓' },
       { label: '差评写满三百字', emoji: '✍️' },
@@ -375,6 +389,7 @@ export const DIMENSIONS_COOK: DimensionCook[] = [
 export const QUIZ_COOK: QuizQuestion[] = [
   {
     emoji: '📋', text: '明天要请朋友来家里吃饭，今晚的你？', dim: 'MISE',
+    quip: '请客的菜，锅仔都替你紧张',
     options: [
       { label: '列好菜单和采购单', emoji: '🗒️' },
       { label: '食材提前洗切分装', emoji: '🥡' },
@@ -384,6 +399,7 @@ export const QUIZ_COOK: QuizQuestion[] = [
   },
   {
     emoji: '🧊', text: '你家冰箱里的食材，通常是？', dim: 'MISE',
+    quip: '锅仔的冰箱里住着半成品',
     options: [
       { label: '按菜单采购刚好够', emoji: '🧾' },
       { label: '分类收纳像仓库', emoji: '📦' },
@@ -393,6 +409,7 @@ export const QUIZ_COOK: QuizQuestion[] = [
   },
   {
     emoji: '🔥', text: '开火前的灶台，是什么状态？', dim: 'MISE',
+    quip: '灶台越整齐，锅仔越想蹭饭',
     options: [
       { label: '食材调料一字排开', emoji: '🥣' },
       { label: '按步骤预处理好', emoji: '✂️' },
@@ -402,6 +419,7 @@ export const QUIZ_COOK: QuizQuestion[] = [
   },
   {
     emoji: '📖', text: '做一道没做过的新菜，你会？', dim: 'FLAVOR',
+    quip: '菜谱和锅仔，你至少得听一个',
     options: [
       { label: '精确到克照谱执行', emoji: '⚖️' },
       { label: '先把视频完整看三遍', emoji: '🎬' },
@@ -411,6 +429,7 @@ export const QUIZ_COOK: QuizQuestion[] = [
   },
   {
     emoji: '⚖️', text: '菜谱里写的用量，你？', dim: 'FLAVOR',
+    quip: '「适量」，是厨艺的谜语',
     options: [
       { label: '电子秤伺候', emoji: '🧮' },
       { label: '勺子量杯安排上', emoji: '🥄' },
@@ -420,6 +439,7 @@ export const QUIZ_COOK: QuizQuestion[] = [
   },
   {
     emoji: '🧂', text: '做到一半发现缺一味料，你？', dim: 'FLAVOR',
+    quip: '缺的那味，往往是锅仔的私藏',
     options: [
       { label: '出门也要买齐', emoji: '🏃' },
       { label: '找替代方案严格对冲', emoji: '🔄' },
@@ -429,6 +449,7 @@ export const QUIZ_COOK: QuizQuestion[] = [
   },
   {
     emoji: '🧽', text: '一道菜出锅之后，灶台？', dim: 'TIDY',
+    quip: '锅仔擦锅的时候最温柔',
     options: [
       { label: '锅净台净马上擦', emoji: '✨' },
       { label: '边角料即时归位', emoji: '🧹' },
@@ -438,6 +459,7 @@ export const QUIZ_COOK: QuizQuestion[] = [
   },
   {
     emoji: '🥬', text: '切菜产生的垃圾，你？', dim: 'TIDY',
+    quip: '垃圾桶的位置决定厨房的命运',
     options: [
       { label: '顺手进垃圾桶', emoji: '🗑️' },
       { label: '台面永远只有一块砧板的活', emoji: '🪵' },
@@ -447,6 +469,7 @@ export const QUIZ_COOK: QuizQuestion[] = [
   },
   {
     emoji: '🚰', text: '做饭时你家水槽的状态？', dim: 'TIDY',
+    quip: '水槽的状态，就是厨师的内心戏',
     options: [
       { label: '基本干净随用随洗', emoji: '💧' },
       { label: '碗筷即时清洗', emoji: '🧼' },
@@ -456,6 +479,7 @@ export const QUIZ_COOK: QuizQuestion[] = [
   },
   {
     emoji: '📸', text: '做了一桌好菜，你最想？', dim: 'PURPOSE',
+    quip: '锅仔拍照永远在菜凉之前',
     options: [
       { label: '发朋友圈等赞', emoji: '👍' },
       { label: '拍视频记录下来', emoji: '🎥' },
@@ -465,6 +489,7 @@ export const QUIZ_COOK: QuizQuestion[] = [
   },
   {
     emoji: '😋', text: '做饭时你最享受的时刻？', dim: 'PURPOSE',
+    quip: '锅仔最爱听的就是那声「哇」',
     options: [
       { label: '别人夹第一筷子时的惊叹', emoji: '😲' },
       { label: '上桌那一刻的掌声', emoji: '👏' },
@@ -474,6 +499,7 @@ export const QUIZ_COOK: QuizQuestion[] = [
   },
   {
     emoji: '🌙', text: '累了一天的晚上，还开火吗？', dim: 'PURPOSE',
+    quip: '累的时候，锅仔替你看着火',
     options: [
       { label: '做道硬菜发出来犒劳自己', emoji: '🍖' },
       { label: '精心摆盘拍张照', emoji: '🖼️' },

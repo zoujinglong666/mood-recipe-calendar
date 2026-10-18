@@ -46,7 +46,6 @@ watch(() => props.ingredients, (list) => {
     <view v-for="(tip, idx) in tips" :key="tip.type + tip.name + idx" class="safety-tip" :class="TYPE_META[tip.type]?.cls">
       <text class="safety-tip__badge">{{ TYPE_META[tip.type]?.badge || '提' }}</text>
       <view class="safety-tip__main">
-        <text class="safety-tip__name">{{ tip.name }}</text>
         <text class="safety-tip__text">{{ tip.text }}</text>
       </view>
     </view>
@@ -65,6 +64,5 @@ watch(() => props.ingredients, (list) => {
 .tip--combo .safety-tip__badge { background: var(--mrc-color-danger-soft); color: var(--mrc-color-danger); }
 .tip--pick .safety-tip__badge { background: var(--mrc-accent-soft); color: var(--mrc-accent); }
 .safety-tip__main { min-width: 0; display: flex; flex-direction: column; gap: 2rpx; }
-.safety-tip__name { color: var(--mrc-text); font-size: 23rpx; font-weight: 700; }
-.safety-tip__text { color: var(--mrc-text-sub); font-size: 22rpx; line-height: 1.55; }
+.safety-tip__text { color: var(--mrc-text); font-size: 22rpx; line-height: 1.55; }
 </style>

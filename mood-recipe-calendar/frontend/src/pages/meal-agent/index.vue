@@ -9,7 +9,7 @@ import { STATIC_BASE_URL } from '@/utils/assets'
 import { safeDecodePrompt } from '@/utils/safeDecodePrompt'
 import { toastError } from '@/utils/toast'
 import { useUserStore } from '@/stores/user'
-import { ensureLogin, refreshUserInfo } from '@/utils/login'
+import { ensureLogin, navigateToLogin, refreshUserInfo } from '@/utils/login'
 import { requireMember } from '@/utils/memberGate'
 import { recordShare } from '@/api/share'
 import GuozaiChipGroup from '@/components/guozai/GuozaiChipGroup.vue'
@@ -264,6 +264,9 @@ async function load() {
   }
   catch (error) {
     toastError(error, '登录后才能安排菜单')
+    // NOT_LOGGED_IN（用户主动退出）时跳登录页，避免「提示了却无入口」的死胡同
+    if (error instanceof Error && error.message === 'NOT_LOGGED_IN')
+      navigateToLogin()
     loading.value = false
     return
   }

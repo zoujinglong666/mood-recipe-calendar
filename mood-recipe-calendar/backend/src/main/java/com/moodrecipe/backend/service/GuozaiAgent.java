@@ -143,18 +143,35 @@ public class GuozaiAgent {
             if (aiRecipe.isPresent() && contentSafe(openid, aiRecipe.get()) && allowedByPreference(aiRecipe.get(), preference)
                     && !exposures.wasRecentlyShownOrRejected(openid, aiRecipe.get())) {
                 Recipe generated = aiRecipe.get();
-                // AI 菜谱无论图片是否生成成功都先落库；图片服务失败不应丢掉完整菜谱。
-                try {
-                    generated.setSource("AI");
-                    generated = recipeRepository.save(generated);
-                } catch (Exception ex) {
-                    log.warn("锅仔菜谱落库失败，本次仍返回: {}", ex.toString());
-                }
-                // 封面异步补拍：菜谱已落库，后台生成回写后，各展示面的懒补图/详情拉取都能复用
-                if (safe(generated.getImage()).isBlank()) {
-                    if (coverBackfill != null) coverBackfill.schedule(generated.getId());
-                    update(progress, RecommendationJobService.Stage.IMAGE,
-                            RecommendationJobService.StepStatus.DEGRADED, "封面正在后台赶制，先看菜谱正文");
+                // 同名复用：库内已有这道菜就直接用库里的（图片、食材、步骤都是现成的），
+                // 不再落重复行、不再补拍封面——家常菜重名率高，生图是链路里最贵的大模型调用。
+                Recipe stored = findStoredByName(generated.getName());
+                if (stored != null) {
+                    log.info("推荐命中库内同名菜谱，直接复用 recipeId={} name={}", stored.getId(), stored.getName());
+                    generated = stored;
+                    if (safe(generated.getImage()).isBlank() && coverBackfill != null) {
+                        // 旧菜谱缺图顺手补上（hasRealImage 幂等拦截，不会重复烧生图）
+                        coverBackfill.schedule(generated.getId());
+                        update(progress, RecommendationJobService.Stage.IMAGE,
+                                RecommendationJobService.StepStatus.DEGRADED, "封面正在后台赶制，先看菜谱正文");
+                    } else {
+                        update(progress, RecommendationJobService.Stage.IMAGE,
+                                RecommendationJobService.StepStatus.COMPLETED, "使用菜谱库里现成的封面");
+                    }
+                } else {
+                    // AI 菜谱无论图片是否生成成功都先落库；图片服务失败不应丢掉完整菜谱。
+                    try {
+                        generated.setSource("AI");
+                        generated = recipeRepository.save(generated);
+                    } catch (Exception ex) {
+                        log.warn("锅仔菜谱落库失败，本次仍返回: {}", ex.toString());
+                    }
+                    // 封面异步补拍：菜谱已落库，后台生成回写后，各展示面的懒补图/详情拉取都能复用
+                    if (safe(generated.getImage()).isBlank()) {
+                        if (coverBackfill != null) coverBackfill.schedule(generated.getId());
+                        update(progress, RecommendationJobService.Stage.IMAGE,
+                                RecommendationJobService.StepStatus.DEGRADED, "封面正在后台赶制，先看菜谱正文");
+                    }
                 }
                 update(progress, RecommendationJobService.Stage.FINALIZE,
                         RecommendationJobService.StepStatus.RUNNING, "锅仔正在整理这道菜");
@@ -180,6 +197,19 @@ public class GuozaiAgent {
 
     private boolean isBreakfast(String mealType) {
         return mealType != null && "BREAKFAST".equalsIgnoreCase(mealType);
+    }
+
+    /** 按菜名精确查库内已有菜谱（trim 后匹配）；名字为空或查不到返回 null。 */
+    private Recipe findStoredByName(String name) {
+        String trimmed = name == null ? "" : name.trim();
+        if (trimmed.isEmpty()) return null;
+        try {
+            return recipeRepository.findByName(trimmed).orElse(null);
+        } catch (Exception ex) {
+            // 历史数据若有同名重复行，findByName 会抛 IncorrectResultSize——降级为不复用，不阻塞推荐
+            log.warn("按名查重失败 name={}: {}", trimmed, ex.toString());
+            return null;
+        }
     }
 
     /**

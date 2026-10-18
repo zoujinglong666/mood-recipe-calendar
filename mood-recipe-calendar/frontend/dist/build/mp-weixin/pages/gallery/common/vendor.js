@@ -1,0 +1,1 @@
+"use strict";const e=require("../../../api/request.js");exports.checkAchievements=function(){return e.post("/achievements/check",{})},exports.fetchAchievements=function(){return e.get("/achievements")},exports.fetchGrowthStatus=function(){return e.get("/growth/status")};
