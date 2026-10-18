@@ -1,6 +1,6 @@
 ﻿<script setup lang="ts">
 import type { LearningReceipt } from '../../api/records'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { STATIC_BASE_URL } from '@/utils/assets'
 import { fetchRecord, saveRecord, updateRecord } from '../../api/records'
 import { uploadFile } from '../../api/request'
@@ -13,6 +13,7 @@ import { chooseImageFiles } from '../../utils/chooseImage'
 import { createRequestId, RECORD_DRAFT_KEY } from '../../utils/cookingDraft'
 import { ensureLogin } from '../../utils/login'
 import { toast, toastError, toastSuccess } from '../../utils/toast'
+import { haptic } from '@/utils/haptic'
 import { bus, MRC_EVENTS } from '@/utils/bus'
 import { useUserStore } from '../../stores/user'
 import { requestDailyReminderNotice } from '../../api/weeklyPlans'
@@ -98,6 +99,14 @@ onShow(async () => {
         cookingTime.value = `${Number(d.cookingTime)}分钟`
       if (d.clientRequestId)
         clientRequestId.value = String(d.clientRequestId)
+      if (d.note)
+        note.value = d.note
+      if (d.recordDate)
+        recordDate.value = String(d.recordDate)
+      if (Array.isArray(d.feedback) && d.feedback.length)
+        feedbackSelections.value = d.feedback
+      if (Array.isArray(d.photos) && d.photos.length)
+        photos.value = d.photos.map((url: string) => ({ localUrl: url, remoteUrl: url, uploading: false }))
     }
     // 历史补记：日历点过去某天时写入指定日期，这里接管为记录日期
     const backfillDate = uni.getStorageSync(RECORD_DATE_KEY)
@@ -106,6 +115,34 @@ onShow(async () => {
   }
   catch { /* ignore */ }
 })
+
+/** 防丢：新建记录时用户输入实时落盘；切走 tab / 后台后再回来可原样恢复，而非回到初始草稿 */
+let draftPersistTimer: ReturnType<typeof setTimeout> | undefined
+function persistDraft() {
+  uni.setStorageSync(RECORD_DRAFT_KEY, {
+    dish: dishName.value.trim(),
+    mood: selectedMood.value,
+    note: note.value,
+    cookingTime: Number.parseInt(cookingTime.value, 10) || 30,
+    recipeId: recipeId.value,
+    exposureId: exposureId.value,
+    recordDate: recordDate.value,
+    clientRequestId: clientRequestId.value,
+    feedback: feedbackSelections.value,
+    // 只保留已上传成功的照片（临时本地路径重启后无效），避免恢复出坏图
+    photos: photos.value.filter(p => p.remoteUrl).map(p => p.remoteUrl),
+    source: 'record-form',
+  })
+}
+function schedulePersistDraft() {
+  if (draftPersistTimer) clearTimeout(draftPersistTimer)
+  draftPersistTimer = setTimeout(persistDraft, 400)
+}
+watch(
+  [dishName, selectedMood, note, cookingTime, recordDate, feedbackSelections, photos],
+  () => { if (!isEditing.value) schedulePersistDraft() },
+  { deep: true },
+)
 
 /** 是否处于"补记过去某天"模式（用于页面顶部提示，避免误记到今天） */
 function isBackfill() {
@@ -222,6 +259,7 @@ async function publish() {
     return
   }
 
+  haptic('light')
   submitting.value = true
   try {
     const openid = await ensureLogin()

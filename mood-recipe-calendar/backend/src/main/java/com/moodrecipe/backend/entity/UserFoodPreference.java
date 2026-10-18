@@ -47,6 +47,14 @@ public class UserFoodPreference {
     @Column(name = "spice_level", length = 16)
     private String spiceLevel = "NORMAL";
 
+    /** 籍贯/家乡口味：自由文本（如「四川成都」），让推荐懂家乡味。 */
+    @Column(length = 100)
+    private String hometown = "";
+
+    /** 做菜水平：NOVICE=小白 / HOME=家常 / PRO=大厨，决定步骤颗粒度与菜谱难度。 */
+    @Column(name = "cooking_skill", length = 16)
+    private String cookingSkill = "HOME";
+
     @Column(name = "health_goal", length = 16)
     private String healthGoal = "BALANCED";
 

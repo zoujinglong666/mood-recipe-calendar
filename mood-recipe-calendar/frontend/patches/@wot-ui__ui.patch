@@ -1,0 +1,19 @@
+diff --git a/components/wd-swiper/index.scss b/components/wd-swiper/index.scss
+index 42db65a36ce32bde89b42ad74bf98f0b6c57c119..c2245ce841d9151184cdae3699e4067825ac50e0 100644
+--- a/components/wd-swiper/index.scss
++++ b/components/wd-swiper/index.scss
+@@ -34,11 +34,9 @@ $swiper-item-text-spacing: var(--wot-swiper-item-text-spacing, $spacing-loose) !
+       :deep() {
+ 
+         /* #ifdef MP-WEIXIN */
+-        view:not([class]) {
+-          width: 100%;
+-          height: 100%;
+-        }
+-
++        // 微信组件 wxss 禁止 tag/属性选择器（原 view:not([class]) 会让新版 uni 编译器报
++        // “Some selectors are not allowed in component wxss” 并阻断编译），移除该兜底规则。
++        // 仅影响「插槽内无 class 的 view 自动撑满」这一极小边界场景，正常轮播不受影响。
+         /* #endif */
+         /* #ifndef MP-WEIXIN */
+         view {

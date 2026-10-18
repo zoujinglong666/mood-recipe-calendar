@@ -45,6 +45,7 @@ const deadline = ref(0)
 const running = ref(false)
 const guide = ref<CookingAgentTurn | null>(null)
 const guideLoading = ref(false)
+const guideFailed = ref(false)
 const coachOpen = ref(false)
 const asking = ref(false)
 const question = ref('')
@@ -90,6 +91,7 @@ const suggestions = computed(() => guide.value?.suggestions?.length ? guide.valu
 async function loadGuide() {
   if (!recipe.value?.id || guideLoading.value)
     return
+  guideFailed.value = false
   guideLoading.value = true
   try {
     guide.value = await cookingAgentTurn({
@@ -102,6 +104,7 @@ async function loadGuide() {
   }
   catch {
     guide.value = null
+    guideFailed.value = true
   }
   finally { guideLoading.value = false }
 }
@@ -209,6 +212,7 @@ function toggleTimer() {
     deadline.value = Date.now() + remaining.value * 1000
     startTicker()
   }
+  vibrate()
   persist()
 }
 
@@ -258,6 +262,7 @@ async function finish() {
   uni.removeStorageSync(COOKING_PROGRESS_KEY)
   // 草稿先落盘：用户无论点「去记录」还是「下次再说」，下次进记录页草稿都在
   saveRecordDraft(recipe.value, draft.value.mood)
+  vibrate()
   showFinishModal.value = true
 }
 
@@ -269,6 +274,13 @@ function goRecordThisMeal() {
 function finishLater() {
   showFinishModal.value = false
   router.pushTab({ name: 'home' })
+}
+
+/** 离开做菜页：进度已落盘（persist），随时可回来继续；有进行中进度时给一句安心提示，避免误以为丢了 */
+function leaveCooking() {
+  if (stepIndex.value > 0 || running.value)
+    toast('进度已保存，随时回来继续做')
+  navBack()
 }
 
 onLoad(() => {
@@ -307,7 +319,7 @@ onUnload(() => {
 
 <template>
   <view class="cooking-page">
-    <wd-navbar title="跟锅仔做菜" left-arrow safe-area-inset-top custom-style="background-color: transparent !important;" @click-left="navBack" />
+    <wd-navbar title="跟锅仔做菜" left-arrow safe-area-inset-top custom-style="background-color: transparent !important;" @click-left="leaveCooking" />
 
     <view v-if="!recipe || !steps.length" class="cooking-empty">
       <image :src="`${STATIC_BASE_URL}/static/guozai/action_07_empty.png`" mode="aspectFit" />
@@ -385,6 +397,11 @@ onUnload(() => {
           <text v-if="guide?.degraded" class="step-coach__degraded">
             当前为基础指导 · {{ guide.degradeReason === 'NO_EVIDENCE' ? '锅仔还在学这道菜' : '先看基础做法' }}
           </text>
+        </view>
+        <view v-else-if="guideFailed" class="step-coach step-coach--error">
+          <view class="step-coach__top"><text>锅仔这次没接住</text><text>基础做法</text></view>
+          <text class="step-coach__degraded">这一步的现场提醒暂时没加载出来，不影响照着步骤做；打开下方「锅仔做菜教练」可重新问。</text>
+          <view class="step-coach__retry pressable" role="button" aria-label="重新加载锅仔提醒" @click="loadGuide">重新加载提醒</view>
         </view>
       </view>
 
@@ -595,6 +612,8 @@ onUnload(() => {
 .step-coach__line, .step-coach__rescue { margin-top: 14rpx; }
 .step-coach__rescue { padding: 14rpx 16rpx; border-radius: 16rpx; background: var(--mrc-surface-peach); }
 .step-coach__degraded { display: block; margin-top: 14rpx; color: var(--mrc-text-light); font-size: 19rpx; }
+.step-coach--error { background: var(--mrc-surface-peach); border-color: rgba(230, 160, 120, .34); }
+.step-coach__retry { display: inline-block; margin-top: 14rpx; padding: 12rpx 20rpx; border-radius: 16rpx; background: var(--mrc-accent-soft); color: var(--mrc-accent); font-size: 20rpx; font-weight: 700; }
 .coach-entry { display: grid; grid-template-columns: 90rpx 1fr auto; align-items: center; gap: 18rpx; margin-top: 20rpx; padding: 22rpx 20rpx; border: 2rpx solid var(--mrc-border); border-radius: 30rpx; background: linear-gradient(130deg, var(--mrc-surface), var(--mrc-surface-peach)); box-shadow: var(--mrc-shadow-soft); }
 .coach-entry image { width: 90rpx; height: 90rpx; }.coach-entry text { display: block; }
 .coach-entry__eyebrow { color: var(--mrc-accent); font-size: 17rpx; font-weight: 800; letter-spacing: 1rpx; }

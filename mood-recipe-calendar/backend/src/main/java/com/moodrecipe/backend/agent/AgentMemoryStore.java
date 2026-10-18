@@ -335,6 +335,8 @@ public class AgentMemoryStore {
         long leftoverCount = planOutcomes.stream().filter(item -> Boolean.TRUE.equals(item.getLeftover())).count();
         if (hardCount >= 2) preferSimple = true;
         if (leftoverCount >= 2 && dishesPerDay == null) dishesPerDay = 1;
+        // 自报小白：直接按「省事不翻车」推荐，不用等行为信号积累
+        if (preference != null && "NOVICE".equals(preference.getCookingSkill())) preferSimple = true;
 
         int recordDays = (int) recent.stream().map(UserRecord::getRecordDate)
                 .filter(Objects::nonNull).distinct()
@@ -351,7 +353,9 @@ public class AgentMemoryStore {
                 rememberedAllergens.stream().distinct().toList(),
                 recentDishes.stream().distinct().limit(16).toList(),
                 lovedDishes, rejectedDishes, avoidDishes, skipQuestions, affinity, maxMinutes,
-                preferSimple, recordDays, memory);
+                preferSimple, recordDays, memory,
+                preference == null ? null : preference.getHometown(),
+                preference == null ? null : preference.getCookingSkill());
     }
 
     private UserProfile safetyOnlyProfile(String openid, UserFoodPreference preference) {

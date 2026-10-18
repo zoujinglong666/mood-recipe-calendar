@@ -21,16 +21,26 @@ const route = useRoute()
 // 同 record/detail：@wot-ui/router 的 route.query 不可靠（name 跳转会丢弃 query 字段，
 // 且 query 是靠 page.$page.fullPath 反解的），改用 uni-app 原生 onLoad 的 options 取 id。
 const recordId = ref(0)
+const editorRef = ref()
 onLoad((options: any) => {
   const raw = options?.id ?? route.query?.id ?? (route as any).params?.id
   recordId.value = Number(raw)
 })
 const saved = ref(false)
 
-function cancel() {
-  if (saved.value)
+/** 离开编辑页：若有未保存修改，先确认「放弃修改」，避免改了半天误触丢失 */
+function leave() {
+  if (editorRef.value?.isDirty?.()) {
+    uni.showModal({
+      title: '放弃修改？',
+      content: '已修改的内容不会被保存',
+      confirmText: '放弃',
+      cancelText: '继续编辑',
+      success: (res: any) => { if (res.confirm) navBack() },
+    })
     return
-  router.back()
+  }
+  navBack()
 }
 
 function onSaved(_record: RecordItem) {
@@ -41,8 +51,8 @@ function onSaved(_record: RecordItem) {
 
 <template>
   <view class="record-edit-page mrc-hero">
-    <wd-navbar title="编辑这顿饭" left-arrow safe-area-inset-top custom-style="background-color: transparent !important;" @click-left="navBack" />
-    <RecordEditorForm v-if="recordId" :record-id="recordId" @saved="onSaved" @cancel="cancel" />
+    <wd-navbar title="编辑这顿饭" left-arrow safe-area-inset-top custom-style="background-color: transparent !important;" @click-left="leave" />
+    <RecordEditorForm ref="editorRef" v-if="recordId" :record-id="recordId" @saved="onSaved" @cancel="leave" />
     <view v-else class="record-edit-page__empty">
       <text>找不到这条记录</text>
       <view class="record-edit-page__back pressable" role="button" aria-label="返回菜谱时光机" @click="router.replace({ name: 'timeline' })">

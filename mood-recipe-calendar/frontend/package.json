@@ -140,6 +140,9 @@
   "pnpm": {
     "overrides": {
       "unconfig": "7.3.2"
+    },
+    "patchedDependencies": {
+      "@wot-ui/ui": "patches/@wot-ui__ui.patch"
     }
   },
   "lint-staged": {

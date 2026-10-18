@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { RecordItem } from '@/api/records'
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { fetchRecord, updateRecord } from '@/api/records'
 import { uploadFile } from '@/api/request'
 import Icon from '@/components/common/Icon.vue'
@@ -33,6 +33,15 @@ const recipeId = ref<number>()
 const exposureId = ref<string>()
 const uploading = computed(() => photos.value.some(photo => photo.uploading))
 
+/** 脏标记：服务端数据加载完成前不计脏，避免初始赋值误判；之后任意字段改动即视为有未保存修改 */
+const loaded = ref(false)
+const dirty = ref(false)
+watch(
+  [dishName, selectedMood, note, cookingTime, recordDate, photos],
+  () => { if (loaded.value) dirty.value = true },
+  { deep: true },
+)
+
 const COOKING_TIME_OPTIONS = ['10分钟', '20分钟', '30分钟', '45分钟', '60分钟', '1小时以上']
 
 async function load() {
@@ -56,6 +65,7 @@ async function load() {
   }
   finally {
     loading.value = false
+    nextTick(() => { loaded.value = true })
   }
 }
 
@@ -162,6 +172,8 @@ async function save() {
 }
 
 onMounted(load)
+
+defineExpose({ isDirty: () => dirty.value })
 </script>
 
 <template>

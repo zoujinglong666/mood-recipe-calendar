@@ -20,6 +20,7 @@ import java.util.List;
 public class UserFoodPreferenceController {
     private static final Set<String> SPICE_LEVELS = Set.of("NONE", "MILD", "NORMAL", "HOT");
     private static final Set<String> HEALTH_GOALS = Set.of("BALANCED", "FITNESS", "LEAN");
+    private static final Set<String> COOKING_SKILLS = Set.of("NOVICE", "HOME", "PRO");
     private final UserFoodPreferenceRepository repository;
     private final RecipeInteractionRepository interactions;
     private final RecommendationExposureRepository exposures;
@@ -73,6 +74,14 @@ public class UserFoodPreferenceController {
                 || tooLong(request.avoidIngredients()) || tooLong(request.allergens())) {
             return ApiResponse.error(400, "口味内容不能超过 500 字");
         }
+        if (request.hometown() != null && request.hometown().length() > 100) {
+            return ApiResponse.error(400, "家乡填写太长啦");
+        }
+        String cookingSkill = request.cookingSkill() == null || request.cookingSkill().isBlank()
+                ? "HOME" : request.cookingSkill();
+        if (!COOKING_SKILLS.contains(cookingSkill)) {
+            return ApiResponse.error(400, "做菜水平选择无效");
+        }
         UserFoodPreference preference = repository.findByOpenid(openid).orElseGet(UserFoodPreference::new);
         preference.setOpenid(openid);
         preference.setFavoriteTags(clean(request.favoriteTags()));
@@ -86,6 +95,8 @@ public class UserFoodPreferenceController {
         preference.setEatCilantro(request.eatCilantro());
         preference.setSpiceLevel(request.spiceLevel());
         preference.setHealthGoal(healthGoal);
+        preference.setHometown(clean(request.hometown()));
+        preference.setCookingSkill(cookingSkill);
         preference.setOnboardingCompleted(true);
         return ApiResponse.ok(repository.save(preference));
     }
@@ -119,5 +130,7 @@ public class UserFoodPreferenceController {
             Boolean eatScallion,
             Boolean eatCilantro,
             String spiceLevel,
-            String healthGoal) { }
+            String healthGoal,
+            String hometown,
+            String cookingSkill) { }
 }

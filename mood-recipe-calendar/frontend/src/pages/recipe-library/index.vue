@@ -2,7 +2,7 @@
 import { computed, ref, watch, onUnmounted } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { STATIC_BASE_URL } from '@/utils/assets'
-import { fetchRecipeLibrary, fetchMoodTags, type RecipeItem } from '@/api/recipes'
+import { fetchRecipeLibrary, type RecipeItem } from '@/api/recipes'
 import { saveCookingDraft } from '@/utils/cookingDraft'
 import { navBack } from '@/composables/useNavBar'
 import { useWishlist } from '@/composables/useWishlist'
@@ -30,7 +30,6 @@ const keyword = ref('')
 const sourceFilter = ref<'ALL' | 'AI' | 'LOCAL'>('ALL')
 const timeFilter = ref<'ALL' | 'FAST' | 'SLOW'>('ALL')
 const moodFilter = ref<string>('ALL')
-const moodTags = ref<string[]>([])
 
 const SOURCE_OPTIONS = [
   { value: 'ALL', label: '全部' },
@@ -71,19 +70,37 @@ watch([sourceFilter, timeFilter, moodFilter], () => {
   activeCollection.value = matched?.label || ''
 })
 
+/** 路由 query 可能被编码多层（wot-ui router + 小程序各编一次），循环解到没有 %XX 为止 */
+function safeDecodeParam(v: string): string {
+  let out = v
+  for (let i = 0; i < 3; i++) {
+    if (!/%[0-9a-fA-F]{2}/.test(out)) break
+    try {
+      const next = decodeURIComponent(out)
+      if (next === out) break
+      out = next
+    }
+    catch { break }
+  }
+  return out
+}
+
 /** 支持外部入口带预设进入：冰箱页「现有食材可做」带食材名，干饭人格带心情，Dietary 页可带 time */
 onLoad((query) => {
-  const kw = typeof query?.keyword === 'string' ? decodeURIComponent(query.keyword) : ''
+  const kw = typeof query?.keyword === 'string' && query.keyword ? safeDecodeParam(query.keyword) : ''
   if (kw) {
     keyword.value = kw
     activeCollection.value = ''
   }
   if (typeof query?.mood === 'string' && query.mood) {
-    moodFilter.value = decodeURIComponent(query.mood)
+    moodFilter.value = safeDecodeParam(query.mood)
     activeCollection.value = ''
   }
   if (query?.time === 'FAST' || query?.time === 'SLOW')
     timeFilter.value = query.time
+  // 首屏必须自己拉一次：loading 初始为 true 会把 onShow 的加载守卫拦下来，
+  // 此前只有 onLoad 设筛选、onShow 又被守卫跳过，导致不点搜索/筛选永远停在加载态
+  loadPage(true)
 })
 
 // ---------- 沉浸竖滑流（抖音式） ----------
@@ -153,13 +170,6 @@ async function loadPage(reset: boolean) {
   }
 }
 
-async function loadMoodTags() {
-  try {
-    moodTags.value = await fetchMoodTags()
-  }
-  catch { /* 标签云拉取失败静默，不影响列表 */ }
-}
-
 /** 筛选变化回到第 1 页重建列表 */
 function onFilterChange() {
   loadPage(true)
@@ -199,7 +209,6 @@ onReachBottom(() => {
 
 onShow(async () => {
   syncFromServer()
-  loadMoodTags()
   if (recipes.value.length || loading.value)
     return
   loadPage(true)
@@ -278,25 +287,6 @@ function openCook(r: RecipeItem) {
           role="button"
           @click="timeFilter = opt.value; onFilterChange()"
         >{{ opt.label }}</view>
-      </view>
-    </scroll-view>
-
-    <scroll-view v-if="moodTags.length" class="library-chips" scroll-x>
-      <view class="library-chips__row">
-        <view
-          class="library-chip"
-          :class="{ 'library-chip--active': moodFilter === 'ALL' }"
-          role="button"
-          @click="moodFilter = 'ALL'; onFilterChange()"
-        >全部心情</view>
-        <view
-          v-for="m in moodTags"
-          :key="m"
-          class="library-chip"
-          :class="{ 'library-chip--active': moodFilter === m }"
-          role="button"
-          @click="moodFilter = m; onFilterChange()"
-        >{{ m }}</view>
       </view>
     </scroll-view>
 

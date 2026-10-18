@@ -27,7 +27,7 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   (e: 'close'): void
-  /** 用户按下中心锅仔，父组件定结果后调 land(index) */
+  /** 用户按下中心锅仔：父组件准备牌面后调 land()（落格由组件随机决定） */
   (e: 'start'): void
   /** 灯带定格完成，携带中奖格下标（0..7，对应 items） */
   (e: 'result', index: number): void
@@ -43,27 +43,66 @@ const cells = ref<NineSlot[]>(Array.from({ length: 8 }, (_, i) => ({ name: DECOR
 const activePos = ref(-1)
 const phase = ref<'idle' | 'running' | 'landed'>('idle')
 const resultIndex = ref(-1)
+const celebrating = ref(false)
 let runTimer: ReturnType<typeof setTimeout> | undefined
+let celebrateTimer: ReturnType<typeof setTimeout> | undefined
 
 watch(() => props.visible, (v) => {
   if (v) {
     phase.value = 'idle'
     resultIndex.value = -1
     activePos.value = -1
+    celebrating.value = false
+    if (celebrateTimer) clearTimeout(celebrateTimer)
     buildCells()
   }
+  else {
+    // 关闭时清掉跑灯定时器，避免隐藏组件里幽灵定格并误 emit('result')
+    if (runTimer) clearTimeout(runTimer)
+    if (celebrateTimer) clearTimeout(celebrateTimer)
+  }
 })
+
+/** 撒花粒子：停格瞬间从宫格中心向四周炸开（与转一转同一套庆祝语言） */
+const CONFETTI_COLORS = ['#FF8A5C', '#FFD93D', '#7BC47F', '#6FB7FF', '#F472B6', '#FFB86C']
+const confetti = computed(() => Array.from({ length: 18 }, (_, i) => {
+  const angle = (i / 18) * Math.PI * 2 + (i % 3) * 0.22
+  const dist = 180 + (i % 5) * 50
+  return {
+    x: Math.round(Math.cos(angle) * dist),
+    y: Math.round(Math.sin(angle) * dist),
+    rot: (i * 47) % 360,
+    delay: (i % 6) * 0.05,
+    color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+    size: i % 3 === 0 ? 16 : i % 3 === 1 ? 12 : 14,
+  }
+}))
+
+/** 停格庆祝：撒花 2.2s + 轻震动 */
+function celebrate() {
+  celebrating.value = true
+  if (celebrateTimer) clearTimeout(celebrateTimer)
+  celebrateTimer = setTimeout(() => { celebrating.value = false }, 2200)
+  try { uni.vibrateShort({ type: 'medium' }) } catch {}
+}
 
 function buildCells() {
   const pool = props.items.filter(item => item?.name).slice(0, 8)
   cells.value = Array.from({ length: 8 }, (_, i) => pool[i] || { name: DECOR[i] })
 }
 
+/** 菜池异步到达时重建格子：待机/跑灯阶段都重建（跑灯中补到真实菜，避免冷缓存重试停在彩蛋装饰格）；已定格后保留结果不再覆盖 */
+watch(() => props.items, () => {
+  if (phase.value === 'landed')
+    return
+  buildCells()
+})
+
 const centerText = computed(() => (phase.value === 'landed' ? '再来' : '开转'))
 const hint = computed(() => {
-  if (phase.value === 'running') return '锅仔在九宫格里翻找…'
+  if (phase.value === 'running') return '锅仔绕着九宫格跑圈…'
   if (phase.value === 'landed' && resultIndex.value >= 0) return `就吃「${cells.value[resultIndex.value]?.name || ''}」！`
-  return '按下锅仔，翻出一道今天的菜'
+  return '按下锅仔，替你跑出一道今天的菜'
 })
 
 /** 判断 3×3 网格位置 p（0..8）此刻是否被点亮：跑灯经过或中奖定格 */
@@ -82,13 +121,21 @@ function pressCenter() {
   emit('start')
 }
 
-/** 父组件定好中奖格后调用：灯带跑 3 圈再减速滑向目标格。 */
-function land(target: number) {
+/** 真随机：灯带自然跑到某格停下，该格真实菜即为结果；只在真实菜格内落定，绝不停在彩蛋装饰格。 */
+function land() {
   if (phase.value !== 'running')
     return
+  // 真实菜格数 = 传入菜品数（不足 8 道时剩余格为装饰，不参与中奖）
+  const realCount = Math.min(props.items?.length || 0, 8)
+  if (realCount <= 0) {
+    fail()
+    return
+  }
+  const target = Math.floor(Math.random() * realCount)
   const start = Math.max(0, activePos.value)
   const delta = (target - start + 8) % 8
-  const total = 24 + delta
+  const loops = 3 + Math.floor(Math.random() * 4) // 3~6 圈，比固定 3 圈更自然
+  const total = loops * 8 + delta
   let step = 0
   const tick = () => {
     activePos.value = (start + step) % 8
@@ -96,6 +143,7 @@ function land(target: number) {
     if (step > total) {
       phase.value = 'landed'
       resultIndex.value = target
+      celebrate()
       emit('result', target)
       return
     }
@@ -105,6 +153,16 @@ function land(target: number) {
     runTimer = setTimeout(tick, delay)
   }
   tick()
+}
+
+/** 菜池未就绪等异常时由父组件调用：终止跑灯回到待机，避免永远卡在「跑圈中」。 */
+function fail() {
+  if (phase.value !== 'running')
+    return
+  if (runTimer)
+    clearTimeout(runTimer)
+  phase.value = 'idle'
+  activePos.value = -1
 }
 
 function onMask() {
@@ -117,7 +175,7 @@ function cook() {
     emit('cook', resultIndex.value)
 }
 
-defineExpose({ land })
+defineExpose({ land, fail })
 </script>
 
 <template>
@@ -127,10 +185,13 @@ defineExpose({ land })
       <view class="gn__close" role="button" aria-label="关闭九宫格" @click="onMask">✕</view>
       <view class="gn__head">
         <text class="gn__eyebrow">GUOZAI SQUARENINE</text>
-        <text class="gn__title">锅仔翻一翻</text>
+        <text class="gn__title">锅仔跑一圈</text>
         <text class="gn__sub">{{ hint }}</text>
       </view>
       <view class="gn__grid" aria-label="菜品九宫格">
+        <view v-if="celebrating" class="gn__confetti" aria-hidden="true">
+          <view v-for="(p, i) in confetti" :key="i" class="gn__confetti-piece" :style="{ background: p.color, width: `${p.size}rpx`, height: `${Math.round(p.size * 0.45)}rpx`, '--cx': `${p.x}rpx`, '--cy': `${p.y}rpx`, '--cr': `${p.rot}deg`, animationDelay: `${p.delay}s` }" />
+        </view>
         <template v-for="p in 9" :key="p">
           <view v-if="p - 1 === 4" class="gn__center" :class="{ 'is-running': phase === 'running' }" role="button" :aria-label="centerText" @click="pressCenter">
             <image class="gn__center-img" :src="STATIC_BASE_URL + '/static/guozai/action_16_chopsticks.png'" mode="aspectFit" />
@@ -153,7 +214,7 @@ defineExpose({ land })
       <view v-if="phase === 'landed' && resultIndex >= 0" class="gn__result" role="status">
         <image v-if="cells[resultIndex]?.image" class="gn__result-img" :src="cells[resultIndex]!.image" mode="aspectFill" />
         <view class="gn__result-copy">
-          <text class="gn__result-label">翻到了</text>
+          <text class="gn__result-label">🎉 撒花！停到了</text>
           <text class="gn__result-name">{{ cells[resultIndex]?.name }}</text>
         </view>
         <view class="gn__result-btn" role="button" aria-label="就做这道菜" @click="cook">就做这道</view>
@@ -176,7 +237,17 @@ defineExpose({ land })
 .gn__title { color: var(--mrc-text-strong); font-size: 40rpx; font-weight: 800; }
 .gn__sub { min-height: 34rpx; color: var(--mrc-text-sub); font-size: 22rpx; }
 
-.gn__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14rpx; width: 100%; padding: 22rpx; border: 4rpx solid #FFD93D; border-radius: 32rpx; background: var(--mrc-primary-grad); box-shadow: var(--mrc-shadow-coral); box-sizing: border-box; }
+.gn__grid { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14rpx; width: 100%; padding: 22rpx; border: 4rpx solid #FFD93D; border-radius: 32rpx; background: var(--mrc-primary-grad); box-shadow: var(--mrc-shadow-coral); box-sizing: border-box; }
+
+/* 撒花：停格瞬间从宫格中心炸开的彩纸屑（与转一转同一套庆祝语言） */
+.gn__confetti { position: absolute; z-index: 6; top: 50%; left: 50%; pointer-events: none; }
+.gn__confetti-piece { position: absolute; border-radius: 4rpx; opacity: 0; animation: gn-burst 1.5s cubic-bezier(0.16, 0.84, 0.3, 1) forwards; }
+@keyframes gn-burst {
+  0% { opacity: 0; transform: translate(0, 0) rotate(0deg) scale(0.6); }
+  12% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--cx), var(--cy)) rotate(var(--cr)) scale(1); }
+}
 .gn__cell { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8rpx; min-height: 170rpx; border: 2rpx solid rgba(255, 255, 255, 0.7); border-radius: 22rpx; background: #FFF9F0; box-sizing: border-box; transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease; }
 .gn__cell.is-dim { filter: saturate(0.6) brightness(0.96); }
 .gn__cell.is-run { transform: scale(1.05); border-color: #FFD93D; box-shadow: 0 0 18rpx rgba(255, 200, 60, 0.85); }
@@ -206,6 +277,7 @@ defineExpose({ land })
 .gn__foot-text { color: var(--mrc-text-light); font-size: 20rpx; }
 
 @media (prefers-reduced-motion: reduce) {
-  .gn__center.is-running, .gn__cell.is-win, .gn__panel, .gn__result { animation: none; }
+  .gn__center.is-running, .gn__cell.is-win, .gn__panel, .gn__result, .gn__confetti-piece { animation: none; }
+  .gn__confetti-piece { opacity: 0; }
 }
 </style>

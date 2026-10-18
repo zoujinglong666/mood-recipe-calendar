@@ -35,6 +35,10 @@ public class Recipe {
     @Column(name = "mood_tags")
     private String moodTags;
 
+    /** 上次 LLM 精准心情分类时间；NULL=尚未分类（定时任务优先补齐），最旧的会被周期性复核。 */
+    @Column(name = "mood_classified_at")
+    private LocalDateTime moodClassifiedAt;
+
     /** 口味：清淡/辣/甜/酸/鲜等，逗号分隔。 */
     private String taste;
 

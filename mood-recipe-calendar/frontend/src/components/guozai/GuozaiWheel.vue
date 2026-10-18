@@ -48,19 +48,57 @@ const rotation = ref(0)
 const phase = ref<'idle' | 'waiting' | 'spinning' | 'landed'>('idle')
 const resultName = ref('')
 const resultImage = ref('')
+const celebrating = ref(false)
+let celebrateTimer: ReturnType<typeof setTimeout> | undefined
 
 watch(() => props.visible, (v) => {
   if (v) {
     phase.value = 'idle'
     resultName.value = ''
+    celebrating.value = false
+    if (celebrateTimer) clearTimeout(celebrateTimer)
     buildSegments()
   }
+  else {
+    // 关闭时清掉旋转兜底定时器，避免隐藏组件里幽灵定格并误 emit('result')
+    if (landTimer) clearTimeout(landTimer)
+    if (celebrateTimer) clearTimeout(celebrateTimer)
+  }
 })
+
+/** 撒花粒子：从盘心向四周炸开，18 片、6 色、错峰出发 */
+const CONFETTI_COLORS = ['#FF8A5C', '#FFD93D', '#7BC47F', '#6FB7FF', '#F472B6', '#FFB86C']
+const confetti = computed(() => Array.from({ length: 18 }, (_, i) => {
+  const angle = (i / 18) * Math.PI * 2 + (i % 3) * 0.22
+  const dist = 190 + (i % 5) * 52
+  return {
+    x: Math.round(Math.cos(angle) * dist),
+    y: Math.round(Math.sin(angle) * dist),
+    rot: (i * 47) % 360,
+    delay: (i % 6) * 0.05,
+    color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+    size: i % 3 === 0 ? 16 : i % 3 === 1 ? 12 : 14,
+  }
+}))
+
+/** 落地庆祝：撒花 2.2s + 轻震动，让「转到什么」有惊喜感 */
+function celebrate() {
+  celebrating.value = true
+  if (celebrateTimer) clearTimeout(celebrateTimer)
+  celebrateTimer = setTimeout(() => { celebrating.value = false }, 2200)
+  try { uni.vibrateShort({ type: 'medium' }) } catch {}
+}
 
 function buildSegments() {
   const pool = props.items.filter(item => item?.name).slice(0, SEG)
   slots.value = Array.from({ length: SEG }, (_, i) => pool[i] || { ...DECOR[i % DECOR.length] })
 }
+
+/** 菜池异步到达时重建扇区：父组件先开弹层后请求，visible 的 watch 只会拿到空池 */
+watch(() => props.items, () => {
+  if (phase.value === 'idle')
+    buildSegments()
+})
 
 const discBg = computed(() => {
   // 极浅暖色阶交替 + 扇区边界 1° 白分隔带：三层以内的装饰语言，不再堆叠
@@ -133,6 +171,7 @@ function onSpinEnd() {
 
 function finish() {
   phase.value = 'landed'
+  celebrate()
   emit('result', resultName.value)
 }
 
@@ -181,11 +220,14 @@ defineExpose({ land, fail })
           <image class="gw__hub-img" :src="STATIC_BASE_URL + '/static/guozai/action_01_bowl.png'" mode="aspectFit" />
           <text class="gw__hub-text">{{ hubText }}</text>
         </view>
+        <view v-if="celebrating" class="gw__confetti" aria-hidden="true">
+          <view v-for="(p, i) in confetti" :key="i" class="gw__confetti-piece" :style="{ background: p.color, width: `${p.size}rpx`, height: `${Math.round(p.size * 0.45)}rpx`, '--cx': `${p.x}rpx`, '--cy': `${p.y}rpx`, '--cr': `${p.rot}deg`, animationDelay: `${p.delay}s` }" />
+        </view>
       </view>
       <view v-if="phase === 'landed' && resultName" class="gw__result" role="status">
         <image v-if="resultImage" class="gw__result-img" :src="resultImage" mode="aspectFill" @error="resultImage = ''" />
         <view class="gw__result-copy">
-          <text class="gw__result-label">转到了</text>
+          <text class="gw__result-label">🎉 撒花！转到了</text>
           <text class="gw__result-name">{{ resultName }}</text>
         </view>
         <view class="gw__result-btn" role="button" aria-label="就吃这道菜" @click="emit('close')">就吃它</view>
@@ -216,10 +258,12 @@ defineExpose({ land, fail })
 .gw__disc { position: absolute; inset: 0; border: 10rpx solid #fff; border-radius: 50%; box-shadow: 0 16rpx 40rpx rgba(88, 48, 31, 0.18), var(--mrc-gloss); transition: transform 4.2s cubic-bezier(0.16, 0.84, 0.24, 1); will-change: transform; }
 .gw__disc.is-landed { animation: gw-land 0.5s ease; }
 @keyframes gw-land { 0% { scale: 1; } 40% { scale: 1.04; } 100% { scale: 1; } }
-/* 扇区 item：图上文下（NutUI 布局）；无图退化为纯文字，绝不留空框 */
+/* 扇区 item：图上文下（NutUI 布局）；无图退化为纯文字，绝不留空框。
+   定位关键：中心 hub 半径 96rpx（176rpx 盘 + 8rpx 白边），文字底端必须落在
+   距盘心 96rpx 之外，否则菜名会被 hub 整圈盖住（margin-top 118rpx 时代的 bug）。 */
 .gw__seg { position: absolute; inset: 0; display: flex; justify-content: center; align-items: flex-start; }
-.gw__seg-item { display: flex; flex-direction: column; align-items: center; gap: 10rpx; margin-top: 118rpx; width: 150rpx; }
-.gw__seg-item.is-text-only { margin-top: 152rpx; }
+.gw__seg-item { display: flex; flex-direction: column; align-items: center; gap: 8rpx; margin-top: 80rpx; width: 150rpx; }
+.gw__seg-item.is-text-only { margin-top: 164rpx; }
 .gw__seg-img { width: 76rpx; height: 76rpx; overflow: hidden; border-radius: 18rpx; box-shadow: 0 4rpx 10rpx rgba(88, 48, 31, 0.14); }
 .gw__seg-img image { width: 100%; height: 100%; }
 .gw__seg-text { display: block; max-width: 150rpx; overflow: hidden; color: var(--mrc-text-deep); font-size: 22rpx; font-weight: 700; line-height: 1.2; text-align: center; white-space: nowrap; text-overflow: ellipsis; }
@@ -236,9 +280,19 @@ defineExpose({ land, fail })
 .gw__stage.is-spinning .gw__light.is-even { animation-delay: 0.22s; }
 @keyframes gw-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
 
+/* 撒花：从盘心向四周炸开的彩纸屑（落地瞬间一次性动画，2.2s 后整体移除） */
+.gw__confetti { position: absolute; z-index: 8; top: 50%; left: 50%; pointer-events: none; }
+.gw__confetti-piece { position: absolute; border-radius: 4rpx; opacity: 0; animation: gw-burst 1.5s cubic-bezier(0.16, 0.84, 0.3, 1) forwards; }
+@keyframes gw-burst {
+  0% { opacity: 0; transform: translate(0, 0) rotate(0deg) scale(0.6); }
+  12% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--cx), var(--cy)) rotate(var(--cr)) scale(1); }
+}
+
 /* 中奖结果条：图 + 名 + 确认 CTA */
-.gw__result { display: flex; align-items: center; gap: 20rpx; width: 100%; margin-top: 30rpx; padding: 18rpx 22rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; background: var(--mrc-surface-sun); box-sizing: border-box; animation: gw-pop 0.4s cubic-bezier(0.22, 0.9, 0.3, 1.3) both; }
-@keyframes gw-pop { from { opacity: 0; transform: translateY(24rpx) scale(0.94); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.gw__result { display: flex; align-items: center; gap: 20rpx; width: 100%; margin-top: 30rpx; padding: 18rpx 22rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; background: var(--mrc-surface-sun); box-sizing: border-box; animation: gw-pop 0.5s cubic-bezier(0.22, 0.9, 0.3, 1.35) both; }
+@keyframes gw-pop { 0% { opacity: 0; transform: translateY(24rpx) scale(0.9); } 60% { opacity: 1; transform: translateY(-4rpx) scale(1.03); } 100% { opacity: 1; transform: translateY(0) scale(1); } }
 .gw__result-img { width: 84rpx; height: 84rpx; flex: 0 0 84rpx; overflow: hidden; border-radius: 20rpx; background: var(--mrc-surface-2); }
 .gw__result-copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 4rpx; }
 .gw__result-label { color: var(--mrc-text-sub); font-size: 19rpx; }
@@ -251,6 +305,7 @@ defineExpose({ land, fail })
 
 @media (prefers-reduced-motion: reduce) {
   .gw__disc { transition-duration: 0.6s; }
-  .gw__hub.is-waiting, .gw__disc.is-landed, .gw__panel, .gw__result, .gw__stage.is-spinning .gw__light { animation: none; }
+  .gw__hub.is-waiting, .gw__disc.is-landed, .gw__panel, .gw__result, .gw__stage.is-spinning .gw__light, .gw__confetti-piece { animation: none; }
+  .gw__confetti-piece { opacity: 0; }
 }
 </style>

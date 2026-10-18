@@ -30,12 +30,37 @@ public record UserProfile(String openid,
                           Integer maxCookingMinutes,
                           boolean preferSimple,
                           int recordDays,
-                          List<MemoryItem> memory) {
+                          List<MemoryItem> memory,
+                          String hometown,
+                          String cookingSkill) {
+
+    /** 旧签名兼容：未带家乡/做菜水平的调用（含既有测试）视为未知。 */
+    public UserProfile(String openid, Integer people, Integer dishesPerDay, List<Integer> cookingDays,
+                       String spiceLevel, Boolean hasElder, Boolean hasChild, String healthGoal, String budget,
+                       List<String> favoriteCuisines, List<String> avoidIngredients, List<String> allergens,
+                       List<String> recentDishes, List<String> lovedDishes, List<String> rejectedDishes,
+                       List<String> avoidDishes, List<String> skipQuestions, Map<String, Double> cuisineAffinity,
+                       Integer maxCookingMinutes, boolean preferSimple, int recordDays, List<MemoryItem> memory) {
+        this(openid, people, dishesPerDay, cookingDays, spiceLevel, hasElder, hasChild, healthGoal, budget,
+                favoriteCuisines, avoidIngredients, allergens, recentDishes, lovedDishes, rejectedDishes,
+                avoidDishes, skipQuestions, cuisineAffinity, maxCookingMinutes, preferSimple, recordDays,
+                memory, null, null);
+    }
 
     public static UserProfile empty(String openid) {
         return new UserProfile(openid, null, null, List.of(), null, null, null,
                 null, null, List.of(), List.of(), List.of(), List.of(), List.of(),
                 List.of(), List.of(), List.of(), Map.of(), null, false, 0, List.of());
+    }
+
+    /** 做菜水平的提示词表述：决定步骤颗粒度与菜谱难度。 */
+    public String skillLabel() {
+        return switch (cookingSkill == null ? "" : cookingSkill) {
+            case "NOVICE" -> "厨房新手（步骤要拆细、挑简单不翻车的做法）";
+            case "PRO" -> "做菜老手（可以推荐有挑战性的菜）";
+            case "HOME" -> "家常水平（常见做法都能上手）";
+            default -> "";
+        };
     }
 
     /** 给提示词用的紧凑摘要，字段为空则省略，避免无意义的噪声。 */
@@ -51,6 +76,9 @@ public record UserProfile(String openid,
         if (dishesPerDay != null) text.append("每天菜数=").append(dishesPerDay).append("；");
         if (healthGoal != null && !healthGoal.isBlank()) text.append("健康目标=").append(healthGoal).append("；");
         if (budget != null && !budget.isBlank()) text.append("预算=").append(budget).append("；");
+        if (hometown != null && !hometown.isBlank()) text.append("家乡口味=").append(hometown).append("；");
+        String skill = skillLabel();
+        if (!skill.isEmpty()) text.append("做菜水平=").append(skill).append("；");
         if (maxCookingMinutes != null) text.append("单菜时长上限=").append(maxCookingMinutes).append("分钟；");
         if (preferSimple) text.append("偏好省事做法；");
         append(text, "最近做过", limit(recentDishes, 8));

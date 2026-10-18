@@ -63,12 +63,13 @@ function getPeriod(hour: number) {
 </script>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import Icon from '../../components/common/Icon.vue'
 import { ensureLogin } from '../../utils/login'
 import { toast, toastError, toastSuccess } from '../../utils/toast'
+import { haptic } from '../../utils/haptic'
 import { acceptShareInvite } from '../../api/share'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onPullDownRefresh } from '@dcloudio/uni-app'
 import { fetchCompanionMessage, fetchRecordsByMonth, type CompanionMessage, type RecordItem } from '../../api/records'
 import { fetchRecipePool, fetchRecipeQuota, type RecipeItem, type UsageQuotaView } from '../../api/recipes'
 import { fetchDailyBoard, refreshDailyBoard, generateDailyMenuCover, splitComboDishName, type DailyBoard } from '../../api/dailyMenu'
@@ -84,11 +85,12 @@ import { funnel } from '../../utils/funnel'
 /** 老黄历钩子卡文案：当日「宜」第一条（按日期种子轮换，当天恒定） */
 const todayYi = getTodayYi()[0] || '好好吃饭'
 
-definePage({ name: 'home', layout: 'tabbar', style: { navigationStyle: 'custom', navigationBarTitleText: '首页' } })
+definePage({ name: 'home', layout: 'tabbar', style: { navigationStyle: 'custom', navigationBarTitleText: '首页', enablePullDownRefresh: true } })
 const userStore = useUserStore()
 const router = useRouter()
 const isBouncing = ref(false)
 function bounceGuozai() {
+  haptic('light')
   isBouncing.value = true
   setTimeout(() => {
     isBouncing.value = false
@@ -116,6 +118,7 @@ const heroGuozai = computed(() => ALL_HERO_GUOZAI[heroGuozaiIndex.value % ALL_HE
 const isHeroCycling = ref(false)
 function cycleHeroGuozai() {
   if (isHeroCycling.value) return
+  haptic('light')
   isHeroCycling.value = true
   heroGuozaiIndex.value = (heroGuozaiIndex.value + 1) % ALL_HERO_GUOZAI.length
   setTimeout(() => { isHeroCycling.value = false }, 400)
@@ -342,6 +345,7 @@ async function onBoardTouchEnd() {
 
 async function switchBoardDish(direction: 1 | -1) {
   if (boardSwitching.value) return
+  haptic('light')
   const current = todayBoard.value
   if (!current) return
   // 下滑回看：弹栈恢复上一道（本地数据即时到位，直接切入场动画）；无历史则轻提示后原样回弹
@@ -389,32 +393,36 @@ async function switchBoardDish(direction: 1 | -1) {
 const recipePoolCache = ref<RecipeItem[]>([])
 const recipePoolAt = ref(0)
 const RECIPE_POOL_TTL = 5 * 60 * 1000
-let poolPreloading = false
-async function preloadRecipePool(force = false) {
-  if (poolPreloading) return
-  if (!force && recipePoolCache.value.length && Date.now() - recipePoolAt.value < RECIPE_POOL_TTL)
-    return
-  poolPreloading = true
-  try {
-    const pool = await fetchRecipePool()
-    recipePoolCache.value = pool
-    recipePoolAt.value = Date.now()
-    // 预热前 24 张封面：抽样大多落在其中，开抽时图片已在本地缓存，不再「转完了图才出来」
-    pool.slice(0, 24).forEach((item) => {
-      if (!item.image)
-        return
-      uni.getImageInfo({ src: item.image, fail: () => {} })
-    })
-  }
-  catch { /* 预加载失败静默：打开弹层时还有兜底拉取 */ }
-  finally {
-    poolPreloading = false
-  }
+/** 进行中的预拉取 Promise：并发调用复用同一请求，避免「先开的拿到空池、后开的才填好」的竞态
+ *  （旧实现用 poolPreloading 布尔早退，并发时第二个调用会直接 resolve 成 []，导致九宫格/翻牌偶发全彩蛋词或死局）。 */
+let poolPromise: Promise<void> | null = null
+function preloadRecipePool(force = false): Promise<void> {
+  const fresh = recipePoolCache.value.length && Date.now() - recipePoolAt.value < RECIPE_POOL_TTL
+  if (poolPromise)
+    return poolPromise
+  if (!force && fresh)
+    return Promise.resolve()
+  poolPromise = (async () => {
+    try {
+      const pool = await fetchRecipePool()
+      recipePoolCache.value = pool
+      recipePoolAt.value = Date.now()
+      // 预热前 24 张封面：抽样大多落在其中，开抽时图片已在本地缓存，不再「转完了图才出来」
+      pool.slice(0, 24).forEach((item) => {
+        if (!item.image)
+          return
+        uni.getImageInfo({ src: item.image, fail: () => {} })
+      })
+    }
+    catch { /* 预加载失败静默：打开弹层时还有兜底拉取 */ }
+    finally {
+      poolPromise = null
+    }
+  })()
+  return poolPromise
 }
-/** 取菜池：缓存新鲜直接返回；否则现拉（预加载通常已备好）。 */
+/** 取菜池：复用同一进行中的请求，保证并发调用都拿到已填好的池子。 */
 function recipePool(): Promise<RecipeItem[]> {
-  if (recipePoolCache.value.length && Date.now() - recipePoolAt.value < RECIPE_POOL_TTL)
-    return Promise.resolve(recipePoolCache.value)
   return preloadRecipePool().then(() => recipePoolCache.value)
 }
 
@@ -456,6 +464,7 @@ const showWheel = ref(false)
 const wheelPool = ref<{ name: string, image?: string }[]>([])
 const wheelRef = ref<InstanceType<typeof GuozaiWheel>>()
 async function openWheel() {
+  haptic('light')
   showWheel.value = true
   try {
     const pool = await recipePool()
@@ -473,12 +482,22 @@ async function openWheel() {
 }
 async function onWheelSpin() {
   try {
-    const board = await refreshDailyBoard()
-    todayBoard.value = board
-    wheelRef.value?.land(board.recipe.name, board.recipe.image)
+    // 真随机：从已预加载的 8 格里随机定格一道真实菜（不再恒为「今日菜」）
+    let pool = wheelPool.value
+    if (!pool.length) {
+      const full = await recipePool()
+      pool = full.map(item => ({ name: item.name, image: item.image }))
+    }
+    if (!pool.length) {
+      toastError(new Error('菜谱还没备好，稍后再来试试'), '转一转')
+      wheelRef.value?.fail()
+      return
+    }
+    const pick = pool[Math.floor(Math.random() * pool.length)]
+    wheelRef.value?.land(pick.name, pick.image)
   }
-  catch (e: any) {
-    toastError(e, '今天没有别的菜可换啦')
+  catch {
+    toastError(new Error('今天没有别的菜可换啦'), '转一转')
     wheelRef.value?.fail()
   }
 }
@@ -490,10 +509,11 @@ const nineRecipes = ref<RecipeItem[]>([])
 const ninePick = ref<RecipeItem>()
 const nineRef = ref<InstanceType<typeof GuozaiNine>>()
 async function openNine() {
+  haptic('light')
   showNine.value = true
   try {
     const pool = await recipePool()
-    const sampled = sampleDiverseDishes(pool, 8)
+    const sampled = buildFlipCards(pool)
     nineRecipes.value = sampled
     nineItems.value = sampled.map(item => ({ name: item.name, image: item.image }))
   }
@@ -502,13 +522,34 @@ async function openNine() {
     nineItems.value = []
   }
 }
-function onNineStart() {
-  // 先定结果再驱动灯带：停在的格子就是真实可做的那道菜
-  if (!nineRecipes.value.length)
-    return
-  const index = Math.floor(Math.random() * nineRecipes.value.length)
-  ninePick.value = nineRecipes.value[index]
-  nineRef.value?.land(index)
+async function onNineStart() {
+  // 菜池未就绪（预加载失败/被清）时先补拉：不能让灯带永远停在「跑圈中」
+  if (!nineRecipes.value.length) {
+    try {
+      const pool = await recipePool()
+      nineRecipes.value = buildFlipCards(pool)
+      nineItems.value = nineRecipes.value.map(item => ({ name: item.name, image: item.image }))
+    }
+    catch {
+      nineRecipes.value = []
+      nineItems.value = []
+    }
+    if (!nineRecipes.value.length) {
+      toastError(new Error('菜谱还没备好，稍后再来试试'), '跑一圈')
+      nineRef.value?.fail()
+      return
+    }
+  }
+  // 真随机：由组件让灯带自然跑到某格停下，该格真实菜即为结果（不再父组件先定结果）。
+  // 等一格渲染周期，确保组件已拿到最新 items 再起转，避免冷缓存重试时停在彩蛋装饰格。
+  await nextTick()
+  nineRef.value?.land()
+}
+/** 灯带自然停定的格：该格真实菜即结果（做菜链路由 onNineCook 按格序号取菜，此处仅同步给 ninePick 做兜底）。 */
+function onNineResult(target: number) {
+  const r = nineRecipes.value[target]
+  if (r && r.name)
+    ninePick.value = r
 }
 function onNineCook(index: number) {
   const recipe = ninePick.value && nineRecipes.value[index] === ninePick.value ? ninePick.value : nineRecipes.value[index]
@@ -526,30 +567,35 @@ const showFlip = ref(false)
 const flipItems = ref<{ name: string, image?: string }[]>([])
 const flipPool = ref<RecipeItem[]>([])
 const flipPick = ref<RecipeItem>()
+/** 翻牌的 8 张牌对应的完整 RecipeItem（与 flipItems 同序），用户翻第几张就取第几道真实菜 */
+const flipCards = ref<RecipeItem[]>([])
 const flipRef = ref<InstanceType<typeof GuozaiFlip>>()
 async function openFlip() {
+  haptic('light')
   showFlip.value = true
+  flipPick.value = undefined
   try {
     const pool = await recipePool()
     flipPool.value = pool
-    flipItems.value = flipBoardItems(pool)
+    flipCards.value = buildFlipCards(pool)
+    flipItems.value = flipCards.value.map(item => ({ name: item.name, image: item.image }))
   }
   catch {
     flipPool.value = []
+    flipCards.value = []
     flipItems.value = []
   }
 }
-/** 翻牌牌面：有图优先抽样，不够 8 张用真实菜补齐（哪怕暂时无图），不再拿彩蛋词充数。 */
-function flipBoardItems(pool: RecipeItem[]): { name: string, image?: string }[] {
-  const sampled = sampleDiverseDishes(pool, 8)
-  const items = sampled.map(item => ({ name: item.name, image: item.image }))
+/** 抽 8 道真实菜作为翻牌的 8 张牌（去重 + 同前缀限流；不足 8 道用余量补齐，仍不足再退化为彩蛋词）。 */
+function buildFlipCards(pool: RecipeItem[]): RecipeItem[] {
+  const cards = sampleDiverseDishes(pool, 8)
   for (const item of pool) {
-    if (items.length >= 8)
+    if (cards.length >= 8)
       break
-    if (item?.name && !items.some(f => f.name === item.name))
-      items.push({ name: item.name, image: item.image })
+    if (item?.name && !cards.some(c => c.name === item.name))
+      cards.push(item)
   }
-  return items
+  return cards
 }
 async function onFlipStart() {
   // 菜池未就绪（预加载失败/被清）时先补拉：不能让卡片永远停在「洗牌中」
@@ -565,25 +611,22 @@ async function onFlipStart() {
       flipRef.value?.fail()
       return
     }
-    flipItems.value = flipBoardItems(flipPool.value)
   }
-  // 先定中奖菜，再抽「其余 7 张」——排除中奖菜同名，保证全翻开后 8 格不重样
-  // sampleDiverseDishes 只取有图菜；菜池全部无图时回退任意一道，保证 deal() 一定被调用
-  const winners = sampleDiverseDishes(flipPool.value, 1)
-  const pick = winners[0]
-    || flipPool.value.find(item => item?.name && item.name !== '锅仔牌')
-  if (!pick) {
-    toastError(new Error('菜谱还没备好，稍后再来试试'), '翻一翻')
-    flipRef.value?.fail()
-    return
-  }
-  const others = sampleDiverseDishes(flipPool.value, 7, pick.name)
-  flipPick.value = pick
-  flipItems.value = [
-    ...others.map(item => ({ name: item.name, image: item.image })),
-    { name: '锅仔牌' },
-  ]
-  flipRef.value?.deal({ name: pick.name, image: pick.image })
+  // 真选择：8 张牌各自背一道真实菜，用户翻哪张就吃哪张（不再预设中奖菜）
+  flipCards.value = buildFlipCards(flipPool.value)
+  flipItems.value = flipCards.value.map(item => ({ name: item.name, image: item.image }))
+  flipRef.value?.deal()
+}
+/** 用户翻开真实菜牌：序号即真实菜在 flipCards 中的位置，喂给「就做这道」做菜链路 */
+function onFlipPick(index: number) {
+  const r = flipCards.value[index]
+  if (r && r.name)
+    flipPick.value = r
+}
+/** 翻到彩蛋装饰格：轻提示 + 组件原地重洗，不再弹错误 toast */
+function onFlipDecoy() {
+  toast('翻到锅仔的彩蛋啦，重新洗一局~')
+  flipRef.value?.reshuffle?.()
 }
 function onFlipCook() {
   const recipe = flipPick.value
@@ -597,6 +640,7 @@ function goCookToday() {
   const board = todayBoard.value
   if (!board?.recipe?.id)
     return
+  haptic('light')
   // 今日菜单已经是一道确定的菜，直接把它交给做菜智能体，不能再次进入推荐页。
   saveCookingDraft(board.recipe, '满足')
   router.push({ name: 'cooking' })
@@ -645,6 +689,11 @@ onShow(() => {
   funnel('home_view')
 })
 
+/** 下拉刷新：重新拉取今日菜、本月食光坐标等，结束后收起原生下拉圈 */
+onPullDownRefresh(() => {
+  loadData().finally(() => uni.stopPullDownRefresh())
+})
+
 /** 转发给好友/群：必须定义 onShareAppMessage 胶囊「···」里的转发才可用 */
 onShareAppMessage(() => {
   const sharer = userStore.openid
@@ -673,6 +722,7 @@ const MOODS = ['开心', '平静', '疲惫', '焦虑', '难过', '嘴馋', '低�
 const showMealSheet = ref(false)
 function openMealSheet() { showMealSheet.value = true }
 function pickMeal(type: 'BREAKFAST' | 'LUNCH' | 'DINNER') {
+  haptic('light')
   showMealSheet.value = false
   funnel('recommend_click', { mealType: type })
   const mood = MOODS[Math.floor(Math.random() * MOODS.length)]
@@ -681,6 +731,7 @@ function pickMeal(type: 'BREAKFAST' | 'LUNCH' | 'DINNER') {
 const TABBAR_NAMES = ['home', 'record', 'profile']
 function goto(name: string, q?: Record<string, string>) {
   // tabBar 页必须用 switchTab(pushTab)，用 navigateTo(push) 会报 can not navigate to a tab bar page
+  haptic('light')
   if (TABBAR_NAMES.includes(name)) router.pushTab({ name })
   else router.push({ name, query: q || {} })
 }
@@ -795,19 +846,6 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
           <image class="home-board__img home-board__img--fallback" :src="STATIC_BASE_URL + '/static/guozai/action_07_empty.png'" mode="aspectFit" />
         </view>
       </view>
-      </view>
-
-      <!-- P1：引导加"我的小程序"。气泡指向右上角 ⋯，前 3 次首页可见，点"知道了"永久关闭 -->
-      <view v-if="showFavTip" class="fav-tip">
-        <view class="fav-tip__arrow" />
-        <view class="fav-tip__body">
-          <text class="fav-tip__emoji">⭐</text>
-          <view class="fav-tip__text">
-            <text class="fav-tip__title">点右上角 ⋯ → 收藏</text>
-            <text class="fav-tip__sub">明天打开不迷路，锅仔每天给你留菜</text>
-          </view>
-          <text class="fav-tip__close" role="button" aria-label="关闭提示" @click="dismissFavTip">知道了</text>
-        </view>
       </view>
 
       <!-- 组件墙：决策收敛——今日三餐是每日主入口（打开即答案），心情推荐降为宽卡，抽奖为子玩法垫底 -->
@@ -940,8 +978,8 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
       </view>
       <view class="home-slogan"><view class="home-slogan__line" /><text class="home-slogan__text">好好吃饭，也好好生活</text><view class="home-slogan__line" /></view>
     <GuozaiWheel ref="wheelRef" :visible="showWheel" :items="wheelPool" @spin="onWheelSpin" @close="showWheel = false" />
-    <GuozaiNine ref="nineRef" :visible="showNine" :items="nineItems" @start="onNineStart" @cook="onNineCook" @close="showNine = false" />
-    <GuozaiFlip ref="flipRef" :visible="showFlip" :items="flipItems" @start="onFlipStart" @cook="onFlipCook" @close="showFlip = false" />
+    <GuozaiNine ref="nineRef" :visible="showNine" :items="nineItems" @start="onNineStart" @result="onNineResult" @cook="onNineCook" @close="showNine = false" />
+    <GuozaiFlip ref="flipRef" :visible="showFlip" :items="flipItems" @start="onFlipStart" @pick="onFlipPick" @decoy="onFlipDecoy" @cook="onFlipCook" @close="showFlip = false" />
   </view>
 </template>
 

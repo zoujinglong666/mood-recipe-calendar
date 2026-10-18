@@ -15,6 +15,10 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long>, JpaSpecif
     @Query("SELECT r FROM Recipe r WHERE r.moodTags LIKE %:mood%")
     List<Recipe> findByMoodTag(@Param("mood") String mood);
 
+    /** 定时精准分类取批：从未分类的优先（NULL 判定式排序），其余按最久未复核在前，稳定按 id。 */
+    @Query(value = "SELECT * FROM recipes ORDER BY (mood_classified_at IS NULL) DESC, mood_classified_at ASC, id ASC LIMIT :limit", nativeQuery = true)
+    List<Recipe> findClassificationBatch(@Param("limit") int limit);
+
     /** 随机推荐一道匹配心情的菜 */
     @Query(value = "SELECT * FROM recipes WHERE mood_tags LIKE %:mood% ORDER BY RAND() LIMIT 1", nativeQuery = true)
     Recipe findRandomByMood(@Param("mood") String mood);

@@ -11,6 +11,7 @@ import LoadingState from '../../components/guozai/LoadingState.vue'
 import GuozaiImage from '../../components/guozai/GuozaiImage.vue'
 import { ensureLogin } from '../../utils/login'
 import { bus, MRC_EVENTS } from '@/utils/bus'
+import { haptic } from '@/utils/haptic'
 
 /** record 页 onShow 时读取此键，将补记落到指定历史日期。 */
 const RECORD_DATE_KEY = 'mrc_record_date'
@@ -110,7 +111,8 @@ async function loadData() {
       .catch(() => { statsError.value = true })
     if (!initialDayHandled) {
       initialDayHandled = true
-      const selectedDay = Number(route.query.day)
+      // 首页按 params 跳转（@wot-ui/router 在 name 跳转下会丢弃 query，见 record/edit 注释），params/query 双读兜底
+      const selectedDay = Number((route as any).params?.day ?? route.query?.day)
       const selRecs = recordMap.value.get(selectedDay)
       if (selRecs?.length) {
         detailRecords.value = selRecs
@@ -140,6 +142,7 @@ function reloadMonth() {
   loadData()
 }
 function prevMonth() {
+  haptic('light')
   if (month.value === 1) {
     month.value = 12
     year.value--
@@ -151,6 +154,7 @@ function prevMonth() {
 }
 function nextMonth() {
   if (!canGoNext.value) return
+  haptic('light')
   if (month.value === 12) {
     month.value = 1
     year.value++
@@ -169,9 +173,34 @@ bus.on(MRC_EVENTS.RECORDS_CHANGED, reloadMonth)
 onUnmounted(() => bus.off(MRC_EVENTS.RECORDS_CHANGED, reloadMonth))
 
 function goAlbum() {
+  haptic('light')
   router.push({ name: 'album' })
 }
+// 日期手势：在月历卡片上左右滑动切换月份（卡片内无纵向滚动，与页面上下滚动不冲突）
+let touchStartX = 0
+let touchStartY = 0
+let swiped = false
+function onBoardTouchStart(e: any) {
+  const t = e.touches?.[0]
+  if (!t) return
+  touchStartX = t.clientX
+  touchStartY = t.clientY
+  swiped = false
+}
+function onBoardTouchEnd(e: any) {
+  const t = e.changedTouches?.[0]
+  if (!t) return
+  const dx = t.clientX - touchStartX
+  const dy = t.clientY - touchStartY
+  if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+    swiped = true
+    if (dx < 0) nextMonth()
+    else prevMonth()
+  }
+}
 function handleCellClick(c: { day: number, hasRecord: boolean, count?: number }) {
+  if (swiped) { swiped = false; return }
+  haptic('light')
   if (c.hasRecord) {
     const recs = recordMap.value.get(c.day)
     if (recs?.length) {
@@ -186,10 +215,12 @@ function handleCellClick(c: { day: number, hasRecord: boolean, count?: number })
   }
 }
 function prevDetail() {
+  haptic('light')
   if (detailRecords.value.length > 1)
     detailIndex.value = (detailIndex.value - 1 + detailRecords.value.length) % detailRecords.value.length
 }
 function nextDetail() {
+  haptic('light')
   if (detailRecords.value.length > 1)
     detailIndex.value = (detailIndex.value + 1) % detailRecords.value.length
 }
@@ -268,7 +299,7 @@ function previewRecordPhoto(record: RecordItem | null) {
         </view>
       </view>
 
-      <view class="cal-board">
+      <view class="cal-board" @touchstart="onBoardTouchStart" @touchend="onBoardTouchEnd">
         <view class="cal-board__heading">
           <view class="cal-board__nav">
             <text class="cal-board__nav-btn" role="button" aria-label="上个月" @click="prevMonth">‹</text>
@@ -330,6 +361,9 @@ function previewRecordPhoto(record: RecordItem | null) {
         <view class="cal-board__note">
           <image class="guozai-breathe" :src="`${STATIC_BASE_URL}/static/guozai/action_08_peek.png`" mode="aspectFit" aria-label="提醒查看食光的锅仔" />
           <view><text>锅仔的小提示</text><text>有照片的日子可以点开，回看那天吃了什么。</text></view>
+        </view>
+        <view v-if="recordMap.size === 0" class="cal-board__empty-hint">
+          <text>本月还没有记录，点任意日期就能去记一笔～</text>
         </view>
       </view>
 
@@ -638,6 +672,17 @@ function previewRecordPhoto(record: RecordItem | null) {
 .cal-board__note image { width: 96rpx; height: 96rpx; flex: 0 0 auto; }
 .cal-board__note text:first-child { display: block; color: var(--mrc-accent); font-size: 20rpx; font-weight: 800; }
 .cal-board__note text:last-child { display: block; margin-top: 4rpx; color: var(--mrc-text-sub); font-size: 21rpx; line-height: 1.45; }
+.cal-board__empty-hint {
+  margin-top: 16rpx;
+  padding: 18rpx 16rpx;
+  border: 2rpx dashed var(--mrc-border);
+  border-radius: 18rpx;
+  text-align: center;
+  color: var(--mrc-text-sub);
+  font-size: 22rpx;
+  line-height: 1.5;
+  background: var(--mrc-surface-sun);
+}
 
 .cal-album {
   position: relative;

@@ -5,8 +5,8 @@
  * 原版交互链：中心「开始」→ 卡片波浪洗牌（逐张延迟外扩再归位）→ 用户任选一张
  * → 中奖项被换到所点卡下 → 该卡 3D 翻转显奖 → 稍后全部翻开 → 再来一轮。
  *
- * 诚实原则：结果先于翻牌确定——父组件从真实 AI 菜池抽出那道菜并 deal() 给组件，
- * 用户翻开的那张牌永远是这道菜，绝不假随机。
+ * 真选择：8 张牌各自背一道真实 AI 菜，用户翻哪张哪张就是结果；不再预设中奖菜，
+ * 也不假随机——点中的牌背后就是那道真实菜，翻到彩蛋格才提示重洗。
  */
 import { computed, ref, watch } from 'vue'
 import { STATIC_BASE_URL } from '@/utils/assets'
@@ -27,8 +27,12 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   (e: 'close'): void
-  /** 用户按下中心按钮：父组件定结果后调 deal(prize) */
+  /** 用户按下中心按钮：父组件准备牌面后调 deal() */
   (e: 'start'): void
+  /** 用户翻开某张牌：回传牌序号，父组件据此定位真实菜 */
+  (e: 'pick', index: number): void
+  /** 用户翻到彩蛋装饰格：通知父组件重洗（不再弹错误提示） */
+  (e: 'decoy', index: number): void
   /** 用户确认「就做这道」 */
   (e: 'cook'): void
 }>()
@@ -40,7 +44,9 @@ const phase = ref<'idle' | 'dealing' | 'ready' | 'picking' | 'revealed'>('idle')
 const allOpen = ref(false)
 const picked = ref(-1)
 const prize = ref<FlipSlot>({ name: '' })
+const celebrating = ref(false)
 let timers: ReturnType<typeof setTimeout>[] = []
+let celebrateTimer: ReturnType<typeof setTimeout> | undefined
 
 watch(() => props.visible, (v) => {
   if (v)
@@ -52,6 +58,30 @@ watch(() => props.visible, (v) => {
 function clearTimers() {
   timers.forEach(clearTimeout)
   timers = []
+  if (celebrateTimer) clearTimeout(celebrateTimer)
+}
+
+/** 撒花粒子：翻中瞬间从牌阵中心向四周炸开（与转一转/跑一圈同一套庆祝语言） */
+const CONFETTI_COLORS = ['#FF8A5C', '#FFD93D', '#7BC47F', '#6FB7FF', '#F472B6', '#FFB86C']
+const confetti = computed(() => Array.from({ length: 18 }, (_, i) => {
+  const angle = (i / 18) * Math.PI * 2 + (i % 3) * 0.22
+  const dist = 180 + (i % 5) * 50
+  return {
+    x: Math.round(Math.cos(angle) * dist),
+    y: Math.round(Math.sin(angle) * dist),
+    rot: (i * 47) % 360,
+    delay: (i % 6) * 0.05,
+    color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+    size: i % 3 === 0 ? 16 : i % 3 === 1 ? 12 : 14,
+  }
+}))
+
+/** 翻中庆祝：撒花 2.2s + 轻震动 */
+function celebrate() {
+  celebrating.value = true
+  if (celebrateTimer) clearTimeout(celebrateTimer)
+  celebrateTimer = setTimeout(() => { celebrating.value = false }, 2200)
+  try { uni.vibrateShort({ type: 'medium' }) } catch {}
 }
 
 function later(fn: () => void, ms: number) {
@@ -63,6 +93,7 @@ function reset() {
   phase.value = 'idle'
   allOpen.value = false
   picked.value = -1
+  celebrating.value = false
   buildCells()
 }
 
@@ -70,6 +101,12 @@ function buildCells() {
   const pool = props.items.filter(item => item?.name).slice(0, 8)
   cells.value = Array.from({ length: 8 }, (_, i) => pool[i] || { name: DECOR[i] })
 }
+
+/** 菜池异步到达时重建牌面：父组件先开弹层后请求，visible 的 watch 只会拿到空池 */
+watch(() => props.items, () => {
+  if (phase.value === 'idle')
+    buildCells()
+})
 
 const centerText = computed(() => {
   if (phase.value === 'idle') return '开翻'
@@ -124,11 +161,10 @@ function pressCenter() {
   emit('start')
 }
 
-/** 父组件定好中奖菜后调用：波浪洗牌 → 就绪，等待用户选牌。 */
-function deal(winner: FlipSlot) {
+/** 父组件备好牌面后调用：波浪洗牌 → 就绪，等待用户翻牌。中奖菜不再预设，由用户翻哪张决定。 */
+function deal() {
   if (phase.value !== 'dealing')
     return
-  prize.value = winner
   // 1900ms 覆盖最慢一张卡的动画（490ms 延迟 + 2×650ms），避免洗牌没演完就进入选牌
   later(() => { phase.value = 'ready' }, 1900)
 }
@@ -141,12 +177,23 @@ function fail() {
   phase.value = 'idle'
 }
 
-/** 用户点开一张牌：所点卡立即翻出中奖菜，1.2s 后全部翻开。 */
+/** 用户点开一张牌：翻出的就是这张牌背后背着的真实菜，1.2s 后全部翻开。翻到彩蛋装饰格则直接重洗，不撒假花。 */
 function pickCard(index: number) {
   if (phase.value !== 'ready')
     return
+  const cell = cells.value[index]
+  if (!cell?.name)
+    return
+  // 彩蛋装饰格（超出真实菜数量）：不撒花、不显奖，通知父组件重洗后让用户再翻
+  if (index >= (props.items?.length || 0)) {
+    emit('decoy', index)
+    return
+  }
   picked.value = index
+  prize.value = cell
   phase.value = 'picking'
+  celebrate()
+  emit('pick', index)
   later(() => {
     allOpen.value = true
     phase.value = 'revealed'
@@ -173,7 +220,14 @@ function onMask() {
     emit('close')
 }
 
-defineExpose({ deal, fail })
+/** 翻到彩蛋格后由父组件调用：原地重洗一轮（不弹错误提示），让用户再翻一次。 */
+function reshuffle() {
+  reset()
+  rollWaves()
+  phase.value = 'dealing'
+  deal()
+}
+defineExpose({ deal, fail, reset, reshuffle })
 </script>
 
 <template>
@@ -187,6 +241,9 @@ defineExpose({ deal, fail })
         <text class="gnf__sub">{{ hint }}</text>
       </view>
       <view class="gnf__grid" aria-label="菜品九宫格">
+        <view v-if="celebrating" class="gnf__confetti" aria-hidden="true">
+          <view v-for="(p, i) in confetti" :key="i" class="gnf__confetti-piece" :style="{ background: p.color, width: `${p.size}rpx`, height: `${Math.round(p.size * 0.45)}rpx`, '--cx': `${p.x}rpx`, '--cy': `${p.y}rpx`, '--cr': `${p.rot}deg`, animationDelay: `${p.delay}s` }" />
+        </view>
         <template v-for="p in 9" :key="p">
           <view
             v-if="p - 1 === 4"
@@ -226,13 +283,13 @@ defineExpose({ deal, fail })
       <view v-if="phase === 'revealed'" class="gnf__result" role="status">
         <image v-if="prize.image" class="gnf__result-img" :src="prize.image" mode="aspectFill" />
         <view class="gnf__result-copy">
-          <text class="gnf__result-label">翻到了</text>
+          <text class="gnf__result-label">🎉 撒花！翻到了</text>
           <text class="gnf__result-name">{{ prize.name }}</text>
         </view>
         <view class="gnf__result-btn" role="button" aria-label="就做这道菜" @click="cook">就做这道</view>
       </view>
       <view class="gnf__foot">
-        <text class="gnf__foot-text">你翻开的就是今天吃的，锅仔说话算数</text>
+        <text class="gnf__foot-text">翻哪张吃哪张，锅仔不耍赖</text>
       </view>
     </view>
   </view>
@@ -249,7 +306,17 @@ defineExpose({ deal, fail })
 .gnf__title { color: var(--mrc-text-strong); font-size: 40rpx; font-weight: 800; }
 .gnf__sub { min-height: 34rpx; color: var(--mrc-text-sub); font-size: 22rpx; }
 
-.gnf__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14rpx; width: 100%; padding: 22rpx; border: 4rpx solid #FFD93D; border-radius: 32rpx; background: var(--mrc-primary-grad); box-shadow: var(--mrc-shadow-coral); box-sizing: border-box; }
+.gnf__grid { position: relative; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14rpx; width: 100%; padding: 22rpx; border: 4rpx solid #FFD93D; border-radius: 32rpx; background: var(--mrc-primary-grad); box-shadow: var(--mrc-shadow-coral); box-sizing: border-box; }
+
+/* 撒花：翻中瞬间从牌阵中心炸开的彩纸屑（与转一转/跑一圈同一套庆祝语言） */
+.gnf__confetti { position: absolute; z-index: 6; top: 50%; left: 50%; pointer-events: none; }
+.gnf__confetti-piece { position: absolute; border-radius: 4rpx; opacity: 0; animation: gnf-burst 1.5s cubic-bezier(0.16, 0.84, 0.3, 1) forwards; }
+@keyframes gnf-burst {
+  0% { opacity: 0; transform: translate(0, 0) rotate(0deg) scale(0.6); }
+  12% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--cx), var(--cy)) rotate(var(--cr)) scale(1); }
+}
 .gnf__cellbox { perspective: 700rpx; }
 .gnf__flip { position: relative; width: 100%; height: 170rpx; transform-style: preserve-3d; transition: transform 0.7s cubic-bezier(0.35, 0.1, 0.25, 1.05); }
 .gnf__flip.is-flipped { transform: rotateY(180deg); }
@@ -293,6 +360,7 @@ defineExpose({ deal, fail })
 @media (prefers-reduced-motion: reduce) {
   .gnf__flip { transition-duration: 0.25s; }
   .gnf__flip.is-waving { animation: none; }
-  .gnf__center.is-dealing, .gnf__panel, .gnf__result { animation: none; }
+  .gnf__center.is-dealing, .gnf__panel, .gnf__result, .gnf__confetti-piece { animation: none; }
+  .gnf__confetti-piece { opacity: 0; }
 }
 </style>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { FoodMemoryBehavior, HealthGoal, SpiceLevel } from '../../api/preferences'
+import type { CookingSkill, FoodMemoryBehavior, HealthGoal, SpiceLevel } from '../../api/preferences'
 import type { AgentMemoryFact } from '@/api/auth'
 import { computed, ref } from 'vue'
 import { clearAgentMemory, forgetAgentMemory, getAgentMemory, setAgentPersonalization } from '@/api/auth'
@@ -37,6 +37,8 @@ const eatScallion = ref<boolean | null>(null)
 const eatCilantro = ref<boolean | null>(null)
 const spiceLevel = ref<SpiceLevel>('NORMAL')
 const healthGoal = ref<HealthGoal>('BALANCED')
+const hometown = ref('')
+const cookingSkill = ref<CookingSkill>('HOME')
 const avoidIngredients = ref('')
 const allergens = ref('')
 const behavior = ref<FoodMemoryBehavior | null>(null)
@@ -71,6 +73,11 @@ const HEALTH_GOALS: { value: HealthGoal, label: string, hint: string }[] = [
   { value: 'FITNESS', label: '健身增肌', hint: '优先优质蛋白、适量主食和蔬菜' },
   { value: 'LEAN', label: '轻盈减脂', hint: '优先蔬菜、优质蛋白和少油做法' },
 ]
+const COOKING_SKILLS: { value: CookingSkill, label: string, hint: string }[] = [
+  { value: 'NOVICE', label: '厨房小白', hint: '刚开始下厨，锅仔会挑步骤简单、不容易翻车的' },
+  { value: 'HOME', label: '会做几道', hint: '家常水平，常见菜都能上手，锅仔正常推荐' },
+  { value: 'PRO', label: '隐藏大厨', hint: '老手，愿意挑战复杂菜，锅仔敢推荐有难度的' },
+]
 const onboarding = computed(() => route.query.from === 'onboarding')
 
 onLoad(async () => {
@@ -89,6 +96,8 @@ onLoad(async () => {
     eatCilantro.value = data.eatCilantro
     spiceLevel.value = data.spiceLevel || 'NORMAL'
     healthGoal.value = data.healthGoal || 'BALANCED'
+    hometown.value = data.hometown || ''
+    cookingSkill.value = data.cookingSkill || 'HOME'
     avoidIngredients.value = data.avoidIngredients || ''
     allergens.value = data.allergens || ''
   }
@@ -150,6 +159,8 @@ async function save() {
       eatCilantro: eatCilantro.value,
       spiceLevel: spiceLevel.value,
       healthGoal: healthGoal.value,
+      hometown: hometown.value.trim(),
+      cookingSkill: cookingSkill.value,
     })
     uni.removeStorageSync('mrc_companion_message')
     uni.setStorageSync('mrc_preference_onboarded', '1')
@@ -179,6 +190,8 @@ async function skip() {
   eatCilantro.value = null
   spiceLevel.value = 'NORMAL'
   healthGoal.value = 'BALANCED'
+  hometown.value = ''
+  cookingSkill.value = 'HOME'
   avoidIngredients.value = ''
   allergens.value = ''
   await save()
@@ -204,6 +217,8 @@ function clearMemory() {
         eatCilantro.value = null
         spiceLevel.value = 'NORMAL'
         healthGoal.value = 'BALANCED'
+        hometown.value = ''
+        cookingSkill.value = 'HOME'
         avoidIngredients.value = ''
         allergens.value = ''
         behavior.value = null
@@ -365,6 +380,48 @@ function clearMemory() {
           >
             <view v-if="favoriteCuisines.includes(cuisine)" class="choice-chip__mark" />
             {{ cuisine }}
+          </view>
+        </view>
+      </view>
+
+      <view class="memory-section">
+        <text class="memory-section__title">
+          你的家乡在哪里？
+        </text>
+        <text class="memory-section__hint">
+          锅仔会借它懂你的家乡味——川湘的辣、江浙的甜、东北的炖，都从这来
+        </text>
+        <input v-model="hometown" class="memory-input" :maxlength="100" placeholder="例如：四川成都（不填也行）">
+      </view>
+
+      <view class="memory-section">
+        <text class="memory-section__title">
+          做菜水平怎么样？
+        </text>
+        <text class="memory-section__hint">
+          锅仔按它决定菜谱讲多细、挑多简单
+        </text>
+        <view class="health-goals">
+          <view
+            v-for="skill in COOKING_SKILLS"
+            :key="skill.value"
+            class="health-goal"
+            :class="{ 'health-goal--selected': cookingSkill === skill.value }"
+            role="radio"
+            :aria-checked="cookingSkill === skill.value"
+            @click="cookingSkill = skill.value"
+          >
+            <view class="health-goal__copy">
+              <text class="health-goal__label">
+                {{ skill.label }}
+              </text>
+              <text class="health-goal__hint">
+                {{ skill.hint }}
+              </text>
+            </view>
+            <text class="health-goal__check">
+              {{ cookingSkill === skill.value ? '✓' : '' }}
+            </text>
           </view>
         </view>
       </view>

@@ -180,6 +180,7 @@ declare global {
   const getWindowInfo: typeof import('./utils/wxSystem')['getWindowInfo']
   const goToMeituanBuy: typeof import('./utils/cps')['goToMeituanBuy']
   const h: typeof import('vue')['h']
+  const haptic: typeof import('./utils/haptic')['haptic']
   const hideLoading: typeof import('./utils/toast')['hideLoading']
   const humanizeMemoryValue: typeof import('./utils/memoryLabels')['humanizeMemoryValue']
   const ignorableWatch: typeof import('@vueuse/core')['ignorableWatch']
@@ -722,6 +723,7 @@ declare module 'vue' {
     readonly getWindowInfo: UnwrapRef<typeof import('./utils/wxSystem')['getWindowInfo']>
     readonly goToMeituanBuy: UnwrapRef<typeof import('./utils/cps')['goToMeituanBuy']>
     readonly h: UnwrapRef<typeof import('vue')['h']>
+    readonly haptic: UnwrapRef<typeof import('./utils/haptic')['haptic']>
     readonly hideLoading: UnwrapRef<typeof import('./utils/toast')['hideLoading']>
     readonly humanizeMemoryValue: UnwrapRef<typeof import('./utils/memoryLabels')['humanizeMemoryValue']>
     readonly ignorableWatch: UnwrapRef<typeof import('@vueuse/core')['ignorableWatch']>
