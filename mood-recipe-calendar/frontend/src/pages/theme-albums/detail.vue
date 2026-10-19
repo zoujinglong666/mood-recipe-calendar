@@ -7,6 +7,7 @@ import { fetchRecipeDetail } from '@/api/recipes'
 import { saveCookingDraft } from '@/utils/cookingDraft'
 import { useVirtualPurchase } from '@/composables/useVirtualPurchase'
 import { toast, toastError } from '@/utils/toast'
+import { navBack } from '@/composables/useNavBar'
 
 definePage({
   name: 'theme-album-detail',
@@ -28,7 +29,7 @@ onLoad(async (options) => {
   const sku = options?.sku
   if (!sku) {
     toast('专辑不存在')
-    router.back()
+    navBack()
     return
   }
   loading.value = true
@@ -83,7 +84,7 @@ onShareTimeline(() => ({
 
 <template>
   <view class="tad mrc-hero">
-    <wd-navbar title="主题专辑" left-arrow safe-area-inset-top custom-style="background-color: transparent !important;" @click-left="router.back" />
+    <wd-navbar title="主题专辑" left-arrow safe-area-inset-top custom-style="background-color: transparent !important;" @click-left="navBack" />
 
     <view v-if="loading" class="tad-empty"><text>锅仔正在翻开专辑…</text></view>
 

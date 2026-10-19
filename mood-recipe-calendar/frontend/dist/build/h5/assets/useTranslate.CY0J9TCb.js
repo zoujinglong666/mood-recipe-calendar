@@ -1,1 +1,0 @@
-import{bd as s,be as a,bf as t,aU as e,a8 as r}from"./index-BRc73qj2.js";const n=n=>{const o=n?s(n)+".":"";return{translate:(s,...n)=>{const b=a.messages(),c=t(b,o+s);return e(c)?c(...n):r(c)?c:`${o}${s}`}}};export{n as u};

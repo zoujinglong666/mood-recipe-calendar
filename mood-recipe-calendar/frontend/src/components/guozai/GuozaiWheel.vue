@@ -124,6 +124,25 @@ function segAngle(i: number) {
   return SEG_DEG * i + SEG_DEG / 2
 }
 
+/**
+ * 菜名换行：扇区文字沿切线排布，越靠盘心可用弧长越短（8 等分、半径 140rpx
+ * 处相邻扇区中心间距仅约 107rpx），单行 6 字以上必然压到隔壁扇区。
+ * 平衡切分（6 字→3+3）比交给浏览器硬折行更不容易出现「孤字」；
+ * 每行最多 5 字，超过 10 字截断加省略号。
+ */
+const MAX_CHARS_PER_LINE = 5
+function nameLines(name: string): string[] {
+  const chars = Array.from(name || '')
+  if (chars.length <= MAX_CHARS_PER_LINE)
+    return [name || '']
+  const per = Math.min(MAX_CHARS_PER_LINE, Math.ceil(chars.length / 2))
+  const first = chars.slice(0, per).join('')
+  let second = chars.slice(per, per * 2).join('')
+  if (chars.length > per * 2)
+    second = `${second.slice(0, per - 1)}…`
+  return [first, second]
+}
+
 /** 扇区图挂了就地清空：退化为纯文字扇区，绝不留空框破图 */
 function onSegImgError(i: number) {
   const next = [...slots.value]
@@ -212,7 +231,9 @@ defineExpose({ land, fail })
               <view v-if="slot.image" class="gw__seg-img">
                 <image :src="slot.image" mode="aspectFill" @error="onSegImgError(i)" />
               </view>
-              <text class="gw__seg-text">{{ slot.name }}</text>
+              <view class="gw__seg-text">
+                <text v-for="(line, li) in nameLines(slot.name)" :key="li" class="gw__seg-line">{{ line }}</text>
+              </view>
             </view>
           </view>
         </view>
@@ -260,13 +281,17 @@ defineExpose({ land, fail })
 @keyframes gw-land { 0% { scale: 1; } 40% { scale: 1.04; } 100% { scale: 1; } }
 /* 扇区 item：图上文下（NutUI 布局）；无图退化为纯文字，绝不留空框。
    定位关键：中心 hub 半径 96rpx（176rpx 盘 + 8rpx 白边），文字底端必须落在
-   距盘心 96rpx 之外，否则菜名会被 hub 整圈盖住（margin-top 118rpx 时代的 bug）。 */
+   104rpx 之外，否则菜名会被 hub 盖住。
+   外移 24rpx（margin-top 80→56）：文字所在半径变大，切线方向的可用弧长随之
+   变长（8 等分下可用宽度≈0.765×半径），这是「菜名不再挤在一起」的主因；
+   剩余空间由两行文字承担（20rpx×2 行×1.2 = 48rpx，底端落在半径 118rpx）。 */
 .gw__seg { position: absolute; inset: 0; display: flex; justify-content: center; align-items: flex-start; }
-.gw__seg-item { display: flex; flex-direction: column; align-items: center; gap: 8rpx; margin-top: 80rpx; width: 150rpx; }
+.gw__seg-item { display: flex; flex-direction: column; align-items: center; gap: 6rpx; margin-top: 56rpx; width: 150rpx; }
 .gw__seg-item.is-text-only { margin-top: 164rpx; }
-.gw__seg-img { width: 76rpx; height: 76rpx; overflow: hidden; border-radius: 18rpx; box-shadow: 0 4rpx 10rpx rgba(88, 48, 31, 0.14); }
+.gw__seg-img { width: 72rpx; height: 72rpx; overflow: hidden; border-radius: 16rpx; box-shadow: 0 4rpx 10rpx rgba(88, 48, 31, 0.14); }
 .gw__seg-img image { width: 100%; height: 100%; }
-.gw__seg-text { display: block; max-width: 150rpx; overflow: hidden; color: var(--mrc-text-deep); font-size: 22rpx; font-weight: 700; line-height: 1.2; text-align: center; white-space: nowrap; text-overflow: ellipsis; }
+.gw__seg-text { display: block; max-width: 104rpx; color: var(--mrc-text-deep); font-size: 20rpx; font-weight: 700; line-height: 1.2; text-align: center; }
+.gw__seg-line { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .gw__hub { position: absolute; z-index: 4; top: 50%; left: 50%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2rpx; width: 176rpx; height: 176rpx; padding-bottom: 16rpx; border: 8rpx solid #fff; border-radius: 50%; background: var(--mrc-primary-grad); box-shadow: 0 10rpx 26rpx rgba(200, 70, 30, 0.35); transform: translate(-50%, -50%); }
 .gw__hub.is-waiting { animation: gw-shake 0.5s ease infinite; }
 @keyframes gw-shake { 0%, 100% { transform: translate(-50%, -50%) rotate(0); } 30% { transform: translate(-50%, -50%) rotate(-7deg); } 70% { transform: translate(-50%, -50%) rotate(7deg); } }

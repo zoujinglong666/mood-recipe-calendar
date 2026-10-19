@@ -1,0 +1,1 @@
+import{b1 as s,b2 as a,b3 as t,b4 as r,ab as e}from"./index-DuaoF721.js";const n=n=>{const o=n?s(n)+".":"";return{translate:(s,...n)=>{const b=a.messages(),c=t(b,o+s);return r(c)?c(...n):e(c)?c:`${o}${s}`}}};export{n as u};

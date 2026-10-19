@@ -3,6 +3,7 @@
   "navigationBarTitleText": "选一个心情吧",
   "usingComponents": {
     "wd-navbar": "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar",
-    "mood-picker": "../../components/guozai/MoodPicker"
+    "mood-picker": "../../components/guozai/MoodPicker",
+    "meal-sheet": "../../components/guozai/MealSheet"
   }
 }

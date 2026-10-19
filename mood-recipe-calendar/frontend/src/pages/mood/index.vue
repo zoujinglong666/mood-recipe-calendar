@@ -2,6 +2,7 @@
 import { navBack } from '@/composables/useNavBar'
 import { ref } from 'vue'
 import MoodPicker from '../../components/guozai/MoodPicker.vue'
+import MealSheet from '../../components/guozai/MealSheet.vue'
 import { fetchFoodPreference } from '../../api/preferences'
 import { ensureLogin } from '../../utils/login'
 
@@ -26,6 +27,9 @@ onShareTimeline(() => ({ title: '锅仔 · 按心情帮你决定今天吃什么'
 
 const router = useRouter()
 const selected = ref('')
+/** 餐别与心情一样由用户自己选：确认心情后弹餐别选择器，选完一起带去推荐页 */
+const showMealSheet = ref(false)
+const pendingMood = ref('')
 
 async function onConfirm(m: { key: string }) {
   // 选心情的本意就是要推荐，绝不能被 onboarding 拦到「锅仔记忆」记忆管理页。
@@ -39,7 +43,14 @@ async function onConfirm(m: { key: string }) {
       // 读取偏好失败不阻断推荐，用户可在「设置 → 锅仔记忆」里补
     }
   }
-  router.push({ name: 'recipe', params: { mood: m.key } })
+  pendingMood.value = m.key
+  showMealSheet.value = true
+}
+
+/** 心情+餐别都齐了才跳推荐页；mood 走 query（params 不进 URL，推荐页读的是 query.mood） */
+function onPickMeal(type: 'BREAKFAST' | 'LUNCH' | 'DINNER') {
+  const mood = pendingMood.value || '开心'
+  router.push({ name: 'recipe', params: { mood }, query: { mood, mealType: type } })
 }
 </script>
 
@@ -54,6 +65,8 @@ async function onConfirm(m: { key: string }) {
       confirm-text="就选它，开始推荐"
       @confirm="onConfirm"
     />
+
+    <MealSheet v-model="showMealSheet" @select="onPickMeal" />
   </view>
 </template>
 

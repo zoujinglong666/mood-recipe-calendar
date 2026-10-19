@@ -71,13 +71,15 @@ import { haptic } from '../../utils/haptic'
 import { acceptShareInvite } from '../../api/share'
 import { onLoad, onPullDownRefresh } from '@dcloudio/uni-app'
 import { fetchCompanionMessage, fetchRecordsByMonth, type CompanionMessage, type RecordItem } from '../../api/records'
-import { fetchRecipePool, fetchRecipeQuota, type RecipeItem, type UsageQuotaView } from '../../api/recipes'
+import { fetchRecipePool, fetchRecipeQuota, fetchRecipeDetail, type RecipeItem, type UsageQuotaView } from '../../api/recipes'
 import { fetchDailyBoard, refreshDailyBoard, generateDailyMenuCover, splitComboDishName, type DailyBoard } from '../../api/dailyMenu'
 import { fetchWeeklyTheme, type WeeklyTheme } from '../../api/weeklyTheme'
 import { saveCookingDraft } from '../../utils/cookingDraft'
+import { navLocked } from '../../utils/nav'
 import GuozaiWheel from '../../components/guozai/GuozaiWheel.vue'
 import GuozaiNine from '../../components/guozai/GuozaiNine.vue'
 import GuozaiFlip from '../../components/guozai/GuozaiFlip.vue'
+import MealSheet from '../../components/guozai/MealSheet.vue'
 import { getTodayYi } from '../../data/growth'
 import { useUserStore } from '../../stores/user'
 import { funnel } from '../../utils/funnel'
@@ -95,10 +97,10 @@ function bounceGuozai() {
   setTimeout(() => {
     isBouncing.value = false
     if (companion.value.actionTarget === 'meal-agent') {
-      router.push({ name: 'meal-agent', query: { prompt: companion.value.actionPrompt || companion.value.actionText } })
+      navLocked(() => router.push({ name: 'meal-agent', query: { prompt: companion.value.actionPrompt || companion.value.actionText } }))
       return
     }
-    router.push({ name: 'mood' })
+    navLocked(() => router.push({ name: 'mood' }))
   }, 400)
 }
 
@@ -194,7 +196,26 @@ function goWithTheme(theme: WeeklyTheme) {
       healthGoal: theme.healthGoal, budget: theme.budget, notes: theme.notes,
     }))
   } catch {}
-  router.push({ name: 'weekly-plan' })
+  navLocked(() => router.push({ name: 'weekly-plan' }))
+}
+
+/** 本月记录本地缓存：冷启动首屏先渲染缓存再等网络，避免「食光坐标」白等一轮请求。
+ *  与 loadCompanion 同款模式；写入仅在请求成功后，读取按月份校验，跨月自动失效。 */
+const RECORDS_CACHE_KEY = 'mrc_records_month'
+function readRecordsCache(month: string): RecordItem[] | null {
+  try {
+    const cached = uni.getStorageSync(RECORDS_CACHE_KEY)
+    if (cached?.month === month && Array.isArray(cached.items))
+      return cached.items
+  }
+  catch {}
+  return null
+}
+function writeRecordsCache(month: string, items: RecordItem[]) {
+  try {
+    uni.setStorageSync(RECORDS_CACHE_KEY, { month, items })
+  }
+  catch {}
 }
 
 async function loadData() {
@@ -204,18 +225,26 @@ async function loadData() {
     await ensureLogin()
     // 关键数据（决定「食光坐标」数量）先独立加载；quota/同伴语/今日餐板的失败必须隔离，
     // 不能因为任何一项 400 就把已加载的本月记录清空（曾经因 /recipes/quota 400 导致首页显示 0 个坐标）
+    // 先用上月缓存即时渲染首屏，网络回来后静默覆盖（冷启动不等 /records/month）
+    const cachedRecords = readRecordsCache(currentMonth.value)
+    if (cachedRecords)
+      monthRecords.value = cachedRecords
     monthRecords.value = await fetchRecordsByMonth(currentMonth.value)
+    writeRecordsCache(currentMonth.value, monthRecords.value)
     fetchRecipeQuota().then((q) => { recipeQuota.value = q }).catch(() => {})
     loadCompanion().catch(() => {})
     loadTodayBoard().catch(() => {})
     loadWeeklyTheme().catch(() => {})
-    // 菜池提前加载：转盘/九宫格/翻牌点开即用，不等点击后再拉
-    void preloadRecipePool()
+    // 菜池提前加载：转盘/九宫格/翻牌点开即用，不等点击后再拉。
+    // 推迟到首屏渲染后执行：预热大图的解码避开冷启动内存峰值（低端机 Wasm OOM 的缓解手段）；
+    // 用户手更快时 recipePool() 仍有按需拉取兜底，不影响开抽。
+    nextTick(() => { setTimeout(() => { void preloadRecipePool() }, 0) })
   } catch (e: any) {
     if (e?.message !== 'NOT_LOGGED_IN')
       toastError(e, '加载失败，请稍后重试')
   } finally {
     loading.value = false
+    lastHomeLoadAt.value = Date.now()
   }
 }
 
@@ -407,8 +436,10 @@ function preloadRecipePool(force = false): Promise<void> {
       const pool = await fetchRecipePool()
       recipePoolCache.value = pool
       recipePoolAt.value = Date.now()
-      // 预热前 24 张封面：抽样大多落在其中，开抽时图片已在本地缓存，不再「转完了图才出来」
-      pool.slice(0, 24).forEach((item) => {
+      // 预热前 8 张封面：抽样大多落在其中，开抽时图片已在本地缓存，不再「转完了图才出来」。
+      // 控制在 8 张：AI 封面为 1024px+ 大图，单张解码约占 4MB 内存，24 张会在冷启动期
+      // 与首屏请求抢带宽、把低端机推向 OOM（线上 Wasm out of memory 的内存压力源之一）。
+      pool.slice(0, 8).forEach((item) => {
         if (!item.image)
           return
         uni.getImageInfo({ src: item.image, fail: () => {} })
@@ -559,7 +590,7 @@ function onNineCook(index: number) {
   }
   showNine.value = false
   saveCookingDraft(recipe, '满足')
-  router.push({ name: 'cooking' })
+  navLocked(() => router.push({ name: 'cooking' }))
 }
 
 /** 锅仔翻牌（squarenine 复刻）：洗牌后任选一张，翻开的即真实抽中的那道菜。 */
@@ -634,7 +665,7 @@ function onFlipCook() {
     return
   showFlip.value = false
   saveCookingDraft(recipe, '满足')
-  router.push({ name: 'cooking' })
+  navLocked(() => router.push({ name: 'cooking' }))
 }
 function goCookToday() {
   const board = todayBoard.value
@@ -643,17 +674,39 @@ function goCookToday() {
   haptic('light')
   // 今日菜单已经是一道确定的菜，直接把它交给做菜智能体，不能再次进入推荐页。
   saveCookingDraft(board.recipe, '满足')
-  router.push({ name: 'cooking' })
+  navLocked(() => router.push({ name: 'cooking' }))
 }
 
 /** 分享回流承接：好友通过分享卡打开 → 双方各 +1 次对话额度；带上好友分享的那道菜名做欢迎 */
 const friendDish = ref('')
 const inviteBonus = ref(false)
+/** 分享落地「好友菜卡」：链接带 recipeId 时拉真实菜谱（图+名），把一行小字升级成能点的卡 */
+const sharedRecipeId = ref(0)
+const sharedRecipe = ref<RecipeItem | null>(null)
+async function loadSharedDish(id: number) {
+  try {
+    sharedRecipe.value = await fetchRecipeDetail(id)
+  }
+  catch { /* 拉取失败静默：退化为纯文字欢迎条 */ }
+}
+function openSharedDish() {
+  if (!sharedRecipeId.value) return
+  navLocked(() => router.push({ name: 'recipe', query: { recipeId: String(sharedRecipeId.value) } }))
+}
+function goMoodFromShare() {
+  navLocked(() => router.push({ name: 'mood' }))
+}
 onLoad((query) => {
   const sharer = String(query?.sharer || '')
   const dish = String(query?.dish || '')
   if (dish)
     friendDish.value = dish
+  const rid = Number(query?.recipeId) || 0
+  if (rid) {
+    sharedRecipeId.value = rid
+    // 详情接口要登录态；分享落地本就要登录，静默 ensureLogin 失败则退化成文字欢迎条
+    void ensureLogin().then(() => loadSharedDish(rid)).catch(() => {})
+  }
   if (!sharer || sharer === userStore.openid)
     return
   acceptShareInvite(sharer)
@@ -682,12 +735,36 @@ function dismissFavTip() {
   uni.setStorageSync(FAV_TIP_KEY, '1')
 }
 
+/** 首页数据新鲜度：30s 内且未跨天视为新鲜，切后台/分享返回/扫码回来不再全量重拉，
+ *  只刷新时间。下拉刷新（onPullDownRefresh）与 RECORDS_CHANGED 事件仍强制刷新。 */
+const HOME_STALE_MS = 30 * 1000
+const lastHomeLoadAt = ref(0)
+function homeDataStale(): boolean {
+  if (!lastHomeLoadAt.value)
+    return true
+  const last = new Date(lastHomeLoadAt.value)
+  const now = new Date()
+  if (last.toDateString() !== now.toDateString())
+    return true
+  return Date.now() - lastHomeLoadAt.value > HOME_STALE_MS
+}
+
 onShow(() => {
   now.value = new Date()
-  loadData()
+  if (homeDataStale())
+    loadData()
   maybeShowFavTip()
   funnel('home_view')
 })
+
+/** 新记录落库（记录页/做菜页打卡）后即使没超时也强制刷新，避免日历计数短时陈旧 */
+function onRecordsChanged() {
+  lastHomeLoadAt.value = 0
+  if (!loading.value)
+    loadData()
+}
+bus.on(MRC_EVENTS.RECORDS_CHANGED, onRecordsChanged)
+onUnmounted(() => bus.off(MRC_EVENTS.RECORDS_CHANGED, onRecordsChanged))
 
 /** 下拉刷新：重新拉取今日菜、本月食光坐标等，结束后收起原生下拉圈 */
 onPullDownRefresh(() => {
@@ -697,11 +774,14 @@ onPullDownRefresh(() => {
 /** 转发给好友/群：必须定义 onShareAppMessage 胶囊「···」里的转发才可用 */
 onShareAppMessage(() => {
   const sharer = userStore.openid
-  // 分享卡带菜：好友点开直接看到这道菜 + 你的邀请，回流后双方各得 1 次对话额度
+  // 分享卡带菜：好友点开直接看到这道菜 + 你的邀请，回流后双方各得 1 次对话额度。
+  // recipeId 是「好友菜卡」的关键：落地页靠它拉真实菜图，没有就只是一行文字。
   const dish = todayBoard.value?.recipe?.name || ''
+  const recipeId = todayBoard.value?.recipe?.id
   const params = [
     sharer ? `sharer=${encodeURIComponent(sharer)}` : '',
     dish ? `dish=${encodeURIComponent(dish)}` : '',
+    recipeId ? `recipeId=${recipeId}` : '',
   ].filter(Boolean).join('&')
   const path = `/pages/index/index${params ? `?${params}` : ''}`
   const title = dish ? `我用锅仔安排了「${dish}」，也替你留了一份` : '锅仔 · 按心情帮你决定今天吃什么'
@@ -722,22 +802,20 @@ const MOODS = ['开心', '平静', '疲惫', '焦虑', '难过', '嘴馋', '低�
 const showMealSheet = ref(false)
 function openMealSheet() { showMealSheet.value = true }
 function pickMeal(type: 'BREAKFAST' | 'LUNCH' | 'DINNER') {
-  haptic('light')
-  showMealSheet.value = false
   funnel('recommend_click', { mealType: type })
   const mood = MOODS[Math.floor(Math.random() * MOODS.length)]
-  router.push({ name: 'recipe', params: { mood }, query: { mood, mealType: type } })
+  navLocked(() => router.push({ name: 'recipe', params: { mood }, query: { mood, mealType: type } }))
 }
 const TABBAR_NAMES = ['home', 'record', 'profile']
 function goto(name: string, q?: Record<string, string>) {
   // tabBar 页必须用 switchTab(pushTab)，用 navigateTo(push) 会报 can not navigate to a tab bar page
   haptic('light')
-  if (TABBAR_NAMES.includes(name)) router.pushTab({ name })
-  else router.push({ name, query: q || {} })
+  if (TABBAR_NAMES.includes(name)) navLocked(() => router.pushTab({ name }))
+  else navLocked(() => router.push({ name, query: q || {} }))
 }
 function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
-  if (cell.records.length) router.push({ name: 'calendar', params: { day: String(cell.d) } })
-  else router.pushTab({ name: 'record' })
+  if (cell.records.length) navLocked(() => router.push({ name: 'calendar', params: { day: String(cell.d) } }))
+  else navLocked(() => router.pushTab({ name: 'record' }))
 }
 </script>
 
@@ -779,10 +857,23 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
       </view>
 
       <!-- 分享回流欢迎条：好友点开的落地页，先看到这道菜和福利，再自然进入今日菜牌 -->
-      <view v-if="friendDish || inviteBonus" class="share-welcome">
-        <text class="share-welcome__emoji">🍲</text>
-        <text v-if="friendDish" class="share-welcome__text">好友用锅仔安排了「{{ friendDish }}」</text>
-        <text v-if="inviteBonus" class="share-welcome__bonus">你和好友各得 1 次对话额度</text>
+      <view v-if="sharedRecipe || friendDish || inviteBonus" class="share-welcome" :class="{ 'share-welcome--card': sharedRecipe }">
+        <block v-if="sharedRecipe">
+          <image class="share-welcome__img" :src="sharedRecipe.image" mode="aspectFill" />
+          <view class="share-welcome__body">
+            <text class="share-welcome__text">好友用锅仔安排了「{{ sharedRecipe.name }}」</text>
+            <text v-if="inviteBonus" class="share-welcome__bonus">你和好友各得 1 次对话额度</text>
+            <view class="share-welcome__actions">
+              <view class="share-welcome__cta" role="button" aria-label="看看好友安排的这道菜" @click="openSharedDish">看看这道菜</view>
+              <view class="share-welcome__cta share-welcome__cta--ghost" role="button" aria-label="也让锅仔给我安排一道" @click="goMoodFromShare">我也要安排</view>
+            </view>
+          </view>
+        </block>
+        <block v-else>
+          <text class="share-welcome__emoji">🍲</text>
+          <text v-if="friendDish" class="share-welcome__text">好友用锅仔安排了「{{ friendDish }}」</text>
+          <text v-if="inviteBonus" class="share-welcome__bonus">你和好友各得 1 次对话额度</text>
+        </block>
       </view>
       <!-- 今日菜单（TodayBoard）：今日菜牌——菜图右侧通栏出血，信息在左；上下滑换牌（牌堆式微动效，顶牌动、垫牌不动） -->
       <view class="home-board-deck">
@@ -917,32 +1008,7 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
         </view>
       </view>
 
-      <wd-popup v-model="showMealSheet" position="bottom" :safe-area-inset-bottom="true" custom-style="border-radius: 40rpx 40rpx 0 0; overflow: hidden; background: var(--mrc-surface);">
-        <view class="meal-sheet">
-          <view class="meal-sheet__head">
-            <text class="meal-sheet__title">今天吃什么</text>
-            <text class="meal-sheet__sub">选一顿，锅仔按《中国居民膳食指南》帮你搭配</text>
-          </view>
-          <view class="meal-sheet__options">
-            <button class="meal-option" @click="pickMeal('BREAKFAST')">
-              <text class="meal-option__emoji">🌅</text>
-              <text class="meal-option__name">早餐</text>
-              <text class="meal-option__desc">唤醒一天的元气</text>
-            </button>
-            <button class="meal-option" @click="pickMeal('LUNCH')">
-              <text class="meal-option__emoji">🍚</text>
-              <text class="meal-option__name">午餐</text>
-              <text class="meal-option__desc">给下午充好电</text>
-            </button>
-            <button class="meal-option" @click="pickMeal('DINNER')">
-              <text class="meal-option__emoji">🌙</text>
-              <text class="meal-option__name">晚餐</text>
-              <text class="meal-option__desc">好好收尾这一天</text>
-            </button>
-          </view>
-          <button class="meal-sheet__cancel" @click="showMealSheet = false">取消</button>
-        </view>
-      </wd-popup>
+      <MealSheet v-model="showMealSheet" @select="pickMeal" />
 
       <view class="home-cal">
         <view class="home-cal__header">
@@ -1044,6 +1110,15 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
 .share-welcome__emoji { font-size: 30rpx; }
 .share-welcome__text { font-size: 24rpx; color: var(--mrc-text-deep); font-weight: 700; }
 .share-welcome__bonus { margin-left: auto; font-size: 21rpx; color: var(--mrc-accent); font-weight: 700; }
+/* 好友菜卡：有图 + 双 CTA，替代纯文字欢迎条——分享流量的第一转化触点 */
+.share-welcome--card { align-items: stretch; gap: 20rpx; }
+.share-welcome__img { width: 132rpx; height: 132rpx; flex: 0 0 132rpx; border-radius: 16rpx; background: var(--mrc-surface-2, #F5EFE6); }
+.share-welcome__body { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 6rpx; }
+.share-welcome--card .share-welcome__bonus { margin-left: 0; }
+.share-welcome__actions { display: flex; gap: 16rpx; margin-top: 10rpx; }
+.share-welcome__cta { padding: 10rpx 28rpx; border-radius: 999rpx; background: var(--mrc-primary-grad); color: #fff; font-size: 22rpx; font-weight: 800; }
+.share-welcome__cta--ghost { background: var(--mrc-surface); color: var(--mrc-text-deep); border: 2rpx solid var(--mrc-border-light); }
+.share-welcome__cta:active { transform: scale(0.96); }
 
 .home-entry { border-radius: 30rpx; box-sizing: border-box; }
 /* 牌堆底座：菜牌下面垫两张微旋转的静止牌——换牌时只有顶牌在动，位置感稳定（堆叠卡片语言） */
@@ -1231,19 +1306,6 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
 }
 .home-bento__dot:nth-child(odd) { opacity: .5; }
 .home-bento__record-img--quiz { width: 104rpx; height: 104rpx; filter: drop-shadow(0 6rpx 14rpx rgba(96, 52, 28, 0.16)); }
-
-.meal-sheet { padding: 28rpx 28rpx calc(28rpx + env(safe-area-inset-bottom)); }
-.meal-sheet__head { padding: 8rpx 8rpx 20rpx; }
-.meal-sheet__title { display: block; color: var(--mrc-text-strong); font-size: 30rpx; font-weight: 800; }
-.meal-sheet__sub { display: block; margin-top: 6rpx; color: var(--mrc-text-sub); font-size: 22rpx; }
-.meal-sheet__options { display: flex; flex-direction: column; gap: 14rpx; }
-.meal-option { display: flex; align-items: center; gap: 18rpx; width: 100%; min-height: 116rpx; padding: 18rpx 22rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 24rpx; background: var(--mrc-surface-2); box-shadow: var(--mrc-shadow-soft); box-sizing: border-box; text-align: left; line-height: 1.3; }
-.meal-option::after { border: none; }
-.meal-option__emoji { font-size: 44rpx; }
-.meal-option__name { color: var(--mrc-text-deep); font-size: 30rpx; font-weight: 800; }
-.meal-option__desc { margin-left: auto; color: var(--mrc-text-sub); font-size: 21rpx; }
-.meal-sheet__cancel { width: 100%; margin-top: 20rpx; min-height: 92rpx; border-radius: 24rpx; color: var(--mrc-text-sub); background: var(--mrc-surface-2); font-size: 27rpx; font-weight: 700; }
-.meal-sheet__cancel::after { border: none; }
 
 .home-cal { padding: 28rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 32rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }
 .home-cal__header { display: flex; align-items: center; justify-content: space-between; min-height: 96rpx; margin-bottom: 20rpx; }

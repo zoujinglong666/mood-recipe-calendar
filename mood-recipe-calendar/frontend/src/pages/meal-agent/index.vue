@@ -3,11 +3,12 @@ import type { FoodMemoryView } from '@/api/preferences'
 import type { MealAgentCard, MealAgentConversationSnapshot, MealAgentHistoryMessage, MealAgentOption, MealAgentState, MealAgentTurn, WeeklyPlan, UsageQuotaView } from '@/api/weeklyPlans'
 import { computed, nextTick, ref } from 'vue'
 import { fetchFoodMemory } from '@/api/preferences'
-import { fetchAgentConversationQuota, fetchCurrentAgentConversation, generateWeeklyPlan, getCurrentPlan, pollWeeklyPlanJob, requestWeeklyPlanCompletionNotice, rateAgentConversation, resetAgentConversation, runMealAgentTurn } from '@/api/weeklyPlans'
+import { fetchAgentConversationQuota, fetchCurrentAgentConversation, generateWeeklyPlan, getCurrentPlan, pollWeeklyPlanJob, requestAgentQuotaFromAd, requestWeeklyPlanCompletionNotice, rateAgentConversation, resetAgentConversation, runMealAgentTurn } from '@/api/weeklyPlans'
+import { AD_UNITS } from '@/config/ads'
 import { navBack } from '@/composables/useNavBar'
 import { STATIC_BASE_URL } from '@/utils/assets'
 import { safeDecodePrompt } from '@/utils/safeDecodePrompt'
-import { toastError } from '@/utils/toast'
+import { toast, toastError, toastSuccess } from '@/utils/toast'
 import { useUserStore } from '@/stores/user'
 import { ensureLogin, navigateToLogin, refreshUserInfo } from '@/utils/login'
 import { requireMember } from '@/utils/memberGate'
@@ -109,6 +110,27 @@ const isMember = computed(() => userStore.isActiveMember)
 /** 联网搜索：会员专属开关，开启后本次会话所有对话都走联网 */
 const webSearchEnabled = ref(false)
 const canUseAgent = computed(() => isMember.value || (agentQuota.value?.remaining || 0) > 0)
+
+/** 看广告换 1 次对话：仅完整看完（isEnded）才由服务端发奖——防伪造、每日上限、requestId 幂等。
+ *  与「开通会员」并列展示：不想付费的用户有路可走，付费用户永远看不到这个入口。 */
+const agentAd = useRewardedVideoAd(AD_UNITS.QUOTA_REWARD, {
+  onReward: async () => {
+    const view = await requestAgentQuotaFromAd()
+    agentQuota.value = view
+    toastSuccess('获得 1 次对话机会，继续聊吧')
+  },
+  onCancel: () => toast('看完广告才能领取哦'),
+})
+const adShowing = computed(() => agentAd.showing.value)
+async function watchAdForQuota() {
+  try {
+    await agentAd.show()
+  }
+  catch (e: any) {
+    // 服务端发奖失败（429 今日广告上限/未耗尽等）：用户看完了但没拿到，明确告知
+    toastError(e, '领取失败，请稍后再试')
+  }
+}
 
 /** 切换联网搜索：非会员拦截并引导开通，会员切换开关 */
 function toggleWebSearch() {
@@ -918,7 +940,11 @@ onShareTimeline(() => {
 
       <view v-else-if="canUseAgent || hasConversation" class="chat-shell" :class="{ 'chat-shell--readonly': !canUseAgent }">
         <view v-if="!canUseAgent" class="history-readonly" role="status">
-          今日对话次数已用完，历史内容仍保留；次数恢复后可以继续聊。
+          <text>今日对话次数已用完，历史内容仍保留；次数恢复后可以继续聊。</text>
+          <view v-if="!isMember" class="history-readonly__actions">
+            <button class="quota-ad" :disabled="adShowing" @click="watchAdForQuota">{{ adShowing ? '广告加载中…' : '看广告 +1 次对话' }}</button>
+            <button class="quota-ad quota-ad--ghost" @click="openMembership">开通会员不限次</button>
+          </view>
         </view>
         <scroll-view v-if="memoryChips.length" class="memory-strip" scroll-x :show-scrollbar="false" aria-label="锅仔记住的信息，点击可修改">
           <view class="memory-strip__inner">
@@ -1097,6 +1123,9 @@ onShareTimeline(() => {
         <text class="simple-plan__copy">锅仔会按人数、做饭天数和菜数，避开你的忌口，整理出一份基础菜单和买菜清单。</text>
         <text class="simple-plan__gift">去「锅仔形象馆」签到，今天就能和锅仔聊 3 轮。</text>
         <button class="simple-plan__checkin" @click="openGallery">去签到领锅仔对话</button>
+        <view v-if="!isMember" class="simple-plan__ad">
+          <button class="quota-ad" :disabled="adShowing" @click="watchAdForQuota">{{ adShowing ? '广告加载中…' : '看广告 +1 次对话' }}</button>
+        </view>
         <view class="simple-plan__section"><text>几个人吃</text><view><button v-for="value in [1, 2, 3, 4]" :key="value" :class="{ selected: people === value }" @click="people = value">{{ value }} 人</button></view></view>
         <view class="simple-plan__section"><text>每天几道菜</text><view><button v-for="value in [1, 2, 3]" :key="value" :class="{ selected: dishesPerDay === value }" @click="dishesPerDay = value">{{ value }} 道</button></view></view>
         <button class="simple-plan__generate" :disabled="generating" @click="generate">生成本周基础菜单</button>
@@ -1126,6 +1155,13 @@ onShareTimeline(() => {
 .chat-shell { padding-bottom: 12rpx; }
 .chat-shell--readonly .choice-card { opacity: .72; pointer-events: none; }
 .history-readonly { margin: 8rpx 4rpx 16rpx; padding: 16rpx 20rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 18rpx; background: var(--mrc-surface-sun); color: var(--mrc-text-sub); font-size: 21rpx; line-height: 1.45; }
+.history-readonly__actions { display: flex; gap: 14rpx; margin-top: 14rpx; }
+/* 看广告换额度：主按钮与「开通会员」并列，会员永远看不到（v-if="!isMember"） */
+.quota-ad { flex: 1; min-height: 68rpx; border-radius: 18rpx; background: var(--mrc-primary-grad); color: #fff; font-size: 22rpx; font-weight: 800; }
+.quota-ad::after { border: none; }
+.quota-ad[disabled] { opacity: 0.6; color: #fff; }
+.quota-ad--ghost { background: var(--mrc-surface); color: var(--mrc-text-deep); border: 2rpx solid var(--mrc-border-light); }
+.simple-plan__ad { margin-top: 16rpx; }
 .simple-plan { display: flex; flex-direction: column; gap: 18rpx; margin-top: 10rpx; padding: 30rpx 26rpx; border: 2rpx solid var(--mrc-border); border-radius: 30rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); }.simple-plan__tag { align-self: flex-start; padding: 8rpx 14rpx; border-radius: 999rpx; background: var(--mrc-surface-peach); color: var(--mrc-accent); font-size: 19rpx; font-weight: 800; }.simple-plan__title { color: var(--mrc-text-deep); font-size: 30rpx; font-weight: 800; }.simple-plan__copy, .simple-plan__member-copy { color: var(--mrc-text-sub); font-size: 22rpx; line-height: 1.6; }.simple-plan__section { display: flex; flex-direction: column; gap: 12rpx; color: var(--mrc-text-deep); font-size: 23rpx; font-weight: 750; }.simple-plan__section > view { display: flex; gap: 12rpx; }.simple-plan__section button { min-width: 92rpx; min-height: 64rpx; margin: 0; padding: 0 18rpx; border: 2rpx solid var(--mrc-border); border-radius: 18rpx; background: var(--mrc-surface); color: var(--mrc-text-sub); font-size: 21rpx; }.simple-plan__section button::after, .simple-plan__generate::after, .simple-plan__member::after { display: none; }.simple-plan__section button.selected { border-color: var(--mrc-accent); background: var(--mrc-accent-soft); color: var(--mrc-accent); font-weight: 800; }.simple-plan__generate, .simple-plan__member { min-height: 86rpx; margin: 0; border: 0; border-radius: 22rpx; font-size: 24rpx; font-weight: 800; }.simple-plan__generate { background: var(--mrc-primary-grad); color: #fff; }.simple-plan__generate[disabled] { opacity: .55; }.simple-plan__divider { height: 2rpx; background: var(--mrc-border-light); }.simple-plan__member-title { color: var(--mrc-text-deep); font-size: 25rpx; font-weight: 800; }.simple-plan__member { background: var(--mrc-text-deep); color: #fff; }
 .simple-plan__gift { color: var(--mrc-accent); font-size: 21rpx; line-height: 1.5; }
 .simple-plan__checkin { min-height: 74rpx; margin: 0; border: 2rpx solid var(--mrc-accent); border-radius: 20rpx; background: var(--mrc-surface); color: var(--mrc-accent); font-size: 23rpx; font-weight: 800; }

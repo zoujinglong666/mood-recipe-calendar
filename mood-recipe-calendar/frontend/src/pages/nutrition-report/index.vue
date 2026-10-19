@@ -5,6 +5,7 @@ import { STATIC_BASE_URL } from '@/utils/assets'
 import { fetchNutritionReport, type NutritionReport } from '@/api/nutritionReport'
 import { ApiError } from '@/api/request'
 import { toastError } from '@/utils/toast'
+import { navBack } from '@/composables/useNavBar'
 
 definePage({
   name: 'nutrition-report',
@@ -50,7 +51,7 @@ function goMembership() {
 
 <template>
   <view class="nr mrc-hero">
-    <wd-navbar title="本月营养月报" left-arrow safe-area-inset-top custom-style="background-color: transparent !important;" @click-left="router.back" />
+    <wd-navbar title="本月营养月报" left-arrow safe-area-inset-top custom-style="background-color: transparent !important;" @click-left="navBack" />
 
     <view v-if="loading" class="nr-state"><text>锅仔正在写这个月的信…</text></view>
 

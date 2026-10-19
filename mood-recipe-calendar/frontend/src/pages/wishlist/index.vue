@@ -8,6 +8,7 @@ import { useWishlist } from '@/composables/useWishlist'
 import { fetchFavorites, type FavoriteItem } from '@/api/favorites'
 import { toast, toastError } from '@/utils/toast'
 import { navigateToLogin } from '@/utils/login'
+import { navBack } from '@/composables/useNavBar'
 import { useUserStore } from '@/stores/user'
 
 definePage({
@@ -77,7 +78,7 @@ function goLibrary() {
 
 <template>
   <view class="wl mrc-hero">
-    <wd-navbar title="想吃清单" left-arrow safe-area-inset-top custom-style="background-color: transparent !important;" @click-left="router.back" />
+    <wd-navbar title="想吃清单" left-arrow safe-area-inset-top custom-style="background-color: transparent !important;" @click-left="navBack" />
 
     <view class="wl-banner">
       <text class="wl-banner__title">以后想做的菜，都收在这里</text>

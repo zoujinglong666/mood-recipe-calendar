@@ -58,7 +58,8 @@
     },
     "darkmode": true,
     "themeLocation": "theme.json",
-    "__usePrivacyCheck__": true
+    "__usePrivacyCheck__": true,
+    "lazyCodeLoading": "requiredComponents"
   },
   "mp-alipay": {
     "usingComponents": true,

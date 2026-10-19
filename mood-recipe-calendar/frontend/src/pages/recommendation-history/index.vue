@@ -5,6 +5,7 @@ import { ensureLogin } from '@/utils/login'
 import { toastError } from '@/utils/toast'
 import { STATIC_BASE_URL } from '@/utils/assets'
 import { saveCookingDraft } from '@/utils/cookingDraft'
+import { navBack } from '@/composables/useNavBar'
 
 definePage({ name: 'recommendation-history', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '推荐记录' } })
 
@@ -57,7 +58,7 @@ onShow(load)
 
 <template>
   <view class="history-page">
-    <wd-navbar title="推荐记录" left-arrow safe-area-inset-top @click-left="router.back" custom-style="background-color: transparent !important;" />
+    <wd-navbar title="推荐记录" left-arrow safe-area-inset-top @click-left="navBack" custom-style="background-color: transparent !important;" />
     <view v-if="loading" class="state">锅仔正在翻找以前推荐过的菜…</view>
     <view v-else-if="!items.length" class="state state--empty">
       <image :src="`${STATIC_BASE_URL}/static/guozai/action_08_peek.png`" mode="aspectFit" />

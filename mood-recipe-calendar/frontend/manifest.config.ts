@@ -72,6 +72,9 @@ export default defineManifestConfig({
     darkmode: true,
     themeLocation: 'theme.json',
     __usePrivacyCheck__: true,
+    // 启动性能：自定义组件按需注入（仅创建使用到的组件），
+    // 首页冷启动时不必实例化转盘/九宫格/翻牌等一大票未渲染组件
+    lazyCodeLoading: 'requiredComponents',
   },
   'app-harmony': {},
   'mp-harmony': {},

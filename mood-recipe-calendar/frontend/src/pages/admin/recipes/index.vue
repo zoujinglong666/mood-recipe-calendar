@@ -45,7 +45,7 @@ async function loadStats() {
   } catch (e: any) {
     // 非管理员会 403，直接提示后返回
     toastError(e.message || '无权限')
-    setTimeout(() => router.back(), 1500)
+    setTimeout(() => navBack(), 1500)
   }
 }
 

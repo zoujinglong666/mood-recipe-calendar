@@ -1,0 +1,1 @@
+"use strict";let t=0,e=0;exports.navLocked=function(n){if(e>0)return;const o=Date.now();if(o-t<300)return;t=o,e++;let c=!1;const r=()=>{c||(c=!0,e=Math.max(0,e-1))};let i;try{i=n()}catch{return void r()}if(i&&"function"==typeof i.then){const t=setTimeout(r,3e3);i.then((()=>{clearTimeout(t),r()}),(()=>{clearTimeout(t),r()}))}else r()};

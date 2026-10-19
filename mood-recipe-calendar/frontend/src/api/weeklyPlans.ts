@@ -81,6 +81,10 @@ export function fetchWeeklyPlanQuota() {
 export function fetchAgentConversationQuota() {
   return get<UsageQuotaView>('/weekly-plans/agent-quota')
 }
+/** 看激励视频广告换 1 次对话额度。requestId 幂等：网络重放不会双发（服务端按 requestId 去重）。 */
+export function requestAgentQuotaFromAd() {
+  return post<UsageQuotaView>('/weekly-plans/agent-quota/ad-reward', { requestId: requestId('ad') })
+}
 export function fetchCurrentAgentConversation() {
   return get<MealAgentConversationSnapshot | null>('/weekly-plans/agent-conversations/current')
 }

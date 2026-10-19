@@ -100,6 +100,51 @@ public class UsageQuotaService {
         });
     }
 
+    /** 看广告换额度：AD_REWARD 伪行按天计数做每日上限；目标功能必须已耗尽才发。
+     *  发放语义同 release（已用量 -1 = 净增 1 次可用）；limit=0（如未抽中对话券）时
+     *  允许 usedCount 到 -1，即正好多得 1 次。requestId 保证网络重放不重复发放。 */
+    public static final int DAILY_AD_REWARD_LIMIT = 3;
+    private static final String AD_REWARD_FEATURE = "AD_REWARD";
+
+    @Transactional public View adReward(String openid, Feature feature, String requestId) {
+        if (member(openid))
+            throw new IllegalStateException("会员权益已全覆盖，不需要看广告");
+        LocalDate today = AppClock.today();
+        // 广告计数行按天、先行加锁：同一用户的并发发放被串行化，杜绝并发双发
+        UsageQuota adRow = quotas.findForUpdate(openid, AD_REWARD_FEATURE, today)
+                .orElseGet(() -> newQuotaRow(openid, AD_REWARD_FEATURE, today));
+        if (requestId != null && !requestId.isBlank() && requestId.equals(adRow.getLastRequestId()))
+            return view(openid, feature);
+        if (adRow.getUsedCount() >= DAILY_AD_REWARD_LIMIT)
+            throw new IllegalStateException("今天看广告换额度的次数用完了，明天再来");
+        LocalDate start = periodStart(feature, today);
+        int limit = limit(openid, feature, false, today);
+        UsageQuota target = quotas.findForUpdate(openid, feature.name(), start).orElse(null);
+        int used = target == null ? 0 : target.getUsedCount();
+        if (used < limit)
+            throw new IllegalStateException("额度还没用完，先把今天的次数用掉再来看广告");
+        if (target == null) {
+            target = newQuotaRow(openid, feature.name(), start);
+            target.setUsedCount(limit - 1);
+        }
+        else {
+            target.setUsedCount(Math.max(-1, used - 1));
+        }
+        quotas.save(target);
+        adRow.setUsedCount(adRow.getUsedCount() + 1);
+        if (requestId != null && !requestId.isBlank()) adRow.setLastRequestId(requestId.trim());
+        quotas.save(adRow);
+        return view(openid, feature);
+    }
+
+    private UsageQuota newQuotaRow(String openid, String feature, LocalDate start) {
+        UsageQuota q = new UsageQuota();
+        q.setOpenid(openid);
+        q.setFeature(feature);
+        q.setPeriodStart(start);
+        return q;
+    }
+
     private LocalDate periodStart(Feature feature, LocalDate today) {
         return feature == Feature.SIMPLE_WEEKLY_PLAN
             ? today.minusDays(today.getDayOfWeek().getValue() - 1L) : today;

@@ -46,7 +46,7 @@ const form = ref({
 onMounted(async () => {
   if (!id.value || Number.isNaN(id.value)) {
     toastError('缺少菜谱 ID，请从列表进入')
-    setTimeout(() => router.back(), 1200)
+    setTimeout(() => navBack(), 1200)
     return
   }
   try {
@@ -98,7 +98,7 @@ async function onSave() {
   try {
     await adminRecipeUpdate(id.value, { ...form.value })
     toastSuccess('保存成功')
-    setTimeout(() => router.back(), 800)
+    setTimeout(() => navBack(), 800)
   } catch (e: any) {
     toastError(e.message || '保存失败')
   } finally {
@@ -116,7 +116,7 @@ function onDelete() {
       try {
         await adminRecipeDelete(id.value)
         toastSuccess('已删除')
-        setTimeout(() => router.back(), 800)
+        setTimeout(() => navBack(), 800)
       } catch (e: any) {
         toastError(e.message || '删除失败')
       }

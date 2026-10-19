@@ -70,14 +70,18 @@ export function useNavBar() {
   return navMetrics
 }
 
+/** tabBar 页面：栈根页面，从它们身上 navigateBack 会被微信抛「invalid tabbar page」 */
+const TABBAR_ROUTES = ['pages/index/index', 'pages/record/index', 'pages/profile/index']
+
 /**
- * 统一返回：有上级页面则 navigateBack，否则回到首页。
+ * 统一返回：有上级页面且当前页不是 tabBar 页才 navigateBack，否则回首页。
  * 供 wd-navbar 的 @click-left 复用（wd-navbar 仅展示箭头，不自动执行返回）。
  */
 export function navBack(): void {
   try {
     const pages = getCurrentPages()
-    if (pages.length > 1) {
+    const current = pages[pages.length - 1] as { route?: string } | undefined
+    if (pages.length > 1 && current?.route && !TABBAR_ROUTES.includes(current.route)) {
       uni.navigateBack()
       return
     }

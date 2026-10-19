@@ -210,6 +210,7 @@ declare global {
   const markRaw: typeof import('vue')['markRaw']
   const memoryKeyLabel: typeof import('./utils/memoryLabels')['memoryKeyLabel']
   const navBack: typeof import('./composables/useNavBar')['navBack']
+  const navLocked: typeof import('./utils/nav')['navLocked']
   const navigateToLogin: typeof import('./utils/login')['navigateToLogin']
   const nextTick: typeof import('vue')['nextTick']
   const notifyFridgeExpiring: typeof import('./api/fridge')['notifyFridgeExpiring']
@@ -286,6 +287,7 @@ declare global {
   const replaceDailyMealPlanMeal: typeof import('./api/dailyMealPlan')['replaceDailyMealPlanMeal']
   const replacePlanDay: typeof import('./api/weeklyPlans')['replacePlanDay']
   const reportPlanDishOutcome: typeof import('./api/weeklyPlans')['reportPlanDishOutcome']
+  const requestAgentQuotaFromAd: typeof import('./api/weeklyPlans')['requestAgentQuotaFromAd']
   const requestDailyReminderNotice: typeof import('./api/weeklyPlans')['requestDailyReminderNotice']
   const requestDeepRecipe: typeof import('./api/recipes')['requestDeepRecipe']
   const requestWechatVirtualPayment: typeof import('./api/virtualCommerce')['requestWechatVirtualPayment']
@@ -465,6 +467,7 @@ declare global {
   const useRafFn: typeof import('@vueuse/core')['useRafFn']
   const useRefHistory: typeof import('@vueuse/core')['useRefHistory']
   const useResizeObserver: typeof import('@vueuse/core')['useResizeObserver']
+  const useRewardedVideoAd: typeof import('./composables/useRewardedVideoAd')['useRewardedVideoAd']
   const useRoute: typeof import('@wot-ui/router')['useRoute']
   const useRouter: typeof import('@wot-ui/router')['useRouter']
   const useScreenOrientation: typeof import('@vueuse/core')['useScreenOrientation']
@@ -753,6 +756,7 @@ declare module 'vue' {
     readonly markRaw: UnwrapRef<typeof import('vue')['markRaw']>
     readonly memoryKeyLabel: UnwrapRef<typeof import('./utils/memoryLabels')['memoryKeyLabel']>
     readonly navBack: UnwrapRef<typeof import('./composables/useNavBar')['navBack']>
+    readonly navLocked: UnwrapRef<typeof import('./utils/nav')['navLocked']>
     readonly navigateToLogin: UnwrapRef<typeof import('./utils/login')['navigateToLogin']>
     readonly nextTick: UnwrapRef<typeof import('vue')['nextTick']>
     readonly notifyFridgeExpiring: UnwrapRef<typeof import('./api/fridge')['notifyFridgeExpiring']>
@@ -829,6 +833,7 @@ declare module 'vue' {
     readonly replaceDailyMealPlanMeal: UnwrapRef<typeof import('./api/dailyMealPlan')['replaceDailyMealPlanMeal']>
     readonly replacePlanDay: UnwrapRef<typeof import('./api/weeklyPlans')['replacePlanDay']>
     readonly reportPlanDishOutcome: UnwrapRef<typeof import('./api/weeklyPlans')['reportPlanDishOutcome']>
+    readonly requestAgentQuotaFromAd: UnwrapRef<typeof import('./api/weeklyPlans')['requestAgentQuotaFromAd']>
     readonly requestDailyReminderNotice: UnwrapRef<typeof import('./api/weeklyPlans')['requestDailyReminderNotice']>
     readonly requestDeepRecipe: UnwrapRef<typeof import('./api/recipes')['requestDeepRecipe']>
     readonly requestWechatVirtualPayment: UnwrapRef<typeof import('./api/virtualCommerce')['requestWechatVirtualPayment']>
@@ -1008,6 +1013,7 @@ declare module 'vue' {
     readonly useRafFn: UnwrapRef<typeof import('@vueuse/core')['useRafFn']>
     readonly useRefHistory: UnwrapRef<typeof import('@vueuse/core')['useRefHistory']>
     readonly useResizeObserver: UnwrapRef<typeof import('@vueuse/core')['useResizeObserver']>
+    readonly useRewardedVideoAd: UnwrapRef<typeof import('./composables/useRewardedVideoAd')['useRewardedVideoAd']>
     readonly useRoute: UnwrapRef<typeof import('@wot-ui/router')['useRoute']>
     readonly useRouter: UnwrapRef<typeof import('@wot-ui/router')['useRouter']>
     readonly useScreenOrientation: UnwrapRef<typeof import('@vueuse/core')['useScreenOrientation']>

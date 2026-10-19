@@ -4,6 +4,7 @@ import { onShareAppMessage, onShareTimeline, onShow } from '@dcloudio/uni-app'
 import { STATIC_BASE_URL } from '@/utils/assets'
 import { fetchThemeAlbums, type ThemeAlbumItem } from '@/api/themeAlbums'
 import { toastError } from '@/utils/toast'
+import { navBack } from '@/composables/useNavBar'
 
 definePage({
   name: 'theme-albums',
@@ -39,7 +40,7 @@ onShareTimeline(() => ({ title: '锅仔主题专辑 · 一整套认真搭配的�
 
 <template>
   <view class="ta mrc-hero">
-    <wd-navbar title="主题专辑" left-arrow safe-area-inset-top custom-style="background-color: transparent !important;" @click-left="router.back" />
+    <wd-navbar title="主题专辑" left-arrow safe-area-inset-top custom-style="background-color: transparent !important;" @click-left="navBack" />
 
     <view class="ta-banner">
       <text class="ta-banner__title">照着做，就行</text>

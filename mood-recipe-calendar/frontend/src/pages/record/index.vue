@@ -12,6 +12,7 @@ import SuccessModal from '../../components/guozai/SuccessModal.vue'
 import { chooseImageFiles } from '../../utils/chooseImage'
 import { createRequestId, RECORD_DRAFT_KEY } from '../../utils/cookingDraft'
 import { ensureLogin } from '../../utils/login'
+import { navBack } from '@/composables/useNavBar'
 import { toast, toastError, toastSuccess } from '../../utils/toast'
 import { haptic } from '@/utils/haptic'
 import { bus, MRC_EVENTS } from '@/utils/bus'
@@ -239,7 +240,8 @@ async function loadForEdit(id: number) {
   }
   catch (e: any) {
     toastError(e, '记录加载失败')
-    router.back()
+    // 本页是 tabBar 页：navigateBack 会抛「invalid tabbar page」，必须走带栈检查的 navBack
+    navBack()
   }
 }
 

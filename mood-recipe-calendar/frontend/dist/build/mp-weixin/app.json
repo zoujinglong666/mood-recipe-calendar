@@ -1,8 +1,6 @@
 {
   "pages": [
     "pages/index/index",
-    "pages/recipe-library/index",
-    "pages/personality/index",
     "pages/calendar/index",
     "pages/cooking/index",
     "pages/daily-meal-plan/index",
@@ -11,9 +9,11 @@
     "pages/meal-agent/index",
     "pages/membership/index",
     "pages/mood/index",
+    "pages/personality/index",
     "pages/preferences/index",
     "pages/profile/index",
     "pages/recipe/index",
+    "pages/recipe-library/index",
     "pages/recommendation-history/index",
     "pages/record/detail",
     "pages/record/edit",
@@ -121,6 +121,7 @@
   "themeLocation": "theme.json",
   "darkmode": true,
   "__usePrivacyCheck__": true,
+  "lazyCodeLoading": "requiredComponents",
   "usingComponents": {
     "layout-default-uni": "/layouts/default",
     "layout-tabbar-uni": "/layouts/tabbar"

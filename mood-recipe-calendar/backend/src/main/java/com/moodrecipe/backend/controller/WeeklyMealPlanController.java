@@ -37,6 +37,20 @@ public class WeeklyMealPlanController {
     @GetMapping("/{id}") public ApiResponse<?> get(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @PathVariable Long id) { return plans.get(openid, id).map(ApiResponse::ok).orElseGet(() -> ApiResponse.error(404, "计划不存在")); }
     @GetMapping("/quota") public ApiResponse<UsageQuotaService.View> quota(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) { return ApiResponse.ok(quotas.view(openid, UsageQuotaService.Feature.SIMPLE_WEEKLY_PLAN)); }
     @GetMapping("/agent-quota") public ApiResponse<UsageQuotaService.View> agentQuota(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) { return ApiResponse.ok(quotas.view(openid, UsageQuotaService.Feature.AGENT_CONVERSATION)); }
+    /** 看激励视频广告换 1 次对话额度：服务端发奖（防伪造）+ 每日上限 + requestId 幂等。
+     *  会员走不到这里（前端不展示，服务端也会拒）。429=今日广告额度/未耗尽等原因，文案已可读。 */
+    @PostMapping("/agent-quota/ad-reward") public ApiResponse<UsageQuotaService.View> agentQuotaFromAd(
+            @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
+            @RequestBody AdRewardRequest request) {
+        try {
+            return ApiResponse.ok(quotas.adReward(openid, UsageQuotaService.Feature.AGENT_CONVERSATION,
+                    request == null ? null : request.requestId()));
+        } catch (IllegalStateException e) {
+            log.info("[ad-reward] openid={} 拒绝发奖: {}", openid, e.getMessage());
+            return ApiResponse.error(429, e.getMessage());
+        }
+    }
+    public record AdRewardRequest(String requestId) {}
     @GetMapping("/agent-conversations/current") public ApiResponse<?> currentAgentConversation(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
         return ApiResponse.ok(conversations.latest(openid).orElse(null));
     }

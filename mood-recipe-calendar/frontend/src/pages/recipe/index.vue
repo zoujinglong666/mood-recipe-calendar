@@ -40,6 +40,14 @@ function normalizeMood(raw: unknown): string {
     return raw
   }
 }
+/** 没显式带餐别时（心情页 / 直接进推荐页 / 无餐别分享链接），按当前时段兜底，
+ *  让《膳食指南》依据始终有餐别上下文：5–10 点早餐、10–15 点午餐、其余晚餐。 */
+function inferMealType(): string {
+  const h = new Date().getHours()
+  if (h >= 5 && h < 10) return 'BREAKFAST'
+  if (h >= 10 && h < 15) return 'LUNCH'
+  return 'DINNER'
+}
 const linkedRecipeId = ref(0)
 const HEALING_TEXTS: Record<string, string> = {
   开心: '你今天的好心情，适合配一口热乎又满足的。',
@@ -274,7 +282,7 @@ async function loadRecipe() {
 
 onLoad((query) => {
   mood.value = normalizeMood(query?.mood)
-  mealType.value = (query?.mealType as string) || ''
+  mealType.value = (query?.mealType as string) || inferMealType()
   linkedRecipeId.value = Number(query?.recipeId) || 0
   void loadRecipe()
 })
@@ -294,7 +302,17 @@ onUnload(stopPolling)
 
 onShareAppMessage(() => {
   const sharer = userStore.openid
-  const path = `/pages/recipe/index?mood=${encodeURIComponent(mood.value)}${mealType.value ? `&mealType=${encodeURIComponent(mealType.value)}` : ''}${sharer ? `&sharer=${encodeURIComponent(sharer)}` : ''}`
+  // 落首页而非本页：好友先看到「好友菜卡」（真实菜图 + 看看这道菜 CTA）再领邀请奖励，
+  // 比直接落到一道陌生推荐页更容易完成首次价值交付（分享回流 D2 留存的修复点）。
+  // recipeId 是菜卡的数据源，dish 名做即时兜底文案。
+  const dish = recipe.value?.name || ''
+  const recipeId = recipe.value?.id
+  const params = [
+    sharer ? `sharer=${encodeURIComponent(sharer)}` : '',
+    dish ? `dish=${encodeURIComponent(dish)}` : '',
+    recipeId ? `recipeId=${recipeId}` : '',
+  ].filter(Boolean).join('&')
+  const path = `/pages/index/index${params ? `?${params}` : ''}`
   // 记录分享：发放「分享家」徽章 + 非会员当日 +1 次对话激励（失败静默，不影响转发）
   void recordShare('recipe').catch(() => {})
   return {
@@ -306,7 +324,11 @@ onShareAppMessage(() => {
 
 onShareTimeline(() => ({
   title: recipe.value ? `今天吃${recipe.value.name}，锅仔说很适合${mood.value}的我` : '让锅仔按心情推荐今天吃什么',
-  query: `mood=${encodeURIComponent(mood.value)}`,
+  // 朋友圈落地同样带菜：无 sharer 也有好友菜卡（只少邀请奖励）
+  query: [
+    recipe.value?.name ? `dish=${encodeURIComponent(recipe.value.name)}` : '',
+    recipe.value?.id ? `recipeId=${recipe.value.id}` : '',
+  ].filter(Boolean).join('&'),
 }))
 
 function clearPollTimer() {

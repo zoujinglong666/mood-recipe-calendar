@@ -163,7 +163,7 @@ async function remove() {
     await ensureLogin()
     await deleteRecord(record.value.id)
     toastSuccess('记录已删除')
-    router.back()
+    navBack()
   }
   catch (e: any) { toastError(e, '删除失败') }
 }
@@ -187,7 +187,7 @@ async function load() {
   const id = recordId.value
   if (!id) {
     toastError(new Error('记录不存在'), '打不开这条记录')
-    router.back()
+    navBack()
     return
   }
   loading.value = true

@@ -18,6 +18,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import org.mockito.ArgumentCaptor;
 
 class UsageQuotaServiceTest {
     private final UsageQuotaRepository quotas = mock(UsageQuotaRepository.class);
@@ -158,5 +159,116 @@ class UsageQuotaServiceTest {
         UsageQuota quota = new UsageQuota();
         quota.setUsedCount(used);
         return quota;
+    }
+
+    // ---------- 看广告换额度（adReward） ----------
+
+    /** 已耗尽的用户看 1 次广告：目标功能已用量 -1（净增 1 次可用），广告计数 +1。 */
+    @Test
+    void adRewardGrantsOneExtraUseWhenExhausted() {
+        UsageQuota adRow = quota(0);
+        UsageQuota target = quota(3); // HOME_RECOMMEND 免费 3 次已用尽
+        when(quotas.findForUpdate(anyString(), anyString(), any()))
+                .thenReturn(Optional.of(adRow), Optional.of(target));
+        when(quotas.findByOpenidAndFeatureAndPeriodStart(anyString(), anyString(), any()))
+                .thenReturn(Optional.of(target));
+
+        UsageQuotaService.View view = service.adReward("user-1", UsageQuotaService.Feature.HOME_RECOMMEND, "ad-req-1");
+
+        assertEquals(3, view.limit());
+        assertEquals(1, view.remaining());
+        assertEquals(2, target.getUsedCount());
+        assertEquals(1, adRow.getUsedCount());
+        assertEquals("ad-req-1", adRow.getLastRequestId());
+    }
+
+    @Test
+    void adRewardRejectedWhenQuotaRemains() {
+        UsageQuota adRow = quota(0);
+        UsageQuota target = quota(1); // 还有 2 次，不该让用户「存」额度
+        when(quotas.findForUpdate(anyString(), anyString(), any()))
+                .thenReturn(Optional.of(adRow), Optional.of(target));
+
+        assertThrows(IllegalStateException.class,
+                () -> service.adReward("user-1", UsageQuotaService.Feature.HOME_RECOMMEND, "ad-req-x"));
+    }
+
+    @Test
+    void adRewardRejectedAfterDailyAdCap() {
+        UsageQuota adRow = quota(UsageQuotaService.DAILY_AD_REWARD_LIMIT);
+        UsageQuota target = quota(3);
+        when(quotas.findForUpdate(anyString(), anyString(), any()))
+                .thenReturn(Optional.of(adRow), Optional.of(target));
+
+        assertThrows(IllegalStateException.class,
+                () -> service.adReward("user-1", UsageQuotaService.Feature.HOME_RECOMMEND, "ad-req-y"));
+    }
+
+    /** 网络重放（同一 requestId）：不重复计数、不重复发放。 */
+    @Test
+    void adRewardReplayDoesNotGrantTwice() {
+        UsageQuota adRow = quota(1);
+        adRow.setLastRequestId("ad-req-1");
+        UsageQuota target = quota(2); // 上次已从 3 发到 2
+        when(quotas.findForUpdate(anyString(), anyString(), any()))
+                .thenReturn(Optional.of(adRow), Optional.of(target));
+        when(quotas.findByOpenidAndFeatureAndPeriodStart(anyString(), anyString(), any()))
+                .thenReturn(Optional.of(target));
+
+        UsageQuotaService.View view = service.adReward("user-1", UsageQuotaService.Feature.HOME_RECOMMEND, "ad-req-1");
+
+        assertEquals(2, target.getUsedCount());
+        assertEquals(1, adRow.getUsedCount());
+        assertEquals(1, view.remaining());
+    }
+
+    @Test
+    void adRewardRejectedForMember() {
+        User member = new User();
+        member.setIsMember(1);
+        member.setMemberExpire(LocalDateTime.now().plusDays(1));
+        when(users.findByOpenid("member-1")).thenReturn(Optional.of(member));
+
+        assertThrows(IllegalStateException.class,
+                () -> service.adReward("member-1", UsageQuotaService.Feature.HOME_RECOMMEND, "ad-req-z"));
+    }
+
+    /** 未抽中对话券（limit=0）同样算耗尽：看广告后正好多得 1 次，usedCount 到 -1。 */
+    @Test
+    void adRewardGrantsConversationWhenNoTicketDrawn() {
+        UsageQuotaService agentService = new UsageQuotaService(quotas, users, checkins);
+        when(checkins.findByOpenidAndCheckinDate(anyString(), anyString())).thenReturn(Optional.empty());
+        UsageQuota adRow = quota(0);
+        UsageQuota target = quota(0);
+        when(quotas.findForUpdate(anyString(), anyString(), any()))
+                .thenReturn(Optional.of(adRow), Optional.of(target));
+        when(quotas.findByOpenidAndFeatureAndPeriodStart(anyString(), anyString(), any()))
+                .thenReturn(Optional.of(target));
+
+        UsageQuotaService.View view = agentService.adReward("user-1", UsageQuotaService.Feature.AGENT_CONVERSATION, "ad-req-c");
+
+        assertEquals(0, view.limit());
+        assertEquals(1, view.remaining());
+        assertEquals(-1, target.getUsedCount());
+    }
+
+    /** 目标行不存在（从未消耗过）且 limit=0：发放时新建行，usedCount = limit - 1。 */
+    @Test
+    void adRewardCreatesRowWhenNoneExists() {
+        UsageQuotaService agentService = new UsageQuotaService(quotas, users, checkins);
+        when(checkins.findByOpenidAndCheckinDate(anyString(), anyString())).thenReturn(Optional.empty());
+        UsageQuota adRow = quota(0);
+        when(quotas.findForUpdate(anyString(), anyString(), any()))
+                .thenReturn(Optional.of(adRow), Optional.empty());
+        ArgumentCaptor<UsageQuota> captor = ArgumentCaptor.forClass(UsageQuota.class);
+        when(quotas.save(captor.capture())).thenAnswer(inv -> inv.getArgument(0));
+
+        agentService.adReward("user-1", UsageQuotaService.Feature.AGENT_CONVERSATION, "ad-req-n");
+
+        UsageQuota created = captor.getAllValues().stream()
+                .filter(q -> "AGENT_CONVERSATION".equals(q.getFeature()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals(-1, created.getUsedCount());
     }
 }

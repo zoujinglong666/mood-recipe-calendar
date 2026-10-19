@@ -31,6 +31,9 @@ console.log('[patch-mp-weixin] 已注入 __usePrivacyCheck__，并清理 require
 // ---------- 关闭「过滤无依赖文件」 ----------
 // 原因：依赖分析会误杀只被单个页面引用、以懒加载字符串形式 require 的组件
 // （如 wd-pagination 被过滤后运行时报「无法被其他模块引用」）。
+// 同时注入 lazyCodeLoading（按需注入）：uni-app 不透传该字段到 project.config.json，
+// 而微信只认这里的配置；开启后未渲染的自定义组件不再创建实例，
+// 首页冷启动少实例化转盘/九宫格/翻牌等一大票组件（manifest.config.ts 里同步声明作源记录）。
 const projCfgPath = path.resolve(__dirname, '../dist/build/mp-weixin/project.config.json')
 if (fs.existsSync(projCfgPath)) {
   const projCfg = JSON.parse(fs.readFileSync(projCfgPath, 'utf-8'))
@@ -39,8 +42,9 @@ if (fs.existsSync(projCfgPath)) {
     ignoreDevUnusedFiles: false,
     ignoreUploadUnusedFiles: false,
   }
+  projCfg.lazyCodeLoading = 'requiredComponents'
   fs.writeFileSync(projCfgPath, JSON.stringify(projCfg, null, 2) + '\n', 'utf-8')
-  console.log('[patch-mp-weixin] 已关闭 ignoreDevUnusedFiles / ignoreUploadUnusedFiles（防依赖分析误杀组件）')
+  console.log('[patch-mp-weixin] 已注入 lazyCodeLoading=requiredComponents，并关闭 ignoreDevUnusedFiles / ignoreUploadUnusedFiles（防依赖分析误杀组件）')
 }
 else {
   console.error('[patch-mp-weixin] project.config.json 不存在，跳过过滤开关注入:', projCfgPath)
