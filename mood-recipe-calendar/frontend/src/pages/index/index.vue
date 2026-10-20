@@ -647,8 +647,10 @@ function goCookToday() {
   router.push({ name: 'cooking' })
 }
 
-/** 分享回流承接：好友通过分享卡打开 → 双方各 +1 次对话额度；带上好友分享的那道菜名做欢迎 */
+/** 分享回流承接：好友通过分享卡打开 → 双方各 +1 次对话额度；带上好友分享的那道菜名和封面图做欢迎 */
 const friendDish = ref('')
+const friendDishImage = ref('')
+const friendDishImgFailed = ref(false)
 const inviteBonus = ref(false)
 const isShowShareCurtain = ref(false)
 /**
@@ -674,9 +676,15 @@ function decodeQueryParam(value: string) {
 onLoad((query) => {
   const sharer = decodeQueryParam(String(query?.sharer || ''))
   const dish = decodeQueryParam(String(query?.dish || ''))
+  const img = decodeQueryParam(String(query?.img || ''))
   if (dish) {
     friendDish.value = dish
     isShowShareCurtain.value = true
+  }
+  // 只接受 http(s) 全链或站内绝对路径，防注入；非法值忽略，弹窗回落锅仔插画
+  if (/^(https?:\/\/|\/)/.test(img)) {
+    friendDishImage.value = img
+    friendDishImgFailed.value = false
   }
   if (!sharer || sharer === userStore.openid)
     return
@@ -721,25 +729,35 @@ onPullDownRefresh(() => {
 /** 转发给好友/群：必须定义 onShareAppMessage 胶囊「···」里的转发才可用 */
 onShareAppMessage(() => {
   const sharer = userStore.openid
-  // 分享卡带菜：好友点开直接看到这道菜 + 你的邀请，回流后双方各得 1 次对话额度
+  // 分享卡带菜带图：好友点开直接看到这道菜和它的封面，回流后双方各得 1 次对话额度
   const dish = todayBoard.value?.recipe?.name || ''
+  const dishImage = todayBoard.value?.recipe?.image || ''
   const params = [
     sharer ? `sharer=${encodeURIComponent(sharer)}` : '',
     dish ? `dish=${encodeURIComponent(dish)}` : '',
+    dishImage ? `img=${encodeURIComponent(dishImage)}` : '',
   ].filter(Boolean).join('&')
   const path = `/pages/index/index${params ? `?${params}` : ''}`
   const title = dish ? `我用锅仔安排了「${dish}」，也替你留了一份` : '锅仔 · 按心情帮你决定今天吃什么'
   // 记录分享：发放「分享家」徽章 + 非会员当日 +1 次对话激励（失败静默，不影响转发）
   void recordShare('home').catch(() => {})
-  return { title, path }
+  // 分享卡封面用菜图（无图时省略，微信默认截屏首页）
+  return dishImage ? { title, path, imageUrl: dishImage } : { title, path }
 })
 /** 分享到朋友圈：必须定义 onShareTimeline 才可用 */
 onShareTimeline(() => {
   const sharer = userStore.openid
-  return {
-    title: '锅仔 · 按心情帮你决定今天吃什么',
-    query: sharer ? `sharer=${encodeURIComponent(sharer)}` : '',
-  }
+  const dishImage = todayBoard.value?.recipe?.image || ''
+  const query = [
+    sharer ? `sharer=${encodeURIComponent(sharer)}` : '',
+    dishImage ? `img=${encodeURIComponent(dishImage)}` : '',
+  ].filter(Boolean).join('&')
+  // 朋友圈卡封面用菜图（无图时省略，微信默认用小程序截图）
+  const payload: { title: string, query: string, imageUrl?: string }
+    = { title: '锅仔 · 按心情帮你决定今天吃什么', query }
+  if (dishImage)
+    payload.imageUrl = dishImage
+  return payload
 })
 const MOODS = ['开心', '平静', '疲惫', '焦虑', '难过', '嘴馋', '低落', '想家', '期待', '满足', '得意', '害羞']
 /** 「让锅仔替你决定」点击展开餐别选择器：选一顿后带上餐别去推荐页，让推荐有《膳食指南》可依 */
@@ -815,7 +833,12 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
             <text v-else>好友用锅仔给你留了一份菜</text>
           </view>
           <view class="share-curtain__body">
-            <image class="share-curtain__emoji" :src="STATIC_BASE_URL + '/static/guozai/action_01_bowl.png'" mode="aspectFit" />
+            <image
+              class="share-curtain__emoji"
+              :src="friendDishImage && !friendDishImgFailed ? friendDishImage : STATIC_BASE_URL + '/static/guozai/action_01_bowl.png'"
+              mode="aspectFill"
+              @error="friendDishImgFailed = true"
+            />
             <view class="share-curtain__info">
               <text class="share-curtain__label">{{ friendDish ? '好友用锅仔安排了' : '好友分享的福利' }}</text>
               <text v-if="friendDish" class="share-curtain__dish">「{{ friendDish }}」</text>
@@ -1104,7 +1127,7 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
   box-shadow: 0 10rpx 24rpx rgba(58, 46, 40, .25);
 }
 .share-curtain__body { display: flex; align-items: center; gap: 22rpx; padding: 12rpx 6rpx 30rpx; text-align: left; }
-.share-curtain__emoji { flex: 0 0 auto; width: 96rpx; height: 96rpx; }
+.share-curtain__emoji { flex: 0 0 auto; width: 120rpx; height: 120rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 24rpx; background: var(--mrc-surface); }
 .share-curtain__info { display: flex; flex-direction: column; gap: 8rpx; min-width: 0; }
 .share-curtain__label { color: var(--mrc-text-sub); font-size: 23rpx; }
 .share-curtain__dish { color: var(--mrc-text-deep); font-size: 30rpx; font-weight: 800; line-height: 1.35; word-break: break-all; }
