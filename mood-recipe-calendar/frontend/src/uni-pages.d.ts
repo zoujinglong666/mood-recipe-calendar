@@ -26,6 +26,7 @@ type _LocationUrl =
   "/pages/weekly-plan/detail" |
   "/pages/weekly-plan/index" |
   "/pages/wishlist/index" |
+  "/pages/admin/feedback/index" |
   "/pages/admin/recipes/edit" |
   "/pages/admin/recipes/index" |
   "/pages/gallery/index" |

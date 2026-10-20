@@ -24,6 +24,10 @@ public interface VirtualOrderRepository extends JpaRepository<VirtualOrder, Long
     List<VirtualOrder> findTop100ByStatusAndCreatedAtBetweenOrderByCreatedAtAsc(
             String status, LocalDateTime after, LocalDateTime before);
 
+    /** 超时未支付订单扫描：某时间点之前仍处于指定状态的订单（不加 Top 限制，死订单可能很多）。 */
+    List<VirtualOrder> findByStatusAndCreatedAtBeforeOrderByCreatedAtAsc(
+            String status, LocalDateTime before);
+
     List<VirtualOrder> findTop100ByStatusAndWxNotifiedFalseAndNotifyAttemptsLessThanAndCreatedAtBetweenOrderByCreatedAtAsc(
             String status, int maxAttempts, LocalDateTime after, LocalDateTime before);
 }

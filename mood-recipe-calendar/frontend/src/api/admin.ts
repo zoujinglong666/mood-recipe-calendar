@@ -43,6 +43,36 @@ export function adminCheck() {
   return get<{ admin: boolean }>('/admin/recipes/check')
 }
 
+// ---------- 用户反馈中心（仅管理员） ----------
+
+export interface AdminFeedback {
+  id: number
+  openid: string
+  category: string
+  content: string
+  contact: string | null
+  status: string
+  createdAt: string
+}
+
+export interface AdminFeedbackList {
+  list: AdminFeedback[]
+  total: number
+  page: number
+  size: number
+  counts: Record<string, number>
+}
+
+/** 反馈中心列表：status 为空=全部；counts 含 ALL/OPEN/PROCESSING/RESOLVED/CLOSED 各状态条数 */
+export function adminFeedbackList(params: { status?: string, page?: number, size?: number } = {}) {
+  return get<AdminFeedbackList>('/admin/feedback', params)
+}
+
+/** 状态流转：OPEN / PROCESSING / RESOLVED / CLOSED */
+export function adminFeedbackSetStatus(id: number, status: string) {
+  return put<AdminFeedback>(`/admin/feedback/${id}/status`, { status })
+}
+
 export function adminRecipeList(params: {
   page?: number
   size?: number

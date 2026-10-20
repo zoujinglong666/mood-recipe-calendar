@@ -53,6 +53,7 @@ const themeChoice = computed<ThemeChoice>(() => followSystem.value ? 'system' : 
 
 /** 检查更新（逻辑在 utils/update，微信原生分发，零维护） */
 function goAdminRecipes() { router.push({ name: 'admin-recipes' }) }
+function goAdminFeedback() { router.push({ name: 'admin-feedback' }) }
 function checkForUpdate() {
   manualCheckUpdate()
 }
@@ -429,6 +430,14 @@ function askDeleteAccount() {
             <view class="about-row__text">
               <text class="about-row__name">菜谱管理中心</text>
               <text class="about-row__desc">审核/编辑/删除菜谱，替换占位假图</text>
+            </view>
+            <text class="about-row__arrow">›</text>
+          </view>
+          <view class="about-row about-check pressable" role="button" aria-label="用户反馈中心" @click="goAdminFeedback">
+            <Icon name="book" :size="30" color="#EF5A3C" />
+            <view class="about-row__text">
+              <text class="about-row__name">用户反馈中心</text>
+              <text class="about-row__desc">查看/处理用户反馈，流转处理状态</text>
             </view>
             <text class="about-row__arrow">›</text>
           </view>

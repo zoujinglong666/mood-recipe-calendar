@@ -67,6 +67,10 @@ public class WechatVirtualPaymentService {
     @Value("${wechat.virtual-payment.notify-deliver-enabled:true}")
     private boolean notifyDeliverEnabled;
 
+    /** 超时未支付订单的本地关闭阈值（小时）。微信侧无关单 API，这只是本地终态化。 */
+    @Value("${wechat.virtual-payment.order-timeout-hours:24}")
+    private int orderTimeoutHours;
+
     public WechatVirtualPaymentService(
             VirtualOrderRepository orderRepository,
             VirtualProductRepository productRepository,
@@ -203,6 +207,74 @@ public class WechatVirtualPaymentService {
         if (failures > 0) {
             operationalEvents.record("VIRTUAL_PAYMENT_RECONCILE_FAILED", "WARN", null, null,
                     failures + " virtual payment orders failed to reconcile");
+        }
+    }
+
+    /**
+     * 关单判定（纯函数，便于测试）：
+     * - paid=true：绝不可关（调用方应走补发货）；
+     * - paid=false：微信侧确认未支付，可关；
+     * - paid=null：查单失败——多为用户从未拉起支付、微信侧根本没有此单。
+     *   只有超过 7 天（微信侧自然过期视野，也是对账窗口的同款口径）才允许无确认关闭，
+     *   7 天内宁可留着下轮再查，避免把「查单网络抖动但已付款」的订单误关。
+     */
+    static boolean shouldCancelTimedOutOrder(LocalDateTime createdAt, LocalDateTime now, Boolean paid) {
+        if (Boolean.TRUE.equals(paid)) return false;
+        if (Boolean.FALSE.equals(paid)) return true;
+        return createdAt.isBefore(now.minusDays(7));
+    }
+
+    /**
+     * 超时未支付订单的「关闭」。
+     *
+     * 注意：微信虚拟支付没有关单接口（xpay 无 close_order，未付单由微信侧自然过期），
+     * 所以这里做的是**本地订单终态化**：PENDING → CANCELLED。
+     * 不做的代价不只是脏数据：死订单会长期占着对账任务 100 条的 PENDING 查询窗口，
+     * 把真正要补发货的已付订单挤出窗口（findTop100...）。
+     *
+     * 关单前最后一道保险：先查单，已支付的补发货（fulfillAndNotify）而不是关闭。
+     */
+    @Scheduled(
+            fixedDelayString = "${wechat.virtual-payment.cancel-scan-delay-ms:600000}",
+            initialDelayString = "${wechat.virtual-payment.cancel-scan-initial-delay-ms:120000}")
+    public void cancelTimedOutOrders() {
+        if (!serverApiConfigured()) return;
+        LocalDateTime now = AppClock.now();
+        LocalDateTime cutoff = now.minusHours(orderTimeoutHours);
+        int cancelled = 0;
+        int fulfilled = 0;
+        for (VirtualOrder order : orderRepository.findByStatusAndCreatedAtBeforeOrderByCreatedAtAsc("PENDING", cutoff)) {
+            try {
+                Boolean paid = null;
+                try {
+                    QueryOrderResult result = queryOrder(order);
+                    if (result.paid()) {
+                        fulfillAndNotify(order.getOpenid(), order.getOrderNo(), result.platformOrderNo());
+                        fulfilled++;
+                        continue;
+                    }
+                    paid = false;
+                }
+                catch (Exception queryError) {
+                    // 查不到通常是微信侧无此单（从未拉起支付）；是否可关由 shouldCancelTimedOutOrder 按单龄决定
+                    log.info("[virtual-pay] 超时订单查单失败，按无单处理 orderNo={}: {}",
+                            order.getOrderNo(), queryError.toString());
+                }
+                if (!shouldCancelTimedOutOrder(order.getCreatedAt(), now, paid))
+                    continue;
+                order.setStatus("CANCELLED");
+                orderRepository.save(order);
+                cancelled++;
+                log.info("[virtual-pay] 超时未支付订单已关闭 orderNo={}, createdAt={}",
+                        order.getOrderNo(), order.getCreatedAt());
+            }
+            catch (Exception exception) {
+                log.warn("关闭超时订单失败 orderNo={}: {}", order.getOrderNo(), exception.toString());
+            }
+        }
+        if (cancelled > 0 || fulfilled > 0) {
+            operationalEvents.record("VIRTUAL_PAYMENT_ORDER_CANCELLED", "INFO", null, null,
+                    cancelled + " timed-out unpaid orders cancelled, " + fulfilled + " paid orders fulfilled instead");
         }
     }
 

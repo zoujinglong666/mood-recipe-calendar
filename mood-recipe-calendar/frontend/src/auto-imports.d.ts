@@ -26,6 +26,8 @@ declare global {
   const acceptShareInvite: typeof import('./api/share')['acceptShareInvite']
   const addFavorite: typeof import('./api/favorites')['addFavorite']
   const adminCheck: typeof import('./api/admin')['adminCheck']
+  const adminFeedbackList: typeof import('./api/admin')['adminFeedbackList']
+  const adminFeedbackSetStatus: typeof import('./api/admin')['adminFeedbackSetStatus']
   const adminGetGenerationConfig: typeof import('./api/admin')['adminGetGenerationConfig']
   const adminRecipeBatchImage: typeof import('./api/admin')['adminRecipeBatchImage']
   const adminRecipeBatchSetImage: typeof import('./api/admin')['adminRecipeBatchSetImage']
@@ -573,6 +575,8 @@ declare module 'vue' {
     readonly acceptShareInvite: UnwrapRef<typeof import('./api/share')['acceptShareInvite']>
     readonly addFavorite: UnwrapRef<typeof import('./api/favorites')['addFavorite']>
     readonly adminCheck: UnwrapRef<typeof import('./api/admin')['adminCheck']>
+    readonly adminFeedbackList: UnwrapRef<typeof import('./api/admin')['adminFeedbackList']>
+    readonly adminFeedbackSetStatus: UnwrapRef<typeof import('./api/admin')['adminFeedbackSetStatus']>
     readonly adminGetGenerationConfig: UnwrapRef<typeof import('./api/admin')['adminGetGenerationConfig']>
     readonly adminRecipeBatchImage: UnwrapRef<typeof import('./api/admin')['adminRecipeBatchImage']>
     readonly adminRecipeBatchSetImage: UnwrapRef<typeof import('./api/admin')['adminRecipeBatchSetImage']>
