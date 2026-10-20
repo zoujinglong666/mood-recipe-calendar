@@ -8,6 +8,7 @@ import com.moodrecipe.backend.service.embedding.EmbeddingClient;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -69,6 +70,8 @@ public class GuidelineRagService {
     }
 
     /** 返回 top-k 命中，按相似度降序；每条含改写后的要点与来源。 */
+    // [2026-10-20] 向量检索带嵌入计算，同 query 在 60s 内重复出现（如同一用户连开今日卡）直接命中缓存，省一次嵌入+余弦。
+    @Cacheable(cacheNames = "guidelineSearch", key = "#query + '|' + #k")
     public List<Map<String, Object>> search(String query, int k) {
         if (!isReady() || query == null || query.isBlank()) return List.of();
         float[] q = embedding.embed(query);

@@ -479,7 +479,7 @@ async function waitForDelivery(orderNo: string) {
           <text class="member-footer__hint">随时续费，时长自动顺延</text>
         </view>
         <view class="member-footer__notice" role="button" aria-label="开启到账提醒" @click="enableRenewalNotice">
-          🔔 到账提醒
+           到账提醒
         </view>
       </view>
       <view class="member-footer__plans">

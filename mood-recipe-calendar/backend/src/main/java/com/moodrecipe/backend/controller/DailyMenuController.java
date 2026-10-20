@@ -44,7 +44,7 @@ public class DailyMenuController {
 
     /** 今日卡封面懒生成：今日菜没有真实图时补拍专属封面并回写菜谱表。 */
     @PostMapping("/cover")
-    public ApiResponse<DailyMenuService.Board> cover(
+    public ApiResponse<?> cover(
             @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
         // 生图是链路里最贵的大模型调用：每日配额兜底（hasRealImage 幂等防重复，这里防批量代付）
         try {
@@ -52,11 +52,18 @@ public class DailyMenuController {
         } catch (IllegalStateException e) {
             return ApiResponse.error(429, e.getMessage());
         }
-        var result = dailyMenuService.ensureCover(openid);
-        // 无需补图（404 路径）不消耗额度
-        if (result.isEmpty()) quotas.release(openid, UsageQuotaService.Feature.COVER_GENERATE);
-        return result
-                .map(ApiResponse::ok)
-                .orElseGet(() -> ApiResponse.error(404, "这道菜暂时不需要补图"));
+        try {
+            var result = dailyMenuService.ensureCover(openid);
+            // 无需补图（404 路径）不消耗额度
+            if (result.isEmpty()) quotas.release(openid, UsageQuotaService.Feature.COVER_GENERATE);
+            return result
+                    .map(ApiResponse::ok)
+                    .orElseGet(() -> ApiResponse.error(404, "这道菜暂时不需要补图"));
+        } catch (RuntimeException e) {
+            // 生图链路（图片生成 / COS 转存）异常：归还配额并以友好文案兜底，
+            // 避免冒泡到全局异常处理器被误报成「请求参数不合法」或触发无意义 500 告警。
+            quotas.release(openid, UsageQuotaService.Feature.COVER_GENERATE);
+            return ApiResponse.error(500, "封面生成失败，可稍后重试");
+        }
     }
 }

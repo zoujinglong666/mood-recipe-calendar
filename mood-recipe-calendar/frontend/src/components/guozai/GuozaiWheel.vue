@@ -248,7 +248,7 @@ defineExpose({ land, fail })
       <view v-if="phase === 'landed' && resultName" class="gw__result" role="status">
         <image v-if="resultImage" class="gw__result-img" :src="resultImage" mode="aspectFill" @error="resultImage = ''" />
         <view class="gw__result-copy">
-          <text class="gw__result-label">🎉 撒花！转到了</text>
+          <text class="gw__result-label">撒花！转到了</text>
           <text class="gw__result-name">{{ resultName }}</text>
         </view>
         <view class="gw__result-btn" role="button" aria-label="就吃这道菜" @click="emit('close')">就吃它</view>

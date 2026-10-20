@@ -2,7 +2,6 @@
   <view class="recipe-card">
     <!-- 菜品图 -->
     <view class="recipe-card__img">
-      <text v-if="!recipe.image" class="recipe-card__emoji">🍲</text>
       <image v-else :src="recipe.image" mode="aspectFill" class="recipe-card__img-src" />
       <view v-if="recipe.moodTags?.length" class="recipe-card__tag">
         {{ recipe.moodTags[0] }}

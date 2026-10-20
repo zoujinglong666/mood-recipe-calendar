@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
+import java.util.Map;
 
 /** 独立于今日单菜的健康成年人一日三餐计划入口。 */
 @RestController
@@ -48,6 +49,33 @@ public class DailyMealPlanController {
         }
     }
 
+    /** 换一整天额度视图：普通 1 / 会员 3 / 看广告无限（remaining=-1 表示无限）。 */
+    @GetMapping("/quota")
+    public ApiResponse<?> quota(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
+        return ApiResponse.ok(quotas.view(openid, UsageQuotaService.Feature.DAILY_MEAL_PLAN_RESHUFFLE));
+    }
+
+    /** 换一整天：消费「换一整天」额度后整包重选三餐（避开当天已出过的菜）。 */
+    @PostMapping("/reshuffle")
+    public ApiResponse<?> reshuffle(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
+                                   @RequestParam(required = false) String date) {
+        try {
+            quotas.consume(openid, UsageQuotaService.Feature.DAILY_MEAL_PLAN_RESHUFFLE);
+        } catch (IllegalStateException e) {
+            return ApiResponse.error(403, e.getMessage());
+        }
+        try {
+            LocalDate target = date == null || date.isBlank() ? AppClock.today() : LocalDate.parse(date);
+            return plans.reshuffle(openid, target)
+                    .map(planView -> ApiResponse.ok(Map.of(
+                            "plan", planView,
+                            "quota", quotas.view(openid, UsageQuotaService.Feature.DAILY_MEAL_PLAN_RESHUFFLE))))
+                    .orElseGet(() -> ApiResponse.error(422, "暂时无法生成合格的三餐计划，请稍后再试"));
+        } catch (DateTimeParseException e) {
+            return ApiResponse.error(400, "日期格式应为 YYYY-MM-DD");
+        }
+    }
+
     @PostMapping("/{mealIndex}/replace")
     public ApiResponse<?> replace(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
                                   @PathVariable int mealIndex, @RequestParam(required = false) String date) {
@@ -72,18 +100,27 @@ public class DailyMealPlanController {
     @PostMapping("/{mealIndex}/cover")
     public ApiResponse<?> cover(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
                                 @PathVariable int mealIndex, @RequestParam(required = false) String date) {
+        LocalDate target;
         try {
-            LocalDate target = date == null || date.isBlank() ? AppClock.today() : LocalDate.parse(date);
-            // 生图每日配额兜底；无需补图（404 路径）自动返还
-            try {
-                quotas.consume(openid, UsageQuotaService.Feature.COVER_GENERATE);
-            } catch (IllegalStateException e) {
-                return ApiResponse.error(429, e.getMessage());
-            }
+            target = date == null || date.isBlank() ? AppClock.today() : LocalDate.parse(date);
+        } catch (DateTimeParseException e) {
+            return ApiResponse.error(400, "日期格式应为 YYYY-MM-DD");
+        }
+        try {
+            quotas.consume(openid, UsageQuotaService.Feature.COVER_GENERATE);
+        } catch (IllegalStateException e) {
+            return ApiResponse.error(429, e.getMessage());
+        }
+        try {
             var result = plans.ensureCover(openid, target, mealIndex);
             if (result.isEmpty()) quotas.release(openid, UsageQuotaService.Feature.COVER_GENERATE);
             return result.map(ApiResponse::ok)
                     .orElseGet(() -> ApiResponse.error(404, "这道餐暂时不需要补图"));
-        } catch (DateTimeParseException e) { return ApiResponse.error(400, "日期格式应为 YYYY-MM-DD"); }
+        } catch (RuntimeException e) {
+            // 生图链路（图片生成 / COS 转存）异常：归还配额并以友好文案兜底，
+            // 避免冒泡到全局异常处理器被误报成「请求参数不合法」或触发无意义 500 告警。
+            quotas.release(openid, UsageQuotaService.Feature.COVER_GENERATE);
+            return ApiResponse.error(500, "封面生成失败，可稍后重试");
+        }
     }
 }

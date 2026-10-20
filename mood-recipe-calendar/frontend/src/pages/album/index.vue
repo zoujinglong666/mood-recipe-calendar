@@ -513,7 +513,7 @@ onShareTimeline(() => {
                   />
                   <view v-else class="album-daily__cell-empty">
                     <text class="album-daily__cell-emoji">
-                      {{ MOOD_EMOJI[rec.moodTag] || '🍽️' }}
+                      {{ MOOD_EMOJI[rec.moodTag] || '' }}
                     </text>
                   </view>
                   <view class="album-daily__cell-tag">

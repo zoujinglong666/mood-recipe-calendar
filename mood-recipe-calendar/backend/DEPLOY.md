@@ -28,8 +28,10 @@ SELECT COUNT(*) FROM recipes;  -- 应为 24
 已有线上数据库升级时，还要执行新增的今日菜单表迁移，否则 `/api/daily-menu` 首次读取会因缺少 `daily_menus` 表返回 500：
 
 ```bash
-mysql -uroot -p --default-character-set=utf8mb4 mood_recipe < sql/2026-09-27-daily-menus.sql
+mysql -uroot -p --default-character-set=utf8mb4 mood_recipe < sql/migrations/20260927_create_daily_menus.sql
 ```
+
+> 注意：`sql/init.sql` 仅用于**全新安装**（`source init.sql`），其菜谱种子为普通 `INSERT`，对已有数据的库重跑会因主键冲突报错；线上存量库升级请走 `sql/migrations/` 下的迁移脚本。
 
 本次签到赠送锅仔对话需要给配额表补充会话幂等字段：
 
@@ -44,6 +46,14 @@ mysql -uroot -p --default-character-set=utf8mb4 mood_recipe < sql/migrations/202
 ```
 
 库存接口：`GET /api/fridge/items`、`GET /api/fridge/summary`、`POST/PUT/DELETE /api/fridge/items/{id}`、`POST /api/fridge/items/{id}/consume`。
+
+「换一整天」每看一次广告 +1 次额度，需要 `ad_rewards` 记账表（仅新增表，不影响已有数据）：
+
+```bash
+mysql -uroot -p --default-character-set=utf8mb4 mood_recipe < sql/migrations/20261020_add_ad_rewards.sql
+```
+
+> 「换一整天」额度（普通 1 / 会员 3 / 每看一次广告再 +1）复用 `usage_quotas` 表，无需额外建表；`ad_rewards` 每看完一次广告记一条，用于累加当日可换次数（看一次规划一次）。
 
 ## 3. 环境变量配置
 

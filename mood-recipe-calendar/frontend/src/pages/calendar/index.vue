@@ -416,7 +416,7 @@ function previewRecordPhoto(record: RecordItem | null) {
             <view class="cal-detail__img">
               <GuozaiImage
                 :src="resolveAssetUrl(rec.imageUrl)"
-                placeholder-text="📷"
+                placeholder-text=""
                 aria-label="查看这张照片的大图"
                 @click="previewRecordPhoto(rec)"
               />

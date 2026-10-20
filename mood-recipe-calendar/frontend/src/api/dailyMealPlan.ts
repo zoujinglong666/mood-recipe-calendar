@@ -25,6 +25,29 @@ export function fetchDailyMealPlan(date?: string) {
   return get<DailyMealPlan>('/daily-meal-plan', { date }).then(normalizePlan)
 }
 
+/** 换一整天额度视图：remaining=-1 表示无限（会员上限或看广告解锁）。 */
+export interface QuotaView {
+  member: boolean
+  limit: number
+  used: number
+  remaining: number
+  resetsAt: string
+}
+
+/** 查询「换一整天」剩余额度（普通 1 / 会员 3 / 看广告无限）。 */
+export function fetchDailyMealPlanQuota() {
+  return get<QuotaView>('/daily-meal-plan/quota')
+}
+
+/** 换一整天：后端整包重选三餐并扣一次额度，返回新计划与最新额度。 */
+export function reshuffleDailyMealPlan(date?: string) {
+  return post<{ plan: DailyMealPlan; quota: QuotaView }>('/daily-meal-plan/reshuffle', undefined, undefined, { date: date || '' })
+    .then(res => ({
+      plan: normalizePlan(res.plan),
+      quota: res.quota,
+    }))
+}
+
 export function replaceDailyMealPlanMeal(mealIndex: number, date?: string) {
   return post<DailyMealPlan>(`/daily-meal-plan/${mealIndex}/replace`, undefined, undefined, { date: date || '' })
     .then(normalizePlan)

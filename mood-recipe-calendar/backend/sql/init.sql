@@ -273,6 +273,17 @@ CREATE TABLE IF NOT EXISTS recipe_interactions (
   INDEX idx_recipe_interaction_user_time (openid, created_at)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='菜谱交互行为';
 
+-- ---------- 用户画像快照（个性化演化时间线） ----------
+CREATE TABLE IF NOT EXISTS user_profile_snapshots (
+  id           BIGINT AUTO_INCREMENT PRIMARY KEY,
+  openid       VARCHAR(64) NOT NULL COMMENT '微信 openid',
+  snapshot_at  DATETIME    NOT NULL COMMENT '快照时间',
+  trigger      VARCHAR(16) COMMENT '触发原因：LIKE/DISLIKE/MADE/SCHEDULED',
+  confidence   DOUBLE COMMENT '当时画像置信度',
+  profile_json TEXT COMMENT '完整 UserProfile JSON，支持回溯与离线重算',
+  INDEX idx_profile_snapshot_openid_time (openid, snapshot_at)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='用户画像快照';
+
 -- ---------- 想吃清单（菜谱收藏） ----------
 CREATE TABLE IF NOT EXISTS recipe_favorites (
   id         BIGINT AUTO_INCREMENT PRIMARY KEY,

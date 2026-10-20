@@ -20,6 +20,8 @@ import com.moodrecipe.backend.config.SessionAuthInterceptor;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -148,15 +150,39 @@ public class RecipeController {
         outer:
         for (String raw : repository.findAllMoodTags()) {
             for (String seg : raw.split("[,，、;；\\s]+")) {
-                String s = seg.trim();
-                // 只保留含中文/字母/数字的标签，过滤 emoji 入库变 ? 的乱码
-                if (!s.isEmpty() && s.matches(".*[\\u4e00-\\u9fa5a-zA-Z0-9].*")) {
+                String s = sanitizeTag(seg);
+                if (!s.isEmpty()) {
                     tags.add(s);
                     if (tags.size() >= 12) break outer;
                 }
             }
         }
         return ApiResponse.ok(new ArrayList<>(tags));
+    }
+
+    /**
+     * 标签清洗：先循环 URL 解码——生产库曾有导入链路把「开心」存成 %E5%BC%80%E5%BF%83
+     * （% 后是十六进制字母，旧过滤器的 [a-zA-Z0-9] 恰好放行）；解码能还原成中文的救回来，
+     * 解不出（仍残留百分号转义）或含 '?' / U+FFFD 乱码特征的直接丢弃——解决不了的乱码绝不外露到筛选面板。
+     */
+    private String sanitizeTag(String seg) {
+        String s = seg == null ? "" : seg.trim();
+        if (s.isEmpty()) return "";
+        for (int i = 0; i < 3 && s.matches(".*%[0-9A-Fa-f]{2}.*"); i++) {
+            try {
+                String decoded = URLDecoder.decode(s, StandardCharsets.UTF_8);
+                if (decoded.equals(s)) break;
+                s = decoded.trim();
+            } catch (IllegalArgumentException e) {
+                break;
+            }
+        }
+        if (s.isEmpty() || s.matches(".*%[0-9A-Fa-f]{2}.*")
+                || s.indexOf('?') >= 0 || s.indexOf('\uFFFD') >= 0)
+            return "";
+        // 只保留含中文/字母/数字的标签，过滤 emoji 入库变 ? 的乱码
+        if (!s.matches(".*[\\u4e00-\\u9fa5a-zA-Z0-9].*")) return "";
+        return s;
     }
 
     /**

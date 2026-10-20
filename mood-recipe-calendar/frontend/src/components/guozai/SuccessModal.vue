@@ -97,15 +97,9 @@ watch(() => props.visible, (v) => {
           {{ imgStatus }}：{{ imgDetail }}
         </text>
         <!-- 星星装饰 -->
-        <text class="gz-modal__star gz-modal__star--1 star-float">
-          ✨
-        </text>
-        <text class="gz-modal__star gz-modal__star--2 star-float">
-          ⭐
-        </text>
-        <text class="gz-modal__star gz-modal__star--3 star-float">
-          ✨
-        </text>
+        <text class="gz-modal__star gz-modal__star--1 star-float"></text>
+        <text class="gz-modal__star gz-modal__star--2 star-float"></text>
+        <text class="gz-modal__star gz-modal__star--3 star-float"></text>
       </view>
       <text class="gz-modal__title">
         {{ title }}

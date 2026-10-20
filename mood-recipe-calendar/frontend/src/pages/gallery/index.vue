@@ -371,7 +371,7 @@ function onBuy() {}
                 mode="aspectFit"
                 @error="badgeErrors[item.code] = true"
               />
-              <text v-else class="achv-item__emoji">{{ item.unlocked ? item.emoji : '🔒' }}</text>
+              <text v-else class="achv-item__emoji">{{ item.unlocked ? item.emoji : '' }}</text>
               <text class="achv-item__name">{{ item.name }}</text>
             </view>
           </view>
@@ -465,7 +465,7 @@ function onBuy() {}
               <text class="buy-option__name">1元兑换</text>
               <text class="buy-option__price">¥{{ selectedProduct.exchangePrice }}</text>
             </view>
-            <text v-if="checkin.exchangeReady" class="buy-option__sub buy-option__sub--ok">🎉 连续签到已达标，可兑换！</text>
+            <text v-if="checkin.exchangeReady" class="buy-option__sub buy-option__sub--ok">连续签到已达标，可兑换！</text>
             <text v-else class="buy-option__sub">连续签到满 30 天解锁（当前 {{ checkin.streak }}/30）</text>
           </view>
         </view>

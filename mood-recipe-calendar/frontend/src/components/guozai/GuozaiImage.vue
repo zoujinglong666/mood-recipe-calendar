@@ -54,7 +54,7 @@ const props = withDefaults(defineProps<{
   src: '',
   fallbacks: () => [],
   mode: 'aspectFill',
-  placeholderText: '🍲',
+  placeholderText: '',
   placeholderClass: '',
   ariaLabel: '',
 })

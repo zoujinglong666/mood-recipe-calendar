@@ -145,13 +145,37 @@ public class WeeklyMealPlanController {
         } catch (IllegalStateException e) {
             return ApiResponse.error(429, e.getMessage());
         }
-        var result = call.get();
-        if (result.isEmpty()) quotas.release(openid, UsageQuotaService.Feature.COVER_GENERATE);
-        return result.map(ApiResponse::ok).orElseGet(() -> ApiResponse.error(404, "计划不存在"));
+        try {
+            var result = call.get();
+            if (result.isEmpty()) quotas.release(openid, UsageQuotaService.Feature.COVER_GENERATE);
+            return result.map(ApiResponse::ok).orElseGet(() -> ApiResponse.error(404, "计划不存在"));
+        } catch (IllegalArgumentException e) {
+            // 详情页是多层 swiper（上下滑切天、左右滑切菜），滑动/并发换菜后客户端拿到的
+            // dayIndex / dishIndex 可能与服务端最新菜单不同步而越界。这属于「菜单已更新」，
+            // 不是用户输入错误：归还配额并返回 404 友好提示，避免落到全局 IAE 处理器
+            // 被暴露成「请求参数不合法，请检查输入」这种误导文案。
+            quotas.release(openid, UsageQuotaService.Feature.COVER_GENERATE);
+            return ApiResponse.error(404, "这一天的菜单已经更新，请刷新后再试");
+        } catch (IllegalStateException e) {
+            quotas.release(openid, UsageQuotaService.Feature.COVER_GENERATE);
+            return ApiResponse.error(500, "封面生成失败，可稍后重试");
+        }
     }
     @PostMapping("/{id}/days/{index}/cover") public ApiResponse<?> cover(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @PathVariable Long id, @PathVariable int index) { return coverGuarded(openid, () -> plans.ensureCover(openid, id, index)); }
     @PostMapping("/{id}/days/{index}/cover/{dishIndex}") public ApiResponse<?> dishCover(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @PathVariable Long id, @PathVariable int index, @PathVariable int dishIndex) { return coverGuarded(openid, () -> plans.ensureCover(openid, id, index, dishIndex)); }
-    @PostMapping("/{id}/days/{index}/replace") public ApiResponse<?> replace(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @PathVariable Long id, @PathVariable int index) { try { quotas.requireMember(openid); } catch (IllegalStateException e) { return ApiResponse.error(403, e.getMessage()); } return plans.replaceDay(openid, id, index).map(ApiResponse::ok).orElseGet(() -> ApiResponse.error(404, "计划不存在")); }
+    @PostMapping("/{id}/days/{index}/replace")
+    public ApiResponse<?> replace(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @PathVariable Long id, @PathVariable int index) {
+        try { quotas.requireMember(openid); } catch (IllegalStateException e) { return ApiResponse.error(403, e.getMessage()); }
+        try {
+            return plans.replaceDay(openid, id, index).map(ApiResponse::ok).orElseGet(() -> ApiResponse.error(404, "计划不存在"));
+        } catch (IllegalArgumentException e) {
+            // 客户端持有过期的 dayIndex（滑动/并发换菜后菜单已变）：不是用户输入错误
+            return ApiResponse.error(404, "这一天已经更新，请刷新后再试");
+        } catch (IllegalStateException e) {
+            // 例如「没有找到符合你口味和忌口的替换菜谱」：属于可回显的业务提示，不能当 500 处理
+            return ApiResponse.error(409, e.getMessage());
+        }
+    }
     @PostMapping("/{id}/shopping/{name}") public ApiResponse<?> toggle(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @PathVariable Long id, @PathVariable String name) { return plans.toggleShopping(openid, id, name).map(ApiResponse::ok).orElseGet(() -> ApiResponse.error(404, "购物项不存在")); }
     public record AgentReplyRequest(String message, String nextQuestion) {}
     public record AgentReply(String reply) {}

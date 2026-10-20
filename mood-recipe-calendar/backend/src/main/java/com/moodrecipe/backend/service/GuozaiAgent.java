@@ -105,6 +105,10 @@ public class GuozaiAgent {
                 RecommendationJobService.StepStatus.RUNNING, "锅仔正在回想你的吃饭习惯");
         UserFoodPreference preference = preferences.findByOpenid(openid).orElse(null);
 
+        // [2026-10-20] 一次性批量加载本用户曝光状态（已拒绝/最近展示），供下方早餐池、AI 路径、本地回退三处共用。
+        // 取代原先在排序循环里逐候选查库的 N+1 写法（见 RecommendationExposureService.load）。
+        RecommendationExposureService.ExposureView ev = exposureView(openid);
+
         // 智能体记忆聚合：口味偏好 + 情绪趋势 + 历史记录
         int hour = java.time.LocalTime.now().getHour();
         GuozaiMemory.MemorySnapshot snapshot = memory.snapshot(openid, hour);
@@ -125,7 +129,7 @@ public class GuozaiAgent {
         // 早餐是硬约束：优先从现成早餐组合池（BreakfastPoolSeeder 生成的「主食 · 配饮品」）直接挑，
         // 不交给文本模型即兴生成——prompt 软约束拦不住炒菜混进早餐；池子被忌口/曝光过滤光才走 AI 生成。
         if (isBreakfast(mealType)) {
-            Recipe breakfast = breakfastPoolRecipe(openid, mood, preference, snapshot, progress);
+            Recipe breakfast = breakfastPoolRecipe(openid, mood, preference, snapshot, progress, ev);
             if (breakfast != null) {
                 breakfast.setGuidelineBasis(guidelineBasis);
                 return breakfast;
@@ -141,7 +145,7 @@ public class GuozaiAgent {
             Optional<Recipe> aiRecipe = aiRecipeService.recommendWithPersona(mood, smartPrompt,
                     event -> updateAiProgress(openid, progress, event), true);
             if (aiRecipe.isPresent() && contentSafe(openid, aiRecipe.get()) && allowedByPreference(aiRecipe.get(), preference)
-                    && !exposures.wasRecentlyShownOrRejected(openid, aiRecipe.get())) {
+                    && !ev.wasRecentlyShownOrRejected(aiRecipe.get())) {
                 Recipe generated = aiRecipe.get();
                 // 同名复用：库内已有这道菜就直接用库里的（图片、食材、步骤都是现成的），
                 // 不再落重复行、不再补拍封面——家常菜重名率高，生图是链路里最贵的大模型调用。
@@ -190,7 +194,7 @@ public class GuozaiAgent {
         }
 
         // 回退：本地菜谱库
-        Recipe fallback = fallbackLocalRecipe(openid, mood, mealType, preference, snapshot, progress);
+        Recipe fallback = fallbackLocalRecipe(openid, mood, mealType, preference, snapshot, progress, ev);
         fallback.setGuidelineBasis(guidelineBasis);
         return fallback;
     }
@@ -219,18 +223,19 @@ public class GuozaiAgent {
      */
     private Recipe breakfastPoolRecipe(String openid, String mood, UserFoodPreference preference,
                                        GuozaiMemory.MemorySnapshot snapshot,
-                                       RecommendationJobService.Progress progress) {
+                                       RecommendationJobService.Progress progress,
+                                       RecommendationExposureService.ExposureView ev) {
         Set<Long> rejected = interactions.findByOpenidAndAction(openid, "DISLIKE").stream()
                 .map(RecipeInteraction::getRecipeId).filter(Objects::nonNull).collect(Collectors.toSet());
         List<Recipe> pool = recipePool.all().stream()
                 .filter(r -> r.getMoodTags() != null && r.getMoodTags().contains(BreakfastPoolSeeder.BREAKFAST_TAG))
                 .filter(r -> allowedByPreference(r, preference))
-                .filter(r -> !rejected.contains(r.getId()) && !exposures.isRejected(openid, r))
+                .filter(r -> !rejected.contains(r.getId()) && !ev.isRejected(r))
                 .toList();
         if (pool.isEmpty()) return null;
 
         // 近期展示过的放后面：还有没看过的早餐就先出没看过的
-        List<Recipe> unseen = pool.stream().filter(r -> !exposures.wasRecentlyShown(openid, r)).toList();
+        List<Recipe> unseen = pool.stream().filter(r -> !ev.wasRecentlyShown(r)).toList();
         if (!unseen.isEmpty()) pool = unseen;
 
         Map<Long, Integer> feedback = new HashMap<>();
@@ -332,8 +337,10 @@ public class GuozaiAgent {
                 + "；长期口味记忆：" + preferencePrompt(foodPref);
         String smartPrompt = persona.recipePrompt(mood, userAnalysis, preference);
         Optional<Recipe> generated = aiRecipeService.recommendWithPersona(mood, smartPrompt, ignored -> { }, false);
+        // [2026-10-20] 同 recommend：一次性批量取曝光，避免逐候选 N+1。
+        RecommendationExposureService.ExposureView ev = exposureView(openid);
         if (generated.isEmpty() || !contentSafe(openid, generated.get()) || !allowedByPreference(generated.get(), foodPref)
-                || exposures.wasRecentlyShownOrRejected(openid, generated.get())) {
+                || ev.wasRecentlyShownOrRejected(generated.get())) {
             return Optional.empty();
         }
         generated.get().setExposureId(exposures.recordShown(openid, generated.get(), "AI_DEEP"));
@@ -428,9 +435,17 @@ public class GuozaiAgent {
         }
     }
 
+    /** 曝光视图统一入口：服务缺席或 load 返回 null 时降级为不过滤的空视图，永不让 NPE 打穿推荐主流程。 */
+    private RecommendationExposureService.ExposureView exposureView(String openid) {
+        if (exposures == null) return RecommendationExposureService.ExposureView.EMPTY;
+        return java.util.Objects.requireNonNullElse(exposures.load(openid),
+                RecommendationExposureService.ExposureView.EMPTY);
+    }
+
     private Recipe fallbackLocalRecipe(String openid, String mood, String mealType, UserFoodPreference preference,
                                        GuozaiMemory.MemorySnapshot snapshot,
-                                       RecommendationJobService.Progress progress) {
+                                       RecommendationJobService.Progress progress,
+                                       RecommendationExposureService.ExposureView ev) {
         update(progress, RecommendationJobService.Stage.TEXT,
                 RecommendationJobService.StepStatus.DEGRADED, "文本模型暂时不可用，改从锅仔菜谱库挑选");
         update(progress, RecommendationJobService.Stage.IMAGE,
@@ -454,7 +469,7 @@ public class GuozaiAgent {
 
         // 只从锅仔 AI 生成且带真实图片的菜谱池挑选（旧的无图种子数据不再进入推荐）
         List<Recipe> aiPool = recipePool.aiWithImages().stream()
-                .filter(r -> !rejected.contains(r.getId()) && !exposures.isRejected(openid, r))
+                .filter(r -> !rejected.contains(r.getId()) && !ev.isRejected(r))
                 .filter(r -> allowedByPreference(r, preference)).toList();
         List<Recipe> candidates = aiPool.stream()
                 .filter(r -> r.getMoodTags() != null && r.getMoodTags().contains(mood)).toList();
@@ -476,7 +491,7 @@ public class GuozaiAgent {
             return null;
         }
         List<Recipe> unseen = candidates.stream()
-                .filter(r -> !recentlyShown.contains(r.getId()) && !exposures.wasRecentlyShown(openid, r)).toList();
+                .filter(r -> !recentlyShown.contains(r.getId()) && !ev.wasRecentlyShown(r)).toList();
         if (!unseen.isEmpty()) candidates = unseen;
 
         Recipe recipe = candidates.stream()

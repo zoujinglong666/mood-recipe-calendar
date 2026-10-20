@@ -66,7 +66,7 @@ function getPeriod(hour: number) {
 import { computed, nextTick, ref } from 'vue'
 import Icon from '../../components/common/Icon.vue'
 import { ensureLogin } from '../../utils/login'
-import { toast, toastError, toastSuccess } from '../../utils/toast'
+import { toast, toastError } from '../../utils/toast'
 import { haptic } from '../../utils/haptic'
 import { acceptShareInvite } from '../../api/share'
 import { onLoad, onPullDownRefresh } from '@dcloudio/uni-app'
@@ -330,7 +330,8 @@ const boardSkeleton = ref(false)
 const boardLoadFailed = ref(false)
 let boardSkeletonTimer: ReturnType<typeof setTimeout> | null = null
 const BOARD_LOAD_TIMEOUT = 10_000
-const BOARD_SWITCH_TIMEOUT = 8_000
+/** 换菜走后端菜谱池缓存路径（毫秒级）；12s 只为弱网留余量，超时即报错并给重试卡 */
+const BOARD_SWITCH_TIMEOUT = 12_000
 
 /** 看门狗：请求层无超时配置，连接挂起时 Promise 永不落定会把骨架屏卡死——这里兜底强制失败 */
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
@@ -677,35 +678,44 @@ function goCookToday() {
   navLocked(() => router.push({ name: 'cooking' }))
 }
 
-/** 分享回流承接：好友通过分享卡打开 → 双方各 +1 次对话额度；带上好友分享的那道菜名做欢迎 */
+/** 分享回流承接：好友通过分享卡打开 → 双方各 +1 次对话额度；带上好友分享的那道菜名和封面图做欢迎 */
 const friendDish = ref('')
+const friendDishImage = ref('')
+const friendDishImgFailed = ref(false)
 const inviteBonus = ref(false)
-/** 分享落地「好友菜卡」：链接带 recipeId 时拉真实菜谱（图+名），把一行小字升级成能点的卡 */
-const sharedRecipeId = ref(0)
-const sharedRecipe = ref<RecipeItem | null>(null)
-async function loadSharedDish(id: number) {
-  try {
-    sharedRecipe.value = await fetchRecipeDetail(id)
+const isShowShareCurtain = ref(false)
+/**
+ * 小程序转发链路会对 path query 再做一次整体编码：我们 encodeURIComponent 过的中文
+ * 到 onLoad 时变成了 %25E8…（% 被二次编码），表现为「%25E8%2599…」乱码。
+ * 这里循环解码到没有 %XX 转义为止（最多 3 层，防止异常输入死循环）。
+ */
+function decodeQueryParam(value: string) {
+  let result = value
+  for (let i = 0; i < 3 && /%[0-9A-Fa-f]{2}/.test(result); i += 1) {
+    try {
+      const decoded = decodeURIComponent(result)
+      if (decoded === result)
+        break
+      result = decoded
+    }
+    catch {
+      break
+    }
   }
-  catch { /* 拉取失败静默：退化为纯文字欢迎条 */ }
-}
-function openSharedDish() {
-  if (!sharedRecipeId.value) return
-  navLocked(() => router.push({ name: 'recipe', query: { recipeId: String(sharedRecipeId.value) } }))
-}
-function goMoodFromShare() {
-  navLocked(() => router.push({ name: 'mood' }))
+  return result
 }
 onLoad((query) => {
-  const sharer = String(query?.sharer || '')
-  const dish = String(query?.dish || '')
-  if (dish)
+  const sharer = decodeQueryParam(String(query?.sharer || ''))
+  const dish = decodeQueryParam(String(query?.dish || ''))
+  const img = decodeQueryParam(String(query?.img || ''))
+  if (dish) {
     friendDish.value = dish
-  const rid = Number(query?.recipeId) || 0
-  if (rid) {
-    sharedRecipeId.value = rid
-    // 详情接口要登录态；分享落地本就要登录，静默 ensureLogin 失败则退化成文字欢迎条
-    void ensureLogin().then(() => loadSharedDish(rid)).catch(() => {})
+    isShowShareCurtain.value = true
+  }
+  // 只接受 http(s) 全链或站内绝对路径，防注入；非法值忽略，弹窗回落锅仔插画
+  if (/^(https?:\/\/|\/)/.test(img)) {
+    friendDishImage.value = img
+    friendDishImgFailed.value = false
   }
   if (!sharer || sharer === userStore.openid)
     return
@@ -713,7 +723,7 @@ onLoad((query) => {
     .then((res) => {
       if (res?.grantedBonus) {
         inviteBonus.value = true
-        toastSuccess('好友分享的福利：今日对话 +1 次')
+        isShowShareCurtain.value = true
       }
     })
     .catch(() => {})
@@ -774,28 +784,35 @@ onPullDownRefresh(() => {
 /** 转发给好友/群：必须定义 onShareAppMessage 胶囊「···」里的转发才可用 */
 onShareAppMessage(() => {
   const sharer = userStore.openid
-  // 分享卡带菜：好友点开直接看到这道菜 + 你的邀请，回流后双方各得 1 次对话额度。
-  // recipeId 是「好友菜卡」的关键：落地页靠它拉真实菜图，没有就只是一行文字。
+  // 分享卡带菜带图：好友点开直接看到这道菜和它的封面，回流后双方各得 1 次对话额度
   const dish = todayBoard.value?.recipe?.name || ''
-  const recipeId = todayBoard.value?.recipe?.id
+  const dishImage = todayBoard.value?.recipe?.image || ''
   const params = [
     sharer ? `sharer=${encodeURIComponent(sharer)}` : '',
     dish ? `dish=${encodeURIComponent(dish)}` : '',
-    recipeId ? `recipeId=${recipeId}` : '',
+    dishImage ? `img=${encodeURIComponent(dishImage)}` : '',
   ].filter(Boolean).join('&')
   const path = `/pages/index/index${params ? `?${params}` : ''}`
   const title = dish ? `我用锅仔安排了「${dish}」，也替你留了一份` : '锅仔 · 按心情帮你决定今天吃什么'
   // 记录分享：发放「分享家」徽章 + 非会员当日 +1 次对话激励（失败静默，不影响转发）
   void recordShare('home').catch(() => {})
-  return { title, path }
+  // 分享卡封面用菜图（无图时省略，微信默认截屏首页）
+  return dishImage ? { title, path, imageUrl: dishImage } : { title, path }
 })
 /** 分享到朋友圈：必须定义 onShareTimeline 才可用 */
 onShareTimeline(() => {
   const sharer = userStore.openid
-  return {
-    title: '锅仔 · 按心情帮你决定今天吃什么',
-    query: sharer ? `sharer=${encodeURIComponent(sharer)}` : '',
-  }
+  const dishImage = todayBoard.value?.recipe?.image || ''
+  const query = [
+    sharer ? `sharer=${encodeURIComponent(sharer)}` : '',
+    dishImage ? `img=${encodeURIComponent(dishImage)}` : '',
+  ].filter(Boolean).join('&')
+  // 朋友圈卡封面用菜图（无图时省略，微信默认用小程序截图）
+  const payload: { title: string, query: string, imageUrl?: string }
+    = { title: '锅仔 · 按心情帮你决定今天吃什么', query }
+  if (dishImage)
+    payload.imageUrl = dishImage
+  return payload
 })
 const MOODS = ['开心', '平静', '疲惫', '焦虑', '难过', '嘴馋', '低落', '想家', '期待', '满足', '得意', '害羞']
 /** 「让锅仔替你决定」点击展开餐别选择器：选一顿后带上餐别去推荐页，让推荐有《膳食指南》可依 */
@@ -826,7 +843,6 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
     <view v-if="showFavTip" class="fav-tip">
       <view class="fav-tip__arrow" />
       <view class="fav-tip__body">
-        <text class="fav-tip__emoji">⭐</text>
         <view class="fav-tip__text">
           <text class="fav-tip__title">点右上角 ⋯ → 收藏</text>
           <text class="fav-tip__sub">明天打开不迷路，锅仔每天给你留菜</text>
@@ -856,25 +872,37 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
         <view class="home-hero__spark home-hero__spark--one" /><view class="home-hero__spark home-hero__spark--two" />
       </view>
 
-      <!-- 分享回流欢迎条：好友点开的落地页，先看到这道菜和福利，再自然进入今日菜牌 -->
-      <view v-if="sharedRecipe || friendDish || inviteBonus" class="share-welcome" :class="{ 'share-welcome--card': sharedRecipe }">
-        <block v-if="sharedRecipe">
-          <image class="share-welcome__img" :src="sharedRecipe.image" mode="aspectFill" />
-          <view class="share-welcome__body">
-            <text class="share-welcome__text">好友用锅仔安排了「{{ sharedRecipe.name }}」</text>
-            <text v-if="inviteBonus" class="share-welcome__bonus">你和好友各得 1 次对话额度</text>
-            <view class="share-welcome__actions">
-              <view class="share-welcome__cta" role="button" aria-label="看看好友安排的这道菜" @click="openSharedDish">看看这道菜</view>
-              <view class="share-welcome__cta share-welcome__cta--ghost" role="button" aria-label="也让锅仔给我安排一道" @click="goMoodFromShare">我也要安排</view>
+      <!-- 分享回流幕帘：好友点开的落地页自动弹出（curtain 式居中放大），先看到这道菜和福利，关闭后自然进入今日菜牌 -->
+      <wd-popup
+        v-model="isShowShareCurtain"
+        position="center"
+        transition="zoom-in"
+        :close-on-click-modal="true"
+        custom-class="share-curtain-pop"
+      >
+        <view class="share-curtain">
+          <view class="share-curtain__badge">
+            <text v-if="inviteBonus">好友分享的福利：今日对话 +1 次</text>
+            <text v-else>好友用锅仔给你留了一份菜</text>
+          </view>
+          <view class="share-curtain__body">
+            <image
+              class="share-curtain__emoji"
+              :src="friendDishImage && !friendDishImgFailed ? friendDishImage : STATIC_BASE_URL + '/static/guozai/action_01_bowl.png'"
+              mode="aspectFill"
+              @error="friendDishImgFailed = true"
+            />
+            <view class="share-curtain__info">
+              <text class="share-curtain__label">{{ friendDish ? '好友用锅仔安排了' : '好友分享的福利' }}</text>
+              <text v-if="friendDish" class="share-curtain__dish">「{{ friendDish }}」</text>
+              <text v-else class="share-curtain__dish">你和好友各得 1 次对话额度</text>
             </view>
           </view>
-        </block>
-        <block v-else>
-          <text class="share-welcome__emoji">🍲</text>
-          <text v-if="friendDish" class="share-welcome__text">好友用锅仔安排了「{{ friendDish }}」</text>
-          <text v-if="inviteBonus" class="share-welcome__bonus">你和好友各得 1 次对话额度</text>
-        </block>
-      </view>
+          <view class="share-curtain__close" role="button" aria-label="关闭欢迎弹窗" @click="isShowShareCurtain = false">
+            <text>我知道啦</text>
+          </view>
+        </view>
+      </wd-popup>
       <!-- 今日菜单（TodayBoard）：今日菜牌——菜图右侧通栏出血，信息在左；上下滑换牌（牌堆式微动效，顶牌动、垫牌不动） -->
       <view class="home-board-deck">
       <view
@@ -1097,28 +1125,52 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
 .theme-banner__close { position: absolute; top: 4rpx; right: 12rpx; padding: 6rpx 10rpx; color: var(--mrc-text-light); font-size: 30rpx; line-height: 1; }
 .theme-banner__close:active { opacity: .6; }
 
-.share-welcome {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-  margin: 12rpx 24rpx 0;
-  padding: 16rpx 24rpx;
-  background: var(--mrc-surface-sun, #FFF6E0);
-  border: 2rpx solid var(--mrc-border-light);
-  border-radius: 24rpx;
+/* 分享回流幕帘：curtain 式居中弹出，徽章悬出卡顶，米金底 + 朱红关闭钮 */
+:deep(.share-curtain-pop) {
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
 }
-.share-welcome__emoji { font-size: 30rpx; }
-.share-welcome__text { font-size: 24rpx; color: var(--mrc-text-deep); font-weight: 700; }
-.share-welcome__bonus { margin-left: auto; font-size: 21rpx; color: var(--mrc-accent); font-weight: 700; }
-/* 好友菜卡：有图 + 双 CTA，替代纯文字欢迎条——分享流量的第一转化触点 */
-.share-welcome--card { align-items: stretch; gap: 20rpx; }
-.share-welcome__img { width: 132rpx; height: 132rpx; flex: 0 0 132rpx; border-radius: 16rpx; background: var(--mrc-surface-2, #F5EFE6); }
-.share-welcome__body { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 6rpx; }
-.share-welcome--card .share-welcome__bonus { margin-left: 0; }
-.share-welcome__actions { display: flex; gap: 16rpx; margin-top: 10rpx; }
-.share-welcome__cta { padding: 10rpx 28rpx; border-radius: 999rpx; background: var(--mrc-primary-grad); color: #fff; font-size: 22rpx; font-weight: 800; }
-.share-welcome__cta--ghost { background: var(--mrc-surface); color: var(--mrc-text-deep); border: 2rpx solid var(--mrc-border-light); }
-.share-welcome__cta:active { transform: scale(0.96); }
+.share-curtain {
+  position: relative;
+  width: 560rpx;
+  margin-top: 44rpx;
+  padding: 56rpx 36rpx 36rpx;
+  box-sizing: border-box;
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 36rpx;
+  background: var(--mrc-surface-sun, #FFF6E0);
+  box-shadow: var(--mrc-shadow-coral, 0 16rpx 40rpx rgba(255, 106, 61, .18));
+  text-align: center;
+}
+.share-curtain__badge {
+  position: absolute;
+  top: -44rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 16rpx 30rpx;
+  border-radius: 24rpx;
+  background: var(--mrc-text-deep, #3A2E28);
+  color: #FFF6E0;
+  font-size: 24rpx;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 10rpx 24rpx rgba(58, 46, 40, .25);
+}
+.share-curtain__body { display: flex; align-items: center; gap: 22rpx; padding: 12rpx 6rpx 30rpx; text-align: left; }
+.share-curtain__emoji { flex: 0 0 auto; width: 120rpx; height: 120rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 24rpx; background: var(--mrc-surface); }
+.share-curtain__info { display: flex; flex-direction: column; gap: 8rpx; min-width: 0; }
+.share-curtain__label { color: var(--mrc-text-sub); font-size: 23rpx; }
+.share-curtain__dish { color: var(--mrc-text-deep); font-size: 30rpx; font-weight: 800; line-height: 1.35; word-break: break-all; }
+.share-curtain__close {
+  padding: 20rpx 0;
+  border-radius: 999rpx;
+  background: var(--mrc-primary-grad, linear-gradient(135deg, #FF7A45, #FF5A3C));
+  color: #fff;
+  font-size: 27rpx;
+  font-weight: 800;
+}
+.share-curtain__close:active { opacity: .82; }
 
 .home-entry { border-radius: 30rpx; box-sizing: border-box; }
 /* 牌堆底座：菜牌下面垫两张微旋转的静止牌——换牌时只有顶牌在动，位置感稳定（堆叠卡片语言） */
@@ -1306,6 +1358,19 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
 }
 .home-bento__dot:nth-child(odd) { opacity: .5; }
 .home-bento__record-img--quiz { width: 104rpx; height: 104rpx; filter: drop-shadow(0 6rpx 14rpx rgba(96, 52, 28, 0.16)); }
+
+.meal-sheet { padding: 28rpx 28rpx calc(28rpx + env(safe-area-inset-bottom)); }
+.meal-sheet__head { padding: 8rpx 8rpx 20rpx; }
+.meal-sheet__title { display: block; color: var(--mrc-text-strong); font-size: 30rpx; font-weight: 800; }
+.meal-sheet__sub { display: block; margin-top: 6rpx; color: var(--mrc-text-sub); font-size: 22rpx; }
+.meal-sheet__options { display: flex; flex-direction: column; gap: 14rpx; }
+.meal-option { display: flex; align-items: center; gap: 18rpx; width: 100%; min-height: 116rpx; padding: 18rpx 22rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 24rpx; background: var(--mrc-surface-2); box-shadow: var(--mrc-shadow-soft); box-sizing: border-box; text-align: left; line-height: 1.3; }
+.meal-option::after { border: none; }
+.meal-option__emoji { font-size: 44rpx; }
+.meal-option__name { color: var(--mrc-text-deep); font-size: 30rpx; font-weight: 800; }
+.meal-option__desc { margin-left: auto; color: var(--mrc-text-sub); font-size: 21rpx; }
+.meal-sheet__cancel { width: 100%; margin-top: 20rpx; min-height: 92rpx; border-radius: 24rpx; color: var(--mrc-text-sub); background: var(--mrc-surface-2); font-size: 27rpx; font-weight: 700; }
+.meal-sheet__cancel::after { border: none; }
 
 .home-cal { padding: 28rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 32rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }
 .home-cal__header { display: flex; align-items: center; justify-content: space-between; min-height: 96rpx; margin-bottom: 20rpx; }

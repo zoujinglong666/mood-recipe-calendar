@@ -341,7 +341,7 @@ export async function exportRecipeShare(data: RecipeShareData, canvasId = 'recip
       const guozai = await loadCanvasImage(canvas, data.guozaiPath)
       ctx.drawImage(guozai, 408, 116, 220, 220)
     }
-    catch { centerText(ctx, 518, 170, '🍲', 96, COLORS.text) }
+    catch { centerText(ctx, 518, 170, '', 96, COLORS.text) }
     ctx.fillStyle = COLORS.white
     roundRect(ctx, 78, 140, 268, 184, 14)
     ctx.fill()

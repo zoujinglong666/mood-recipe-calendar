@@ -1,6 +1,7 @@
 package com.moodrecipe.backend.repository;
 
 import com.moodrecipe.backend.entity.UserRecord;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -12,6 +13,8 @@ public interface UserRecordRepository extends JpaRepository<UserRecord, Long> {
     List<UserRecord> findByOpenidOrderByCreatedAtDesc(String openid);
 
     /** 个性化寄语只需观察最近记录，避免用户数据增长后全表读取。 */
+    // [2026-10-20] 打卡记录用于"近期吃过"去重与食材轮换，写后短时陈旧无碍，缓存削减查询。
+    @Cacheable(cacheNames = "userRecords", key = "#openid")
     List<UserRecord> findTop30ByOpenidOrderByCreatedAtDesc(String openid);
 
     /** 某用户某月（YYYY-MM）的记录 */

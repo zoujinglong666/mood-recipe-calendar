@@ -1,6 +1,7 @@
 package com.moodrecipe.backend.entity;
 
 import com.moodrecipe.backend.config.AppClock;
+import com.moodrecipe.backend.service.InteractionListener;
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -12,6 +13,7 @@ import java.time.LocalDateTime;
         @Index(name = "idx_recipe_interaction_user_recipe", columnList = "openid,recipe_id"),
         @Index(name = "idx_recipe_interaction_user_time", columnList = "openid,created_at")
 })
+@EntityListeners(InteractionListener.class)
 public class RecipeInteraction {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
