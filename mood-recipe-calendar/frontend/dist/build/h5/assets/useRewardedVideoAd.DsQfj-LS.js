@@ -1,1 +1,0 @@
-import{r}from"./index-DSVgiAKe.js";const n={QUOTA_REWARD:"adunit-ec548835ad032028",FRIDGE_OCR:"adunit-2989a23e0aa6f93e"};function a(n,a={}){return{show:async function(){var r;return null==(r=a.onError)||r.call(a,new Error("当前环境不支持激励视频广告")),{rewarded:!1,closed:!1}},showing:r(!1)}}export{n as A,a as u};

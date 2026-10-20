@@ -1,0 +1,1 @@
+import{p as r,g as e}from"./request.DOgrARY-.js";function s(e){return r("/share/record",{scene:e})}function t(e){return r("/share/accept",{scene:e})}function a(){return e("/share/status")}export{t as a,a as f,s as r};
