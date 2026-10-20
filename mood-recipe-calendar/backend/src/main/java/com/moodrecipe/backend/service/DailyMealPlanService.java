@@ -126,13 +126,37 @@ public class DailyMealPlanService implements SwapCandidateService.SwapQueueBuild
     public Optional<PlanView> plan(String openid, LocalDate date) {
         Optional<DailyMealPlan> existing = plans.findByOpenidAndPlanDate(openid, date);
         if (existing.isPresent()) return read(existing.get());
+        return generate(openid, date, Set.of());
+    }
 
+    /**
+     * 换一整天：删除当日旧计划后重新生成整包三餐，新选的菜避开「当天已出过的菜」，
+     * 避免「换了个寂寞」。额度（普通 1 / 会员 3 / 看广告无限）由 Controller 层消费，此处只重选三餐。
+     */
+    public Optional<PlanView> reshuffle(String openid, LocalDate date) {
+        Set<String> currentNames = Set.of();
+        Optional<DailyMealPlan> stored = plans.findByOpenidAndPlanDate(openid, date);
+        if (stored.isPresent()) {
+            try {
+                currentNames = json.readValue(stored.get().getPlanJson(), new TypeReference<List<Recipe>>() { })
+                        .stream().map(Recipe::getName).filter(Objects::nonNull)
+                        .collect(Collectors.toSet());
+            } catch (Exception ignored) { }
+            plans.delete(stored.get());
+        }
+        return generate(openid, date, currentNames);
+    }
+
+    /** 三餐生成内核：strict 走营养校验，fallback 只走安全/忌口校验。extraExclude 额外排除的菜名（如当天已出过的）。 */
+    private Optional<PlanView> generate(String openid, LocalDate date, Set<String> extraExclude) {
         List<NutritionKnowledgePack> knowledge = eligiblePacks();
         List<SeasonalIngredient> inSeason = eligibleSeasonalIngredients();
 
         UserProfile profile = profile(openid);
         UserFoodPreference preference = validationPreference(openid, profile);
-        Set<String> recentPlanNames = recentPlanDishNames(openid, date);
+        Set<String> recentPlanNames = new HashSet<>(recentPlanDishNames(openid, date));
+        recentPlanNames.addAll(extraExclude);
+
         if (!knowledge.isEmpty() && !inSeason.isEmpty()) {
             // 早餐槽只从早餐组合池选（包子/饺子/面/粥配豆浆牛奶），池子为空时回退全池保证不空窗
             List<Recipe> allPool = topCandidates(rankedCandidates(profile, inSeason, true, false, recentPlanNames));

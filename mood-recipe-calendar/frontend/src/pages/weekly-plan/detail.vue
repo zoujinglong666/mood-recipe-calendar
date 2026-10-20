@@ -301,7 +301,12 @@ function queueCovers(dayIndex: number) {
 
 async function ensureDishCover(dayIndex: number, dishIndex: number) {
   const key = coverKey(dayIndex, dishIndex)
-  if (!plan.value || hasGeneratedCover(plan.value.days[dayIndex], dishIndex) || coverLoading.value[key])
+  const day = plan.value?.days[dayIndex]
+  const dish = day ? dishesOf(day)[dishIndex] : undefined
+  // 封面是串行生成的，每生成一张都会用服务端最新 plan 覆盖 plan.value；
+  // 快速滑动会积压带旧下标的任务，轮到它们时当天/该菜可能已不存在。
+  // 必须先校验存在性，否则会发出越界请求（后端只能判定为参数错误）。
+  if (!plan.value || !day || !dish || hasGeneratedCover(day, dishIndex) || coverLoading.value[key])
     return
   coverLoading.value = { ...coverLoading.value, [key]: true }
   try {

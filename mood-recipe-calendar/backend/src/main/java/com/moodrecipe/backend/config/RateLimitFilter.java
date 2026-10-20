@@ -17,7 +17,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * 轻量按 IP 限流（单实例内存实现，无需 Redis）：缓解扫描、爆破与突发流量。
+ * 轻量限流（单实例内存实现，无需 Redis）：缓解扫描、爆破与突发流量。
+ * - 已登录请求按会话（X-Session-Token，≈按用户）限流，避免微信/反代共享出口 IP 把所有用户挤进同一桶；
+ * - 未登录/鉴权请求按 IP 限流。
  * - 全局：每 IP 每分钟最多 general-per-minute 次
  * - 鉴权/管理接口：每 IP 每分钟最多 auth-per-minute 次（防会话 token 爆破）
  * - 登录/鉴权失败（401）连续超阈值：临时封禁该 IP（ban-minutes 分钟），压爆破与扫描噪声
@@ -63,7 +65,11 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
         boolean sensitive = uri.contains("/auth/") || uri.startsWith("/api/admin/");
         long limit = sensitive ? authLimit : generalLimit;
-        Bucket bucket = buckets.computeIfAbsent(ip + (sensitive ? "|auth" : "|gen"), k -> new Bucket());
+        // 限流身份：已登录请求带 X-Session-Token，按会话（≈按用户）限流；
+        // 微信/反代场景下所有用户共享同一出口 IP，若仅按 IP 限流会把正常用户也频遭 429。
+        // 未携带 token 的公开/鉴权请求退回按 IP 限流（保留防爆破能力）。
+        String identity = identityKey(request);
+        Bucket bucket = buckets.computeIfAbsent(identity + (sensitive ? "|auth" : "|gen"), k -> new Bucket());
         if (!bucket.tryAcquire(limit)) {
             response.setStatus(429);
             response.setContentType("application/json;charset=UTF-8");
@@ -102,6 +108,17 @@ public class RateLimitFilter extends OncePerRequestFilter {
         String xri = request.getHeader("X-Real-IP");
         if (xri != null && !xri.isBlank()) return xri.trim();
         return request.getRemoteAddr();
+    }
+
+    /**
+     * 限流身份：已登录请求携带 X-Session-Token 时按会话（≈按用户）限流；
+     * 微信小程序/云平台反代下所有用户共享同一出口 IP，若仅按 IP 限流会把正常用户也频遭 429。
+     * 未携带 token 的公开/鉴权请求退回按 IP 限流（保留防爆破能力）。
+     */
+    private String identityKey(HttpServletRequest request) {
+        String token = request.getHeader("X-Session-Token");
+        if (token != null && !token.isBlank()) return "tok:" + token;
+        return "ip:" + clientIp(request);
     }
 
     /** 定时清理过期桶与封禁记录，避免长期运行内存膨胀。 */

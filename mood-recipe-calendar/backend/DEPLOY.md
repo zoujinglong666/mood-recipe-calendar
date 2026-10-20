@@ -47,6 +47,14 @@ mysql -uroot -p --default-character-set=utf8mb4 mood_recipe < sql/migrations/202
 
 库存接口：`GET /api/fridge/items`、`GET /api/fridge/summary`、`POST/PUT/DELETE /api/fridge/items/{id}`、`POST /api/fridge/items/{id}/consume`。
 
+「换一整天」每看一次广告 +1 次额度，需要 `ad_rewards` 记账表（仅新增表，不影响已有数据）：
+
+```bash
+mysql -uroot -p --default-character-set=utf8mb4 mood_recipe < sql/migrations/20261020_add_ad_rewards.sql
+```
+
+> 「换一整天」额度（普通 1 / 会员 3 / 每看一次广告再 +1）复用 `usage_quotas` 表，无需额外建表；`ad_rewards` 每看完一次广告记一条，用于累加当日可换次数（看一次规划一次）。
+
 ## 3. 环境变量配置
 
 部署前必须设置以下环境变量（**不要写入代码仓库**）：

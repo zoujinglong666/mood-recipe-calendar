@@ -87,9 +87,11 @@
         <view class="footer-note">三餐由锅仔依据你的忌口与《中国居民膳食指南》生成</view>
       </view>
 
+      <view v-if="quotaHint" class="quota-hint">{{ quotaHint }}</view>
+
       <!-- 底部操作栏 -->
       <view class="action-bar">
-        <view class="btn btn-outline" @click="reshuffle">{{ generating ? '规划中…' : '换一整天' }}</view>
+        <view class="btn btn-outline" @click="reshuffle">{{ reshuffleLabel }}</view>
         <view class="btn btn-ghost" @click="talkToGuozai">和锅仔聊聊</view>
         <view class="btn btn-solid" @click="share">{{ sharing ? '生成中…' : '分享图' }}</view>
       </view>
@@ -117,7 +119,9 @@ definePage({
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import { ref, reactive, computed } from 'vue'
 import { useNavBar, navBack } from '@/composables/useNavBar'
-import { fetchDailyMealPlan, replaceDailyMealPlanMeal, generateDailyMealCover } from '@/api/dailyMealPlan'
+import { fetchDailyMealPlan, replaceDailyMealPlanMeal, generateDailyMealCover, fetchDailyMealPlanQuota, reshuffleDailyMealPlan } from '@/api/dailyMealPlan'
+import type { QuotaView } from '@/api/dailyMealPlan'
+import { watchAdReward, REWARDED_AD_UNIT_ID } from '@/api/ad'
 import NutritionCard from '@/components/guozai/NutritionCard.vue'
 import { splitComboDishName } from '@/api/dailyMenu'
 import type { RecipeItem } from '@/api/recipes'
@@ -150,6 +154,8 @@ const expanded = reactive<boolean[]>([false, false, false])
 const replacing = reactive<boolean[]>([false, false, false])
 const swapping = reactive<boolean[]>([false, false, false])
 const generating = ref(false)
+/** 换一整天额度视图：remaining=-1 表示无限（会员上限或看广告解锁）。 */
+const quota = ref<QuotaView | null>(null)
 
 function pulseSwap(i: number) {
   swapping[i] = true
@@ -234,6 +240,7 @@ async function load() {
     plan.value = data
     expanded[0] = expanded[1] = expanded[2] = false
     backfillCovers()
+    await refreshQuota()
   }
   catch (e) {
     error.value = '加载失败，请检查网络后重试'
@@ -243,6 +250,14 @@ async function load() {
     loading.value = false
     hideLoading()
   }
+}
+
+/** 拉取「换一整天」剩余额度；失败不影响浏览，按钮退化为直接尝试。 */
+async function refreshQuota() {
+  try {
+    quota.value = await fetchDailyMealPlanQuota()
+  }
+  catch { /* 额度查询失败不阻断浏览 */ }
 }
 
 /** 三餐卡懒补图：无真实图（锅仔插画兜底）的餐次逐个补拍专属封面，成功后就地更新；失败保持兜底。 */
@@ -289,18 +304,44 @@ async function replaceMeal(i: number) {
   }
 }
 
+const reshuffleLabel = computed(() => {
+  if (generating.value) return '规划中…'
+  if (!quota.value) return '换一整天'
+  if (quota.value.remaining <= 0) return '看广告·再换一次'
+  return `换一整天（剩${quota.value.remaining}）`
+})
+
+const quotaHint = computed(() => {
+  if (!quota.value) return ''
+  if (quota.value.remaining <= 0) return '今日免费次数已用完，看广告可再换一次'
+  if (quota.value.member) return `会员今日还可换一整天 ${quota.value.remaining} 次`
+  return `普通用户今日还可换一整天 ${quota.value.remaining} 次`
+})
+
+/** 底部按钮：有额度则直接换；额度用完则引导看广告「再看一次换一次」。 */
 async function reshuffle() {
+  if (!plan.value || generating.value) return
+  if (quota.value && quota.value.remaining <= 0) {
+    await startAd()
+    return
+  }
+  await doReshuffle()
+}
+
+/** 真实发起一次「换一整天」请求（消耗一次额度）。 */
+async function doReshuffle() {
   if (!plan.value || generating.value) return
   generating.value = true
   showLoading('重新规划中…')
   try {
-    const date = plan.value.date
-    for (let i = 0; i < 3; i++) {
-      const res = await replaceDailyMealPlanMeal(i, date)
-      if (res?.meals?.length) plan.value = res
+    const { plan: newPlan, quota: q } = await reshuffleDailyMealPlan(plan.value.date)
+    if (newPlan?.meals?.length) {
+      plan.value = newPlan
+      quota.value = q
+      for (let i = 0; i < 3; i++) pulseSwap(i)
+      toastSuccess('已换一整天的搭配')
+      backfillCovers()
     }
-    for (let i = 0; i < 3; i++) pulseSwap(i)
-    toastSuccess('已换一整天的搭配')
   }
   catch (e) {
     toastError(e, '重新规划失败')
@@ -309,6 +350,54 @@ async function reshuffle() {
     generating.value = false
     hideLoading()
   }
+}
+
+// ---- 看广告解锁「当日无限换一整天」 ----
+let rewardedAd: any = null
+function getRewardedAd() {
+  // #ifdef MP-WEIXIN
+  if (!rewardedAd) {
+    rewardedAd = uni.createRewardedVideoAd({ adUnitId: REWARDED_AD_UNIT_ID })
+    rewardedAd.onError(() => toast('广告加载失败，请稍后再试'))
+    rewardedAd.onClose((res: any) => {
+      if (res && res.isEnded) void onAdReward()
+      else toast('看完广告才能解锁无限换哦')
+    })
+  }
+  // #endif
+  return rewardedAd
+}
+
+/** 看完广告回调：记账兑换一次机会，并立即换一整天。 */
+async function onAdReward() {
+  try {
+    await watchAdReward('RESHUFFLE_UNLIMITED', REWARDED_AD_UNIT_ID)
+    await refreshQuota()
+    toastSuccess('已获得一次换一整天机会')
+    await doReshuffle()
+  }
+  catch (e) {
+    toastError(e, '广告奖励发放失败')
+  }
+}
+
+/** 拉起激励视频；当前环境不支持（如 H5 / 未开通流量主）时降级提示。 */
+async function startAd() {
+  // #ifdef MP-WEIXIN
+  const ad = getRewardedAd()
+  if (ad) {
+    try {
+      await ad.show()
+    }
+    catch {
+      // 组件尚未加载完：先 load 再 show（微信官方推荐写法）
+      await ad.load()
+      await ad.show()
+    }
+    return
+  }
+  // #endif
+  toast('当前环境不支持看广告，请明天再来')
 }
 
 async function share() {
@@ -668,6 +757,18 @@ onShareTimeline(() => ({
   color: var(--mrc-text-light);
   padding: 28rpx 40rpx;
   line-height: 1.5;
+}
+
+.quota-hint {
+  text-align: center;
+  font-size: 22rpx;
+  font-weight: 700;
+  color: var(--mrc-accent);
+  background: var(--mrc-accent-soft);
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 999rpx;
+  margin: 4rpx 24rpx 0;
+  padding: 12rpx 24rpx;
 }
 
 .action-bar {
