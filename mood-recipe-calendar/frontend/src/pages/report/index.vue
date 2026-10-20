@@ -167,10 +167,9 @@ function share() {
         </view>
         <image class="rpt-cover__guozai" :src="STATIC_BASE_URL + '/static/guozai/action_06_glasses.png'" mode="aspectFit" />
         <view class="rpt-cover__footer">
-          <text class="rpt-cover__slogan">⭐ {{ currentYear }}年度 · 用一道菜治愈每一天 ❤️</text>
+          <text class="rpt-cover__slogan"> {{ currentYear }}年度 · 用一道菜治愈每一天 </text>
           <view class="rpt-cover__divider">
             <view class="rpt-cover__line" />
-            <text class="rpt-cover__stars">⭐⭐⭐</text>
             <view class="rpt-cover__line" />
           </view>
         </view>
@@ -215,7 +214,7 @@ function share() {
         <view class="rpt-top3__list">
           <view v-if="!top3.length" class="rpt-top3__empty">记录几道拿手菜，这里就有你的 TOP3</view>
           <view v-for="(d, i) in top3" :key="d.name" class="rpt-top3__item">
-            <view class="rpt-top3__medal" :class="i === 0 ? 'rpt-top3__medal--gold' : i === 1 ? 'rpt-top3__medal--silver' : 'rpt-top3__medal--bronze'">{{ ['🥇', '🥈', '🥉'][i] }}</view>
+            <view class="rpt-top3__medal" :class="i === 0 ? 'rpt-top3__medal--gold' : i === 1 ? 'rpt-top3__medal--silver' : 'rpt-top3__medal--bronze'">{{ ['', '', ''][i] }}</view>
             <view class="rpt-top3__img" :style="{ background: top3Bg(i) }">{{ d.name.charAt(0) }}</view>
             <view class="rpt-top3__info">
               <text class="rpt-top3__name">{{ d.name }} <text class="rpt-top3__count">{{ d.count }}次</text></text>
@@ -252,7 +251,6 @@ function share() {
         <text class="rpt-title">每月干饭热力图</text>
         <view class="rpt-heatmap__highlight">
           <text class="rpt-heatmap__month">{{ peakMonth.count > 0 ? peakMonth.month + '月 ' + peakMonth.count + '天' : '记录中…' }}</text>
-          <text class="rpt-heatmap__fire">🔥</text>
         </view>
         <view class="rpt-heatmap__chart">
           <view class="rpt-heatmap__bars">
@@ -271,12 +269,6 @@ function share() {
         <text class="rpt-heatmap__text">{{ peakMonth.count > 0 ? peakMonth.month + '月是你最勤快的一个月' : '本月还没开始记录，去好好吃饭吧' }}</text>
         <view class="rpt-heatmap__guozai-wrap">
           <image class="rpt-guozai rpt-guozai--sm" :src="STATIC_BASE_URL + '/static/guozai/mood_11_proud.png'" mode="aspectFit" />
-          <text class="rpt-heatmap__deco rpt-heatmap__deco--s1">⭐</text>
-          <text class="rpt-heatmap__deco rpt-heatmap__deco--s2">⭐</text>
-          <text class="rpt-heatmap__deco rpt-heatmap__deco--h1">❤️</text>
-          <text class="rpt-heatmap__deco rpt-heatmap__deco--h2">🧡</text>
-          <text class="rpt-heatmap__deco rpt-heatmap__deco--c1">☁️</text>
-          <text class="rpt-heatmap__deco rpt-heatmap__deco--c2">☁️</text>
         </view>
       </view>
       </swiper-item>
@@ -287,21 +279,18 @@ function share() {
         <text class="rpt-title">{{ currentYear }}年度之最</text>
         <view class="rpt-best__list">
           <view class="rpt-best__item">
-            <text class="rpt-best__icon">🔥</text>
             <view class="rpt-best__info">
               <text class="rpt-best__name">最勤快的月份</text>
               <text class="rpt-best__detail">{{ peakMonth.count > 0 ? peakMonth.month + '月 · 记录了' + peakMonth.count + '天' : '记录中…' }}</text>
             </view>
           </view>
           <view class="rpt-best__item">
-            <text class="rpt-best__icon">📅</text>
             <view class="rpt-best__info">
               <text class="rpt-best__name">最长连续记录</text>
               <text class="rpt-best__detail">{{ (yearStats?.longestStreak || 0) + '天 · 坚持就是胜利' }}</text>
             </view>
           </view>
           <view class="rpt-best__item">
-            <text class="rpt-best__icon">🏆</text>
             <view class="rpt-best__info">
               <text class="rpt-best__name">最常做的菜</text>
               <text class="rpt-best__detail">{{ top3.length ? top3[0].name + ' · ' + top3[0].count + '次' : '记录中…' }}</text>
@@ -317,12 +306,6 @@ function share() {
       <view class="rpt-message rpt-page">
         <view class="rpt-message__guozai-wrap">
           <image class="rpt-message__guozai" :src="STATIC_BASE_URL + '/static/guozai/action_06_glasses.png'" mode="aspectFit" />
-          <text class="rpt-message__deco rpt-message__deco--s1">⭐</text>
-          <text class="rpt-message__deco rpt-message__deco--s2">⭐</text>
-          <text class="rpt-message__deco rpt-message__deco--h1">❤️</text>
-          <text class="rpt-message__deco rpt-message__deco--h2">🧡</text>
-          <text class="rpt-message__deco rpt-message__deco--c1">☁️</text>
-          <text class="rpt-message__deco rpt-message__deco--c2">☁️</text>
         </view>
         <view class="rpt-message__text">
           <text v-for="(line, i) in messageLines" :key="i">{{ line }}</text>

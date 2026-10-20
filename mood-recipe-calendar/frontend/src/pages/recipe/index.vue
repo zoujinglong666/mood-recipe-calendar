@@ -853,7 +853,6 @@ async function waitForDelivery(orderNo: string) {
             aria-label="生成并保存菜谱教程海报"
             @click="saveRecipePoster"
           >
-            <text class="poster-entry__emoji">🖼</text>
             <text class="poster-entry__text">{{ posterSaving ? '锅仔正在排版海报…' : '保存教程海报（图文可分享）' }}</text>
             <text class="poster-entry__arrow">›</text>
           </view>

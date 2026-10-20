@@ -520,7 +520,7 @@ async function shareDay(day: PlanDay, index: number) {
                 <swiper-item v-for="(dish, dishIndex) in dishesOf(day)" :key="`${dish.name}-${dishIndex}`">
                   <view class="dish-cover" :class="{ 'dish-cover--loading': coverLoading[coverKey(index, dishIndex)] }">
                     <view v-if="coverOf(day, dishIndex)" class="dish-cover__preview" role="button" :aria-label="`预览${dish.name}菜品大图`" @click.stop="previewDishImages(day, dishIndex)">
-                      <GuozaiImage :src="resolveAssetUrl(coverOf(day, dishIndex))" placeholder-text="🍲" />
+                      <GuozaiImage :src="resolveAssetUrl(coverOf(day, dishIndex))" placeholder-text="" />
                       <text class="dish-cover__preview-hint">
                         查看大图
                       </text>
@@ -685,7 +685,7 @@ async function shareDay(day: PlanDay, index: number) {
         <view v-if="shoppingOpen" class="shopping-list">
           <!-- 搭配风险提示：柿子×螃蟹等同日组合，提示错开食用 -->
           <view v-if="safetyCombos.length" class="safety-combos">
-            <text class="safety-combos__title">⚠️ 搭配提醒</text>
+            <text class="safety-combos__title">⚠ 搭配提醒</text>
             <text v-for="(combo, idx) in safetyCombos" :key="idx" class="safety-combos__item">
               {{ combo }}
             </text>

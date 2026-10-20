@@ -1,7 +1,6 @@
 <template>
   <view class="daily">
     <view v-if="error" class="state">
-      <view class="state-emoji">🍽️</view>
       <view class="state-title">{{ error }}</view>
       <wd-button type="primary" @click="load">重试</wd-button>
     </view>

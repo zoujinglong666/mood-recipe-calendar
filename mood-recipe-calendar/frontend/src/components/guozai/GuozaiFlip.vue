@@ -283,7 +283,7 @@ defineExpose({ deal, fail, reset, reshuffle })
       <view v-if="phase === 'revealed'" class="gnf__result" role="status">
         <image v-if="prize.image" class="gnf__result-img" :src="prize.image" mode="aspectFill" />
         <view class="gnf__result-copy">
-          <text class="gnf__result-label">🎉 撒花！翻到了</text>
+          <text class="gnf__result-label">撒花！翻到了</text>
           <text class="gnf__result-name">{{ prize.name }}</text>
         </view>
         <view class="gnf__result-btn" role="button" aria-label="就做这道菜" @click="cook">就做这道</view>

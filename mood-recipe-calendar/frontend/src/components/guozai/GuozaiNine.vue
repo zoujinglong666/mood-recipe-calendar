@@ -214,7 +214,7 @@ defineExpose({ land, fail })
       <view v-if="phase === 'landed' && resultIndex >= 0" class="gn__result" role="status">
         <image v-if="cells[resultIndex]?.image" class="gn__result-img" :src="cells[resultIndex]!.image" mode="aspectFill" />
         <view class="gn__result-copy">
-          <text class="gn__result-label">🎉 撒花！停到了</text>
+          <text class="gn__result-label">撒花！停到了</text>
           <text class="gn__result-name">{{ cells[resultIndex]?.name }}</text>
         </view>
         <view class="gn__result-btn" role="button" aria-label="就做这道菜" @click="cook">就做这道</view>

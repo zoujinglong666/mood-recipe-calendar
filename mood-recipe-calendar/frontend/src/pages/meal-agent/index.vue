@@ -497,10 +497,10 @@ async function sendQuickReply(text: string) {
 
 // ===== A2. 场景预设：一键带整套偏好进场，跳过逐项追问（冰箱清空走冰箱问答路径） =====
 const SCENE_PRESETS = [
-  { key: 'SINGLE', label: '🍳 单人快煮', message: '就我一个人吃饭，安排这一周的晚餐，简单省事不剩饭' },
-  { key: 'COUPLE', label: '💑 情侣二人食', message: '我们两个人一起吃饭，安排这一周的晚餐' },
-  { key: 'BANQUET', label: '🎉 宴席硬菜', message: '周末家里来客人，帮我安排一桌宴席硬菜' },
-  { key: 'FRIDGE', label: '🧊 冰箱清空', message: '冰箱里还剩哪些食材？帮我用现有的食材安排菜单' },
+  { key: 'SINGLE', label: '单人快煮', message: '就我一个人吃饭，安排这一周的晚餐，简单省事不剩饭' },
+  { key: 'COUPLE', label: '情侣二人食', message: '我们两个人一起吃饭，安排这一周的晚餐' },
+  { key: 'BANQUET', label: '宴席硬菜', message: '周末家里来客人，帮我安排一桌宴席硬菜' },
+  { key: 'FRIDGE', label: '冰箱清空', message: '冰箱里还剩哪些食材？帮我用现有的食材安排菜单' },
 ] as const
 
 async function runPreset(preset: typeof SCENE_PRESETS[number]) {

@@ -52,8 +52,8 @@ const OPTION_TAGS = ['A', 'B', 'C', 'D']
 
 /** 测试类型 Tab 数据源（视觉为胶囊分段式，切换仍直接写 activeTest，业务等价） */
 const TEST_TABS = [
-  { key: 'eat' as TestKey, emoji: '🍚', label: '干饭人格' },
-  { key: 'cook' as TestKey, emoji: '🍳', label: '做饭人格' },
+  { key: 'eat' as TestKey, emoji: '', label: '干饭人格' },
+  { key: 'cook' as TestKey, emoji: '', label: '做饭人格' },
 ]
 
 /* ---- 锅仔 IP 延展：每题换一个姿势「出题」，配一句锅仔台词；进度条上锅仔随进度走 ---- */

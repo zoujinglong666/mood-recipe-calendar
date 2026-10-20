@@ -66,7 +66,7 @@ function getPeriod(hour: number) {
 import { computed, nextTick, ref } from 'vue'
 import Icon from '../../components/common/Icon.vue'
 import { ensureLogin } from '../../utils/login'
-import { toast, toastError, toastSuccess } from '../../utils/toast'
+import { toast, toastError } from '../../utils/toast'
 import { haptic } from '../../utils/haptic'
 import { acceptShareInvite } from '../../api/share'
 import { onLoad, onPullDownRefresh } from '@dcloudio/uni-app'
@@ -301,7 +301,8 @@ const boardSkeleton = ref(false)
 const boardLoadFailed = ref(false)
 let boardSkeletonTimer: ReturnType<typeof setTimeout> | null = null
 const BOARD_LOAD_TIMEOUT = 10_000
-const BOARD_SWITCH_TIMEOUT = 8_000
+/** 换菜走后端菜谱池缓存路径（毫秒级）；12s 只为弱网留余量，超时即报错并给重试卡 */
+const BOARD_SWITCH_TIMEOUT = 12_000
 
 /** 看门狗：请求层无超时配置，连接挂起时 Promise 永不落定会把骨架屏卡死——这里兜底强制失败 */
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
@@ -649,18 +650,41 @@ function goCookToday() {
 /** 分享回流承接：好友通过分享卡打开 → 双方各 +1 次对话额度；带上好友分享的那道菜名做欢迎 */
 const friendDish = ref('')
 const inviteBonus = ref(false)
+const isShowShareCurtain = ref(false)
+/**
+ * 小程序转发链路会对 path query 再做一次整体编码：我们 encodeURIComponent 过的中文
+ * 到 onLoad 时变成了 %25E8…（% 被二次编码），表现为「%25E8%2599…」乱码。
+ * 这里循环解码到没有 %XX 转义为止（最多 3 层，防止异常输入死循环）。
+ */
+function decodeQueryParam(value: string) {
+  let result = value
+  for (let i = 0; i < 3 && /%[0-9A-Fa-f]{2}/.test(result); i += 1) {
+    try {
+      const decoded = decodeURIComponent(result)
+      if (decoded === result)
+        break
+      result = decoded
+    }
+    catch {
+      break
+    }
+  }
+  return result
+}
 onLoad((query) => {
-  const sharer = String(query?.sharer || '')
-  const dish = String(query?.dish || '')
-  if (dish)
+  const sharer = decodeQueryParam(String(query?.sharer || ''))
+  const dish = decodeQueryParam(String(query?.dish || ''))
+  if (dish) {
     friendDish.value = dish
+    isShowShareCurtain.value = true
+  }
   if (!sharer || sharer === userStore.openid)
     return
   acceptShareInvite(sharer)
     .then((res) => {
       if (res?.grantedBonus) {
         inviteBonus.value = true
-        toastSuccess('好友分享的福利：今日对话 +1 次')
+        isShowShareCurtain.value = true
       }
     })
     .catch(() => {})
@@ -748,7 +772,6 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
     <view v-if="showFavTip" class="fav-tip">
       <view class="fav-tip__arrow" />
       <view class="fav-tip__body">
-        <text class="fav-tip__emoji">⭐</text>
         <view class="fav-tip__text">
           <text class="fav-tip__title">点右上角 ⋯ → 收藏</text>
           <text class="fav-tip__sub">明天打开不迷路，锅仔每天给你留菜</text>
@@ -778,12 +801,32 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
         <view class="home-hero__spark home-hero__spark--one" /><view class="home-hero__spark home-hero__spark--two" />
       </view>
 
-      <!-- 分享回流欢迎条：好友点开的落地页，先看到这道菜和福利，再自然进入今日菜牌 -->
-      <view v-if="friendDish || inviteBonus" class="share-welcome">
-        <text class="share-welcome__emoji">🍲</text>
-        <text v-if="friendDish" class="share-welcome__text">好友用锅仔安排了「{{ friendDish }}」</text>
-        <text v-if="inviteBonus" class="share-welcome__bonus">你和好友各得 1 次对话额度</text>
-      </view>
+      <!-- 分享回流幕帘：好友点开的落地页自动弹出（curtain 式居中放大），先看到这道菜和福利，关闭后自然进入今日菜牌 -->
+      <wd-popup
+        v-model="isShowShareCurtain"
+        position="center"
+        transition="zoom-in"
+        :close-on-click-modal="true"
+        custom-class="share-curtain-pop"
+      >
+        <view class="share-curtain">
+          <view class="share-curtain__badge">
+            <text v-if="inviteBonus">好友分享的福利：今日对话 +1 次</text>
+            <text v-else>好友用锅仔给你留了一份菜</text>
+          </view>
+          <view class="share-curtain__body">
+            <image class="share-curtain__emoji" :src="STATIC_BASE_URL + '/static/guozai/action_01_bowl.png'" mode="aspectFit" />
+            <view class="share-curtain__info">
+              <text class="share-curtain__label">{{ friendDish ? '好友用锅仔安排了' : '好友分享的福利' }}</text>
+              <text v-if="friendDish" class="share-curtain__dish">「{{ friendDish }}」</text>
+              <text v-else class="share-curtain__dish">你和好友各得 1 次对话额度</text>
+            </view>
+          </view>
+          <view class="share-curtain__close" role="button" aria-label="关闭欢迎弹窗" @click="isShowShareCurtain = false">
+            <text>我知道啦</text>
+          </view>
+        </view>
+      </wd-popup>
       <!-- 今日菜单（TodayBoard）：今日菜牌——菜图右侧通栏出血，信息在左；上下滑换牌（牌堆式微动效，顶牌动、垫牌不动） -->
       <view class="home-board-deck">
       <view
@@ -925,17 +968,14 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
           </view>
           <view class="meal-sheet__options">
             <button class="meal-option" @click="pickMeal('BREAKFAST')">
-              <text class="meal-option__emoji">🌅</text>
               <text class="meal-option__name">早餐</text>
               <text class="meal-option__desc">唤醒一天的元气</text>
             </button>
             <button class="meal-option" @click="pickMeal('LUNCH')">
-              <text class="meal-option__emoji">🍚</text>
               <text class="meal-option__name">午餐</text>
               <text class="meal-option__desc">给下午充好电</text>
             </button>
             <button class="meal-option" @click="pickMeal('DINNER')">
-              <text class="meal-option__emoji">🌙</text>
               <text class="meal-option__name">晚餐</text>
               <text class="meal-option__desc">好好收尾这一天</text>
             </button>
@@ -1031,19 +1071,52 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
 .theme-banner__close { position: absolute; top: 4rpx; right: 12rpx; padding: 6rpx 10rpx; color: var(--mrc-text-light); font-size: 30rpx; line-height: 1; }
 .theme-banner__close:active { opacity: .6; }
 
-.share-welcome {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-  margin: 12rpx 24rpx 0;
-  padding: 16rpx 24rpx;
-  background: var(--mrc-surface-sun, #FFF6E0);
-  border: 2rpx solid var(--mrc-border-light);
-  border-radius: 24rpx;
+/* 分享回流幕帘：curtain 式居中弹出，徽章悬出卡顶，米金底 + 朱红关闭钮 */
+:deep(.share-curtain-pop) {
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
 }
-.share-welcome__emoji { font-size: 30rpx; }
-.share-welcome__text { font-size: 24rpx; color: var(--mrc-text-deep); font-weight: 700; }
-.share-welcome__bonus { margin-left: auto; font-size: 21rpx; color: var(--mrc-accent); font-weight: 700; }
+.share-curtain {
+  position: relative;
+  width: 560rpx;
+  margin-top: 44rpx;
+  padding: 56rpx 36rpx 36rpx;
+  box-sizing: border-box;
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 36rpx;
+  background: var(--mrc-surface-sun, #FFF6E0);
+  box-shadow: var(--mrc-shadow-coral, 0 16rpx 40rpx rgba(255, 106, 61, .18));
+  text-align: center;
+}
+.share-curtain__badge {
+  position: absolute;
+  top: -44rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 16rpx 30rpx;
+  border-radius: 24rpx;
+  background: var(--mrc-text-deep, #3A2E28);
+  color: #FFF6E0;
+  font-size: 24rpx;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 10rpx 24rpx rgba(58, 46, 40, .25);
+}
+.share-curtain__body { display: flex; align-items: center; gap: 22rpx; padding: 12rpx 6rpx 30rpx; text-align: left; }
+.share-curtain__emoji { flex: 0 0 auto; width: 96rpx; height: 96rpx; }
+.share-curtain__info { display: flex; flex-direction: column; gap: 8rpx; min-width: 0; }
+.share-curtain__label { color: var(--mrc-text-sub); font-size: 23rpx; }
+.share-curtain__dish { color: var(--mrc-text-deep); font-size: 30rpx; font-weight: 800; line-height: 1.35; word-break: break-all; }
+.share-curtain__close {
+  padding: 20rpx 0;
+  border-radius: 999rpx;
+  background: var(--mrc-primary-grad, linear-gradient(135deg, #FF7A45, #FF5A3C));
+  color: #fff;
+  font-size: 27rpx;
+  font-weight: 800;
+}
+.share-curtain__close:active { opacity: .82; }
 
 .home-entry { border-radius: 30rpx; box-sizing: border-box; }
 /* 牌堆底座：菜牌下面垫两张微旋转的静止牌——换牌时只有顶牌在动，位置感稳定（堆叠卡片语言） */

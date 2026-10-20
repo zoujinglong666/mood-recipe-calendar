@@ -28,6 +28,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 @Service
@@ -48,6 +49,9 @@ public class DailyMealPlanService {
 
     /** 候选集封顶：findThree 是 O(n³) 暴力枚举，菜谱表稍大就会让请求挂死（线上曾因 AI 灌入数百道菜而 60s 超时）。取排序后的前若干道即可把组合数收敛为常数级，且前三道偏好已排序不妨碍质量。 */
     private static final int MAX_CANDIDATES = 120;
+
+    /** 三餐计划跨天去重天数：近 3 天（不含今天）三餐计划出过的菜不再参与生成，保证「连着几天吃的不重样」。 */
+    private static final int PLAN_RECENT_DAYS = 3;
 
     /** 同一天的三餐内容稳定，RAG 检索与营养结构只算一次，避免每次 onShow 重复打向量库。 */
     private final Map<LocalDate, Enrichment> enrichmentCache = new ConcurrentHashMap<>();
@@ -113,9 +117,11 @@ public class DailyMealPlanService {
 
         UserProfile profile = profile(openid);
         UserFoodPreference preference = validationPreference(openid, profile);
+        Set<String> recentPlanNames = recentPlanDishNames(openid, date);
         if (!knowledge.isEmpty() && !inSeason.isEmpty()) {
             // 早餐槽只从早餐组合池选（包子/饺子/面/粥配豆浆牛奶），池子为空时回退全池保证不空窗
-            List<Recipe> allPool = topCandidates(rankedCandidates(profile, inSeason, true));
+            List<Recipe> allPool = topCandidates(rankedCandidates(profile, inSeason, true, false, recentPlanNames));
+            if (allPool.isEmpty()) allPool = topCandidates(rankedCandidates(profile, inSeason, true));
             List<Recipe> breakfastPool = breakfastPool(allPool);
             if (breakfastPool.isEmpty()) breakfastPool = allPool;
             Optional<List<Recipe>> strict = findThree(breakfastPool, allPool,
@@ -124,8 +130,10 @@ public class DailyMealPlanService {
         }
 
         // 季节数据或知识包是软条件；没有严格组合时，仍返回通过安全、忌口和展示校验的三餐。
-        List<Recipe> fallbackBreakfast = breakfastPool(topCandidates(rankedCandidates(profile, inSeason, false)));
-        List<Recipe> fallbackAll = topCandidates(rankedCandidates(profile, inSeason, false));
+        List<Recipe> fallbackBreakfast = breakfastPool(topCandidates(rankedCandidates(profile, inSeason, false, false, recentPlanNames)));
+        if (fallbackBreakfast.isEmpty()) fallbackBreakfast = breakfastPool(topCandidates(rankedCandidates(profile, inSeason, false)));
+        List<Recipe> fallbackAll = topCandidates(rankedCandidates(profile, inSeason, false, false, recentPlanNames));
+        if (fallbackAll.isEmpty()) fallbackAll = topCandidates(rankedCandidates(profile, inSeason, false));
         Optional<List<Recipe>> fallback = findThree(
                 fallbackBreakfast.isEmpty() ? fallbackAll : fallbackBreakfast, fallbackAll,
                 meals -> validator.isSafe(meals, preference));
@@ -147,9 +155,13 @@ public class DailyMealPlanService {
             List<NutritionKnowledgePack> knowledge = eligiblePacks();
             UserProfile profile = profile(openid);
             UserFoodPreference preference = validationPreference(openid, profile);
-            // 换早餐时只从早餐组合池换；早餐池为空时回退全池
-            List<Recipe> candidates = rankedCandidates(profile, eligibleSeasonalIngredients(), false, mealIndex == 0);
+            // 换早餐时只从早餐组合池换；早餐池为空时回退全池；跨天去重兜底同 plan()
+            Set<String> recentPlanNames = recentPlanDishNames(openid, stored.get().getPlanDate());
+            List<Recipe> candidates = rankedCandidates(profile, eligibleSeasonalIngredients(), false, mealIndex == 0, recentPlanNames);
             if (candidates.isEmpty() && mealIndex == 0) {
+                candidates = rankedCandidates(profile, eligibleSeasonalIngredients(), false, false, recentPlanNames);
+            }
+            if (candidates.isEmpty()) {
                 candidates = rankedCandidates(profile, eligibleSeasonalIngredients(), false);
             }
             for (Recipe candidate : candidates) {
@@ -219,18 +231,15 @@ public class DailyMealPlanService {
                 : memory.profile(openid, AgentMemoryStore.Scene.WEEKLY_PLAN);
     }
 
-    private List<Recipe> rankedCandidates(UserProfile profile, List<SeasonalIngredient> inSeason) {
-        return rankedCandidates(profile, inSeason, true);
-    }
-
     private List<Recipe> rankedCandidates(UserProfile profile, List<SeasonalIngredient> inSeason,
                                           boolean requireSeasonalIngredient) {
-        return rankedCandidates(profile, inSeason, requireSeasonalIngredient, false);
+        return rankedCandidates(profile, inSeason, requireSeasonalIngredient, false, Set.of());
     }
 
-    /** breakfastOnly=true 时只保留早餐组合池（moodTags 打了「早餐」标签的菜谱）。 */
+    /** breakfastOnly=true 时只保留早餐组合池（moodTags 打了「早餐」标签的菜谱）。excludeNames 为跨天去重集合。 */
     private List<Recipe> rankedCandidates(UserProfile profile, List<SeasonalIngredient> inSeason,
-                                          boolean requireSeasonalIngredient, boolean breakfastOnly) {
+                                          boolean requireSeasonalIngredient, boolean breakfastOnly,
+                                          Set<String> excludeNames) {
         Set<String> blocked = new HashSet<>();
         blocked.addAll(profile.rejectedDishes());
         blocked.addAll(profile.avoidDishes());
@@ -241,12 +250,40 @@ public class DailyMealPlanService {
                         || inSeason.stream().anyMatch(item -> text(recipe).contains(item.getName())))
                 .filter(recipe -> !breakfastOnly || isBreakfast(recipe))
                 .filter(recipe -> !blocked.contains(recipe.getName()))
-                // 优先有真实菜品图（避免卡片空图），再考虑爱吃的菜，最后错开最近吃过的。
+                .filter(recipe -> recipe.getName() == null || !excludeNames.contains(recipe.getName().trim()))
+                // 优先有真实菜品图（避免卡片空图），再考虑爱吃的菜，最后错开最近吃过的；
+                // 末位随机决胜：前三档相同的绝大多数菜每天顺序不同，组合才不会天天一样。
                 .sorted(Comparator
                         .comparing((Recipe recipe) -> !hasRealImage(recipe))
                         .thenComparing(recipe -> !loved.contains(recipe.getName()))
-                        .thenComparing(recipe -> recent.contains(recipe.getName())))
+                        .thenComparing(recipe -> recent.contains(recipe.getName()))
+                        .thenComparing(recipe -> ThreadLocalRandom.current().nextInt()))
                 .toList();
+    }
+
+    /**
+     * 近几天三餐计划出过的全部菜名（不含 date 当天——当天计划允许「换回去」）。
+     * 这是确定性算法下「连着几天同一份三餐」的关键解药：计划结果虽不回流打卡记录，
+     * 但直接从历史 planJson 反查即可闭环。查询/解析失败静默放行，不影响出餐。
+     */
+    private Set<String> recentPlanDishNames(String openid, LocalDate date) {
+        try {
+            Set<String> names = new HashSet<>();
+            for (DailyMealPlan row : plans.findByOpenidAndPlanDateGreaterThanEqual(
+                    openid, date.minusDays(PLAN_RECENT_DAYS - 1L))) {
+                if (row.getPlanDate() == null || !row.getPlanDate().isBefore(date)) continue;
+                try {
+                    for (Recipe meal : json.readValue(row.getPlanJson(), new TypeReference<List<Recipe>>() { })) {
+                        if (meal.getName() != null && !meal.getName().isBlank()) names.add(meal.getName().trim());
+                    }
+                } catch (Exception ignored) {
+                    // 单行 planJson 损坏只影响这一行的去重，不放大为整体失败
+                }
+            }
+            return names;
+        } catch (RuntimeException e) {
+            return Set.of();
+        }
     }
 
     /** 早餐组合菜谱：moodTags 打了「早餐」标签（由 BreakfastPoolSeeder 生成时写入）。 */

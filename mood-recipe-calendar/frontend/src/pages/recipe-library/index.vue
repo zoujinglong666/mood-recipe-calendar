@@ -51,11 +51,11 @@ const hasFilters = computed(() =>
 
 // ---------- 场景合辑（借鉴竞品「宝盒」：筛选即合辑，点开直达沉浸流，免运营） ----------
 const COLLECTIONS = [
-  { emoji: '⚡', label: '快手下饭', sub: '30 分钟内端上桌', time: 'FAST', mood: 'ALL' },
-  { emoji: '🍲', label: '汤羹暖胃', sub: '温柔一锅', time: 'ALL', mood: '想家' },
-  { emoji: '🎉', label: '宴客硬菜', sub: '撑得住场面', time: 'ALL', mood: '期待' },
-  { emoji: '🌙', label: '深夜治愈', sub: '一个人也要好好吃', time: 'ALL', mood: '低落' },
-  { emoji: '🍚', label: '满足家常', sub: '踏实的熟悉味', time: 'ALL', mood: '满足' },
+  { emoji: '', label: '快手下饭', sub: '30 分钟内端上桌', time: 'FAST', mood: 'ALL' },
+  { emoji: '', label: '汤羹暖胃', sub: '温柔一锅', time: 'ALL', mood: '想家' },
+  { emoji: '', label: '宴客硬菜', sub: '撑得住场面', time: 'ALL', mood: '期待' },
+  { emoji: '', label: '深夜治愈', sub: '一个人也要好好吃', time: 'ALL', mood: '低落' },
+  { emoji: '', label: '满足家常', sub: '踏实的熟悉味', time: 'ALL', mood: '满足' },
 ] as const
 const activeCollection = ref('')
 /** 应用合辑 = 一次点按预设好整套筛选（关键词清空），沉浸流直接开逛 */

@@ -292,7 +292,7 @@ async function publish() {
       requestDailyReminderNotice()
       // 新解锁成就随保存响应返回：轻量庆祝 + 累计未读，点亮「我的」页形象馆入口红点
       if (result.newlyUnlocked?.length) {
-        toastSuccess(`🎉 解锁成就：${result.newlyUnlocked.join('、')}`)
+        toastSuccess(` 解锁成就：${result.newlyUnlocked.join('、')}`)
         const unread = Number(uni.getStorageSync('mrc_achv_unread') || 0)
         uni.setStorageSync('mrc_achv_unread', unread + result.newlyUnlocked.length)
       }
