@@ -110,6 +110,111 @@ page {
   --mrc-white: #FFFCF7;
   --mrc-border-soft: var(--mrc-border-light);
   --mrc-text-mid: #8B6B55;
+
+  /* ----  bento 暖色渐变卡（首页组件墙）：抽成令牌，页面不再硬编码十六进制 ---- */
+  --mrc-bento-amber: linear-gradient(135deg, #FFF5DF, #FFEAD0);   /* 主题横幅 / 老黄历 */
+  --mrc-bento-wheel: linear-gradient(150deg, #FFF8E8, #FFEDCB);   /* 转一转 */
+  --mrc-bento-nine: linear-gradient(150deg, #FFF3EA, #FFE7D6);    /* 跑一圈 */
+  --mrc-bento-flip: linear-gradient(150deg, #FFFBF4, #FFF1DF);    /* 翻一翻 */
+  --mrc-bento-agent: linear-gradient(135deg, #FFF3DC, #FFE6C4);   /* 锅仔管饭 */
+  --mrc-bento-library: linear-gradient(135deg, #FFEFE2, #FFDFC8); /* 藏菜阁 */
+
+  /* ---- 反色面（徽章/强调条：与页面明暗相反，保证两种模式都"跳"出来） ---- */
+  --mrc-inverse-bg: #3A2E28;
+  --mrc-inverse-text: #FFF6E0;
+
+  /* ---- 引导提示条（收藏引导等小横幅） ---- */
+  --mrc-tip-bg: #FFF7E6;
+  --mrc-tip-border: #FFE4B5;
+  --mrc-tip-title: #8B5A00;
+  --mrc-tip-sub: #B07930;
+}
+
+/* ============================================================
+ * 深色模式（微信官方能力：WXSS 支持 prefers-color-scheme 媒体查询，
+ * 与 Web 适配方式一致；theme.json 负责导航栏/页面底色，这里负责
+ * 全套 --mrc-* 设计令牌）。
+ * 原则：暖色调深色（棕黑而非灰黑），保持"暖厨房"品牌基因；
+ * 文字用暖白不用纯白；阴影加深； gloss 高光压到几乎不可见。
+ * ============================================================ */
+@media (prefers-color-scheme: dark) {
+  ::root,
+  page {
+    /* 表面层级：页面底与 theme.json dark.bgColor(#1A1410) 对齐，避免接缝；
+       卡片用暖棕逐层提亮，替代浅色模式的"近白浮起" */
+    --mrc-bg: #1A1410;
+    --mrc-surface: #261B13;
+    --mrc-surface-2: #30231A;
+    --mrc-surface-3: #3B2B1F;
+    --mrc-surface-peach: #2C1D15;
+    --mrc-surface-mint: #1B2A22;
+    --mrc-surface-sun: #2D2415;
+
+    /* 品牌珊瑚：深色底下提亮一档，保证行动点对比度 */
+    --mrc-primary: #FFB59A;
+    --mrc-primary-deep: #FF7A5C;
+    --mrc-primary-grad: linear-gradient(135deg, #FFC79E 0%, #FF7A5C 100%);
+    --mrc-accent: #FF8A68;
+    --mrc-accent-soft: rgba(255, 138, 104, 0.20);
+
+    /* 点缀色同步提亮 */
+    --mrc-pop: #FFD66B;
+    --mrc-mint: #3BD9B4;
+    --mrc-blue: #8CC4F2;
+
+    /* 文字：暖白系（正文不用纯白，大标题才到近白） */
+    --mrc-text: #CBB29A;
+    --mrc-text-deep: #F2DEC2;
+    --mrc-text-strong: #FFF4E4;
+    --mrc-text-sub: #A38A72;
+    --mrc-text-light: #7A6552;
+
+    /* 描边：暖深棕，可见但不刺眼 */
+    --mrc-border: #43301F;
+    --mrc-border-light: #382A1D;
+    --mrc-border-strong: #57402D;
+
+    /* 阴影：浅色模式靠暖棕投影，深色模式换成纯黑加深 */
+    --mrc-shadow-sm: 0 4rpx 12rpx rgba(0, 0, 0, 0.35);
+    --mrc-shadow: 0 10rpx 28rpx rgba(0, 0, 0, 0.45);
+    --mrc-shadow-soft: 0 6rpx 18rpx rgba(0, 0, 0, 0.30);
+    --mrc-shadow-coral: 0 12rpx 26rpx rgba(255, 107, 91, 0.30);
+    --mrc-shadow-lift: 0 14rpx 34rpx rgba(0, 0, 0, 0.40);
+    /* 卡片顶部高光：浅色模式 0.7 白会在深色卡片上变成一条亮线，压到 6% */
+    --mrc-gloss: inset 0 1rpx 0 rgba(255, 255, 255, 0.06);
+
+    /* 语义色 */
+    --mrc-color-danger: #FF7A66;
+    --mrc-color-danger-soft: rgba(255, 122, 102, 0.16);
+
+    /* 旧别名：跟随新令牌走（--mrc-white 的语义是"卡片面"，深色下即暖棕卡面；
+       强调底上的文字用 --mrc-color-on-primary，不受影响） */
+    --mrc-bg-warm: #2A1F14;
+    --mrc-bg-alt: #221A12;
+    --mrc-warm: #33261A;
+    --mrc-warm-light: #3D2E1F;
+    --mrc-brown: #8A6B4F;
+    --mrc-white: #261B13;
+    --mrc-text-mid: #B99A80;
+
+    /* bento 渐变卡：同色相压深，保留"暖色卡片"语言 */
+    --mrc-bento-amber: linear-gradient(135deg, #2B2313, #372C19);
+    --mrc-bento-wheel: linear-gradient(150deg, #2A2415, #352B1A);
+    --mrc-bento-nine: linear-gradient(150deg, #271E16, #32261C);
+    --mrc-bento-flip: linear-gradient(150deg, #26201A, #2F2720);
+    --mrc-bento-agent: linear-gradient(135deg, #28200F, #332917);
+    --mrc-bento-library: linear-gradient(135deg, #2A1D14, #35261B);
+
+    /* 反色面：深色模式下翻转为暖白底 + 深咖字，徽章照样跳出来 */
+    --mrc-inverse-bg: #F2DEC2;
+    --mrc-inverse-text: #2C1810;
+
+    /* 引导提示条：米金底 → 暖棕底，标题色提亮保证可读 */
+    --mrc-tip-bg: #2E2617;
+    --mrc-tip-border: #4D3C24;
+    --mrc-tip-title: #FFC53D;
+    --mrc-tip-sub: #C9A06A;
+  }
 }
 
 /* ---------- 全局排版基础 ---------- */

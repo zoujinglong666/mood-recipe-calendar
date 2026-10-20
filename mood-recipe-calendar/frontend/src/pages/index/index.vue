@@ -1114,7 +1114,7 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
   padding: 20rpx 24rpx;
   border: 2rpx solid rgba(230, 160, 120, 0.22);
   border-radius: 24rpx;
-  background: linear-gradient(135deg, #FFF5DF, #FFEAD0);
+  background: var(--mrc-bento-amber);
   box-shadow: var(--mrc-shadow-soft);
 }
 .theme-banner__emoji { flex: 0 0 auto; font-size: 40rpx; }
@@ -1150,8 +1150,8 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
   transform: translateX(-50%);
   padding: 16rpx 30rpx;
   border-radius: 24rpx;
-  background: var(--mrc-text-deep, #3A2E28);
-  color: #FFF6E0;
+  background: var(--mrc-inverse-bg);
+  color: var(--mrc-inverse-text);
   font-size: 24rpx;
   font-weight: 800;
   white-space: nowrap;
@@ -1189,13 +1189,13 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
 .home-board__name { color: var(--mrc-text-strong); font-size: 37rpx; font-weight: 800; line-height: 1.22; letter-spacing: -.5rpx; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
 .home-board__drink { flex-shrink: 0; padding: 4rpx 14rpx; border: 1rpx solid var(--mrc-border-light); border-radius: 999rpx; background: var(--mrc-accent-soft); color: var(--mrc-accent); font-size: 18rpx; font-weight: 700; }
 .home-board__meta { display: flex; flex-wrap: wrap; gap: 10rpx; }
-.home-board__chip { padding: 4rpx 16rpx; border: 1rpx solid var(--mrc-border-light); border-radius: 999rpx; background: rgba(255, 255, 255, .8); color: var(--mrc-text-sub); font-size: 18rpx; font-weight: 600; }
+.home-board__chip { padding: 4rpx 16rpx; border: 1rpx solid var(--mrc-border-light); border-radius: 999rpx; background: var(--mrc-surface-2); color: var(--mrc-text-sub); font-size: 18rpx; font-weight: 600; }
 .home-board__cook { align-self: flex-start; display: inline-flex; align-items: center; gap: 4rpx; margin-top: 2rpx; padding: 11rpx 26rpx; border-radius: 999rpx; background: var(--mrc-primary-deep); color: #fff; font-size: 21rpx; font-weight: 700; box-shadow: 0 6rpx 16rpx rgba(255, 107, 91, .32); transition: transform .15s ease; }
 .home-board__cook:active { transform: scale(.95); }
 .home-board__cook-arrow { font-size: 26rpx; line-height: 1; }
 .home-board__media { position: relative; display: flex; margin: 12rpx; width: 248rpx; flex: 0 0 248rpx; border-radius: 22rpx; overflow: hidden; box-shadow: 0 6rpx 18rpx rgba(96, 52, 28, .12); }
 .home-board__img { width: 100%; height: 100%; }
-.home-board__img--fallback { padding: 34rpx; box-sizing: border-box; background: #FFFFFF; }
+.home-board__img--fallback { padding: 34rpx; box-sizing: border-box; background: var(--mrc-surface-2); }
 /* 朱红印章：竖排「今日」，微旋转的盖章感 */
 .home-board__stamp { position: absolute; top: 12rpx; left: 12rpx; display: flex; flex-direction: column; align-items: center; padding: 10rpx 9rpx 12rpx; border-radius: 10rpx; background: linear-gradient(160deg, #FF7A5C 0%, #E14E34 100%); color: #FFFFFF; font-size: 23rpx; font-weight: 800; line-height: 1.18; letter-spacing: 0; box-shadow: 0 4rpx 12rpx rgba(180, 52, 28, .38); transform: rotate(-5deg); }
 .home-board__stamp text { display: block; }
@@ -1268,7 +1268,7 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
 @media (prefers-reduced-motion: reduce) {
   .sk::after { animation: none; transform: translateX(0); opacity: .5; }
 }
-/* P1 收藏引导 */ .fav-tip { position: relative; margin: 16rpx 0 0; padding: 0 24rpx; } .fav-tip__arrow { position: absolute; top: -10rpx; right: 80rpx; width: 0; height: 0; border-left: 12rpx solid transparent; border-right: 12rpx solid transparent; border-bottom: 12rpx solid #FFF7E6; } .fav-tip__body { display: flex; align-items: center; gap: 16rpx; padding: 18rpx 20rpx; border-radius: 20rpx; background: #FFF7E6; border: 2rpx solid #FFE4B5; box-shadow: 0 4rpx 12rpx rgba(255,180,80,0.15); } .fav-tip__emoji { font-size: 36rpx; } .fav-tip__text { flex: 1; display: flex; flex-direction: column; gap: 4rpx; min-width: 0; } .fav-tip__title { font-size: 26rpx; font-weight: 700; color: #8B5A00; } .fav-tip__sub { font-size: 22rpx; color: #B07930; line-height: 1.4; } .fav-tip__close { flex-shrink: 0; padding: 8rpx 18rpx; border-radius: 999rpx; background: #FFB98C; color: #fff; font-size: 22rpx; font-weight: 600; } /* 组件墙：4 列网格，入口分层——三餐主卡(2×2 HOT) / 抽奖小卡(1×1) / 双宽卡(2×1) */
+/* P1 收藏引导 */ .fav-tip { position: relative; margin: 16rpx 0 0; padding: 0 24rpx; } .fav-tip__arrow { position: absolute; top: -10rpx; right: 80rpx; width: 0; height: 0; border-left: 12rpx solid transparent; border-right: 12rpx solid transparent; border-bottom: 12rpx solid var(--mrc-tip-bg); } .fav-tip__body { display: flex; align-items: center; gap: 16rpx; padding: 18rpx 20rpx; border-radius: 20rpx; background: var(--mrc-tip-bg); border: 2rpx solid var(--mrc-tip-border); box-shadow: 0 4rpx 12rpx rgba(255,180,80,0.15); } .fav-tip__emoji { font-size: 36rpx; } .fav-tip__text { flex: 1; display: flex; flex-direction: column; gap: 4rpx; min-width: 0; } .fav-tip__title { font-size: 26rpx; font-weight: 700; color: var(--mrc-tip-title); } .fav-tip__sub { font-size: 22rpx; color: var(--mrc-tip-sub); line-height: 1.4; } .fav-tip__close { flex-shrink: 0; padding: 8rpx 18rpx; border-radius: 999rpx; background: #FFB98C; color: #fff; font-size: 22rpx; font-weight: 600; } /* 组件墙：4 列网格，入口分层——三餐主卡(2×2 HOT) / 抽奖小卡(1×1) / 双宽卡(2×1) */
 .home-bento { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: 158rpx; gap: 14rpx; margin: 24rpx 0 32rpx; }
 .home-bento__card { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8rpx; overflow: hidden; min-width: 0; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); box-sizing: border-box; transition: transform .15s ease; }
 .home-bento__card:active { transform: scale(.97); }
@@ -1279,11 +1279,11 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
 .home-bento__card--guanfan .home-bento__hint { color: rgba(255, 255, 255, 0.9); font-size: 20rpx; }
 .home-bento__hero-img { position: absolute; right: 0; bottom: 0; width: 172rpx; height: 172rpx; filter: drop-shadow(0 8rpx 14rpx rgba(120, 40, 20, 0.22)); }
 /* 抽奖三小卡：暖色家族三段微层次（暖阳黄 / 蜜桃 / 奶油），告别灰白，与红主卡同一色温 */
-.home-bento__card--wheel { border-color: rgba(230, 160, 120, 0.20); background: linear-gradient(150deg, #FFF8E8, #FFEDCB); }
-.home-bento__card--nine { border-color: rgba(230, 160, 120, 0.20); background: linear-gradient(150deg, #FFF3EA, #FFE7D6); }
-.home-bento__card--flip { border-color: rgba(230, 160, 120, 0.20); background: linear-gradient(150deg, #FFFBF4, #FFF1DF); }
+.home-bento__card--wheel { border-color: rgba(230, 160, 120, 0.20); background: var(--mrc-bento-wheel); }
+.home-bento__card--nine { border-color: rgba(230, 160, 120, 0.20); background: var(--mrc-bento-nine); }
+.home-bento__card--flip { border-color: rgba(230, 160, 120, 0.20); background: var(--mrc-bento-flip); }
 /* 锅仔管饭：薄荷绿 → 暖杏金（智能体的暖光感），HOT 红徽章与红主卡呼应 */
-.home-bento__card--agent { border-color: transparent; background: linear-gradient(135deg, #FFF3DC, #FFE6C4); }
+.home-bento__card--agent { border-color: transparent; background: var(--mrc-bento-agent); }
 .home-bento__img { width: 78rpx; height: 78rpx; filter: drop-shadow(0 4rpx 8rpx rgba(96, 52, 28, 0.10)); }
 .home-bento__name { color: var(--mrc-text-deep); font-size: 24rpx; font-weight: 800; }
 .home-bento__sub { color: var(--mrc-text-sub); font-size: 18rpx; }
@@ -1295,13 +1295,13 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
 .home-bento__lucky-img { width: 88rpx; height: 88rpx; flex-shrink: 0; margin-right: 2rpx; filter: drop-shadow(0 4rpx 8rpx rgba(120, 40, 20, 0.18)); }
 .home-bento__lucky-arrow { flex-shrink: 0; color: rgba(255, 255, 255, 0.95); font-size: 44rpx; font-weight: 300; }
 .home-bento__card--record { grid-column: span 2; flex-direction: row; justify-content: space-between; padding: 0 20rpx 0 26rpx; background: var(--mrc-surface-mint); }
-.home-bento__card--library { grid-column: span 2; flex-direction: row; justify-content: space-between; padding: 0 20rpx 0 26rpx; border-color: transparent; background: linear-gradient(135deg, #FFEFE2, #FFDFC8); }
+.home-bento__card--library { grid-column: span 2; flex-direction: row; justify-content: space-between; padding: 0 20rpx 0 26rpx; border-color: transparent; background: var(--mrc-bento-library); }
 /* 与右侧今日三餐宽卡对齐标题字号字重（通用 name 24rpx 是给小卡用的） */
 .home-bento__card--library .home-bento__name { font-size: 27rpx; }
 .home-bento__record-copy { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; gap: 6rpx; }
 .home-bento__record-img { width: 92rpx; height: 92rpx; flex-shrink: 0; filter: drop-shadow(0 4rpx 8rpx rgba(96, 52, 28, 0.10)); }
 /* 增长钩子宽卡：老黄历（米金黄，宜字朱印）与干饭人格（胭脂粉，五题进度点），与红卡同色温不同调 */
-.home-bento__card--almanac { position: relative; grid-column: span 2; flex-direction: row; justify-content: space-between; padding: 0 20rpx 0 26rpx; border-color: transparent; background: linear-gradient(135deg, #FFF5DF, #FFEAD0); overflow: hidden; }
+.home-bento__card--almanac { position: relative; grid-column: span 2; flex-direction: row; justify-content: space-between; padding: 0 20rpx 0 26rpx; border-color: transparent; background: var(--mrc-bento-amber); overflow: hidden; }
 .home-bento__card--almanac .home-bento__name { font-size: 27rpx; }
 .home-bento__seal {
   position: absolute;

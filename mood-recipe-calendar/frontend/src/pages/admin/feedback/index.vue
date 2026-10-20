@@ -202,7 +202,7 @@ load(true)
 .fb-card__head { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; }
 .fb-card__cat { color: var(--mrc-text-strong); font-size: 26rpx; font-weight: 800; }
 .fb-card__status { padding: 4rpx 16rpx; border-radius: 999rpx; background: var(--mrc-surface-2); color: var(--mrc-text-sub); font-size: 19rpx; font-weight: 700; }
-.fb-card__status.is-open { background: #FFF1E8; color: #D9622B; }
+.fb-card__status.is-open { background: var(--mrc-accent-soft); color: var(--mrc-accent); }
 .fb-card__status.is-processing { background: #EDF3FF; color: #3B6FD4; }
 .fb-card__status.is-resolved { background: #EAF7EE; color: #2E8B57; }
 .fb-card__status.is-closed { background: var(--mrc-surface-2); color: var(--mrc-text-light); }

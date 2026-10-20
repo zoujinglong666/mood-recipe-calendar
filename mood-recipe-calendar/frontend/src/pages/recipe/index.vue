@@ -1249,7 +1249,7 @@ async function waitForDelivery(orderNo: string) {
 .share-card-option.is-selected { border-color: var(--mrc-accent); background: var(--mrc-surface-peach); box-shadow: inset 0 0 0 2rpx rgba(239, 90, 60, .1); }
 .share-card-option.is-loading { opacity: .72; }
 .share-card-option__preview-wrap { position: relative; overflow: hidden; border-radius: 16rpx; }
-.share-card-option__image, .share-card-option__placeholder { display: flex; width: 100%; min-height: 300rpx; border-radius: 16rpx; background: #F9EBDD; }
+.share-card-option__image, .share-card-option__placeholder { display: flex; width: 100%; min-height: 300rpx; border-radius: 16rpx; background: var(--mrc-surface-2); }
 .share-card-option__image { box-shadow: var(--mrc-shadow-sm); }
 .share-card-option__preview-tip { position: absolute; right: 12rpx; bottom: 12rpx; padding: 7rpx 12rpx; border-radius: 18rpx; color: #fff; background: rgba(44, 25, 17, .72); font-size: 17rpx; font-weight: 750; }
 .share-card-option__placeholder { align-items: center; justify-content: center; flex-direction: column; gap: 10rpx; color: var(--mrc-text-sub); font-size: 22rpx; }

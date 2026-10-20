@@ -643,7 +643,7 @@ onShow(() => {
 .act-btn:active { transform: scale(0.94); }
 .act-btn--primary { background: var(--mrc-accent-soft); color: var(--mrc-accent); }
 .act-btn.is-busy { opacity: .6; }
-.act-btn--danger { background: #FDECEC; color: #D94841; }
+.act-btn--danger { background: var(--mrc-color-danger-soft); color: var(--mrc-color-danger); }
 
 .loading-tip, .empty-tip { padding: 60rpx 0; color: var(--mrc-text-light); font-size: 24rpx; text-align: center; }
 </style>

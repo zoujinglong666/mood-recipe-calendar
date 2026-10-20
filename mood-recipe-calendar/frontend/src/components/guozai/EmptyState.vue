@@ -56,7 +56,7 @@ const emit = defineEmits<{ (e: 'action'): void }>()
 .gz-empty__btn {
   padding: 20rpx 48rpx;
   background: linear-gradient(135deg, var(--mrc-primary), var(--mrc-primary-deep));
-  color: var(--mrc-white);
+  color: var(--mrc-color-on-primary);
   font-size: 28rpx;
   font-weight: 600;
   border-radius: 40rpx;
