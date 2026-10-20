@@ -36,4 +36,14 @@ class AdControllerTest {
         assertEquals(400, resp.getCode());
         verify(adRewards, never()).record(anyString(), anyString(), anyString());
     }
+
+    @Test
+    void fridgeOcrRewardIsAccepted() {
+        Map<String, String> body = Map.of("type", AdRewardService.FRIDGE_OCR, "adUnitId", "adunit-fridge");
+
+        ApiResponse<?> resp = controller.reward("user-1", body);
+
+        assertEquals(0, resp.getCode());
+        verify(adRewards).record(eq("user-1"), eq(AdRewardService.FRIDGE_OCR), eq("adunit-fridge"));
+    }
 }

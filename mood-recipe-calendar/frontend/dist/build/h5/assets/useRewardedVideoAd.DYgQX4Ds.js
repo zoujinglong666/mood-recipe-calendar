@@ -1,1 +1,0 @@
-import{r}from"./index-ZEWulbLW.js";const n={QUOTA_REWARD:"adunit-ec548835ad032028"};function o(n,o={}){return{show:async function(){var r;return null==(r=o.onError)||r.call(o,new Error("当前环境不支持激励视频广告")),{rewarded:!1,closed:!1}},showing:r(!1)}}export{n as A,o as u};

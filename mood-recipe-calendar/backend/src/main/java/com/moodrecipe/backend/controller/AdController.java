@@ -30,7 +30,7 @@ public class AdController {
                                  @RequestBody(required = false) Map<String, String> body) {
         String type = body == null ? null : body.get("type");
         String adUnitId = body == null ? null : body.get("adUnitId");
-        if (!AdRewardService.RESHUFFLE_UNLIMITED.equals(type)) {
+        if (!AdRewardService.RESHUFFLE_UNLIMITED.equals(type) && !AdRewardService.FRIDGE_OCR.equals(type)) {
             return ApiResponse.error(400, "不支持的奖励类型");
         }
         adRewards.record(openid, type, adUnitId);

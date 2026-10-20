@@ -1,7 +1,9 @@
 package com.moodrecipe.backend.controller;
 
 import com.moodrecipe.backend.common.ApiResponse;
+import com.moodrecipe.backend.config.AppClock;
 import com.moodrecipe.backend.config.SessionAuthInterceptor;
+import com.moodrecipe.backend.service.AdRewardService;
 import com.moodrecipe.backend.service.FoodShelfLifeCatalog;
 import com.moodrecipe.backend.service.FridgeExpiryNotifier;
 import com.moodrecipe.backend.service.FridgeInventoryService;
@@ -22,35 +24,46 @@ public class FridgeInventoryController {
     private final FridgeExpiryNotifier expiryNotifier;
     private final FoodShelfLifeCatalog shelfLifeCatalog;
     private final UsageQuotaService quota;
+    private final AdRewardService adRewards;
 
     public FridgeInventoryController(FridgeInventoryService inventory,
                                      FridgeVisionService vision,
                                      FridgeExpiryNotifier expiryNotifier,
                                      FoodShelfLifeCatalog shelfLifeCatalog,
-                                     UsageQuotaService quota) {
+                                     UsageQuotaService quota,
+                                     AdRewardService adRewards) {
         this.inventory = inventory;
         this.vision = vision;
         this.expiryNotifier = expiryNotifier;
         this.shelfLifeCatalog = shelfLifeCatalog;
         this.quota = quota;
+        this.adRewards = adRewards;
     }
 
     /**
-     * 拍照识别冰箱食材（会员专享）。
+     * 拍照识别冰箱食材（会员专享；非会员可看广告单次试用）。
      *
-     * 会员闸门（第一道，先于一切识别逻辑）：非会员直接 403，
-     * 使其无法访问识别、菜名展示、保质期计算等任何下游能力。
+     * 闸门顺序（先于一切识别逻辑，避免无谓烧视觉 API）：
+     * 1. 会员：直接放行（无限次）；
+     * 2. 非会员：当日须有未消耗的 FRIDGE_OCR 广告凭证（前端看完广告才上报），否则 403；
+     * 3. 识别成功后才消耗凭证——「看一次广告 = 用一次识别」，
+     *    识别失败（网络/视觉异常）不消耗，用户可重试，不白看一次广告。
      */
     @PostMapping("/recognize")
     public ApiResponse<?> recognize(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid,
                                     @RequestBody(required = false) RecognizeRequest request) {
-        if (!quota.member(openid)) {
-            return ApiResponse.error(403, "冰箱拍照识别为会员专享，开通后即可使用");
-        }
         if (request == null || request.imageUrl() == null || request.imageUrl().isBlank()) {
             return ApiResponse.error(400, "请先拍摄或选择一张照片");
         }
-        return ApiResponse.ok(vision.recognize(request.imageUrl()));
+        boolean member = quota.member(openid);
+        if (!member && adRewards.countWatched(openid, AdRewardService.FRIDGE_OCR, AppClock.today()) <= 0) {
+            return ApiResponse.error(403, "今日试用机会已用完：看一段广告可再试用 1 次，或开通会员无限次");
+        }
+        Object result = vision.recognize(request.imageUrl());
+        if (!member) {
+            adRewards.consumeOne(openid, AdRewardService.FRIDGE_OCR, AppClock.today());
+        }
+        return ApiResponse.ok(result);
     }
 
     public record RecognizeRequest(String imageUrl) {}

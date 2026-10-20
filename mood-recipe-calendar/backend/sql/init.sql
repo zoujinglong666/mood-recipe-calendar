@@ -122,6 +122,17 @@ CREATE TABLE IF NOT EXISTS usage_quotas (
   UNIQUE KEY uk_usage_quota (openid, feature, period_start)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='会员与免费功能配额';
 
+-- 激励视频广告奖励记账：与 sql/migrations/20261020_add_ad_rewards.sql 同款 DDL（IF NOT EXISTS 幂等，两处并存无害）
+CREATE TABLE IF NOT EXISTS ad_rewards (
+  id          BIGINT AUTO_INCREMENT PRIMARY KEY,
+  openid      VARCHAR(64)  NOT NULL COMMENT '微信 openid',
+  reward_type VARCHAR(32)  NOT NULL COMMENT '奖励类型：RESHUFFLE_UNLIMITED=换一整天 / FRIDGE_OCR=冰箱识别试用',
+  reward_date DATE         NOT NULL COMMENT '奖励归属日期',
+  ad_unit_id  VARCHAR(64)  COMMENT '广告位 id（可选，用于归因）',
+  created_at  DATETIME     COMMENT '记录时间',
+  KEY idx_ad_reward (openid, reward_type, reward_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='激励视频广告奖励记账';
+
 CREATE TABLE IF NOT EXISTS agent_conversations (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   openid VARCHAR(64) NOT NULL,

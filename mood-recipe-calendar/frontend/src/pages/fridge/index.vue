@@ -10,8 +10,10 @@ import { STATIC_BASE_URL } from '@/utils/assets'
 import { uploadFile } from '@/api/request'
 import { chooseImageFile } from '@/utils/chooseImage'
 import { ensureLogin } from '@/utils/login'
-import { requireMember } from '@/utils/memberGate'
+import { isActiveMember, requireMember } from '@/utils/memberGate'
 import { toast, toastError } from '@/utils/toast'
+import { watchAdReward } from '@/api/ad'
+import { AD_UNITS } from '@/config/ads'
 
 /** 锅仔 IP 姿态（全部复用 COS 现有资源，不新增素材） */
 const GZ_INSPECT = `${STATIC_BASE_URL}/static/guozai/action_07_empty.png` // 清点冰箱的锅仔
@@ -185,8 +187,47 @@ const drafts = ref<DraftItem[]>([])
 const recognizedCount = computed(() => drafts.value.filter(d => d.checked).length)
 
 /** 拍照/选图 → 上传 → 识别 → 弹确认清单 */
+/**
+ * 冰箱拍照识别试用广告（非会员）：
+ * 会员无限次直接用；非会员看完一次广告 = 当日 1 次识别（服务端记账 + 识别成功才消耗，
+ * 看一次用一次，防绕过也防白看）。播放走全局 hook：预加载/重试/看完才发奖/防连点。
+ */
+const fridgeOcrAd = useRewardedVideoAd(AD_UNITS.FRIDGE_OCR, {
+  onReward: async () => {
+    await watchAdReward('FRIDGE_OCR', AD_UNITS.FRIDGE_OCR)
+  },
+  onCancel: () => toast('看完广告才能获得试用机会'),
+  onError: err => toast(err.message || '广告加载失败，请稍后再试'),
+})
+
 function startRecognize() {
-  if (!requireMember('fridge_recognize')) return
+  if (isActiveMember()) {
+    pickFridgeImage()
+    return
+  }
+  // 非会员：看广告换 1 次试用，或去开通（会员权益不变）
+  uni.showModal({
+    title: '会员专享功能',
+    content: '冰箱拍照识别为会员功能。看一段广告即可试用 1 次，或开通会员无限次使用。',
+    confirmText: '看广告试用',
+    cancelText: '去开通',
+    confirmColor: '#EF5A3C',
+    success: (res) => {
+      if (!res.confirm) {
+        uni.navigateTo({ url: '/pages/membership/index' })
+        return
+      }
+      fridgeOcrAd.show()
+        .then((result) => {
+          // 只有完整看完（服务端已记账）才进入选图识别
+          if (result.rewarded) pickFridgeImage()
+        })
+        .catch(e => toastError(e, '试用领取失败，请稍后再试'))
+    },
+  })
+}
+
+function pickFridgeImage() {
   // 复用项目统一的选图工具：已处理相册权限被拒、隐私协议未同意等失败场景
   chooseImageFile({ onSelected: path => void runRecognize(path) })
 }
