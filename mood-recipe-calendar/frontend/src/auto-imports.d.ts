@@ -20,6 +20,7 @@ declare global {
   const MOOD_EMOJI: typeof import('./utils/albumLayout')['MOOD_EMOJI']
   const MRC_EVENTS: typeof import('./utils/bus')['MRC_EVENTS']
   const RECORD_DRAFT_KEY: typeof import('./utils/cookingDraft')['RECORD_DRAFT_KEY']
+  const REWARDED_AD_UNIT_ID: typeof import('./api/ad')['REWARDED_AD_UNIT_ID']
   const SCHEDULE_TEMPLATE_ID: typeof import('./api/weeklyPlans')['SCHEDULE_TEMPLATE_ID']
   const STATIC_BASE_URL: typeof import('./utils/assets')['STATIC_BASE_URL']
   const acceptHMRUpdate: typeof import('pinia')['acceptHMRUpdate']
@@ -114,6 +115,7 @@ declare global {
   const fetchCurrentAgentConversation: typeof import('./api/weeklyPlans')['fetchCurrentAgentConversation']
   const fetchDailyBoard: typeof import('./api/dailyMenu')['fetchDailyBoard']
   const fetchDailyMealPlan: typeof import('./api/dailyMealPlan')['fetchDailyMealPlan']
+  const fetchDailyMealPlanQuota: typeof import('./api/dailyMealPlan')['fetchDailyMealPlanQuota']
   const fetchEntitlements: typeof import('./api/virtualCommerce')['fetchEntitlements']
   const fetchFamily: typeof import('./api/family')['fetchFamily']
   const fetchFamilyMenus: typeof import('./api/family')['fetchFamilyMenus']
@@ -296,6 +298,7 @@ declare global {
   const requestWeeklyPlanCompletionNotice: typeof import('./api/weeklyPlans')['requestWeeklyPlanCompletionNotice']
   const requireMember: typeof import('./utils/memberGate')['requireMember']
   const resetAgentConversation: typeof import('./api/weeklyPlans')['resetAgentConversation']
+  const reshuffleDailyMealPlan: typeof import('./api/dailyMealPlan')['reshuffleDailyMealPlan']
   const resolveAssetUrl: typeof import('./api/request')['resolveAssetUrl']
   const resolveComponent: typeof import('vue')['resolveComponent']
   const resolveRef: typeof import('@vueuse/core')['resolveRef']
@@ -527,6 +530,7 @@ declare global {
   const useWindowSize: typeof import('@vueuse/core')['useWindowSize']
   const useWishlist: typeof import('./composables/useWishlist')['useWishlist']
   const watch: typeof import('vue')['watch']
+  const watchAdReward: typeof import('./api/ad')['watchAdReward']
   const watchArray: typeof import('@vueuse/core')['watchArray']
   const watchAtMost: typeof import('@vueuse/core')['watchAtMost']
   const watchDebounced: typeof import('@vueuse/core')['watchDebounced']
@@ -569,6 +573,7 @@ declare module 'vue' {
     readonly MOOD_EMOJI: UnwrapRef<typeof import('./utils/albumLayout')['MOOD_EMOJI']>
     readonly MRC_EVENTS: UnwrapRef<typeof import('./utils/bus')['MRC_EVENTS']>
     readonly RECORD_DRAFT_KEY: UnwrapRef<typeof import('./utils/cookingDraft')['RECORD_DRAFT_KEY']>
+    readonly REWARDED_AD_UNIT_ID: UnwrapRef<typeof import('./api/ad')['REWARDED_AD_UNIT_ID']>
     readonly SCHEDULE_TEMPLATE_ID: UnwrapRef<typeof import('./api/weeklyPlans')['SCHEDULE_TEMPLATE_ID']>
     readonly STATIC_BASE_URL: UnwrapRef<typeof import('./utils/assets')['STATIC_BASE_URL']>
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>
@@ -662,6 +667,7 @@ declare module 'vue' {
     readonly fetchCurrentAgentConversation: UnwrapRef<typeof import('./api/weeklyPlans')['fetchCurrentAgentConversation']>
     readonly fetchDailyBoard: UnwrapRef<typeof import('./api/dailyMenu')['fetchDailyBoard']>
     readonly fetchDailyMealPlan: UnwrapRef<typeof import('./api/dailyMealPlan')['fetchDailyMealPlan']>
+    readonly fetchDailyMealPlanQuota: UnwrapRef<typeof import('./api/dailyMealPlan')['fetchDailyMealPlanQuota']>
     readonly fetchEntitlements: UnwrapRef<typeof import('./api/virtualCommerce')['fetchEntitlements']>
     readonly fetchFamily: UnwrapRef<typeof import('./api/family')['fetchFamily']>
     readonly fetchFamilyMenus: UnwrapRef<typeof import('./api/family')['fetchFamilyMenus']>
@@ -844,6 +850,7 @@ declare module 'vue' {
     readonly requestWeeklyPlanCompletionNotice: UnwrapRef<typeof import('./api/weeklyPlans')['requestWeeklyPlanCompletionNotice']>
     readonly requireMember: UnwrapRef<typeof import('./utils/memberGate')['requireMember']>
     readonly resetAgentConversation: UnwrapRef<typeof import('./api/weeklyPlans')['resetAgentConversation']>
+    readonly reshuffleDailyMealPlan: UnwrapRef<typeof import('./api/dailyMealPlan')['reshuffleDailyMealPlan']>
     readonly resolveAssetUrl: UnwrapRef<typeof import('./api/request')['resolveAssetUrl']>
     readonly resolveComponent: UnwrapRef<typeof import('vue')['resolveComponent']>
     readonly resolveRef: UnwrapRef<typeof import('@vueuse/core')['resolveRef']>
@@ -1075,6 +1082,7 @@ declare module 'vue' {
     readonly useWindowSize: UnwrapRef<typeof import('@vueuse/core')['useWindowSize']>
     readonly useWishlist: UnwrapRef<typeof import('./composables/useWishlist')['useWishlist']>
     readonly watch: UnwrapRef<typeof import('vue')['watch']>
+    readonly watchAdReward: UnwrapRef<typeof import('./api/ad')['watchAdReward']>
     readonly watchArray: UnwrapRef<typeof import('@vueuse/core')['watchArray']>
     readonly watchAtMost: UnwrapRef<typeof import('@vueuse/core')['watchAtMost']>
     readonly watchDebounced: UnwrapRef<typeof import('@vueuse/core')['watchDebounced']>
