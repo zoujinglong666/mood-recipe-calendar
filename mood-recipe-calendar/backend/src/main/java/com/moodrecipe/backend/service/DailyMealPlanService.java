@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moodrecipe.backend.agent.AgentMemoryStore;
 import com.moodrecipe.backend.agent.UserProfile;
+import com.moodrecipe.backend.config.AppClock;
 import com.moodrecipe.backend.entity.DailyMealPlan;
 import com.moodrecipe.backend.entity.NutritionKnowledgePack;
 import com.moodrecipe.backend.entity.Recipe;
@@ -32,7 +33,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 @Service
-public class DailyMealPlanService {
+public class DailyMealPlanService implements SwapCandidateService.SwapQueueBuilder {
     private final DailyMealPlanRepository plans;
     private final RecipeRepository recipes;
     private final UserFoodPreferenceRepository preferences;
@@ -53,8 +54,14 @@ public class DailyMealPlanService {
     /** 三餐计划跨天去重天数：近 3 天（不含今天）三餐计划出过的菜不再参与生成，保证「连着几天吃的不重样」。 */
     private static final int PLAN_RECENT_DAYS = 3;
 
-    /** 同一天的三餐内容稳定，RAG 检索与营养结构只算一次，避免每次 onShow 重复打向量库。 */
-    private final Map<LocalDate, Enrichment> enrichmentCache = new ConcurrentHashMap<>();
+    /**
+     * [2026-10-20] 每餐的指南依据按「日期+餐序+菜名」缓存（替代原按天整包缓存）：
+     * 换菜只重算被换的那一餐的向量检索，未动的两餐直接复用——这是三餐换菜从秒级降到毫秒级的关键一环
+     * （换菜前 enrich 要同步打 3 次 RAG，现在命中时 0 次、未命中时 1 次）。
+     */
+    private final Map<String, java.util.Optional<GuidelinePoint>> guidelinePointCache = new ConcurrentHashMap<>();
+    /** 缓存容量兜底：按天×餐×换菜轮次累积，超限整体清空（最坏情况是下一轮多打几次向量检索）。 */
+    private static final int GUIDELINE_CACHE_MAX = 4096;
 
     /** 每餐的《中国居民膳食指南》检索关键词骨架：先框定餐别，再交给向量检索细化。 */
     private static final Map<Integer, String> MEAL_GUIDANCE = Map.of(
@@ -108,6 +115,14 @@ public class DailyMealPlanService {
         this.cosImageStorage = cosImageStorage;
     }
 
+    /** [2026-10-20] 换菜预生成引擎：换菜优先消费离线队列，毫秒级返回。可选依赖，为空时退化为现场排序。 */
+    private SwapCandidateService swapCandidates;
+
+    @Autowired(required = false)
+    void setSwapCandidates(SwapCandidateService swapCandidates) {
+        this.swapCandidates = swapCandidates;
+    }
+
     public Optional<PlanView> plan(String openid, LocalDate date) {
         Optional<DailyMealPlan> existing = plans.findByOpenidAndPlanDate(openid, date);
         if (existing.isPresent()) return read(existing.get());
@@ -141,6 +156,14 @@ public class DailyMealPlanService {
                 knowledge.isEmpty() ? "fallback" : knowledge.get(0).getVersion()));
     }
 
+    /**
+     * 三餐换菜，双路径：
+     *  毫秒级热路径——候选来自离线预生成队列（SwapCandidateService，按画像签名隔离），
+     *  请求内只做「出队 + 内存校验（安全/忌口/营养）」，校验不过自动滑到队列下一个；
+     *  慢路径兜底——队列未命中（冷启动/刚失效/耗尽）时现场排序一次，同时队列已在后台补货。
+     * 热路径校验用显式忌口行（权威安全面）；行为学习到的厌恶（DISLIKE 菜名等）已在队列构建的
+     * 硬过滤层整列剔除，且签名随画像变化换血，不会 serving 过期的个性化结果。
+     */
     public Optional<PlanView> replace(String openid, LocalDate date, int mealIndex) {
         if (mealIndex < 0 || mealIndex > 2) return Optional.empty();
         Optional<DailyMealPlan> stored = plans.findByOpenidAndPlanDate(openid, date);
@@ -153,8 +176,22 @@ public class DailyMealPlanService {
             Set<String> existingNames = new HashSet<>(meals.stream().map(Recipe::getName)
                     .filter(Objects::nonNull).toList());
             List<NutritionKnowledgePack> knowledge = eligiblePacks();
+            UserFoodPreference preference = preferences.findByOpenid(openid).orElseGet(UserFoodPreference::new);
+
+            if (swapCandidates != null) {
+                String mealType = mealIndex == 0 ? "BREAKFAST" : "MAIN";
+                Optional<Recipe> queued = swapCandidates.next(SwapCandidateService.SCOPE_MEAL_PLAN, openid,
+                        SwapCandidateService.ANY_MOOD, mealType,
+                        candidate -> acceptable(meals, mealIndex, existingNames, preference, knowledge, candidate));
+                if (queued.isPresent()) {
+                    stored.get().setPlanJson(json.writeValueAsString(meals));
+                    plans.save(stored.get());
+                    return Optional.of(enrich(date, List.copyOf(meals), knowledgeVersion(knowledge)));
+                }
+            }
+
             UserProfile profile = profile(openid);
-            UserFoodPreference preference = validationPreference(openid, profile);
+            UserFoodPreference validationPreference = validationPreference(openid, profile);
             // 换早餐时只从早餐组合池换；早餐池为空时回退全池；跨天去重兜底同 plan()
             Set<String> recentPlanNames = recentPlanDishNames(openid, stored.get().getPlanDate());
             List<Recipe> candidates = rankedCandidates(profile, eligibleSeasonalIngredients(), false, mealIndex == 0, recentPlanNames);
@@ -167,19 +204,51 @@ public class DailyMealPlanService {
             for (Recipe candidate : candidates) {
                 if (existingNames.contains(candidate.getName())) continue;
                 meals.set(mealIndex, candidate);
-                if (validator.isSafe(meals, preference)
-                        && (knowledge.isEmpty() || validator.validate(meals, preference, knowledge).valid())) {
+                if (validator.isSafe(meals, validationPreference)
+                        && (knowledge.isEmpty() || validator.validate(meals, validationPreference, knowledge).valid())) {
                     stored.get().setPlanJson(json.writeValueAsString(meals));
                     plans.save(stored.get());
-                    enrichmentCache.remove(date);
-                    return Optional.of(enrich(date, List.copyOf(meals),
-                            knowledge.isEmpty() ? "fallback" : knowledge.get(0).getVersion()));
+                    return Optional.of(enrich(date, List.copyOf(meals), knowledgeVersion(knowledge)));
                 }
             }
         } catch (Exception ignored) {
             return Optional.empty();
         }
         return Optional.empty();
+    }
+
+    /** 换菜候选验收（纯内存）：不与当前三餐重名 + 整包安全/忌口/营养校验通过。 */
+    private boolean acceptable(List<Recipe> meals, int mealIndex, Set<String> existingNames,
+                               UserFoodPreference preference, List<NutritionKnowledgePack> knowledge,
+                               Recipe candidate) {
+        if (candidate.getName() == null || existingNames.contains(candidate.getName())) return false;
+        meals.set(mealIndex, candidate);
+        return validator.isSafe(meals, preference)
+                && (knowledge.isEmpty() || validator.validate(meals, preference, knowledge).valid());
+    }
+
+    private String knowledgeVersion(List<NutritionKnowledgePack> knowledge) {
+        return knowledge.isEmpty() ? "fallback" : knowledge.get(0).getVersion();
+    }
+
+    // ---- 换菜队列构建器（SwapCandidateService 回调，仅离线调用） ----
+
+    @Override
+    public String scope() {
+        return SwapCandidateService.SCOPE_MEAL_PLAN;
+    }
+
+    /** 预生成换菜队列：与慢路径同一套 rankedCandidates 口径，含跨天去重与早餐池约束。 */
+    @Override
+    public List<Recipe> build(String openid, String mood, String mealType) {
+        boolean breakfastOnly = "BREAKFAST".equals(mealType);
+        UserProfile profile = profile(openid);
+        Set<String> recentPlanNames = recentPlanDishNames(openid, AppClock.today());
+        List<Recipe> candidates = rankedCandidates(profile, eligibleSeasonalIngredients(), false, breakfastOnly, recentPlanNames);
+        if (candidates.isEmpty() && breakfastOnly) {
+            candidates = rankedCandidates(profile, eligibleSeasonalIngredients(), false, false, recentPlanNames);
+        }
+        return topCandidates(candidates);
     }
 
     /**
@@ -365,21 +434,24 @@ public class DailyMealPlanService {
         }
     }
 
-    /** 计算（并缓存）当天的 RAG 依据与营养结构，再组装成 PlanView。 */
+    /** 组装 PlanView：每餐指南依据走（日期+餐序+菜名）粒度缓存，营养结构为纯内存启发式实时计算。 */
     private PlanView enrich(LocalDate date, List<Recipe> meals, String version) {
-        Enrichment enrichment = enrichmentCache.computeIfAbsent(date, d -> buildEnrichment(meals));
-        return new PlanView(date, meals, version, enrichment.guidelineBasis(), enrichment.nutrition());
-    }
-
-    private Enrichment buildEnrichment(List<Recipe> meals) {
         List<GuidelinePoint> basis = new ArrayList<>();
         String[] labels = {"早餐", "午餐", "晚餐"};
         for (int i = 0; i < 3; i++) {
             Recipe r = i < meals.size() ? meals.get(i) : null;
-            GuidelinePoint point = r == null ? null : topGuidelinePoint(labels[i], r);
+            GuidelinePoint point = r == null ? null : cachedGuidelinePoint(date, i, labels[i], r);
             basis.add(point != null ? point : new GuidelinePoint("", "", ""));
         }
-        return new Enrichment(basis, buildNutrition(meals));
+        return new PlanView(date, meals, version, basis, buildNutrition(meals));
+    }
+
+    /** 单餐指南依据缓存：换菜后仅被换餐位的菜名变化，只有它触发一次新的向量检索。 */
+    private GuidelinePoint cachedGuidelinePoint(LocalDate date, int mealIndex, String label, Recipe recipe) {
+        if (guidelinePointCache.size() > GUIDELINE_CACHE_MAX) guidelinePointCache.clear();
+        String key = date + "|" + mealIndex + "|" + recipe.getName();
+        return guidelinePointCache.computeIfAbsent(key,
+                k -> java.util.Optional.ofNullable(topGuidelinePoint(label, recipe))).orElse(null);
     }
 
     /** 针对某一餐检索《中国居民膳食指南》最相关的一条要点，失败返回 null。 */
@@ -483,8 +555,6 @@ public class DailyMealPlanService {
         if (missing.contains("谷薯类")) return "主食别缺席";
         return "均衡搭配";
     }
-
-    private record Enrichment(List<GuidelinePoint> guidelineBasis, NutritionSnapshot nutrition) { }
 
     public record PlanView(LocalDate date, List<Recipe> meals, String knowledgePackVersion,
                            List<GuidelinePoint> guidelineBasis, NutritionSnapshot nutrition) { }

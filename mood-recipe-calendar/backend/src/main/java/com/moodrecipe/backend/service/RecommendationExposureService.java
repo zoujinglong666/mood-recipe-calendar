@@ -9,8 +9,10 @@ import org.springframework.stereotype.Service;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.HexFormat;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class RecommendationExposureService {
@@ -33,6 +35,51 @@ public class RecommendationExposureService {
         String key = dishKey(recipe.getName());
         return repository.findTop20ByOpenidOrderByCreatedAtDesc(openid).stream()
                 .anyMatch(item -> item.getDishKey().equals(key) && !item.isLiked() && !item.isMade());
+    }
+
+    /**
+     * [2026-10-20] 一次把某用户全部曝光状态捞进内存，供排序时反复判断而不再每条候选查一次库。
+     * 背景：wasRecentlyShown / wasRecentlyShownOrRejected 此前在 GuozaiAgent 的排序循环里被逐候选调用，
+     * 每个候选都触发一次 findTop20ByOpenid… 的 DB 查询（候选池几百道 = 几百次往返，典型 N+1），
+     * 这是推荐回退路径慢的主因。改为进排序前 load 一次，之后纯内存 Set 判断，复杂度由 O(候选数) 次 DB 降为 O(1)。
+     * 任何异常都降级为"不过滤"（空集合），绝不因曝光查询失败而阻断推荐主流程。
+     */
+    public ExposureView load(String openid) {
+        Set<String> rejected;
+        Set<String> shown;
+        try {
+            rejected = repository.findByOpenidAndDislikedTrue(openid).stream()
+                    .map(RecommendationExposure::getDishKey)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+            shown = repository.findTop20ByOpenidOrderByCreatedAtDesc(openid).stream()
+                    .filter(item -> !item.isLiked() && !item.isMade())
+                    .map(RecommendationExposure::getDishKey)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+        } catch (RuntimeException e) {
+            rejected = Set.of();
+            shown = Set.of();
+        }
+        return new ExposureView(rejected, shown);
+    }
+
+    /**
+     * [2026-10-20] 单次 load 后内存态的曝光判断视图。方法名对齐原 Service 接口，方便调用方无痛替换。
+     */
+    public record ExposureView(Set<String> rejected, Set<String> shown) {
+        /** 降级空视图：曝光服务缺席/查询失败时"不过滤"，绝不因此阻断推荐主流程。 */
+        public static final ExposureView EMPTY = new ExposureView(Set.of(), Set.of());
+
+        public boolean isRejected(Recipe recipe) {
+            return rejected.contains(dishKey(recipe.getName()));
+        }
+        public boolean wasRecentlyShown(Recipe recipe) {
+            return shown.contains(dishKey(recipe.getName()));
+        }
+        public boolean wasRecentlyShownOrRejected(Recipe recipe) {
+            return isRejected(recipe) || wasRecentlyShown(recipe);
+        }
     }
 
     public String recordShown(String openid, Recipe recipe, String source) {
