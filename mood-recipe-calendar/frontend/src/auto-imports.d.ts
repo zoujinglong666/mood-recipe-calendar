@@ -573,7 +573,6 @@ declare module 'vue' {
     readonly MOOD_EMOJI: UnwrapRef<typeof import('./utils/albumLayout')['MOOD_EMOJI']>
     readonly MRC_EVENTS: UnwrapRef<typeof import('./utils/bus')['MRC_EVENTS']>
     readonly RECORD_DRAFT_KEY: UnwrapRef<typeof import('./utils/cookingDraft')['RECORD_DRAFT_KEY']>
-    readonly REWARDED_AD_UNIT_ID: UnwrapRef<typeof import('./api/ad')['REWARDED_AD_UNIT_ID']>
     readonly SCHEDULE_TEMPLATE_ID: UnwrapRef<typeof import('./api/weeklyPlans')['SCHEDULE_TEMPLATE_ID']>
     readonly STATIC_BASE_URL: UnwrapRef<typeof import('./utils/assets')['STATIC_BASE_URL']>
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>

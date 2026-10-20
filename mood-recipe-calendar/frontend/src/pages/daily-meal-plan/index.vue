@@ -121,7 +121,8 @@ import { ref, reactive, computed } from 'vue'
 import { useNavBar, navBack } from '@/composables/useNavBar'
 import { fetchDailyMealPlan, replaceDailyMealPlanMeal, generateDailyMealCover, fetchDailyMealPlanQuota, reshuffleDailyMealPlan } from '@/api/dailyMealPlan'
 import type { QuotaView } from '@/api/dailyMealPlan'
-import { watchAdReward, REWARDED_AD_UNIT_ID } from '@/api/ad'
+import { watchAdReward } from '@/api/ad'
+import { AD_UNITS } from '@/config/ads'
 import NutritionCard from '@/components/guozai/NutritionCard.vue'
 import { splitComboDishName } from '@/api/dailyMenu'
 import type { RecipeItem } from '@/api/recipes'
@@ -353,51 +354,29 @@ async function doReshuffle() {
 }
 
 // ---- 看广告解锁「当日无限换一整天」 ----
-let rewardedAd: any = null
-function getRewardedAd() {
-  // #ifdef MP-WEIXIN
-  if (!rewardedAd) {
-    rewardedAd = uni.createRewardedVideoAd({ adUnitId: REWARDED_AD_UNIT_ID })
-    rewardedAd.onError(() => toast('广告加载失败，请稍后再试'))
-    rewardedAd.onClose((res: any) => {
-      if (res && res.isEnded) void onAdReward()
-      else toast('看完广告才能解锁无限换哦')
-    })
-  }
-  // #endif
-  return rewardedAd
-}
-
-/** 看完广告回调：记账兑换一次机会，并立即换一整天。 */
-async function onAdReward() {
-  try {
-    await watchAdReward('RESHUFFLE_UNLIMITED', REWARDED_AD_UNIT_ID)
+// 复用全局激励视频 hook（与 meal-agent 对话额度同一套）：单例预加载、显示失败自动
+// load→show 重试、看完（isEnded）才发奖、播放中防连点、H5 等环境走 onError 降级。
+// 广告位用「通用额度广告」；如后续要为该入口单独建位，只需换 AD_UNITS 里的键。
+const reshuffleAd = useRewardedVideoAd(AD_UNITS.QUOTA_REWARD, {
+  onReward: async () => {
+    // 看完回调：记账兑换一次机会，刷新额度并立即换一整天
+    await watchAdReward('RESHUFFLE_UNLIMITED', AD_UNITS.QUOTA_REWARD)
     await refreshQuota()
     toastSuccess('已获得一次换一整天机会')
     await doReshuffle()
+  },
+  onCancel: () => toast('看完广告才能解锁无限换哦'),
+  onError: err => toast(err.message || '广告加载失败，请稍后再试'),
+})
+
+/** 拉起激励视频；发奖失败（onReward 抛错，如后端拒绝）在这里兜底提示。 */
+async function startAd() {
+  try {
+    await reshuffleAd.show()
   }
   catch (e) {
     toastError(e, '广告奖励发放失败')
   }
-}
-
-/** 拉起激励视频；当前环境不支持（如 H5 / 未开通流量主）时降级提示。 */
-async function startAd() {
-  // #ifdef MP-WEIXIN
-  const ad = getRewardedAd()
-  if (ad) {
-    try {
-      await ad.show()
-    }
-    catch {
-      // 组件尚未加载完：先 load 再 show（微信官方推荐写法）
-      await ad.load()
-      await ad.show()
-    }
-    return
-  }
-  // #endif
-  toast('当前环境不支持看广告，请明天再来')
 }
 
 async function share() {
