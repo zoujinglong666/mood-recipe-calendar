@@ -28,8 +28,10 @@ SELECT COUNT(*) FROM recipes;  -- 应为 24
 已有线上数据库升级时，还要执行新增的今日菜单表迁移，否则 `/api/daily-menu` 首次读取会因缺少 `daily_menus` 表返回 500：
 
 ```bash
-mysql -uroot -p --default-character-set=utf8mb4 mood_recipe < sql/2026-09-27-daily-menus.sql
+mysql -uroot -p --default-character-set=utf8mb4 mood_recipe < sql/migrations/20260927_create_daily_menus.sql
 ```
+
+> 注意：`sql/init.sql` 仅用于**全新安装**（`source init.sql`），其菜谱种子为普通 `INSERT`，对已有数据的库重跑会因主键冲突报错；线上存量库升级请走 `sql/migrations/` 下的迁移脚本。
 
 本次签到赠送锅仔对话需要给配额表补充会话幂等字段：
 

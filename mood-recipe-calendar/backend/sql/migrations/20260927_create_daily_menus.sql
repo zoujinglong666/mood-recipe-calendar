@@ -1,12 +1,8 @@
--- ============================================================
--- v2 · TodayBoard 每日菜单缓存表（2026-09-27）
--- 用法：
---   mysql -uroot -p --default-character-set=utf8mb4 mood_recipe < sql/2026-09-27-daily-menus.sql
--- 幂等：CREATE TABLE IF NOT EXISTS，可重复执行
--- ============================================================
-USE mood_recipe;
-SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
-
+-- 今日菜单缓存表（TodayBoard）建表迁移。
+-- 运行方式（指定库名，无需在脚本内 USE）：
+--   mysql -uroot -p --default-character-set=utf8mb4 mood_recipe < sql/migrations/20260927_create_daily_menus.sql
+-- 幂等：CREATE TABLE IF NOT EXISTS，可重复执行。
+-- 注意：meal_type 列由后续的 20261017_add_daily_menu_meal_type.sql 追加。
 CREATE TABLE IF NOT EXISTS daily_menus (
   id          BIGINT AUTO_INCREMENT PRIMARY KEY,
   openid      VARCHAR(64)  NOT NULL COMMENT '微信 openid',
