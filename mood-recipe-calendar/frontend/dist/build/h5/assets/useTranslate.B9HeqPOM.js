@@ -1,0 +1,1 @@
+import{b0 as s,b1 as a,b2 as t,b3 as r,ab as e}from"./index-C2d8JOn8.js";const n=n=>{const o=n?s(n)+".":"";return{translate:(s,...n)=>{const b=a.messages(),c=t(b,o+s);return r(c)?c(...n):e(c)?c:`${o}${s}`}}};export{n as u};
