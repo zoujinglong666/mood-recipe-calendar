@@ -5,8 +5,10 @@ import com.moodrecipe.backend.config.SessionAuthInterceptor;
 import com.moodrecipe.backend.entity.Recipe;
 import com.moodrecipe.backend.repository.RecipeRepository;
 import com.moodrecipe.backend.service.DailyRecipeGenerationJob;
+import com.moodrecipe.backend.service.DuplicateRecipeAnalysisService;
 import com.moodrecipe.backend.service.RecipeCoverBackfillService;
 import com.moodrecipe.backend.service.RecipeGenerationConfig;
+import com.moodrecipe.backend.service.WxPusherService;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
@@ -32,16 +34,22 @@ public class AdminRecipeController {
     private final RecipeGenerationConfig generationConfig;
     private final DailyRecipeGenerationJob generationJob;
     private final RecipeCoverBackfillService coverBackfill;
+    private final DuplicateRecipeAnalysisService duplicateAnalysis;
+    private final WxPusherService wxpusher;
 
     public AdminRecipeController(RecipeRepository repository,
                                  RecipeGenerationConfig generationConfig,
                                  DailyRecipeGenerationJob generationJob,
                                  RecipeCoverBackfillService coverBackfill,
+                                 DuplicateRecipeAnalysisService duplicateAnalysis,
+                                 WxPusherService wxpusher,
                                  @Value("${app.admin-openids:}") String adminOpenidsProp) {
         this.repository = repository;
         this.generationConfig = generationConfig;
         this.generationJob = generationJob;
         this.coverBackfill = coverBackfill;
+        this.duplicateAnalysis = duplicateAnalysis;
+        this.wxpusher = wxpusher;
         this.adminOpenids = Arrays.stream(adminOpenidsProp.split(","))
                 .map(String::trim).filter(s -> !s.isEmpty())
                 .collect(Collectors.toSet());
@@ -102,6 +110,39 @@ public class AdminRecipeController {
         data.put("placeholderImage", placeholder);
         data.put("ai", aiCount);
         data.put("local", localCount);
+        return ApiResponse.ok(data);
+    }
+
+    /** 同名菜去重预览：与每日巡检推送的报告同源，管理员确认执行前的最后一眼。 */
+    @GetMapping("/duplicates")
+    public ApiResponse<List<Map<String, Object>>> duplicates(
+            @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
+        requireAdmin(openid);
+        List<Map<String, Object>> groups = new ArrayList<>();
+        for (DuplicateRecipeAnalysisService.DuplicateGroup group : duplicateAnalysis.analyze()) {
+            Map<String, Object> g = new LinkedHashMap<>();
+            g.put("name", group.name());
+            g.put("keeper", group.keeper());
+            g.put("removals", group.removals());
+            groups.add(g);
+        }
+        return ApiResponse.ok(groups);
+    }
+
+    /** 执行去重：按预览口径删除淘汰行（连带收藏/互动引用），结果经 WxPusher 推送管理员留档。 */
+    @PostMapping("/duplicates/apply")
+    public ApiResponse<Map<String, Object>> applyDuplicates(
+            @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
+        requireAdmin(openid);
+        List<DuplicateRecipeAnalysisService.DuplicateGroup> groups = duplicateAnalysis.analyze();
+        DuplicateRecipeAnalysisService.ApplyResult result = duplicateAnalysis.applyAll(groups);
+        wxpusher.sendToAdmin("菜谱库去重已执行",
+                "管理员确认执行去重：处理 " + result.groups() + " 组，删除 "
+                        + result.removedRows() + " 行（每组保留信息最完整的一道）。");
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("groups", result.groups());
+        data.put("removedRows", result.removedRows());
+        data.put("removedNames", result.removedNames());
         return ApiResponse.ok(data);
     }
 

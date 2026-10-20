@@ -16,4 +16,7 @@ public interface RecipeFavoriteRepository extends JpaRepository<RecipeFavorite, 
 
     /** 账号注销时清理。 */
     void deleteByOpenid(String openid);
+
+    /** 菜谱去重删除行时清理收藏引用。 */
+    void deleteByRecipeId(Long recipeId);
 }

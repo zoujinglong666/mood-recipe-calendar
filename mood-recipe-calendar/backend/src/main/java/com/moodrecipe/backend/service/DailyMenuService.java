@@ -24,6 +24,7 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -198,8 +199,19 @@ public class DailyMenuService {
                     default -> 0;
                 }, Integer::sum));
 
+        // 候选池不再只限「AI 且有图」：AI 有图仅 60 余道且番茄/虾/蛋扎堆，是「天天番茄炒蛋、白灼虾」的直接原因。
+        // 阁藏经典里有真实图的菜一并入围（分数上仍偏好有图），食材分布才铺得开；无图菜仍不进池，封面懒生成兜底。
         List<Recipe> pool = new ArrayList<>(recipePool.aiWithImages());
+        Set<Long> poolIds = new HashSet<>();
+        pool.forEach(r -> { if (r.getId() != null) poolIds.add(r.getId()); });
+        for (Recipe r : recipePool.all()) {
+            if (r.getId() != null && !poolIds.contains(r.getId()) && hasRealImage(r) && isDisplayableRecipe(r))
+                pool.add(r);
+        }
         if (pool.isEmpty()) pool = recipePool.all();
+
+        // 近几天今日卡/打卡出现过的核心食材集合：命中过的主料压分，逼着番茄、虾这类高频主料轮流上场
+        Set<String> recentIngredients = recentCoreIngredients(openid, recentBoard, pool);
 
         // 收藏菜集合（权重×3）
         Set<Long> favoriteIds = favorites.findTop200ByOpenidOrderByCreatedAtDesc(openid).stream()
@@ -225,10 +237,86 @@ public class DailyMenuService {
                                     + profileBonus(recipe, preference)
                                     + mealBonus(recipe, mealType)
                                     + (favoriteIds.contains(recipe.getId()) ? 5 : 0)
+                                    + (hasRealImage(recipe) ? 2 : 0)
+                                    + ingredientDiversityBonus(recipe, recentIngredients)
                                     + ThreadLocalRandom.current().nextInt(6)))
                     .orElse(null);
         }
         return null;
+    }
+
+    /**
+     * 核心食材关键词 → 归一标签（顺序敏感：长词在前，防止「番茄」被「茄」吞掉、「鸡蛋」被「鸡」吞掉）。
+     * 用于首页推荐的食材多样性轮换：近几天出现过的主料压分，让蔬菜、菌菇、豆制品轮着上场。
+     */
+    private static final List<String[]> CORE_INGREDIENT_KEYWORDS = List.of(
+            new String[]{"番茄", "番茄"}, new String[]{"西红柿", "番茄"},
+            new String[]{"鲜虾", "虾类"}, new String[]{"虾仁", "虾类"}, new String[]{"虾", "虾类"},
+            new String[]{"鸡蛋", "蛋类"}, new String[]{"鸭蛋", "蛋类"}, new String[]{"鹌鹑蛋", "蛋类"}, new String[]{"蛋", "蛋类"},
+            new String[]{"鸡胸", "鸡肉"}, new String[]{"鸡腿", "鸡肉"}, new String[]{"鸡", "鸡肉"},
+            new String[]{"牛肉", "牛肉"}, new String[]{"肥牛", "牛肉"}, new String[]{"牛", "牛肉"},
+            new String[]{"猪", "猪肉"}, new String[]{"排骨", "猪肉"}, new String[]{"里脊", "猪肉"},
+            new String[]{"三文鱼", "鱼类"}, new String[]{"鱼", "鱼类"},
+            new String[]{"豆腐", "豆制品"}, new String[]{"豆干", "豆制品"}, new String[]{"腐竹", "豆制品"}, new String[]{"豆浆", "豆制品"},
+            new String[]{"土豆", "土豆"}, new String[]{"红薯", "薯类"}, new String[]{"山药", "薯类"},
+            new String[]{"茄子", "茄子"}, new String[]{"青椒", "椒类"}, new String[]{"辣椒", "椒类"}, new String[]{"彩椒", "椒类"},
+            new String[]{"黄瓜", "瓜类"}, new String[]{"冬瓜", "瓜类"}, new String[]{"南瓜", "瓜类"}, new String[]{"丝瓜", "瓜类"}, new String[]{"苦瓜", "瓜类"}, new String[]{"西葫芦", "瓜类"},
+            new String[]{"白菜", "白菜"}, new String[]{"菠菜", "菠菜"}, new String[]{"芹菜", "芹菜"},
+            new String[]{"萝卜", "萝卜"}, new String[]{"藕", "莲藕"}, new String[]{"芦笋", "芦笋"},
+            new String[]{"蘑", "菌菇"}, new String[]{"菇", "菌菇"}, new String[]{"木耳", "菌菇"}, new String[]{"竹荪", "菌菇"},
+            new String[]{"豆角", "豆角"}, new String[]{"韭菜", "韭菜"}, new String[]{"花菜", "花菜"}, new String[]{"西兰花", "花菜"},
+            new String[]{"笋", "笋类"}, new String[]{"海带", "海带"}, new String[]{"紫菜", "海带"},
+            new String[]{"面条", "面食"}, new String[]{"面粉", "面食"}, new String[]{"挂面", "面食"}, new String[]{"米粉", "粉面"}, new String[]{"米", "米类"});
+
+    /** 食材轮换惩罚：命中近期吃过的主料每个 -6（大于随机项 0~5，保证轮换真的生效），上限 -12。 */
+    private static final int INGREDIENT_PENALTY = 6;
+    private static final int INGREDIENT_PENALTY_CAP = 12;
+
+    /** 菜谱命中的核心食材标签集合（全匹配：番茄炒蛋同时占「番茄」「蛋类」两个轮换位）。 */
+    private Set<String> coreIngredientLabels(Recipe recipe) {
+        Set<String> labels = new HashSet<>();
+        if (recipe == null) return labels;
+        String text = (safe(recipe.getName()) + " " + safe(recipe.getIngredients())).toLowerCase();
+        for (String[] item : CORE_INGREDIENT_KEYWORDS) {
+            if (text.contains(item[0])) labels.add(item[1]);
+        }
+        return labels;
+    }
+
+    /** 近几天今日卡与打卡吃过的核心食材：这些主料接下来几天要被压分，给其他食材让位。 */
+    private Set<String> recentCoreIngredients(String openid, Set<Long> recentBoardIds, List<Recipe> pool) {
+        Set<String> labels = new HashSet<>();
+        Map<Long, Recipe> poolById = new HashMap<>();
+        Map<String, Recipe> poolByName = new HashMap<>();
+        for (Recipe recipe : pool) {
+            if (recipe.getId() != null) poolById.put(recipe.getId(), recipe);
+            if (recipe.getName() != null) poolByName.put(recipe.getName().trim(), recipe);
+        }
+        for (Long id : recentBoardIds) {
+            Recipe recipe = poolById.get(id);
+            if (recipe != null) labels.addAll(coreIngredientLabels(recipe));
+        }
+        // 打卡菜名对得上池内菜谱的也计入（换算成菜谱后取食材标签）
+        String since = AppClock.today().minusDays(RECENT_DISH_DEDUPE_DAYS).toString();
+        records.findTop30ByOpenidOrderByCreatedAtDesc(openid).stream()
+                .filter(record -> record.getRecordDate() != null && record.getRecordDate().compareTo(since) >= 0)
+                .map(record -> record.getDishName() == null ? "" : record.getDishName().trim())
+                .filter(name -> !name.isEmpty())
+                .map(poolByName::get)
+                .filter(Objects::nonNull)
+                .forEach(recipe -> labels.addAll(coreIngredientLabels(recipe)));
+        return labels;
+    }
+
+    /** 食材多样性加分：命中近期吃过的主料则压分（负值），惩罚随命中数累加但有上限。 */
+    private int ingredientDiversityBonus(Recipe recipe, Set<String> recentIngredients) {
+        if (recentIngredients.isEmpty()) return 0;
+        int penalty = 0;
+        for (String label : coreIngredientLabels(recipe)) {
+            if (recentIngredients.contains(label)) penalty -= INGREDIENT_PENALTY;
+            if (penalty <= -INGREDIENT_PENALTY_CAP) break;
+        }
+        return penalty;
     }
 
     /** 早餐语境关键词：菜名/标签命中即视为早餐组合（与 BreakfastPoolSeeder 的「主食 · 配饮品」池同口径）。 */

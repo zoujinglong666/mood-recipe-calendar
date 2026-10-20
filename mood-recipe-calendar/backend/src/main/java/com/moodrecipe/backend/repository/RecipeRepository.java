@@ -51,4 +51,16 @@ public interface RecipeRepository extends JpaRepository<Recipe, Long>, JpaSpecif
     /** 仅取 mood_tags 列（不含大 TEXT 字段），供菜谱库标签云聚合（分页接口拿不到全量）。 */
     @Query("SELECT r.moodTags FROM Recipe r WHERE r.moodTags IS NOT NULL")
     List<String> findAllMoodTags();
+
+    /** 同名重复的菜名清单（每日去重分析用），只取轻量列避免全表 TEXT 物化。 */
+    @Query(value = "SELECT name FROM recipes WHERE name IS NOT NULL AND name <> '' "
+            + "GROUP BY name HAVING COUNT(*) > 1", nativeQuery = true)
+    List<String> findDuplicatedNames();
+
+    /** 轻量 id+菜名清单（采集任务比对未收录、均衡性画像用）。 */
+    @Query("SELECT r.id, r.name FROM Recipe r WHERE r.name IS NOT NULL")
+    List<Object[]> findAllIdAndName();
+
+    /** 同名菜的所有版本（去重分析按行给出保留/淘汰建议）。 */
+    List<Recipe> findByNameOrderByIdAsc(String name);
 }

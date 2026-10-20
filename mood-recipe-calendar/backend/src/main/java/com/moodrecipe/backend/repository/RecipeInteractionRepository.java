@@ -12,4 +12,7 @@ public interface RecipeInteractionRepository extends JpaRepository<RecipeInterac
     boolean existsByOpenidAndRecipeIdAndAction(String openid, Long recipeId, String action);
     void deleteByOpenidAndRecipeIdAndActionIn(String openid, Long recipeId, List<String> actions);
     void deleteByOpenid(String openid);
+
+    /** 菜谱去重删除行时清理互动引用（曝光/点赞/做过）。 */
+    void deleteByRecipeId(Long recipeId);
 }
