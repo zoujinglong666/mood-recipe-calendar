@@ -50,6 +50,12 @@ const st = computed(() => states[activeTest.value])
 const cfg = computed(() => TESTS[activeTest.value])
 const OPTION_TAGS = ['A', 'B', 'C', 'D']
 
+/** 测试类型 Tab 数据源（视觉为胶囊分段式，切换仍直接写 activeTest，业务等价） */
+const TEST_TABS = [
+  { key: 'eat' as TestKey, emoji: '🍚', label: '干饭人格' },
+  { key: 'cook' as TestKey, emoji: '🍳', label: '做饭人格' },
+]
+
 /* ---- 锅仔 IP 延展：每题换一个姿势「出题」，配一句锅仔台词；进度条上锅仔随进度走 ---- */
 const QUIZ_AVATARS = [
   'action_01_bowl',
@@ -204,44 +210,65 @@ function goLuckyDishes() {
   <view class="pea">
     <wd-navbar title="人格测试" left-arrow safe-area-inset-top custom-style="background-color: transparent !important;" @click-left="navBack" />
 
-    <!-- 双测试切换：干饭（怎么吃）/ 做饭（怎么做） -->
-    <view class="pea__tabs">
-      <wd-tabs v-model="activeTest" swipeable>
-        <wd-tab title="🍚 干饭人格" name="eat" />
-        <wd-tab title="🍳 做饭人格" name="cook" />
-      </wd-tabs>
+    <!-- 双测试切换：干饭（怎么吃）/ 做饭（怎么做）——胶囊分段式，切换逻辑不变 -->
+    <view class="pea__tabs" role="tablist" aria-label="选择测试类型">
+      <view
+        v-for="t in TEST_TABS"
+        :key="t.key"
+        class="pea__tab"
+        :class="{ 'is-active': activeTest === t.key }"
+        role="tab"
+        :aria-selected="activeTest === t.key"
+        @click="activeTest = t.key"
+      >
+        <text class="pea__tab-emoji">{{ t.emoji }}</text>
+        <text class="pea__tab-label">{{ t.label }}</text>
+      </view>
     </view>
 
-    <!-- 开场 -->
-    <view v-if="st.step === 'intro'" class="pea__intro mrc-hero">
+    <!-- 开场：主视觉容器（淡桃色 stage），一屏一个焦点 -->
+    <view v-if="st.step === 'intro'" class="pea__intro">
+      <!-- 轻量装饰：光晕 + 两颗星 + 圆点，全部 pointer-events none -->
+      <view class="pea__stage-glow" aria-hidden="true" />
+      <view class="pea__deco pea__deco--star-a" aria-hidden="true" />
+      <view class="pea__deco pea__deco--star-b" aria-hidden="true" />
+      <view class="pea__deco pea__deco--dot" aria-hidden="true" />
+
       <image class="pea__hero-img guozai-breathe" :src="`${STATIC_BASE_URL}/static/guozai/${activeTest === 'cook' ? 'action_02_soup' : 'action_09_celebrate'}.png`" mode="aspectFit" aria-hidden="true" />
       <view class="pea__hero-bubble"><text>{{ introQuip }}</text></view>
-      <text class="pea__eyebrow">{{ activeTest === 'cook' ? 'COOKING MBTI' : 'FOODIE MBTI' }}</text>
-      <text class="pea__title">{{ activeTest === 'cook' ? '做饭人格 4 字母测试' : '干饭人格 4 字母测试' }}</text>
+
+      <text class="pea__eyebrow">{{ activeTest === 'cook' ? 'COOKING MBTI · 4 LETTERS' : 'FOODIE MBTI · 4 LETTERS' }}</text>
+      <view class="pea__title" role="heading" aria-level="1">
+        <text class="pea__title-line">你的{{ activeTest === 'cook' ? '做饭' : '干饭' }}人格，</text>
+        <text class="pea__title-line pea__title-line--accent">到底是哪一型？</text>
+      </view>
       <text class="pea__sub">
         {{ activeTest === 'cook'
           ? '12 道厨房场景题，四个选项随你挑。锅仔读完你的每一次颠勺，判断你到底是哪种做饭人格。'
           : '12 道场景题，四个选项随你挑。锅仔会读完你的每一次选择，认真判断你的人格——像 MBTI 一样认真，比 MBTI 好吃。' }}
       </text>
+
       <view class="pea__facts">
         <view class="pea__fact">
-          <image class="pea__fact-icon" :src="`${STATIC_BASE_URL}/static/guozai/action_16_chopsticks.png`" mode="aspectFit" aria-hidden="true" />
-          <text class="pea__fact-num">12</text><text class="pea__fact-label">道场景题</text>
+          <text class="pea__fact-num">12</text>
+          <text class="pea__fact-label">道场景题</text>
         </view>
         <view class="pea__fact">
-          <image class="pea__fact-icon" :src="`${STATIC_BASE_URL}/static/guozai/action_06_glasses.png`" mode="aspectFit" aria-hidden="true" />
-          <text class="pea__fact-num">4</text><text class="pea__fact-label">个维度</text>
+          <text class="pea__fact-num">4</text>
+          <text class="pea__fact-label">个维度</text>
         </view>
         <view class="pea__fact">
-          <image class="pea__fact-icon" :src="`${STATIC_BASE_URL}/static/guozai/action_09_celebrate.png`" mode="aspectFit" aria-hidden="true" />
-          <text class="pea__fact-num">16</text><text class="pea__fact-label">型人格</text>
+          <text class="pea__fact-num">16</text>
+          <text class="pea__fact-label">型人格</text>
         </view>
       </view>
+
       <view v-if="activeTest === 'eat' && isDual" class="pea__dual-banner">
         <text class="pea__dual-text">有饭搭子想跟你比吃饭默契，接招？</text>
       </view>
-      <view class="pea__cta mrc-btn-primary" role="button" :aria-label="isDual && activeTest === 'eat' ? '接招开始答题' : '开始测试'" @click="start">
-        {{ activeTest === 'eat' && isDual ? '接招，开测' : '开测' }}
+
+      <view class="pea__cta" role="button" :aria-label="isDual && activeTest === 'eat' ? '接招开始答题' : '开始测试'" @click="start">
+        {{ activeTest === 'eat' && isDual ? '接招，开测' : (activeTest === 'cook' ? '测测我的做饭人格 →' : '测测我的干饭人格 →') }}
       </view>
       <view v-if="activeTest === 'eat' && isDual" class="pea__skip" role="button" aria-label="先测自己的人格" @click="isDual = false; start()">
         先测自己的人格
@@ -376,25 +403,102 @@ function goLuckyDishes() {
 <style lang="scss" scoped>
 /* finesse · register=h5(小程序页) · 沿用 mrc token 体系 · SOUL=7 SPECTACLE=3 DENSITY=5 */
 .pea {
+  --pea-stage-bg: #FBE1D1;        /* 主视觉容器：淡桃色（PRD §6.4，仅首页作用域） */
+  --pea-stage-bg-soft: #FFF1E7;   /* 容器顶部渐变起点 */
+  --pea-card-border: #EEDBC6;     /* 统计卡轻边框 */
   min-height: 100vh;
   box-sizing: border-box;
   background: var(--mrc-bg);
   padding: 0 32rpx;
   padding-bottom: calc(80rpx + env(safe-area-inset-bottom));
+  max-width: 560px;               /* 宽屏（H5/平板预览）保持窄内容列居中 */
+  margin: 0 auto;
 }
 
-.pea__tabs { margin: 0 -32rpx 4rpx; }
+/* ---- 测试类型 Tab：胶囊分段式（选中 = 浅珊瑚底 + 主色文字，含底色即非纯色彩区分） ---- */
+.pea__tabs {
+  display: flex;
+  gap: 8rpx;
+  margin: 12rpx 0 20rpx;
+  padding: 8rpx;
+  border-radius: 999rpx;
+  background: var(--mrc-surface-2);
+}
+.pea__tab {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  height: 92rpx;
+  border-radius: 999rpx;
+  color: var(--mrc-text-sub);
+  font-size: 28rpx;
+  font-weight: 600;
+  transition: background-color .2s ease, color .2s ease;
+}
+.pea__tab.is-active {
+  background: var(--mrc-surface);
+  color: var(--mrc-accent);
+  font-weight: 800;
+  box-shadow: var(--mrc-shadow-sm);
+}
+.pea__tab-emoji { font-size: 30rpx; }
 
-/* ---- 开场 ---- */
+/* ---- 开场主视觉容器：淡桃色 stage，一屏一个焦点 ---- */
 .pea__intro {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: 20rpx;
-  padding: 60rpx 24rpx 48rpx;
-  border-radius: var(--mrc-radius-lg);
+  margin-top: 4rpx;
+  padding: 56rpx 28rpx 44rpx;
+  border-radius: 56rpx;
+  background: linear-gradient(180deg, var(--pea-stage-bg-soft), var(--pea-stage-bg));
+  overflow: hidden;
 }
-.pea__hero-img { width: 240rpx; height: 240rpx; }
+/* 光晕：低透明 radial，不新增图片 */
+.pea__stage-glow {
+  position: absolute;
+  top: -120rpx;
+  left: 50%;
+  width: 640rpx;
+  height: 420rpx;
+  transform: translateX(-50%);
+  background: radial-gradient(closest-side, rgba(255, 178, 142, 0.4), transparent);
+  pointer-events: none;
+}
+/* 装饰星与圆点：CSS 绘制，克制、不遮文字 */
+.pea__deco { position: absolute; pointer-events: none; background: var(--mrc-accent); }
+.pea__deco--star-a {
+  top: 64rpx;
+  left: 56rpx;
+  width: 26rpx;
+  height: 26rpx;
+  opacity: .4;
+  clip-path: polygon(50% 0, 63% 37%, 100% 50%, 63% 63%, 50% 100%, 37% 63%, 0 50%, 37% 37%);
+  animation: pea-twinkle 3.2s ease-in-out infinite alternate;
+}
+.pea__deco--star-b {
+  top: 190rpx;
+  right: 64rpx;
+  width: 18rpx;
+  height: 18rpx;
+  opacity: .28;
+  clip-path: polygon(50% 0, 63% 37%, 100% 50%, 63% 63%, 50% 100%, 37% 63%, 0 50%, 37% 37%);
+  animation: pea-twinkle 3.2s ease-in-out .8s infinite alternate;
+}
+.pea__deco--dot {
+  bottom: 200rpx;
+  left: 64rpx;
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  opacity: .3;
+}
+@keyframes pea-twinkle { from { opacity: .18; } to { opacity: .45; } }
+
+.pea__hero-img { width: 380rpx; height: 380rpx; }
 .pea__hero-bubble {
   margin-top: 4rpx;
   padding: 12rpx 28rpx;
@@ -406,23 +510,26 @@ function goLuckyDishes() {
   font-weight: 700;
   box-shadow: var(--mrc-shadow-sm);
 }
-.pea__eyebrow { margin-top: 8rpx; color: var(--mrc-accent); font-size: 18rpx; font-weight: 800; letter-spacing: 3rpx; }
-.pea__title { margin-top: 10rpx; color: var(--mrc-text-strong); font-size: 44rpx; font-weight: 900; text-align: center; }
-.pea__sub { margin-top: 14rpx; max-width: 580rpx; color: var(--mrc-text-sub); font-size: 24rpx; line-height: 1.65; text-align: center; }
-.pea__facts { display: flex; gap: 20rpx; margin-top: 30rpx; }
+.pea__eyebrow { margin-top: 12rpx; color: var(--mrc-accent); font-size: 18rpx; font-weight: 800; letter-spacing: 3rpx; }
+.pea__title { display: flex; flex-direction: column; align-items: center; margin-top: 10rpx; text-align: center; }
+.pea__title-line { color: var(--mrc-text-strong); font-size: 52rpx; font-weight: 900; line-height: 1.24; }
+.pea__title-line--accent { color: var(--mrc-accent); }
+.pea__sub { margin-top: 16rpx; max-width: 580rpx; color: var(--mrc-text-sub); font-size: 24rpx; line-height: 1.7; text-align: center; }
+
+/* 统计信息：三列等宽轻卡，数字是主角，不放图标 */
+.pea__facts { display: flex; gap: 16rpx; margin-top: 34rpx; width: 100%; }
 .pea__fact {
   display: flex;
+  flex: 1;
   flex-direction: column;
   align-items: center;
   gap: 4rpx;
-  min-width: 132rpx;
-  padding: 18rpx 20rpx;
-  border: 2rpx solid var(--mrc-border-light);
-  border-radius: 20rpx;
+  padding: 26rpx 12rpx;
+  border: 1px solid var(--pea-card-border);
+  border-radius: 34rpx;
   background: var(--mrc-surface);
 }
-.pea__fact-icon { width: 44rpx; height: 44rpx; }
-.pea__fact-num { color: var(--mrc-accent); font-size: 36rpx; font-weight: 900; }
+.pea__fact-num { color: var(--mrc-accent); font-size: 54rpx; font-weight: 900; line-height: 1.1; }
 .pea__fact-label { color: var(--mrc-text-sub); font-size: 20rpx; }
 .pea__dual-banner {
   margin-top: 26rpx;
@@ -431,9 +538,34 @@ function goLuckyDishes() {
   background: var(--mrc-accent-soft);
 }
 .pea__dual-text { color: var(--mrc-accent); font-size: 24rpx; font-weight: 700; }
-.pea__cta { width: 100%; margin-top: 40rpx; }
+
+/* 主 CTA：胶囊渐变 + 柔和阴影 + 短促按压反馈 */
+.pea__cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 112rpx;
+  margin-top: 40rpx;
+  border-radius: 999rpx;
+  background: var(--mrc-primary-grad);
+  color: #fff;
+  font-size: 34rpx;
+  font-weight: 700;
+  letter-spacing: 2rpx;
+  box-shadow: 0 16rpx 40rpx rgba(239, 105, 91, 0.22), var(--mrc-gloss);
+  transition: transform .12s ease;
+}
+.pea__cta:active { transform: scale(0.985); }
 .pea__skip { margin-top: 22rpx; color: var(--mrc-text-light); font-size: 22rpx; }
 .pea__skip:active { opacity: 0.7; }
+
+/* 小屏（≤359px）：收紧内距与标题，防挤压溢出 */
+@media (max-width: 359px) {
+  .pea { padding-left: 24rpx; padding-right: 24rpx; }
+  .pea__title-line { font-size: 46rpx; }
+  .pea__fact { padding: 20rpx 8rpx; }
+}
 
 /* ---- 答题 ---- */
 .pea__quiz { margin-top: 20rpx; }
@@ -669,6 +801,8 @@ function goLuckyDishes() {
   .pea__card.pop-in {
     animation: none;
   }
+  .pea__deco--star-a,
+  .pea__deco--star-b { animation: none; }
   .pea__progress-walker,
   .pea__progress-fill { transition: none; }
 }

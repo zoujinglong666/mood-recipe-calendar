@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch, onUnmounted } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
+
 import { STATIC_BASE_URL } from '@/utils/assets'
-import { fetchRecipeLibrary, type RecipeItem } from '@/api/recipes'
+import { fetchMoodTags, fetchRecipeLibrary, type RecipeItem } from '@/api/recipes'
 import { saveCookingDraft } from '@/utils/cookingDraft'
 import { navBack } from '@/composables/useNavBar'
 import { useWishlist } from '@/composables/useWishlist'
@@ -30,6 +31,8 @@ const keyword = ref('')
 const sourceFilter = ref<'ALL' | 'AI' | 'LOCAL'>('ALL')
 const timeFilter = ref<'ALL' | 'FAST' | 'SLOW'>('ALL')
 const moodFilter = ref<string>('ALL')
+/** 心情筛选面板数据源（后端全表聚合的标签，失败静默不影响列表） */
+const moodTags = ref<string[]>([])
 
 const SOURCE_OPTIONS = [
   { value: 'ALL', label: '全部' },
@@ -202,13 +205,25 @@ onUnmounted(() => {
   if (keywordTimer) clearTimeout(keywordTimer)
 })
 
-/** 触底加载下一页 */
-onReachBottom(() => {
-  if (!loading.value && !finished.value) loadPage(false)
-})
+/** 触底加载已由竖滑流的滑动翻页承接（页面 overflow:hidden 不滚动，onReachBottom 不会触发） */
+
+/** 心情筛选面板：低频条件收纳（PRD §6.6），点选即时生效沿用原有提交语义 */
+const filterPanelOpen = ref(false)
+const moodSummary = computed(() => moodFilter.value === 'ALL' ? '' : moodFilter.value)
+function pickMood(m: string) {
+  if (moodFilter.value === m) return
+  moodFilter.value = m
+  onFilterChange()
+}
+
+/** 图片加载失败兜底：网络失败时清空 URL，模板回落到锅仔插画 */
+function onImgError(r: RecipeItem) {
+  if (r.image) r.image = ''
+}
 
 onShow(async () => {
   syncFromServer()
+  fetchMoodTags().then(tags => { moodTags.value = tags }).catch(() => {})
   if (recipes.value.length || loading.value)
     return
   loadPage(true)
@@ -287,6 +302,14 @@ function openCook(r: RecipeItem) {
           role="button"
           @click="timeFilter = opt.value; onFilterChange()"
         >{{ opt.label }}</view>
+        <!-- 心情筛选入口：低频条件收纳进底部面板（PRD §6.6），已选时高亮并显示摘要 -->
+        <view
+          class="library-chip library-chip--filter"
+          :class="{ 'library-chip--active': !!moodSummary }"
+          role="button"
+          :aria-label="moodSummary ? `已选心情 ${moodSummary}，点按修改` : '打开心情筛选'"
+          @click="filterPanelOpen = true"
+        >{{ moodSummary ? `心情 · ${moodSummary}` : '心情筛选 ⌄' }}</view>
       </view>
     </scroll-view>
 
@@ -317,6 +340,7 @@ function openCook(r: RecipeItem) {
               class="lib-card__img"
               :src="r.image || `${STATIC_BASE_URL}/static/guozai/action_01_bowl.png`"
               mode="aspectFill"
+              @error="onImgError(r)"
             />
             <view class="lib-card__mask" />
             <view class="lib-card__info">
@@ -352,6 +376,33 @@ function openCook(r: RecipeItem) {
     <view v-if="!loading && recipes.length" class="library-toast" :class="{ 'is-visible': loadingMore || finished }">
       <text>{{ loadingMore ? '锅仔踮脚去够下一页…' : finished ? `阁底翻完啦，共 ${total} 道菜` : '' }}</text>
     </view>
+
+    <!-- 心情筛选面板：低频条件收纳（PRD §6.6），点选即时生效与原提交语义一致 -->
+    <wd-popup v-model="filterPanelOpen" position="bottom" :safe-area-inset-bottom="true" custom-style="border-radius: 40rpx 40rpx 0 0; background: var(--mrc-surface);">
+      <view class="filter-panel">
+        <view class="filter-panel__head">
+          <text class="filter-panel__title">按心情逛</text>
+          <text class="filter-panel__done" role="button" @click="filterPanelOpen = false">完成</text>
+        </view>
+        <view v-if="moodTags.length" class="filter-panel__chips">
+          <view
+            class="library-chip"
+            :class="{ 'library-chip--active': moodFilter === 'ALL' }"
+            role="button"
+            @click="pickMood('ALL')"
+          >全部心情</view>
+          <view
+            v-for="m in moodTags"
+            :key="m"
+            class="library-chip"
+            :class="{ 'library-chip--active': moodFilter === m }"
+            role="button"
+            @click="pickMood(m)"
+          >{{ m }}</view>
+        </view>
+        <view v-else class="filter-panel__empty">心情标签还在积累中，先用搜索找找吧</view>
+      </view>
+    </wd-popup>
   </view>
 </template>
 
@@ -464,4 +515,18 @@ function openCook(r: RecipeItem) {
 }
 .library-toast.is-visible { opacity: 1; }
 .library-toast text { padding: 10rpx 26rpx; border-radius: 999rpx; background: rgba(44, 24, 16, .6); color: #fff; font-size: 22rpx; }
+
+/* 筛选入口 chip：与主分类 chip 同规格，已选时珊瑚高亮 */
+.library-chip--filter { border-style: dashed; }
+.library-chip--filter.library-chip--active { border-style: solid; }
+
+/* 心情筛选底部面板 */
+.filter-panel { padding: 30rpx 32rpx calc(30rpx + env(safe-area-inset-bottom)); }
+.filter-panel__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22rpx; }
+.filter-panel__title { color: var(--mrc-text-strong); font-size: 31rpx; font-weight: 800; }
+.filter-panel__done { padding: 10rpx 30rpx; border-radius: 999rpx; background: var(--mrc-primary-grad); color: #fff; font-size: 24rpx; font-weight: 700; }
+.filter-panel__done:active { opacity: .8; }
+.filter-panel__chips { display: flex; flex-wrap: wrap; gap: 14rpx; }
+.filter-panel__chips .library-chip { padding: 14rpx 30rpx; }
+.filter-panel__empty { padding: 30rpx 0; color: var(--mrc-text-light); font-size: 24rpx; text-align: center; }
 </style>
