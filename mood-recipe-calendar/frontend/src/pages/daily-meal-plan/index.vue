@@ -362,6 +362,7 @@ const reshuffleAd = useRewardedVideoAd(AD_UNITS.QUOTA_REWARD, {
     // 看完回调：记账兑换一次机会，刷新额度并立即换一整天
     await watchAdReward('RESHUFFLE_UNLIMITED', AD_UNITS.QUOTA_REWARD)
     await refreshQuota()
+    funnel('ad_watch', { type: 'RESHUFFLE_UNLIMITED' })
     toastSuccess('已获得一次换一整天机会')
     await doReshuffle()
   },

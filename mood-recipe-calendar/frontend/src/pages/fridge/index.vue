@@ -195,6 +195,8 @@ const recognizedCount = computed(() => drafts.value.filter(d => d.checked).lengt
 const fridgeOcrAd = useRewardedVideoAd(AD_UNITS.FRIDGE_OCR, {
   onReward: async () => {
     await watchAdReward('FRIDGE_OCR', AD_UNITS.FRIDGE_OCR)
+    // 广告变现埋点：非会员看广告换识别试用的有效观看数
+    funnel('ad_watch', { type: 'FRIDGE_OCR' })
   },
   onCancel: () => toast('看完广告才能获得试用机会'),
   onError: err => toast(err.message || '广告加载失败，请稍后再试'),

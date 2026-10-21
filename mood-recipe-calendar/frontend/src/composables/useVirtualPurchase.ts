@@ -28,6 +28,8 @@ export function useVirtualPurchase() {
       checkingDelivery = true
       uni.showLoading({ title: '锅仔正在确认权益…', mask: true })
       const delivered = await waitForDelivery(order.orderNo)
+      // 付费漏斗终点：微信支付成功即上报（不等权益到账轮询，避免弱网下丢转化数据）
+      funnel('member_pay', { sku })
       onDelivered?.()
       // 轮询未到账时给出明确预期：后端有定时对账+重试兜底，用户知道去哪等，不再像"没下文"
       toast(delivered ? '权益已到账，去看看吧' : '支付已完成，权益确认中——稍后重新进入本页即可看到')

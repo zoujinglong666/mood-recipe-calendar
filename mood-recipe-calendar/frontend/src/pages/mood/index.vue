@@ -49,6 +49,7 @@ async function onConfirm(m: { key: string }) {
 
 /** 心情+餐别都齐了才跳推荐页；mood 走 query（params 不进 URL，推荐页读的是 query.mood） */
 function onPickMeal(type: 'BREAKFAST' | 'LUNCH' | 'DINNER') {
+  funnel('meal_sheet_pick', { meal: type, from: 'mood' })
   const mood = pendingMood.value || '开心'
   router.push({ name: 'recipe', params: { mood }, query: { mood, mealType: type } })
 }

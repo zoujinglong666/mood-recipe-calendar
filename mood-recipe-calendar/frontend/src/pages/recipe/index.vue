@@ -301,6 +301,7 @@ onShow(() => {
 onUnload(stopPolling)
 
 onShareAppMessage(() => {
+  funnel('share_click', { from: 'recipe' })
   const sharer = userStore.openid
   // 落首页而非本页：好友先看到「好友菜卡」（真实菜图 + 看看这道菜 CTA）再领邀请奖励，
   // 比直接落到一道陌生推荐页更容易完成首次价值交付（分享回流 D2 留存的修复点）。
@@ -681,6 +682,8 @@ async function purchase(product: VirtualProduct) {
     checkingDelivery = true
     uni.showLoading({ title: '锅仔正在确认权益…', mask: true })
     const delivered = await waitForDelivery(order.orderNo)
+    // 付费漏斗终点：微信支付成功即上报（sku 含会员月/年卡与单品，We 分析里可拆分）
+    funnel('member_pay', { sku: product.sku })
     // 购买闭环：即时标记已拥有 + 刷新权益列表 + 通知订单页，让用户"买完看得见"
     purchasedSkus.value = new Set(purchasedSkus.value).add(product.sku)
     await loadProducts()

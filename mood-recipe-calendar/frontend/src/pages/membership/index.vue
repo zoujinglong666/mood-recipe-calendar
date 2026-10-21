@@ -181,7 +181,11 @@ async function load() {
   }
 }
 
-onShow(load)
+onShow(() => {
+  // 会员页曝光：付费漏斗入口（We 分析里配合 member_pay 算曝光→支付转化）
+  funnel('member_view')
+  load()
+})
 
 /** 家庭共享：拉取我的家庭（未登录/无家庭静默）。 */
 async function loadFamily() {

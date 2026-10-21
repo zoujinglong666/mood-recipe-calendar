@@ -117,6 +117,8 @@ const agentAd = useRewardedVideoAd(AD_UNITS.QUOTA_REWARD, {
   onReward: async () => {
     const view = await requestAgentQuotaFromAd()
     agentQuota.value = view
+    // 广告变现埋点：看完且服务端发奖成功才算一次有效观看
+    funnel('ad_watch', { type: 'AGENT_QUOTA' })
     toastSuccess('获得 1 次对话机会，继续聊吧')
   },
   onCancel: () => toast('看完广告才能领取哦'),

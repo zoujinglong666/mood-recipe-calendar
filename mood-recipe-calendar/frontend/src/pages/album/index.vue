@@ -241,6 +241,8 @@ async function purchaseAlbum(): Promise<boolean> {
     checkingDelivery = true
     uni.showLoading({ title: '锅仔正在确认权益…', mask: true })
     const delivered = await waitForDelivery(order.orderNo)
+    // 付费漏斗终点：高清画册导出购买（sku=ALBUM_HD_EXPORT，与会员卡同一事件可拆分）
+    funnel('member_pay', { sku: 'ALBUM_HD_EXPORT' })
     if (!delivered) {
       toast('支付已完成，权益确认中，稍后刷新即可保存')
       return false

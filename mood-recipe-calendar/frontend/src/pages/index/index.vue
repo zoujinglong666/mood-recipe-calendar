@@ -832,6 +832,7 @@ onPullDownRefresh(() => {
 
 /** 转发给好友/群：必须定义 onShareAppMessage 胶囊「···」里的转发才可用 */
 onShareAppMessage(() => {
+  funnel('share_click', { from: 'home' })
   const sharer = userStore.openid
   // 分享卡带菜带图：好友点开直接看到这道菜和它的封面，回流后双方各得 1 次对话额度
   const dish = todayBoard.value?.recipe?.name || ''
@@ -869,6 +870,7 @@ const showMealSheet = ref(false)
 function openMealSheet() { showMealSheet.value = true }
 function pickMeal(type: 'BREAKFAST' | 'LUNCH' | 'DINNER') {
   funnel('recommend_click', { mealType: type })
+  funnel('meal_sheet_pick', { meal: type, from: 'home' })
   const mood = MOODS[Math.floor(Math.random() * MOODS.length)]
   navLocked(() => router.push({ name: 'recipe', params: { mood }, query: { mood, mealType: type } }))
 }
