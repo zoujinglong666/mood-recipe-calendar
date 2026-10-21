@@ -688,12 +688,45 @@ const isShowShareCurtain = ref(false)
 const sharedRecipeId = ref(0)
 function openSharedDish() {
   if (!sharedRecipeId.value) return
+  // 点了主 CTA 视为已欢迎：先关幕帘（触发 @close 打频控标记），再跳菜谱，
+  // 避免从菜谱返回首页时幕帘还挂在屏幕上
+  isShowShareCurtain.value = false
   navLocked(() => router.push({ name: 'recipe', query: { recipeId: String(sharedRecipeId.value) } }))
 }
 /** 幕帘「我也要安排」：给分享来的新用户第一条主动路径（选心情→推荐） */
 function goMoodFromShare() {
   isShowShareCurtain.value = false
   navLocked(() => router.push({ name: 'mood' }))
+}
+
+/**
+ * 分享幕帘频控：同一好友的同一道菜只欢迎一次（key = sharer:recipeId/dish）。
+ * 不按"每天一次"设计——好友这周分享三道不同的菜，每道都值得一次欢迎；
+ * 重复进入同一道菜（连点分享卡片、杀进程重开）才安静落地。
+ * 关闭时才写标记：用户主动关掉 = 确实看过了；直接杀小程序不标记，下次进仍欢迎。
+ */
+const CURTAIN_SEEN_KEY = 'mrc_share_curtain_seen'
+const shareCurtainKey = ref('')
+function curtainSeen(key: string): boolean {
+  try {
+    const seen: string[] = uni.getStorageSync(CURTAIN_SEEN_KEY) || []
+    return seen.includes(key)
+  }
+  catch {
+    return false
+  }
+}
+function markCurtainSeen(key: string) {
+  if (!key) return
+  try {
+    const seen: string[] = uni.getStorageSync(CURTAIN_SEEN_KEY) || []
+    if (!seen.includes(key))
+      uni.setStorageSync(CURTAIN_SEEN_KEY, [...seen, key].slice(-20)) // 只留最近 20 条，防无限增长
+  }
+  catch {}
+}
+function onCurtainClosed() {
+  markCurtainSeen(shareCurtainKey.value)
 }
 /**
  * 小程序转发链路会对 path query 再做一次整体编码：我们 encodeURIComponent 过的中文
@@ -720,7 +753,9 @@ onLoad((query) => {
   const dish = decodeQueryParam(String(query?.dish || ''))
   const img = decodeQueryParam(String(query?.img || ''))
   sharedRecipeId.value = Number(query?.recipeId) || 0
-  if (dish) {
+  // 本次分享的频控 key：同一好友同一道菜，欢迎过一次就不再打扰
+  shareCurtainKey.value = `${sharer || 'anon'}:${sharedRecipeId.value || dish || 'invite'}`
+  if (dish && !curtainSeen(shareCurtainKey.value)) {
     friendDish.value = dish
     isShowShareCurtain.value = true
   }
@@ -735,7 +770,9 @@ onLoad((query) => {
     .then((res) => {
       if (res?.grantedBonus) {
         inviteBonus.value = true
-        isShowShareCurtain.value = true
+        // 同样过频控：本 key 欢迎过（或正在展示中）就只发奖励 toast，不再弹幕帘
+        if (!curtainSeen(shareCurtainKey.value) && !isShowShareCurtain.value)
+          isShowShareCurtain.value = true
       }
     })
     .catch(() => {})
@@ -895,6 +932,7 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
         root-portal
         @click="openSharedDish"
         @error="isShowShareCurtain = false"
+        @close="onCurtainClosed"
       >
         <template #close>
           <view class="share-curtain">

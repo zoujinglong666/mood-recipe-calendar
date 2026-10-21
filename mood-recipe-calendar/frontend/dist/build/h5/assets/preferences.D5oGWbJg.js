@@ -1,0 +1,1 @@
+import{g as e,a as r,d as n}from"./request.DNNwFcq4.js";function s(){return e("/preferences")}function t(){return e("/preferences/summary")}function a(e){return r("/preferences",e)}function f(){return n("/preferences")}export{s as a,f as c,t as f,a as s};
