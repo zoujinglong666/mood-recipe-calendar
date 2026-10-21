@@ -8,6 +8,7 @@ import LoadingState from '../../components/guozai/LoadingState.vue'
 import ErrorState from '../../components/guozai/ErrorState.vue'
 import { ensureLogin } from '../../utils/login'
 import { fetchYearStats, type YearStatsResult } from '../../api/records'
+import { ensureWxacodeUrl } from '@/api/wxacode'
 
 definePage({
   name: 'report',
@@ -127,9 +128,13 @@ async function loadStats() {
   }
 }
 
+/** 真小程序码：替代原先的 CSS 假网格（好友扫码什么都扫不出）。storage 永久缓存，失败则隐藏码位 */
+const qrCodeUrl = ref('')
 onShow(() => {
   currentPage.value = 0
   loadStats()
+  if (!qrCodeUrl.value)
+    void ensureWxacodeUrl('report').then(url => { qrCodeUrl.value = url })
 })
 
 /** 上滑 / 下滑翻页（swiper 一页一屏） */
@@ -340,7 +345,7 @@ function share() {
           </view>
         </view>
         <image class="rpt-share__guozai" :src="STATIC_BASE_URL + '/static/guozai/action_09_celebrate.png'" mode="aspectFit" />
-        <view class="rpt-share__qrcode"><view class="rpt-share__qr-grid" /></view>
+        <view class="rpt-share__qrcode"><image v-if="qrCodeUrl" class="rpt-share__qr-img" :src="qrCodeUrl" mode="aspectFit" /></view>
         <view class="rpt-share__custom">
           <view class="rpt-share__line" />
           <text class="rpt-share__custom-text">定制我的{{ currentYear }}干饭纪念册</text>
@@ -960,15 +965,7 @@ function share() {
   box-sizing: border-box;
   margin-bottom: 28rpx;
 }
-.rpt-share__qr-grid {
-  width: 100%;
-  height: 100%;
-  background:
-    linear-gradient(90deg, #000 50%, transparent 50%),
-    linear-gradient(#000 50%, transparent 50%);
-  background-size: 12rpx 12rpx;
-  background-position: 0 0, 6rpx 6rpx;
-}
+.rpt-share__qr-img { width: 100%; height: 100%; display: block; }
 .rpt-share__custom {
   display: flex;
   align-items: center;

@@ -749,6 +749,10 @@ function decodeQueryParam(value: string) {
   return result
 }
 onLoad((query) => {
+  // 小程序码扫码归因：画册/报告/食谱分享物料被扫后，scene 标记来源（album/report/recipe/daily_menu/record）
+  const scanScene = decodeQueryParam(String(query?.scene || ''))
+  if (scanScene)
+    funnel('qrcode_scan', { from: scanScene })
   const sharer = decodeQueryParam(String(query?.sharer || ''))
   const dish = decodeQueryParam(String(query?.dish || ''))
   const img = decodeQueryParam(String(query?.img || ''))

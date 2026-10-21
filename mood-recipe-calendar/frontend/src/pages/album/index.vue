@@ -24,6 +24,7 @@ import LoadingState from '../../components/guozai/LoadingState.vue'
 import { useUserStore } from '../../stores/user'
 import { autoLayout, chunkPages, MOOD_COLOR, MOOD_EMOJI } from '../../utils/albumLayout'
 import { exportAlbumShare } from '../../utils/albumShare'
+import { ensureWxacodeUrl } from '@/api/wxacode'
 import { ensureLogin, refreshUserInfo, refreshWechatLoginForPayment } from '../../utils/login'
 import { toast, toastError, toastSuccess } from '../../utils/toast'
 import { recordShare } from '@/api/share'
@@ -129,9 +130,13 @@ async function loadAlbum() {
   }
 }
 
+/** 真小程序码：替代原先的 CSS 假网格（好友扫码什么都扫不出）。storage 永久缓存，失败则隐藏码位 */
+const qrCodeUrl = ref('')
 onShow(() => {
   currentPage.value = 0
   loadAlbum()
+  if (!qrCodeUrl.value)
+    void ensureWxacodeUrl('album').then(url => { qrCodeUrl.value = url })
 })
 
 // ---------- 翻页 ----------
@@ -628,7 +633,7 @@ onShareTimeline(() => {
                 {{ shareButtonText }}
               </text>
               <view class="album-share__qrcode">
-                <view class="album-share__qr-grid" />
+                <image v-if="qrCodeUrl" class="album-share__qr-img" :src="qrCodeUrl" mode="aspectFit" />
               </view>
             </view>
             <view v-if="hasAlbumEntitlement" class="album-share__hint">
@@ -928,14 +933,7 @@ onShareTimeline(() => {
 }
 .album-share__btn-text { font-size: 34rpx; color: #fff; font-weight: 700; }
 .album-share__qrcode { width: 80rpx; height: 80rpx; background: #fff; border-radius: 8rpx; padding: 8rpx; box-sizing: border-box; }
-.album-share__qr-grid {
-  width: 100%; height: 100%;
-  background:
-    linear-gradient(90deg, #000 50%, transparent 50%),
-    linear-gradient(#000 50%, transparent 50%);
-  background-size: 12rpx 12rpx;
-  background-position: 0 0, 6rpx 6rpx;
-}
+.album-share__qr-img { width: 100%; height: 100%; display: block; }
 
 /* 隐藏 Canvas（分享图导出） */
 .album-share__canvas {

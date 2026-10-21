@@ -5,7 +5,7 @@
  */
 import { getCurrentInstance } from 'vue'
 import { getWindowInfo } from '@/utils/wxSystem'
-import miniProgramCodePath from '../static/share/guozai-miniprogram-code.jpg'
+import { ensureWxacodeUrl } from '@/api/wxacode'
 
 export interface AlbumShareData {
   /** 顶部品牌名 */
@@ -268,26 +268,32 @@ function drawSectionHeading(ctx: any, label: string, title: string, y: number) {
   leftText(ctx, 52, y + 28, title, 30, COLORS.text, 'bold')
 }
 
-async function drawRecipeCodeFooter(ctx: any, canvas: any) {
+/** 画「扫码打开小程序」码盒：codeUrl 为后端生成的小程序码（COS 网络图）；
+ *  缺失或加载失败时降级为文字，绝不留空白盒。 */
+async function drawCodeBox(ctx: any, canvas: any, codeUrl: string, codeY: number, fallbackText: string) {
+  const codeBox = 150
+  const codeX = W - 52 - codeBox
+  ctx.fillStyle = COLORS.white
+  roundRect(ctx, codeX, codeY, codeBox, codeBox, 16)
+  ctx.fill()
+  if (codeUrl) {
+    try {
+      const code = await loadCanvasImage(canvas, codeUrl)
+      ctx.drawImage(code, codeX + 12, codeY + 12, codeBox - 24, codeBox - 24)
+      return
+    }
+    catch {}
+  }
+  leftText(ctx, codeX + 36, codeY + 62, fallbackText, 18, COLORS.sub, 'bold')
+}
+
+async function drawRecipeCodeFooter(ctx: any, canvas: any, codeUrl: string) {
   const footerY = 1224
   drawRule(ctx, footerY)
   leftText(ctx, 52, footerY + 42, 'GUOZAI · MOOD RECIPE', 18, COLORS.accent, 'bold')
   leftText(ctx, 52, footerY + 78, '把今天这一顿，认真做完。', 31, COLORS.text, 'bold')
   leftText(ctx, 52, footerY + 124, '扫码打开小程序，收藏这道菜', 20, COLORS.sub)
-
-  const codeBox = 150
-  const codeX = W - 52 - codeBox
-  const codeY = footerY + 28
-  ctx.fillStyle = COLORS.white
-  roundRect(ctx, codeX, codeY, codeBox, codeBox, 16)
-  ctx.fill()
-  try {
-    const code = await loadCanvasImage(canvas, miniProgramCodePath)
-    ctx.drawImage(code, codeX + 12, codeY + 12, codeBox - 24, codeBox - 24)
-  }
-  catch {
-    leftText(ctx, codeX + 36, codeY + 62, '扫码做菜', 18, COLORS.sub, 'bold')
-  }
+  await drawCodeBox(ctx, canvas, codeUrl, footerY + 28, '扫码做菜')
 }
 
 /** 将当前一条推荐画成可保存的宣传型完整食谱卡；图片资源失败时仍输出文字卡。 */
@@ -441,7 +447,7 @@ export async function exportRecipeShare(data: RecipeShareData, canvasId = 'recip
   if (!steps.length)
     leftText(ctx, 52, 1012, '热锅、下料、调味，慢慢做完这一餐。', 22, COLORS.sub)
 
-  await drawRecipeCodeFooter(ctx, canvas)
+  await drawRecipeCodeFooter(ctx, canvas, await ensureWxacodeUrl('recipe'))
 
   return await new Promise<string>((resolve, reject) => {
     uni.canvasToTempFilePath({
@@ -616,7 +622,7 @@ export async function exportDailyMenuShare(data: DailyMenuShareData, canvasId = 
   roundRect(ctx, codeX, codeY, codeBox, codeBox, 16)
   ctx.fill()
   try {
-    ctx.drawImage(await loadCanvasImage(canvas, miniProgramCodePath), codeX + 12, codeY + 12, codeBox - 24, codeBox - 24)
+    ctx.drawImage(await loadCanvasImage(canvas, await ensureWxacodeUrl('daily_menu')), codeX + 12, codeY + 12, codeBox - 24, codeBox - 24)
   }
   catch {
     leftText(ctx, codeX + 36, codeY + 62, '扫码', 18, COLORS.sub, 'bold')
@@ -746,7 +752,7 @@ export async function exportRecordShare(data: RecordShareData, canvasId = 'recor
   roundRect(ctx, codeX, codeY, codeBox, codeBox, 16)
   ctx.fill()
   try {
-    ctx.drawImage(await loadCanvasImage(canvas, miniProgramCodePath), codeX + 12, codeY + 12, codeBox - 24, codeBox - 24)
+    ctx.drawImage(await loadCanvasImage(canvas, await ensureWxacodeUrl('record')), codeX + 12, codeY + 12, codeBox - 24, codeBox - 24)
   }
   catch {
     leftText(ctx, codeX + 36, codeY + 62, '扫码', 18, COLORS.sub, 'bold')

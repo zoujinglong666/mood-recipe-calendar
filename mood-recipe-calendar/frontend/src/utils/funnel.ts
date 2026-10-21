@@ -21,6 +21,7 @@ const EVENT_IDS: Record<string, string> = {
   member_view: '', // 会员页曝光（付费漏斗入口）
   member_pay: '', // 会员支付成功（付费漏斗终点）
   meal_sheet_pick: '', // 餐别选择完成（推荐链路关键分叉）
+  qrcode_scan: '', // 小程序码扫码进入（分享物料归因，scene=来源）
 }
 
 export function funnel(event: keyof typeof EVENT_IDS, params: Record<string, string | number> = {}) {

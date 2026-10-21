@@ -1,0 +1,1 @@
+import{g as n,p as a}from"./request.CBRxNCR0.js";function i(){return n("/family")}function r(){return a("/family")}function e(n){return a("/family/join",{code:n})}function t(){return a("/family/leave")}function f(){return n("/family/menus")}function u(n,i,r){return a("/family/assign",{planId:n,dayIndex:i,cookOpenid:r})}export{f as a,u as b,r as c,i as f,e as j,t as l};

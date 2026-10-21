@@ -1,0 +1,1 @@
+"use strict";const e=require("../common/vendor.js"),r=require("./request.js"),n=e=>`mrc_wxacode_v1_${e}`;exports.ensureWxacodeUrl=async function(t){try{return await async function(t){const c=n(t),o=e.index.getStorageSync(c);if(o)return o;const u=await r.get("/api/wxacode",{scene:t});return(null==u?void 0:u.url)?(e.index.setStorageSync(c,u.url),u.url):""}(t)}catch{return""}};

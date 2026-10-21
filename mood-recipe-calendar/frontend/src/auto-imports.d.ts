@@ -102,6 +102,7 @@ declare global {
   const eagerComputed: typeof import('@vueuse/core')['eagerComputed']
   const effectScope: typeof import('vue')['effectScope']
   const ensureLogin: typeof import('./utils/login')['ensureLogin']
+  const ensureWxacodeUrl: typeof import('./api/wxacode')['ensureWxacodeUrl']
   const exportAlbumShare: typeof import('./utils/albumShare')['exportAlbumShare']
   const exportDailyMenuShare: typeof import('./utils/albumShare')['exportDailyMenuShare']
   const exportRecipeShare: typeof import('./utils/albumShare')['exportRecipeShare']
@@ -157,6 +158,7 @@ declare global {
   const fetchVirtualProducts: typeof import('./api/virtualCommerce')['fetchVirtualProducts']
   const fetchWeeklyPlanQuota: typeof import('./api/weeklyPlans')['fetchWeeklyPlanQuota']
   const fetchWeeklyTheme: typeof import('./api/weeklyTheme')['fetchWeeklyTheme']
+  const fetchWxacodeUrl: typeof import('./api/wxacode')['fetchWxacodeUrl']
   const fetchYearStats: typeof import('./api/records')['fetchYearStats']
   const forgetAgentMemory: typeof import('./api/auth')['forgetAgentMemory']
   const funnel: typeof import('./utils/funnel')['funnel']
@@ -654,6 +656,7 @@ declare module 'vue' {
     readonly eagerComputed: UnwrapRef<typeof import('@vueuse/core')['eagerComputed']>
     readonly effectScope: UnwrapRef<typeof import('vue')['effectScope']>
     readonly ensureLogin: UnwrapRef<typeof import('./utils/login')['ensureLogin']>
+    readonly ensureWxacodeUrl: UnwrapRef<typeof import('./api/wxacode')['ensureWxacodeUrl']>
     readonly exportAlbumShare: UnwrapRef<typeof import('./utils/albumShare')['exportAlbumShare']>
     readonly exportDailyMenuShare: UnwrapRef<typeof import('./utils/albumShare')['exportDailyMenuShare']>
     readonly exportRecipeShare: UnwrapRef<typeof import('./utils/albumShare')['exportRecipeShare']>
@@ -708,6 +711,7 @@ declare module 'vue' {
     readonly fetchVirtualProducts: UnwrapRef<typeof import('./api/virtualCommerce')['fetchVirtualProducts']>
     readonly fetchWeeklyPlanQuota: UnwrapRef<typeof import('./api/weeklyPlans')['fetchWeeklyPlanQuota']>
     readonly fetchWeeklyTheme: UnwrapRef<typeof import('./api/weeklyTheme')['fetchWeeklyTheme']>
+    readonly fetchWxacodeUrl: UnwrapRef<typeof import('./api/wxacode')['fetchWxacodeUrl']>
     readonly fetchYearStats: UnwrapRef<typeof import('./api/records')['fetchYearStats']>
     readonly forgetAgentMemory: UnwrapRef<typeof import('./api/auth')['forgetAgentMemory']>
     readonly funnel: UnwrapRef<typeof import('./utils/funnel')['funnel']>

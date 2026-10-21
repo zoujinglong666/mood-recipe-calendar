@@ -1,0 +1,1 @@
+import{N as r,O as t}from"./index-DbcPUNtz.js";import{g as n}from"./request.CBRxNCR0.js";const a=r=>`mrc_wxacode_v1_${r}`;async function c(c){try{return await async function(c){const e=a(c),o=r(e);if(o)return o;const s=await n("/api/wxacode",{scene:c});return(null==s?void 0:s.url)?(t(e,s.url),s.url):""}(c)}catch{return""}}export{c as e};

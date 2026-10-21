@@ -191,6 +191,29 @@ public class CosImageStorageService {
         return uploadBytes(data, contentType, ext, sceneDir, Map.of());
     }
 
+    /**
+     * 上传字节到 COS 的固定 key（重复上传覆盖同一对象），返回永久访问 URL。
+     * 用于内容确定性的资源（如小程序码：scene 固定 → 码固定 → URL 固定），
+     * 避免每次生成都落一个新文件、COS 里堆积孤儿对象。
+     */
+    public Optional<String> uploadBytesFixedKey(byte[] data, String contentType, String ext, String key) {
+        if (!available()) return Optional.empty();
+        COSClient client = new COSClient(new BasicCOSCredentials(cosSecretId, cosSecretKey),
+                new ClientConfig(new Region(cosRegion)));
+        try {
+            ObjectMetadata metadata = new ObjectMetadata();
+            metadata.setContentLength(data.length);
+            metadata.setContentType(contentType);
+            client.putObject(new PutObjectRequest(cosBucket, key, new ByteArrayInputStream(data), metadata));
+            return Optional.of(resolveOrigin() + "/" + key);
+        } catch (Exception ex) {
+            log.warn("COS 固定 key 上传失败: key={} error={}", key, ex.toString());
+            return Optional.empty();
+        } finally {
+            client.shutdown();
+        }
+    }
+
     private Optional<String> uploadBytes(byte[] data, String contentType, String ext, String sceneDir,
                                          Map<String, String> userMetadata) {
         if (!available()) return Optional.empty();
