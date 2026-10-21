@@ -1286,8 +1286,8 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
 .home-bento__card--agent { border-color: transparent; background: var(--mrc-bento-agent); }
 .home-bento__img { width: 78rpx; height: 78rpx; filter: drop-shadow(0 4rpx 8rpx rgba(96, 52, 28, 0.10)); }
 .home-bento__name { color: var(--mrc-text-deep); font-size: 24rpx; font-weight: 800; }
-.home-bento__sub { color: var(--mrc-text-sub); font-size: 18rpx; }
-.home-bento__hint { color: var(--mrc-text-sub); font-size: 18rpx; line-height: 1.3; }
+.home-bento__sub { color: var(--mrc-bento-text-sub); font-size: 18rpx; }
+.home-bento__hint { color: var(--mrc-bento-text-sub); font-size: 18rpx; line-height: 1.3; }
 .home-bento__card--lucky { grid-column: span 2; flex-direction: row; justify-content: space-between; padding: 0 22rpx 0 26rpx; border-color: transparent; background: var(--mrc-primary-grad); box-shadow: var(--mrc-shadow-coral), var(--mrc-gloss); }
 .home-bento__lucky-copy { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; gap: 6rpx; }
 .home-bento__lucky-main { color: #fff; font-size: 27rpx; font-weight: 800; }
@@ -1321,7 +1321,7 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
   opacity: .85;
 }
 .home-bento__sub-row { display: flex; align-items: center; gap: 10rpx; min-width: 0; }
-.home-bento__sub-chip { flex-shrink: 0; padding: 2rpx 12rpx; border-radius: 999rpx; background: rgba(198, 60, 40, 0.12); color: #C63C28; font-size: 18rpx; font-weight: 800; }
+.home-bento__sub-chip { flex-shrink: 0; padding: 2rpx 12rpx; border-radius: 999rpx; background: var(--mrc-seal-bg); color: var(--mrc-seal-text); font-size: 18rpx; font-weight: 800; }
 .home-bento__card--quiz { position: relative; overflow: hidden; grid-column: span 2; flex-direction: row; justify-content: space-between; padding: 0 20rpx 0 26rpx; border-color: transparent; background: linear-gradient(135deg, #FFEEE9, #FFE0D4); }
 /* 测题氛围：右上超大半透明问号锁定「测试」语义，右下淡光晕托住锅仔 */
 .home-bento__quiz-deco {
@@ -1356,7 +1356,7 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
   border: 3rpx solid rgba(232, 107, 91, 0.55);
   opacity: 1;
 }
-.home-bento__dot:nth-child(odd) { opacity: .5; }
+.home-bento__dot:nth-child(odd) { opacity: .75; }
 .home-bento__record-img--quiz { width: 104rpx; height: 104rpx; filter: drop-shadow(0 6rpx 14rpx rgba(96, 52, 28, 0.16)); }
 
 .meal-sheet { padding: 28rpx 28rpx calc(28rpx + env(safe-area-inset-bottom)); }
