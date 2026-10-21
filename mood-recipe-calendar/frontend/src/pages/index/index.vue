@@ -71,7 +71,7 @@ import { haptic } from '../../utils/haptic'
 import { acceptShareInvite } from '../../api/share'
 import { onLoad, onPullDownRefresh } from '@dcloudio/uni-app'
 import { fetchCompanionMessage, fetchRecordsByMonth, type CompanionMessage, type RecordItem } from '../../api/records'
-import { fetchRecipePool, fetchRecipeQuota, fetchRecipeDetail, type RecipeItem, type UsageQuotaView } from '../../api/recipes'
+import { fetchRecipePool, fetchRecipeQuota, type RecipeItem, type UsageQuotaView } from '../../api/recipes'
 import { fetchDailyBoard, refreshDailyBoard, generateDailyMenuCover, splitComboDishName, type DailyBoard } from '../../api/dailyMenu'
 import { fetchWeeklyTheme, type WeeklyTheme } from '../../api/weeklyTheme'
 import { saveCookingDraft } from '../../utils/cookingDraft'
@@ -684,6 +684,17 @@ const friendDishImage = ref('')
 const friendDishImgFailed = ref(false)
 const inviteBonus = ref(false)
 const isShowShareCurtain = ref(false)
+/** 分享链接带的菜谱 id：幕帘点图后深链到这道菜（recipe 页已支持 ?recipeId= 直达） */
+const sharedRecipeId = ref(0)
+function openSharedDish() {
+  if (!sharedRecipeId.value) return
+  navLocked(() => router.push({ name: 'recipe', query: { recipeId: String(sharedRecipeId.value) } }))
+}
+/** 幕帘「我也要安排」：给分享来的新用户第一条主动路径（选心情→推荐） */
+function goMoodFromShare() {
+  isShowShareCurtain.value = false
+  navLocked(() => router.push({ name: 'mood' }))
+}
 /**
  * 小程序转发链路会对 path query 再做一次整体编码：我们 encodeURIComponent 过的中文
  * 到 onLoad 时变成了 %25E8…（% 被二次编码），表现为「%25E8%2599…」乱码。
@@ -708,6 +719,7 @@ onLoad((query) => {
   const sharer = decodeQueryParam(String(query?.sharer || ''))
   const dish = decodeQueryParam(String(query?.dish || ''))
   const img = decodeQueryParam(String(query?.img || ''))
+  sharedRecipeId.value = Number(query?.recipeId) || 0
   if (dish) {
     friendDish.value = dish
     isShowShareCurtain.value = true
@@ -872,37 +884,32 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
         <view class="home-hero__spark home-hero__spark--one" /><view class="home-hero__spark home-hero__spark--two" />
       </view>
 
-      <!-- 分享回流幕帘：好友点开的落地页自动弹出（curtain 式居中放大），先看到这道菜和福利，关闭后自然进入今日菜牌 -->
-      <wd-popup
+      <!-- 分享回流幕帘：wd-curtain 全屏大幕展示好友的菜（遮罩/进场动画/圆角由组件负责），
+           底部操作区用 close 插槽自绘——情境+菜名+奖励一行不丢，点图看菜、「我也要安排」给新用户第一条主动路径 -->
+      <wd-curtain
         v-model="isShowShareCurtain"
-        position="center"
-        transition="zoom-in"
-        :close-on-click-modal="true"
-        custom-class="share-curtain-pop"
+        :src="friendDishImage && !friendDishImgFailed ? friendDishImage : STATIC_BASE_URL + '/static/guozai/action_01_bowl.png'"
+        :width="320"
+        close-position="bottom"
+        close-on-click-modal
+        root-portal
+        @click="openSharedDish"
+        @error="isShowShareCurtain = false"
       >
-        <view class="share-curtain">
-          <view class="share-curtain__badge">
-            <text v-if="inviteBonus">好友分享的福利：今日对话 +1 次</text>
-            <text v-else>好友用锅仔给你留了一份菜</text>
-          </view>
-          <view class="share-curtain__body">
-            <image
-              class="share-curtain__emoji"
-              :src="friendDishImage && !friendDishImgFailed ? friendDishImage : STATIC_BASE_URL + '/static/guozai/action_01_bowl.png'"
-              mode="aspectFill"
-              @error="friendDishImgFailed = true"
-            />
+        <template #close>
+          <view class="share-curtain">
             <view class="share-curtain__info">
-              <text class="share-curtain__label">{{ friendDish ? '好友用锅仔安排了' : '好友分享的福利' }}</text>
-              <text v-if="friendDish" class="share-curtain__dish">「{{ friendDish }}」</text>
-              <text v-else class="share-curtain__dish">你和好友各得 1 次对话额度</text>
+              <text v-if="friendDish" class="share-curtain__dish">好友用锅仔安排了「{{ friendDish }}」</text>
+              <text v-else class="share-curtain__dish">好友给你留了一份菜</text>
+              <text v-if="inviteBonus" class="share-curtain__bonus">你和好友各得 1 次对话额度</text>
+            </view>
+            <view class="share-curtain__actions">
+              <view class="share-curtain__cta" role="button" aria-label="也让锅仔给我安排一道" @click="goMoodFromShare">我也要安排</view>
+              <view class="share-curtain__cta share-curtain__cta--ghost" role="button" aria-label="关闭欢迎弹窗" @click="isShowShareCurtain = false">我知道啦</view>
             </view>
           </view>
-          <view class="share-curtain__close" role="button" aria-label="关闭欢迎弹窗" @click="isShowShareCurtain = false">
-            <text>我知道啦</text>
-          </view>
-        </view>
-      </wd-popup>
+        </template>
+      </wd-curtain>
       <!-- 今日菜单（TodayBoard）：今日菜牌——菜图右侧通栏出血，信息在左；上下滑换牌（牌堆式微动效，顶牌动、垫牌不动） -->
       <view class="home-board-deck">
       <view
@@ -1125,52 +1132,44 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
 .theme-banner__close { position: absolute; top: 4rpx; right: 12rpx; padding: 6rpx 10rpx; color: var(--mrc-text-light); font-size: 30rpx; line-height: 1; }
 .theme-banner__close:active { opacity: .6; }
 
-/* 分享回流幕帘：curtain 式居中弹出，徽章悬出卡顶，米金底 + 朱红关闭钮 */
-:deep(.share-curtain-pop) {
-  background: transparent;
-  box-shadow: none;
-  border-radius: 0;
-}
+/* 分享回流幕帘（wd-curtain）：操作区经 close 插槽悬在组件黑色遮罩上——
+   遮罩恒黑且不随主题切换，故文字/按钮一律用亮色（不能用 --mrc-text-* 主题令牌，
+   浅色模式下那些是深色字，压黑底会看不清） */
 .share-curtain {
-  position: relative;
-  width: 560rpx;
-  margin-top: 44rpx;
-  padding: 56rpx 36rpx 36rpx;
+  display: flex;
+  width: 100%;
+  min-width: 560rpx;
+  flex-direction: column;
+  align-items: center;
+  gap: 22rpx;
+  padding: 36rpx 24rpx 8rpx;
   box-sizing: border-box;
-  border: 2rpx solid var(--mrc-border-light);
-  border-radius: 36rpx;
-  background: var(--mrc-surface-sun, #FFF6E0);
-  box-shadow: var(--mrc-shadow-coral, 0 16rpx 40rpx rgba(255, 106, 61, .18));
-  text-align: center;
 }
-.share-curtain__badge {
-  position: absolute;
-  top: -44rpx;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 16rpx 30rpx;
-  border-radius: 24rpx;
-  background: var(--mrc-inverse-bg);
-  color: var(--mrc-inverse-text);
-  font-size: 24rpx;
-  font-weight: 800;
-  white-space: nowrap;
-  box-shadow: 0 10rpx 24rpx rgba(58, 46, 40, .25);
-}
-.share-curtain__body { display: flex; align-items: center; gap: 22rpx; padding: 12rpx 6rpx 30rpx; text-align: left; }
-.share-curtain__emoji { flex: 0 0 auto; width: 120rpx; height: 120rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 24rpx; background: var(--mrc-surface); }
-.share-curtain__info { display: flex; flex-direction: column; gap: 8rpx; min-width: 0; }
-.share-curtain__label { color: var(--mrc-text-sub); font-size: 23rpx; }
-.share-curtain__dish { color: var(--mrc-text-deep); font-size: 30rpx; font-weight: 800; line-height: 1.35; word-break: break-all; }
-.share-curtain__close {
-  padding: 20rpx 0;
+.share-curtain__info { display: flex; flex-direction: column; align-items: center; gap: 6rpx; }
+.share-curtain__dish { color: #FFF6E8; font-size: 30rpx; font-weight: 800; line-height: 1.35; text-align: center; }
+.share-curtain__bonus { color: rgba(255, 214, 170, 0.92); font-size: 22rpx; font-weight: 600; }
+.share-curtain__actions { display: flex; align-items: center; gap: 20rpx; }
+.share-curtain__cta {
+  display: flex;
+  min-width: 220rpx;
+  min-height: 84rpx;
+  align-items: center;
+  justify-content: center;
+  padding: 0 40rpx;
   border-radius: 999rpx;
-  background: var(--mrc-primary-grad, linear-gradient(135deg, #FF7A45, #FF5A3C));
+  background: var(--mrc-primary-grad);
   color: #fff;
-  font-size: 27rpx;
+  font-size: 26rpx;
   font-weight: 800;
+  box-shadow: 0 10rpx 24rpx rgba(255, 106, 61, .35);
 }
-.share-curtain__close:active { opacity: .82; }
+.share-curtain__cta--ghost {
+  background: rgba(255, 255, 255, 0.14);
+  border: 2rpx solid rgba(255, 255, 255, 0.32);
+  color: #FFF6E8;
+  box-shadow: none;
+}
+.share-curtain__cta:active { transform: scale(0.96); }
 
 .home-entry { border-radius: 30rpx; box-sizing: border-box; }
 /* 牌堆底座：菜牌下面垫两张微旋转的静止牌——换牌时只有顶牌在动，位置感稳定（堆叠卡片语言） */

@@ -3,7 +3,7 @@
   "navigationBarTitleText": "首页",
   "enablePullDownRefresh": true,
   "usingComponents": {
-    "wd-popup": "../../node-modules/@wot-ui/ui/components/wd-popup/wd-popup",
+    "wd-curtain": "../../node-modules/@wot-ui/ui/components/wd-curtain/wd-curtain",
     "wd-navbar": "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar",
     "guozai-wheel": "../../components/guozai/GuozaiWheel",
     "guozai-nine": "../../components/guozai/GuozaiNine",

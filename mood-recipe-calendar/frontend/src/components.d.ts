@@ -38,6 +38,7 @@ declare module 'vue' {
     WdCollapse: typeof import('@wot-ui/ui/components/wd-collapse/wd-collapse.vue')['default']
     WdCollapseItem: typeof import('@wot-ui/ui/components/wd-collapse-item/wd-collapse-item.vue')['default']
     WdConfigProvider: typeof import('@wot-ui/ui/components/wd-config-provider/wd-config-provider.vue')['default']
+    WdCurtain: typeof import('@wot-ui/ui/components/wd-curtain/wd-curtain.vue')['default']
     WdFloatingPanel: typeof import('@wot-ui/ui/components/wd-floating-panel/wd-floating-panel.vue')['default']
     WdGap: typeof import('@wot-ui/ui/components/wd-gap/wd-gap.vue')['default']
     WdIcon: typeof import('@wot-ui/ui/components/wd-icon/wd-icon.vue')['default']
