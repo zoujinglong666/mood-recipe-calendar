@@ -26,6 +26,20 @@ export const VOICE_GUIDE_KEY = 'mrc_voice_guide'
  */
 const MAX_TTS_CHARS = 45
 
+/** 超长步骤截断：优先在 45 字符内的最后一个标点处断句，避免硬切出半截话。
+ *  标点过于靠前（<20 字）时放弃、直接硬切——太短的片段读了等于没读。 */
+function truncateForTts(text: string): string {
+  const trimmed = text.trim()
+  if (trimmed.length <= MAX_TTS_CHARS)
+    return trimmed
+  const head = trimmed.slice(0, MAX_TTS_CHARS)
+  const punct = Math.max(
+    head.lastIndexOf('，'), head.lastIndexOf('。'), head.lastIndexOf('；'),
+    head.lastIndexOf('、'), head.lastIndexOf('！'), head.lastIndexOf('？'),
+  )
+  return punct >= 20 ? head.slice(0, punct + 1) : head
+}
+
 interface SiPlugin {
   /** 官方签名：textToSpeech({ content, lang, success, fail })——参数名是 content 不是 text */
   textToSpeech: (opts: { content: string, lang?: string, success?: () => void, fail?: (err: any) => void }) => void
@@ -93,7 +107,7 @@ export function useCookingVoice() {
     const si = ensurePlugin()
     if (!si)
       return
-    const content = text.trim().slice(0, MAX_TTS_CHARS)
+    const content = truncateForTts(text)
     speaking.value = true
     si.textToSpeech({
       content,
