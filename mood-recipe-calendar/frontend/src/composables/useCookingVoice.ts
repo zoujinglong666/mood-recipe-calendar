@@ -17,9 +17,18 @@ import { ref } from 'vue'
 /** 声音开关 storage key（设置页与做菜页快捷开关共用同一份状态） */
 export const VOICE_GUIDE_KEY = 'mrc_voice_guide'
 
+/**
+ * 同声传译 textToSpeech 的官方硬限制：content 不得超过 50 个字符。
+ * 留 5 字符余量按 45 截断——超长会 fail(-20002 输入格式不正确)，用户点朗读没声音。
+ * 做菜步骤经 normalizeStepList 拆分后单步多在 10-40 字，45 字符覆盖绝大多数；
+ * 超长步骤会丢失尾部（不搞分段接力：插件 success 在合成完成即回调、无播放结束事件，
+ * 接力播放会互相打断，只听见最后一段）。
+ */
+const MAX_TTS_CHARS = 45
+
 interface SiPlugin {
-  /** 官方签名：textToSpeech({ content, lang, tts, success, fail })——参数名是 content 不是 text */
-  textToSpeech: (opts: { content: string, lang?: string, tts?: boolean, success?: () => void, fail?: (err: any) => void }) => void
+  /** 官方签名：textToSpeech({ content, lang, success, fail })——参数名是 content 不是 text */
+  textToSpeech: (opts: { content: string, lang?: string, success?: () => void, fail?: (err: any) => void }) => void
 }
 
 export function useCookingVoice() {
@@ -84,15 +93,16 @@ export function useCookingVoice() {
     const si = ensurePlugin()
     if (!si)
       return
+    const content = text.trim().slice(0, MAX_TTS_CHARS)
     speaking.value = true
     si.textToSpeech({
-      content: text.trim(),
+      content,
       lang: 'zh_CN',
       success: () => {
         speaking.value = false
       },
       fail: () => {
-        // 插件偶发失败（如文本过长/配额）：重置态即可，不打扰用户
+        // 插件偶发失败（如超长/频率限制 -40001）：重置态即可，不打扰用户
         speaking.value = false
       },
     })

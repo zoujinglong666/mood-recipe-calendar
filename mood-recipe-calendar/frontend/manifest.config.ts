@@ -79,9 +79,11 @@ export default defineManifestConfig({
     // 注意：还需在 mp.weixin.qq.com 后台「设置 → 第三方设置 → 插件管理」搜索
     // 「微信同声传译」添加（provider wx069ba97219f66d99），未添加时上传会被微信拒绝，
     // 且 useCookingVoice.ttsAvailable=false 走降级。
+    // version 必须填后台「可用版本」列表中的值（填不存在的版本会被拒），
+    // 0.3.1 为官方插件文档示例版本、必然可用；后台若有更新版可自行升级。
     plugins: {
       WechatSI: {
-        version: '0.3.9',
+        version: '0.3.1',
         provider: 'wx069ba97219f66d99',
       },
     },

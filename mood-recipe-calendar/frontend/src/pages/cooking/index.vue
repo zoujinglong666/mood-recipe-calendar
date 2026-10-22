@@ -59,10 +59,9 @@ let ticker: ReturnType<typeof setInterval> | undefined
 
 // ---------- 做菜语音指导（手湿手油时的"耳朵跟做"） ----------
 const voice = useCookingVoice()
-/** 朗读当前步骤：超长文本截断，防同声传译插件拒绝 */
+/** 朗读当前步骤：长度截断（同声传译 50 字符硬限制）由 useCookingVoice 内部统一处理 */
 function speakCurrentStep() {
-  const text = currentStep.value.length > 200 ? `${currentStep.value.slice(0, 200)}……` : currentStep.value
-  voice.speak(text)
+  voice.speak(currentStep.value)
 }
 /** 切步骤自动朗读；恢复进度时（flag）不念，避免一进页面就出声 */
 let suppressAutoSpeak = false

@@ -32,7 +32,7 @@ delete appJson.requiredPrivateInfos
 appJson.plugins = {
   ...(appJson.plugins || {}),
   WechatSI: {
-    version: '0.3.9',
+    version: '0.3.1', // 官方文档示例版本；后台可用版本列表若有更新可自行升级
     provider: 'wx069ba97219f66d99',
   },
 }
