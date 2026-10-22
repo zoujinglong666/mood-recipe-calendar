@@ -4,7 +4,9 @@ import { STATIC_BASE_URL } from '@/utils/assets'
 import Icon from '@/components/common/Icon.vue'
 import { navBack } from '@/composables/useNavBar'
 import { fetchCompanionMessage } from '@/api/records'
+import { manualCheckUpdate } from '@/utils/update'
 import { useUserStore } from '@/stores/user'
+import { useRouter } from '@wot-ui/router'
 
 definePage({
   name: 'about',
@@ -23,6 +25,18 @@ onShareAppMessage(() => {
 onShareTimeline(() => ({ title: '锅仔 · 按心情帮你决定今天吃什么' }))
 
 const userStore = useUserStore()
+const router = useRouter()
+
+/** 功能入口：检查更新走微信原生分发（utils/update），隐私/反馈进各自页面 */
+function checkForUpdate() {
+  manualCheckUpdate()
+}
+function goPrivacy() {
+  router.push({ name: 'privacy' })
+}
+function goFeedback() {
+  router.push({ name: 'feedback' })
+}
 
 // 预设温暖寄语（≤12字，围绕吃饭最大）
 const FALLBACK_QUOTES = [
@@ -123,6 +137,48 @@ onMounted(async () => {
       </view>
     </view>
 
+    <!-- 我们的初心：这个产品为什么存在（自设置页迁入，关于页才是品牌叙事的家） -->
+    <view class="mission-card">
+      <image class="mission-card__gz" :src="`${STATIC_BASE_URL}/static/guozai/action_02_soup.png`" mode="aspectFit" aria-hidden="true" />
+      <text class="mission-card__eyebrow">OUR PROMISE</text>
+      <text class="mission-card__title">我们的初心</text>
+      <text class="mission-card__line">让每一顿普通的家常饭，都有营养学的底气。</text>
+      <text class="mission-card__para">
+        锅仔把《中国居民膳食指南》和权威机构的营养知识装进你的厨房——推荐的每道菜有依据，做法有讲究。你不用成为营养专家，也能把一日三餐吃明白。好好吃饭，是我们能想到的、最朴素的自我照顾。
+      </text>
+      <text class="mission-card__src">
+        知识来源：《中国居民膳食指南》、世界卫生组织公开资料等，经改写整理入库；仅供日常饮食参考，不构成医疗建议。
+      </text>
+    </view>
+
+    <!-- 功能入口组：统一「图标+名+描述+箭头」排版，与设置页入口语言一致 -->
+    <view class="about-links">
+      <view class="about-row about-check pressable" role="button" aria-label="检查更新" @click="checkForUpdate">
+        <view class="about-row__icon"><Icon name="info" :size="30" color="#EF5A3C" /></view>
+        <view class="about-row__text">
+          <text class="about-row__name">检查更新</text>
+          <text class="about-row__desc">新版本由微信自动推送，也可手动检查</text>
+        </view>
+        <text class="about-row__arrow">›</text>
+      </view>
+      <view class="about-row about-check pressable" role="button" aria-label="隐私政策" @click="goPrivacy">
+        <view class="about-row__icon"><Icon name="gear" :size="30" color="#EF5A3C" /></view>
+        <view class="about-row__text">
+          <text class="about-row__name">隐私政策</text>
+          <text class="about-row__desc">我们如何处理你的数据</text>
+        </view>
+        <text class="about-row__arrow">›</text>
+      </view>
+      <view class="about-row about-check pressable" role="button" aria-label="用户反馈" @click="goFeedback">
+        <view class="about-row__icon"><Icon name="book" :size="30" color="#EF5A3C" /></view>
+        <view class="about-row__text">
+          <text class="about-row__name">用户反馈</text>
+          <text class="about-row__desc">提交建议与问题，我们一起改进</text>
+        </view>
+        <text class="about-row__arrow">›</text>
+      </view>
+    </view>
+
     <view class="about-card about-card--service">
       <image class="about-card__service-img" :src="STATIC_BASE_URL + '/static/guozai/action_08_peek.png'" mode="aspectFit" />
       <view>
@@ -147,4 +203,22 @@ onMounted(async () => {
 .about-card { margin-top: 24rpx; padding: 32rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); }.about-card__title { display: block; color: var(--mrc-text-deep); font-size: 34rpx; font-weight: 700; }.about-card__text { display: block; margin-top: 16rpx; color: var(--mrc-text-sub); font-size: 27rpx; line-height: 1.7; }
 .about-points { display: flex; flex-direction: column; gap: 16rpx; margin-top: 24rpx; }.about-point { display: flex; align-items: center; gap: 20rpx; padding: 24rpx; border-radius: 26rpx; background: var(--mrc-surface); border: 2rpx solid var(--mrc-border-light); }.about-point__icon { display: flex; align-items: center; justify-content: center; width: 72rpx; height: 72rpx; border-radius: 22rpx; background: var(--mrc-surface-peach); }.about-point__title, .about-point__text { display: block; }.about-point__title { color: var(--mrc-text-deep); font-size: 30rpx; font-weight: 700; }.about-point__text { margin-top: 8rpx; color: var(--mrc-text-sub); font-size: 23rpx; }.about-footer { display: flex; flex-direction: column; align-items: center; gap: 12rpx; padding: 48rpx 0 16rpx; color: var(--mrc-text-light); font-size: 22rpx; letter-spacing: 1rpx; }
 .about-card--service { display: flex; align-items: center; gap: 20rpx; }.about-card__service-img { width: 110rpx; height: 110rpx; flex-shrink: 0; }
+/* 我们的初心：品牌核心叙事卡（自设置页迁入），暖金渐变 + 锅仔贴纸，深浅色自动适配 */
+.mission-card { position: relative; display: flex; flex-direction: column; gap: 10rpx; margin-top: 24rpx; padding: 34rpx 30rpx 28rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 30rpx; background: linear-gradient(160deg, var(--mrc-surface), var(--mrc-surface-sun)); box-shadow: var(--mrc-shadow-lift), var(--mrc-gloss); overflow: hidden; }
+.mission-card__gz { position: absolute; top: 14rpx; right: 16rpx; width: 120rpx; height: 120rpx; opacity: .9; }
+.mission-card__eyebrow { color: var(--mrc-accent); font-size: 18rpx; font-weight: 800; letter-spacing: 3rpx; }
+.mission-card__title { color: var(--mrc-text-strong); font-size: 32rpx; font-weight: 800; }
+.mission-card__line { color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 700; line-height: 1.4; }
+.mission-card__para { color: var(--mrc-text-sub); font-size: 24rpx; line-height: 1.7; }
+.mission-card__src { margin-top: 6rpx; color: var(--mrc-text-light); font-size: 20rpx; line-height: 1.5; }
+/* 功能入口组：与设置页 about-row 同一套排版语言（图标容器+名+描述+箭头），分组内细分割线 */
+.about-links { margin-top: 24rpx; padding: 8rpx 26rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 30rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); }
+.about-row { display: flex; min-height: 112rpx; align-items: center; gap: 20rpx; }
+.about-row + .about-row { border-top: 2rpx solid var(--mrc-border-light); }
+.about-row__icon { display: flex; width: 56rpx; height: 56rpx; flex: 0 0 56rpx; align-items: center; justify-content: center; border-radius: 16rpx; background: var(--mrc-accent-soft); }
+.about-row__text { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 4rpx; }
+.about-row__name { color: var(--mrc-text-deep); font-size: 28rpx; font-weight: 700; }
+.about-row__desc { color: var(--mrc-text-sub); font-size: 21rpx; line-height: 1.4; }
+.about-row__arrow { flex: 0 0 auto; color: var(--mrc-text-light); font-size: 32rpx; }
+.about-row.pressable:active { opacity: .7; }
 </style>
