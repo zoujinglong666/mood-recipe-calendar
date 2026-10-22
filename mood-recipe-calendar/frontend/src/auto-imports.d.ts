@@ -581,7 +581,6 @@ declare module 'vue' {
     readonly RECORD_DRAFT_KEY: UnwrapRef<typeof import('./utils/cookingDraft')['RECORD_DRAFT_KEY']>
     readonly SCHEDULE_TEMPLATE_ID: UnwrapRef<typeof import('./api/weeklyPlans')['SCHEDULE_TEMPLATE_ID']>
     readonly STATIC_BASE_URL: UnwrapRef<typeof import('./utils/assets')['STATIC_BASE_URL']>
-    readonly VOICE_GUIDE_KEY: UnwrapRef<typeof import('./composables/useCookingVoice')['VOICE_GUIDE_KEY']>
     readonly acceptHMRUpdate: UnwrapRef<typeof import('pinia')['acceptHMRUpdate']>
     readonly acceptShareInvite: UnwrapRef<typeof import('./api/share')['acceptShareInvite']>
     readonly addFavorite: UnwrapRef<typeof import('./api/favorites')['addFavorite']>
@@ -891,8 +890,6 @@ declare module 'vue' {
     readonly themeColorOptions: UnwrapRef<typeof import('./composables/useManualTheme')['themeColorOptions']>
     readonly throttledRef: UnwrapRef<typeof import('@vueuse/core')['throttledRef']>
     readonly throttledWatch: UnwrapRef<typeof import('@vueuse/core')['throttledWatch']>
-    readonly timerFinishText: UnwrapRef<typeof import('./composables/useCookingVoice')['timerFinishText']>
-    readonly timerOneMinuteText: UnwrapRef<typeof import('./composables/useCookingVoice')['timerOneMinuteText']>
     readonly toRaw: UnwrapRef<typeof import('vue')['toRaw']>
     readonly toReactive: UnwrapRef<typeof import('@vueuse/core')['toReactive']>
     readonly toRef: UnwrapRef<typeof import('vue')['toRef']>
@@ -945,7 +942,6 @@ declare module 'vue' {
     readonly useCloned: UnwrapRef<typeof import('@vueuse/core')['useCloned']>
     readonly useColorMode: UnwrapRef<typeof import('@vueuse/core')['useColorMode']>
     readonly useConfirmDialog: UnwrapRef<typeof import('@vueuse/core')['useConfirmDialog']>
-    readonly useCookingVoice: UnwrapRef<typeof import('./composables/useCookingVoice')['useCookingVoice']>
     readonly useCounter: UnwrapRef<typeof import('@vueuse/core')['useCounter']>
     readonly useCssModule: UnwrapRef<typeof import('vue')['useCssModule']>
     readonly useCssVar: UnwrapRef<typeof import('@vueuse/core')['useCssVar']>

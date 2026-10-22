@@ -7,7 +7,6 @@ import { API_BACKENDS, getApiBaseUrl, setApiBaseUrl, uploadFile } from '@/api/re
 import Icon from '@/components/common/Icon.vue'
 import { useManualTheme } from '@/composables/useManualTheme'
 import { navBack } from '@/composables/useNavBar'
-import { useCookingVoice } from '@/composables/useCookingVoice'
 import { useUserStore } from '@/stores/user'
 import { STATIC_BASE_URL } from '@/utils/assets'
 import { chooseImageFile } from '@/utils/chooseImage'
@@ -57,17 +56,6 @@ function goAbout() { router.push({ name: 'about' }) }
 function goAdminFeedback() { router.push({ name: 'admin-feedback' }) }
 
 /** 后端服务切换 */
-
-// ---------- 做菜语音指导（与做菜页快捷开关共用 storage） ----------
-const voice = useCookingVoice()
-function onVoiceToggle({ value }: { value: boolean }) {
-  // 开启前先探测同声传译插件：后台没添加就明确告知，不让开关处于"开了却没声"的假状态
-  if (value && !voice.ensurePlugin()) {
-    toast('语音朗读不可用：需在小程序管理后台添加「同声传译」插件')
-    return
-  }
-  voice.setVoiceEnabled(value)
-}
 const currentBackendUrl = ref(getApiBaseUrl())
 const currentBackend = computed(() => API_BACKENDS.find(b => b.url === currentBackendUrl.value) || {
   name: '自定义',
@@ -281,30 +269,6 @@ function askDeleteAccount() {
                 查看、修改和删除锅仔记住的全部内容
               </text>
             </view><text>›</text>
-          </view>
-        </view>
-      </view>
-
-      <!-- 做菜语音指导：手湿手油时"耳朵跟做"。与做菜页顶部快捷开关共用同一 storage -->
-      <view class="settings-section">
-        <view class="settings-heading">
-          <text class="settings-heading__title">
-            做菜语音
-          </text>
-          <text class="settings-heading__hint">
-            手湿手油时，听着把菜做完
-          </text>
-        </view>
-        <view class="memory-card">
-          <view class="memory-switch">
-            <view>
-              <text class="memory-switch__title">
-                做菜语音指导
-              </text><text class="memory-switch__hint">
-                朗读当前步骤、切换步骤自动播报、倒计时到点与最后一分钟提醒
-              </text>
-            </view>
-            <wd-switch :model-value="voice.voiceEnabled.value" @change="onVoiceToggle" />
           </view>
         </view>
       </view>

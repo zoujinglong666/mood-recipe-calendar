@@ -1,0 +1,1 @@
+import{g as r}from"./request.BTRD_KgZ.js";function s(s){const e=s.map((r=>r.trim())).filter(Boolean).slice(0,40).join(",");return e?r("/food-safety/tips",{names:e}).then((r=>Array.isArray(null==r?void 0:r.tips)?r.tips:[])):Promise.resolve([])}export{s as f};

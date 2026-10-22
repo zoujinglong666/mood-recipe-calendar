@@ -59,13 +59,7 @@
     "darkmode": true,
     "themeLocation": "theme.json",
     "__usePrivacyCheck__": true,
-    "lazyCodeLoading": "requiredComponents",
-    "plugins": {
-      "WechatSI": {
-        "version": "0.3.1",
-        "provider": "wx069ba97219f66d99"
-      }
-    }
+    "lazyCodeLoading": "requiredComponents"
   },
   "mp-alipay": {
     "usingComponents": true,
