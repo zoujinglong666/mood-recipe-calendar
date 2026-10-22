@@ -1,15 +1,16 @@
 <script setup lang="ts">
 import type { CookingAgentTurn, CookingChatMessage } from '@/api/cookingAgent'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { clearCookingLearning, cookingAgentTurn, sendCookingFeedback } from '@/api/cookingAgent'
 import { navBack } from '@/composables/useNavBar'
+import { timerFinishText, timerOneMinuteText, useCookingVoice } from '@/composables/useCookingVoice'
 import { STATIC_BASE_URL } from '@/utils/assets'
 import Icon from '../../components/common/Icon.vue'
 import FoodSafetyTips from '../../components/guozai/FoodSafetyTips.vue'
 import SeasoningTimingTips from '../../components/guozai/SeasoningTimingTips.vue'
 import SuccessModal from '../../components/guozai/SuccessModal.vue'
 import { COOKING_PROGRESS_KEY, loadCookingDraft, saveRecordDraft } from '../../utils/cookingDraft'
-import { toast } from '../../utils/toast'
+import { toast, toastSuccess } from '../../utils/toast'
 
 definePage({ name: 'cooking', layout: 'default', style: { navigationStyle: 'custom', navigationBarTitleText: '跟锅仔做菜' } })
 
@@ -55,6 +56,50 @@ const sourcesOpen = ref(false)
 const memoryOpen = ref(false)
 const sessionId = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`
 let ticker: ReturnType<typeof setInterval> | undefined
+
+// ---------- 做菜语音指导（手湿手油时的"耳朵跟做"） ----------
+const voice = useCookingVoice()
+/** 朗读当前步骤：超长文本截断，防同声传译插件拒绝 */
+function speakCurrentStep() {
+  const text = currentStep.value.length > 200 ? `${currentStep.value.slice(0, 200)}……` : currentStep.value
+  voice.speak(text)
+}
+/** 切步骤自动朗读；恢复进度时（flag）不念，避免一进页面就出声 */
+let suppressAutoSpeak = false
+watch(stepIndex, () => {
+  if (suppressAutoSpeak)
+    return
+  speakCurrentStep()
+})
+/** 最后一分钟预告：每个计时周期只念一次 */
+let oneMinuteWarned = false
+
+/** 声音快捷开关：开=懒加载同声传译插件（失败则告知并回滚，状态不撒谎）；关=立即静音 */
+function toggleVoice() {
+  if (voice.voiceEnabled.value) {
+    voice.setVoiceEnabled(false)
+    return
+  }
+  if (!voice.ensurePlugin()) {
+    toast('语音朗读不可用：需在小程序管理后台添加「同声传译」插件')
+    return
+  }
+  voice.setVoiceEnabled(true)
+  toastSuccess('语音指导已开：切步骤、计时到点都会播报')
+}
+
+/** 点朗读：开关没开 → 引导打开（不偷偷替用户开声音）；插件不可用 → 说明原因 */
+function onSpeakTap() {
+  if (!voice.voiceEnabled.value) {
+    toast('先打开上方的声音开关，才能朗读步骤')
+    return
+  }
+  if (!voice.ttsAvailable.value) {
+    toast('语音朗读不可用：需在小程序管理后台添加「同声传译」插件')
+    return
+  }
+  speakCurrentStep()
+}
 
 function parseList(value?: string) {
   try {
@@ -177,11 +222,17 @@ function syncRemaining() {
   if (!running.value || !deadline.value)
     return
   remaining.value = Math.max(0, Math.ceil((deadline.value - Date.now()) / 1000))
+  // 最后一分钟预告：备菜/看火用户需要提前回灶台
+  if (remaining.value > 0 && remaining.value <= 60 && !oneMinuteWarned) {
+    oneMinuteWarned = true
+    voice.speak(timerOneMinuteText())
+  }
   if (remaining.value === 0) {
     running.value = false
     deadline.value = 0
     stopTicker()
     vibrate()
+    voice.speak(timerFinishText())
     toast('这一段计时完成啦')
   }
   persist()
@@ -208,6 +259,7 @@ function toggleTimer() {
     stopTicker()
   }
   else {
+    oneMinuteWarned = false
     running.value = true
     deadline.value = Date.now() + remaining.value * 1000
     startTicker()
@@ -221,6 +273,7 @@ function resetTimer() {
   running.value = false
   deadline.value = 0
   remaining.value = defaultSeconds()
+  oneMinuteWarned = false
   persist()
 }
 
@@ -288,11 +341,15 @@ onLoad(() => {
     return
   const saved = uni.getStorageSync(COOKING_PROGRESS_KEY) as CookingProgress | undefined
   if (saved?.recipeKey === recipeKey.value) {
+    // 恢复进度期间抑制「切步骤自动朗读」——进页面先安静，用户点朗读再出声
+    suppressAutoSpeak = true
     stepIndex.value = Math.min(Math.max(saved.stepIndex || 0, 0), steps.value.length - 1)
     remaining.value = Math.max(0, saved.remaining || defaultSeconds())
     deadline.value = saved.deadline || 0
     running.value = Boolean(saved.running && saved.deadline)
+    // 杀进程期间走完的倒计时：syncRemaining 会补播「计时结束」，不悄无声息错过
     syncRemaining()
+    suppressAutoSpeak = false
   }
   else {
     resetTimer()
@@ -310,10 +367,13 @@ onShow(() => {
 onHide(() => {
   syncRemaining()
   stopTicker()
+  // 离开页面（回推荐/切后台）立即停念：别让语音追到别的页面去
+  voice.stopSpeak()
 })
 onUnload(() => {
   syncRemaining()
   stopTicker()
+  voice.stopSpeak()
 })
 </script>
 
@@ -355,6 +415,16 @@ onUnload(() => {
           <view :style="{ width: `${progressPercent}%` }" />
         </view>
         <text>第 {{ stepIndex + 1 }} 步，共 {{ steps.length }} 步</text>
+        <!-- 做菜中手快开关：声音开/关（与设置页「做菜语音指导」同一 storage） -->
+        <view
+          class="cook-voice pressable"
+          :class="{ 'is-on': voice.voiceEnabled.value, 'is-unavailable': !voice.ttsAvailable.value }"
+          role="switch"
+          :aria-label="voice.voiceEnabled.value ? '关闭做菜语音指导' : '打开做菜语音指导'"
+          @click="toggleVoice"
+        >
+          <text>{{ voice.voiceEnabled.value ? '🔊' : '🔇' }}</text>
+        </view>
         <view class="cook-restart pressable" role="button" aria-label="重新开始这道菜" @click="restart">
           重新开始
         </view>
@@ -364,9 +434,21 @@ onUnload(() => {
         <view class="step-focus__number">
           {{ String(stepIndex + 1).padStart(2, '0') }}
         </view>
-        <text class="step-focus__label">
-          现在只做这一件事
-        </text>
+        <view class="step-focus__head">
+          <text class="step-focus__label">
+            现在只做这一件事
+          </text>
+          <view
+            class="step-speak pressable"
+            :class="{ 'is-busy': voice.speaking.value }"
+            role="button"
+            aria-label="朗读当前步骤"
+            @click="onSpeakTap"
+          >
+            <text class="step-speak__icon" aria-hidden="true">🔊</text>
+            <text class="step-speak__text">{{ voice.speaking.value ? '朗读中…' : '朗读这一步' }}</text>
+          </view>
+        </view>
         <text class="step-focus__text">
           {{ currentStep }}
         </text>
@@ -590,13 +672,25 @@ onUnload(() => {
 .cook-hero__title { margin-top: 10rpx; color: var(--mrc-text-deep); font-size: 38rpx; font-weight: 800; line-height: 1.3; }
 .cook-hero__meta { margin-top: 9rpx; color: var(--mrc-text-sub); font-size: 23rpx; }
 .cook-hero__guozai { position: absolute; right: -10rpx; bottom: -16rpx; width: 174rpx; height: 174rpx; }
-.cook-progress { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12rpx 20rpx; padding: 24rpx 6rpx; color: var(--mrc-text-sub); font-size: 22rpx; }
-.cook-progress__line { grid-column: 1 / 3; height: 10rpx; overflow: hidden; border-radius: 8rpx; background: var(--mrc-border-light); }
+.cook-progress { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 12rpx 20rpx; padding: 24rpx 6rpx; color: var(--mrc-text-sub); font-size: 22rpx; }
+.cook-progress__line { grid-column: 1 / 4; height: 10rpx; overflow: hidden; border-radius: 8rpx; background: var(--mrc-border-light); }
 .cook-progress__line view { height: 100%; border-radius: inherit; background: var(--mrc-primary-grad); transition: width .24s ease-out; }
 .cook-restart { display: flex; min-height: 64rpx; align-items: center; padding: 0 16rpx; color: var(--mrc-accent); font-weight: 700; }
+/* 做菜中手快开关：声音开/关（与设置页同一 storage）。is-unavailable=后台没加同声传译插件 */
+.cook-voice { display: flex; min-height: 64rpx; min-width: 64rpx; align-items: center; justify-content: center; padding: 0 12rpx; border-radius: 20rpx; background: var(--mrc-surface-2); font-size: 30rpx; }
+.cook-voice.is-on { background: var(--mrc-accent-soft); }
+.cook-voice.is-unavailable { opacity: .45; }
 .step-focus { position: relative; min-height: 390rpx; padding: 34rpx 32rpx 28rpx; overflow: hidden; border: 2rpx solid var(--mrc-border); border-radius: 38rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }
 .step-focus__number { color: var(--mrc-accent-soft); font-size: 112rpx; font-weight: 900; line-height: 1; letter-spacing: -6rpx; }
-.step-focus__label { display: block; margin-top: -30rpx; color: var(--mrc-accent); font-size: 21rpx; font-weight: 800; letter-spacing: 2rpx; }
+.step-focus__head { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; margin-top: -30rpx; }
+.step-focus__label { color: var(--mrc-accent); font-size: 21rpx; font-weight: 800; letter-spacing: 2rpx; }
+/* 步骤朗读按钮：手湿手油时的大目标（≥88rpx 触达），is-busy=朗读中 */
+.step-speak { display: flex; min-height: 64rpx; align-items: center; gap: 8rpx; padding: 0 20rpx; border: 2rpx solid var(--mrc-accent-soft); border-radius: 999rpx; background: var(--mrc-accent-soft); }
+.step-speak__icon { font-size: 26rpx; }
+.step-speak__text { color: var(--mrc-accent); font-size: 22rpx; font-weight: 800; }
+.step-speak.is-busy { opacity: .65; }
+.step-speak.is-busy .step-speak__icon { animation: cook-voice-pulse 1s ease-in-out infinite; }
+@keyframes cook-voice-pulse { 50% { transform: scale(1.25); } }
 .step-focus__text { display: block; margin-top: 18rpx; color: var(--mrc-text-deep); font-size: 36rpx; font-weight: 750; line-height: 1.65; }
 .step-focus__aside { display: flex; align-items: center; gap: 12rpx; margin-top: 28rpx; padding-top: 20rpx; border-top: 2rpx solid var(--mrc-border-light); color: var(--mrc-text-sub); font-size: 22rpx; }
 .step-focus__aside image { width: 58rpx; height: 58rpx; }

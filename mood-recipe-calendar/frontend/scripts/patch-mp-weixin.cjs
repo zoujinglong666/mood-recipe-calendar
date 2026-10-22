@@ -24,6 +24,18 @@ const appJson = JSON.parse(fs.readFileSync(appJsonPath, 'utf-8'))
 appJson.__usePrivacyCheck__ = true
 // 清理非法残留：requiredPrivateInfos 只接受位置/蓝牙/地址类接口，相册由隐私保护指引管理
 delete appJson.requiredPrivateInfos
+// 注入「同声传译」插件声明（做菜语音指导的 TTS 依赖）。
+// uni-app 同样不透传 manifest 的 mp-weixin.plugins 到 app.json，而微信只认 app.json 里的
+// 声明；与下方 lazyCodeLoading 同一处理路径。manifest.config.ts 中同步声明作源记录。
+// 注意：还需在 mp.weixin.qq.com 后台「设置 → 第三方设置 → 插件」添加「同声传译」，
+// 否则真机 requirePlugin 失败，useCookingVoice.ttsAvailable=false 走降级。
+appJson.plugins = {
+  ...(appJson.plugins || {}),
+  WechatSI: {
+    version: '0.3.9',
+    provider: 'wx069ba67219f9d7a3',
+  },
+}
 
 fs.writeFileSync(appJsonPath, JSON.stringify(appJson, null, 2) + '\n', 'utf-8')
 console.log('[patch-mp-weixin] 已注入 __usePrivacyCheck__，并清理 requiredPrivateInfos 残留')

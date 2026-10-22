@@ -75,6 +75,15 @@ export default defineManifestConfig({
     // 启动性能：自定义组件按需注入（仅创建使用到的组件），
     // 首页冷启动时不必实例化转盘/九宫格/翻牌等一大票未渲染组件
     lazyCodeLoading: 'requiredComponents',
+    // 做菜语音指导：微信同声传译插件（TTS 朗读步骤/倒计时播报）。
+    // 注意：还需在 mp.weixin.qq.com 后台「设置 → 第三方设置 → 插件」添加「同声传译」，
+    // 未添加时 useCookingVoice.ttsAvailable=false，语音入口静默降级不影响做菜。
+    plugins: {
+      WechatSI: {
+        version: '0.3.9',
+        provider: 'wx069ba67219f9d7a3',
+      },
+    },
   },
   'app-harmony': {},
   'mp-harmony': {},

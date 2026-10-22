@@ -2,6 +2,7 @@
   "navigationStyle": "custom",
   "navigationBarTitleText": "设置",
   "usingComponents": {
+    "wd-switch": "../../node-modules/@wot-ui/ui/components/wd-switch/wd-switch",
     "wd-navbar": "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar",
     "icon": "../../components/common/Icon"
   }

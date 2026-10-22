@@ -123,6 +123,12 @@
   "darkmode": true,
   "__usePrivacyCheck__": true,
   "lazyCodeLoading": "requiredComponents",
+  "plugins": {
+    "WechatSI": {
+      "version": "0.3.9",
+      "provider": "wx069ba67219f9d7a3"
+    }
+  },
   "usingComponents": {
     "layout-default-uni": "/layouts/default",
     "layout-tabbar-uni": "/layouts/tabbar"
