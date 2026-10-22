@@ -17,11 +17,9 @@ import { ref } from 'vue'
 /** 声音开关 storage key（设置页与做菜页快捷开关共用同一份状态） */
 export const VOICE_GUIDE_KEY = 'mrc_voice_guide'
 
-/** 同声传译插件的固定 provider（微信官方） */
-const SI_PROVIDER = 'wx069ba67219f9d7a3'
-
 interface SiPlugin {
-  textToSpeech: (opts: { text: string, lang?: string, success?: () => void, fail?: (err: any) => void }) => void
+  /** 官方签名：textToSpeech({ content, lang, tts, success, fail })——参数名是 content 不是 text */
+  textToSpeech: (opts: { content: string, lang?: string, tts?: boolean, success?: () => void, fail?: (err: any) => void }) => void
 }
 
 export function useCookingVoice() {
@@ -88,13 +86,13 @@ export function useCookingVoice() {
       return
     speaking.value = true
     si.textToSpeech({
-      text: text.trim(),
+      content: text.trim(),
       lang: 'zh_CN',
       success: () => {
         speaking.value = false
       },
       fail: () => {
-        // 插件偶发失败（如文本过长）：重置态即可，不打扰用户
+        // 插件偶发失败（如文本过长/配额）：重置态即可，不打扰用户
         speaking.value = false
       },
     })
@@ -105,7 +103,7 @@ export function useCookingVoice() {
       return
     try {
       // 空文本朗读即打断当前播报
-      plugin.textToSpeech({ text: '', lang: 'zh_CN' })
+      plugin.textToSpeech({ content: '', lang: 'zh_CN' })
     }
     catch {}
     speaking.value = false

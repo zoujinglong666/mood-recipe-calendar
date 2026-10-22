@@ -126,7 +126,7 @@
   "plugins": {
     "WechatSI": {
       "version": "0.3.9",
-      "provider": "wx069ba67219f9d7a3"
+      "provider": "wx069ba97219f66d99"
     }
   },
   "usingComponents": {
