@@ -105,4 +105,25 @@ class RecordLearningServiceTest {
         assertEquals(java.util.List.of(AgentMemoryStore.KEY_MAX_MINUTES, RecordLearningService.KEY_AVOID_LEFTOVER),
                 receipt.items().stream().map(item -> item.memoryKey()).toList());
     }
+
+    /**
+     * 打磨项②：MADE 回执必须点名这道菜——「番茄炒蛋你又拿下一次」比
+     * 「记住你做过这道菜」有质感得多；菜名为空时退化为不点名的说法，不许出现「null」。
+     */
+    @Test
+    void madeReceiptNamesTheDishWhenKnown() {
+        RecipeInteractionRepository interactions = mock(RecipeInteractionRepository.class);
+        RecommendationExposureService exposures = mock(RecommendationExposureService.class);
+        AgentMemoryStore memories = mock(AgentMemoryStore.class);
+        when(memories.personalizationEnabled("user-1")).thenReturn(true);
+        when(interactions.existsByOpenidAndRecipeIdAndAction(any(), any(), any())).thenReturn(false);
+        RecordLearningService service = new RecordLearningService(interactions, exposures, memories);
+
+        var named = service.learn("user-1", 12L, null, false, false, false, "番茄炒蛋");
+        assertEquals("「番茄炒蛋」你又完整拿下了一次，这股劲头我记住了",
+                named.items().get(0).text());
+
+        var blank = service.learn("user-1", 12L, null, false, false, false, "  ");
+        assertEquals("这道菜你做过，锅仔记住了", blank.items().get(0).text());
+    }
 }

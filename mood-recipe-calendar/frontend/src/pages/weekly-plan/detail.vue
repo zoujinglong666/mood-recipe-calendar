@@ -4,8 +4,7 @@ import type { FoodTip } from '@/api/foodSafety'
 import { useImagePreview } from '@wot-ui/ui'
 import { computed, nextTick, ref, onUnmounted } from 'vue'
 import { resolveAssetUrl } from '@/api/request'
-import { generatePlanDishCover, getCurrentPlan, getWeeklyPlan, replacePlanDay, reportPlanDishOutcome, toggleShoppingItem } from '@/api/weeklyPlans'
-import { assignFamilyCook, fetchFamilyMenus, type FamilyDayMenu, type FamilyMenusView } from '@/api/family'
+import { generatePlanDishCover, getCurrentPlan, getWeeklyPlan, replacePlanDay, toggleShoppingItem } from '@/api/weeklyPlans'
 import { fetchFoodTips } from '@/api/foodSafety'
 import { goToMeituanBuy } from '@/utils/cps'
 import { navBack } from '@/composables/useNavBar'
@@ -14,7 +13,6 @@ import GuozaiChipGroup from '@/components/guozai/GuozaiChipGroup.vue'
 import GuozaiImage from '@/components/guozai/GuozaiImage.vue'
 import ErrorState from '@/components/guozai/ErrorState.vue'
 import { exportRecipeShare, saveShareImage } from '@/utils/albumShare'
-import { MOOD_EMOJI } from '@/utils/albumLayout'
 import { STATIC_BASE_URL } from '@/utils/assets'
 import { toastError, toastSuccess } from '@/utils/toast'
 import { bus, MRC_EVENTS } from '@/utils/bus'
@@ -40,26 +38,6 @@ const router = useRouter()
 const { previewImage } = useImagePreview()
 const plan = ref<WeeklyPlan>()
 const loading = ref(true)
-/* ---- 家庭/双人共享：成员都能看这份菜单，每天谁掌勺点一下就换 ---- */
-const familyMenus = ref<FamilyMenusView | null>(null)
-const myOpenid = String(uni.getStorageSync('openid') || '')
-const familyDays = computed(() =>
-  familyMenus.value?.members.find(m => m.planId === plan.value?.id)?.days || [])
-/** 掌勺轮换：未定 → 我 → 家人 → 未定；请求失败保持原状并提示 */
-async function cycleCook(day: FamilyDayMenu) {
-  if (!plan.value?.id)
-    return
-  const openids = familyMenus.value?.members.map(m => m.openid) || []
-  const order: (string | null)[] = [null, ...openids]
-  const currentIdx = order.indexOf(day.cookOpenid)
-  const next = order[(currentIdx + 1) % order.length] ?? null
-  try {
-    familyMenus.value = await assignFamilyCook(plan.value.id, day.dayIndex, next)
-  }
-  catch (e) {
-    toastError(e, '分工没保存上，再点一次试试')
-  }
-}
 const requestedPlanId = ref<number>()
 const swapping = ref(-1)
 const activeDay = ref(0)
@@ -73,53 +51,11 @@ let loadSequence = 0
 let loadStarted = false
 const error = ref('')
 const weekdayNames = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
-const outcomeOptions = [
-  { key: 'DONE', label: '做完了' },
-  { key: 'LEFTOVER', label: '有剩菜' },
-  { key: 'HARD', label: '有点难' },
-  { key: 'SKIP', label: '没做成' },
-] as const
-/** 交给 GuozaiChipGroup：value 用 outcome key，label 用中文 */
-const outcomeChipOptions = outcomeOptions.map(option => ({ value: option.key as string, label: option.label }))
-type OutcomeKey = typeof outcomeOptions[number]['key']
-const outcomeMap: Record<OutcomeKey, { cooked: boolean, leftover: boolean, tooHard: boolean }> = {
-  DONE: { cooked: true, leftover: false, tooHard: false },
-  LEFTOVER: { cooked: true, leftover: true, tooHard: false },
-  HARD: { cooked: false, leftover: false, tooHard: true },
-  SKIP: { cooked: false, leftover: false, tooHard: false },
-}
-const outcomes = ref<Record<string, OutcomeKey>>({})
 
-// 餐后心情回采（飞轮开关）：标记"做了"后顺带问一句吃完心情，把"菜 -> 心情"因果链补上
-const postMealMoods = ['开心', '满足', '平静', '疲惫', '焦虑', '难过', '低落']
-const postMealMoodOptions = postMealMoods.map(m => ({ value: m, label: `${MOOD_EMOJI[m] ?? ''} ${m}` }))
-const moodAfters = ref<Record<string, string>>({})
-async function reportMood(dayIndex: number, dishIndex: number, dishName: string, mood: string | string[]) {
-  const m = (Array.isArray(mood) ? mood[0] : mood) as string
-  if (!m || !plan.value) return
-  const key = feedbackKey(dayIndex, dishIndex)
-  if (moodAfters.value[key] === m) return
-  moodAfters.value = { ...moodAfters.value, [key]: m }
-  try {
-    await reportPlanDishOutcome({ planId: plan.value.id, dayIndex, dishIndex, dishName, moodAfter: m })
-  } catch (error) {
-    const rollback = { ...moodAfters.value }
-    delete rollback[key]
-    moodAfters.value = rollback
-    toastError(error, '心情没记上，稍后再试')
-  }
-}
+
 const groups = computed(() => ['肉蛋豆', '蔬菜', '主食', '调料']
   .map(category => ({ category, items: plan.value?.shopping.filter(item => item.category === category) || [] }))
   .filter(group => group.items.length))
-const agentCheckCopy = computed(() => {
-  const agent = plan.value?.agent
-  if (!agent)
-    return ''
-  const score = typeof agent.score === 'number' ? `搭配检查 ${agent.score} 分` : '搭配检查已完成'
-  const memory = agent.memoryUsed?.length ? `参考了 ${agent.memoryUsed.length} 条锅仔记忆` : '已检查忌口、重复和荤素搭配'
-  return `${score} · ${memory}`
-})
 
 function weekday(day: PlanDay | undefined, index: number) {
   return day?.day || weekdayNames[index] || `第${index + 1}天`
@@ -184,40 +120,6 @@ function toggleDetails(index: number) {
   detailsOpen.value = { ...detailsOpen.value, [index]: !detailsOpen.value[index] }
 }
 
-function feedbackKey(dayIndex: number, dishIndex: number) {
-  return `${dayIndex}-${dishIndex}`
-}
-
-/** 反馈会回流成记忆：少问没人答的问题、少排做砸过的菜。 */
-async function reportOutcome(dayIndex: number, dishIndex: number, dishName: string, kind: OutcomeKey) {
-  if (!plan.value || outcomes.value[feedbackKey(dayIndex, dishIndex)] === kind)
-    return
-  const key = feedbackKey(dayIndex, dishIndex)
-  outcomes.value = { ...outcomes.value, [key]: kind }
-  try {
-    await reportPlanDishOutcome({
-      planId: plan.value.id,
-      dayIndex,
-      dishIndex,
-      dishName,
-      ...outcomeMap[kind],
-    })
-    toastSuccess('锅仔记下了，下次会少问少排')
-  }
-  catch (error) {
-    const rollback = { ...outcomes.value }
-    delete rollback[key]
-    outcomes.value = rollback
-    toastError(error, '反馈没记上，稍后再试')
-  }
-}
-
-function onOutcomeChange(dayIndex: number, dishIndex: number, dishName: string, value: string | string[]) {
-  const kind = String(value) as OutcomeKey
-  if (kind in outcomeMap)
-    void reportOutcome(dayIndex, dishIndex, dishName, kind)
-}
-
 async function load(opts: { preserveDay?: boolean } = {}) {
   loadStarted = true
   const sequence = ++loadSequence
@@ -231,8 +133,6 @@ async function load(opts: { preserveDay?: boolean } = {}) {
     if (!opts.preserveDay) activeDay.value = 0
     queueCovers(0)
     void loadSafetyTips(loaded)
-    // 家庭共享：静默拉取（不在家庭/未登录时后端返回空视图，前端整块隐藏）
-    fetchFamilyMenus().then((v) => { familyMenus.value = v }).catch(() => {})
   }
   catch (err) {
     if (sequence !== loadSequence) return
@@ -427,48 +327,7 @@ async function shareDay(day: PlanDay, index: number) {
     <ErrorState v-else-if="error" :message="error" @retry="load" />
 
     <template v-else-if="plan">
-      <view class="detail-hero">
-        <image :src="`${STATIC_BASE_URL}/static/guozai/action_09_celebrate.png`" mode="aspectFit" aria-label="庆祝的锅仔" />
-        <view>
-          <text class="eyebrow">
-            锅仔的一周菜单
-          </text>
-          <text class="hero-title">
-            一周安排好啦
-          </text>
-          <text class="hero-copy">
-            一次只想一桌，慢慢把每餐做好。
-          </text>
-        </view>
-      </view>
 
-      <!-- 家庭/双人共享：成员都能看到这份菜单，谁掌勺点一下就换 -->
-      <view v-if="familyMenus?.inFamily && familyDays.length" class="family-strip">
-        <view class="family-strip__head">
-          <text class="family-strip__title">这周谁掌勺</text>
-          <text class="family-strip__sub">点一下换人，家人打开就能看到</text>
-        </view>
-        <view class="family-strip__members">
-          <view v-for="m in familyMenus.members" :key="m.openid" class="family-strip__member">
-            <image class="family-strip__avatar" :src="m.avatarUrl || `${STATIC_BASE_URL}/static/guozai/mood_01_happy.png`" mode="aspectFill" />
-            <text class="family-strip__name">{{ m.nickname }}</text>
-          </view>
-        </view>
-        <view class="family-strip__days">
-          <view
-            v-for="day in familyDays"
-            :key="day.dayIndex"
-            class="family-day"
-            role="button"
-            :aria-label="`${day.day} ${day.dishName}，掌勺：${day.cookNickname || '未定'}，点击换人`"
-            @click="cycleCook(day)"
-          >
-            <text class="family-day__day">{{ day.day }}</text>
-            <text class="family-day__dish">{{ day.dishName }}</text>
-            <text class="family-day__cook" :class="{ 'is-none': !day.cookOpenid }">{{ day.cookNickname || '未定' }}</text>
-          </view>
-        </view>
-      </view>
 
       <view class="week-switcher" role="tablist" aria-label="选择晚餐日期">
         <view
@@ -493,20 +352,6 @@ async function shareDay(day: PlanDay, index: number) {
         <text>{{ activeDay + 1 }} / {{ plan.days.length }}</text>
       </view>
 
-      <view v-if="plan.agent" class="agent-check" aria-label="锅仔菜单检查结果">
-        <image :src="`${STATIC_BASE_URL}/static/guozai/action_06_glasses.png`" mode="aspectFit" aria-hidden="true" />
-        <view>
-          <text class="agent-check__title">
-            锅仔检查完成
-          </text>
-          <text class="agent-check__copy">
-            {{ agentCheckCopy }}
-          </text>
-        </view>
-        <text v-if="plan.agent.degradeReasons?.length" class="agent-check__tag">
-          已自动补全
-        </text>
-      </view>
 
       <swiper class="recipe-swiper" :current="activeDay" :duration="220" @change="onDayChange">
         <swiper-item v-for="(day, index) in plan.days" :key="`${day.day}-${index}`">
@@ -609,43 +454,6 @@ async function shareDay(day: PlanDay, index: number) {
                 </view>
               </view>
 
-              <view class="dish-feedback">
-                <text class="dish-feedback__eyebrow">
-                  吃完告诉锅仔
-                </text>
-                <text class="dish-feedback__title">
-                  下周会更懂你的份量和难度
-                </text>
-                <view v-for="(dish, dishIndex) in dishesOf(day)" :key="`fb-${dish.name}-${dishIndex}`" class="dish-feedback__row">
-                  <view class="dish-feedback__dish">
-                    <text class="dish-feedback__number">
-                      {{ dishIndex + 1 }}
-                    </text>
-                    <text class="dish-feedback__name">
-                      {{ dish.name }}
-                    </text>
-                  </view>
-                  <GuozaiChipGroup
-                    :model-value="outcomes[feedbackKey(index, dishIndex)]"
-                    :options="outcomeChipOptions"
-                    :columns="2"
-                    aria-label="这道菜做得怎么样"
-                    @change="onOutcomeChange(index, dishIndex, dish.name, $event)"
-                  />
-                  <view v-if="outcomes[feedbackKey(index, dishIndex)] === 'DONE' && !moodAfters[feedbackKey(index, dishIndex)]" class="dish-feedback__mood">
-                    <text class="dish-feedback__mood-label">吃完心情如何？</text>
-                    <GuozaiChipGroup
-                      :options="postMealMoodOptions"
-                      :columns="4"
-                      aria-label="吃完心情"
-                      @change="reportMood(index, dishIndex, dish.name, $event)"
-                    />
-                  </view>
-                  <text v-else-if="moodAfters[feedbackKey(index, dishIndex)]" class="dish-feedback__mood-done">
-                    已记录心情：{{ MOOD_EMOJI[moodAfters[feedbackKey(index, dishIndex)]] }} {{ moodAfters[feedbackKey(index, dishIndex)] }}
-                  </text>
-                </view>
-              </view>
 
               <view class="record">
                 <GuozaiButton variant="primary" aria-label="把这一桌记进时光机" @click="record(day.dishName)">
@@ -737,13 +545,7 @@ async function shareDay(day: PlanDay, index: number) {
 <style lang="scss" scoped>
 .detail-page { min-height: 100vh; padding: 0 32rpx calc(50rpx + env(safe-area-inset-bottom)); box-sizing: border-box; background: var(--mrc-bg); }
 .loading { padding: 180rpx 0; color: var(--mrc-text-sub); text-align: center; }
-.detail-hero, .day-card, .shopping-panel { border: 2rpx solid var(--mrc-border-light); border-radius: 30rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); }
-.detail-hero { display: flex; align-items: center; gap: 12rpx; margin: 8rpx 0 20rpx; padding: 22rpx 24rpx; background: linear-gradient(135deg, var(--mrc-surface-sun), var(--mrc-surface-peach)); }
-.detail-hero image { width: 132rpx; height: 132rpx; flex: 0 0 auto; }
-.detail-hero text, .day-card text, .shopping-panel text { display: block; }
 .eyebrow, .day-label, .reuse-note__label, .group-title { color: var(--mrc-accent); font-size: 21rpx; font-weight: 800; letter-spacing: 1rpx; }
-.hero-title { margin-top: 4rpx; color: var(--mrc-text-strong); font-size: 32rpx; font-weight: 800; }
-.hero-copy, .shopping-copy { margin-top: 6rpx; color: var(--mrc-text-sub); font-size: 23rpx; line-height: 1.55; }
 .week-switcher { display: flex; gap: 8rpx; margin-bottom: 16rpx; }
 .week-tab { display: flex; min-width: 0; min-height: 88rpx; flex: 1; flex-direction: column; align-items: center; justify-content: center; border: 2rpx solid transparent; border-radius: 20rpx; color: var(--mrc-text-sub); font-size: 20rpx; transition: transform 180ms cubic-bezier(.23, 1, .32, 1), background-color 180ms cubic-bezier(.23, 1, .32, 1), color 180ms cubic-bezier(.23, 1, .32, 1); }
 .week-tab:active, .replace-action:active, .details-toggle:active, .shopping-toggle:active, .shop-item:active { transform: scale(.98); opacity: .82; }
@@ -753,6 +555,9 @@ async function shareDay(day: PlanDay, index: number) {
 .day-progress text:first-child { color: var(--mrc-text); font-weight: 700; }
 .recipe-swiper { height: 980rpx; }
 .recipe-scroll { height: 100%; box-sizing: border-box; }
+.day-card, .shopping-panel { border: 2rpx solid var(--mrc-border-light); border-radius: 30rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); }
+.day-card text, .shopping-panel text { display: block; }
+.shopping-copy { margin-top: 6rpx; color: var(--mrc-text-sub); font-size: 23rpx; line-height: 1.55; }
 .day-card { min-height: 720rpx; margin: 0 2rpx; padding: 30rpx; box-sizing: border-box; transition: transform 220ms cubic-bezier(.23, 1, .32, 1), opacity 180ms ease-out; }
 .day-card--active { transform: translateY(0); opacity: 1; }
 .day-card__topline, .shopping-toggle, .shop-item, .step { display: flex; align-items: center; }
@@ -816,15 +621,6 @@ async function shareDay(day: PlanDay, index: number) {
 .record__title { color: #fff; font-size: 27rpx; font-weight: 800; }
 .record__copy { margin-top: 4rpx; color: #fff; font-size: 21rpx; opacity: .82; }
 .record__arrow { color: #fff; font-size: 48rpx; font-weight: 300; line-height: 1; }
-.agent-check { display: flex; align-items: center; gap: 14rpx; margin: 0 2rpx 16rpx; padding: 16rpx 18rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 22rpx; background: var(--mrc-surface-sun); box-shadow: var(--mrc-shadow-soft); }.agent-check image { width: 62rpx; height: 62rpx; flex: 0 0 auto; }.agent-check > view { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 4rpx; }.agent-check__title { color: var(--mrc-text-strong); font-size: 23rpx; font-weight: 800; }.agent-check__copy { color: var(--mrc-text-sub); font-size: 20rpx; line-height: 1.45; }.agent-check__tag { flex: 0 0 auto; padding: 8rpx 12rpx; border-radius: 999rpx; background: var(--mrc-surface-peach); color: var(--mrc-accent); font-size: 18rpx; font-weight: 700; }
-.dish-feedback { margin-top: 30rpx; padding: 24rpx 20rpx 20rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 24rpx; background: var(--mrc-surface-sun); }
-.dish-feedback__eyebrow { display: block; color: var(--mrc-accent); font-size: 19rpx; font-weight: 800; letter-spacing: 1rpx; }
-.dish-feedback__title { display: block; margin-top: 5rpx; color: var(--mrc-text-strong); font-size: 25rpx; font-weight: 800; }
-.dish-feedback__row { margin-top: 20rpx; padding: 18rpx; border-radius: 20rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); }
-.dish-feedback__mood { margin-top: 14rpx; padding-top: 14rpx; border-top: 2rpx dashed var(--mrc-border-light); }
-.dish-feedback__mood-label { display: block; margin-bottom: 10rpx; color: var(--mrc-text-sub); font-size: 22rpx; }
-.dish-feedback__mood-done { display: block; margin-top: 12rpx; color: var(--mrc-accent); font-size: 22rpx; }
-.dish-feedback__dish { display: flex; align-items: center; gap: 12rpx; margin-bottom: 16rpx; }.dish-feedback__number { display: flex; width: 34rpx; height: 34rpx; flex: 0 0 auto; align-items: center; justify-content: center; border-radius: 50%; background: var(--mrc-accent-soft); color: var(--mrc-accent); font-size: 19rpx; font-weight: 800; line-height: 1; }.dish-feedback__name { color: var(--mrc-text-strong); font-size: 24rpx; font-weight: 750; }
 /* 成果选择器改用 GuozaiChipGroup，样式由组件自身承担 */
 .shopping-panel { margin: 12rpx 2rpx 20rpx; overflow: hidden; }
 .shopping-toggle { min-height: 112rpx; padding: 16rpx 26rpx; box-sizing: border-box; transition: transform 160ms ease-out, opacity 160ms ease-out; }
@@ -843,21 +639,6 @@ async function shareDay(day: PlanDay, index: number) {
 .shop-item__fridge { padding: 4rpx 14rpx; border-radius: 999rpx; background: var(--mrc-surface-mint); color: var(--mrc-mint); font-size: 18rpx; font-weight: 700; }
 
 /* ===== 家庭/双人共享：谁掌勺分工条 ===== */
-.family-strip { margin-top: 20rpx; padding: 24rpx 26rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; background: linear-gradient(160deg, var(--mrc-surface), var(--mrc-surface-sun)); box-shadow: var(--mrc-shadow-soft); }
-.family-strip__head { display: flex; align-items: baseline; gap: 12rpx; }
-.family-strip__title { color: var(--mrc-text-strong); font-size: 27rpx; font-weight: 800; }
-.family-strip__sub { color: var(--mrc-text-light); font-size: 20rpx; }
-.family-strip__members { display: flex; gap: 18rpx; margin-top: 14rpx; }
-.family-strip__member { display: flex; align-items: center; gap: 8rpx; }
-.family-strip__avatar { width: 44rpx; height: 44rpx; border-radius: 50%; background: var(--mrc-surface-2); }
-.family-strip__name { color: var(--mrc-text-sub); font-size: 20rpx; }
-.family-strip__days { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12rpx; margin-top: 16rpx; }
-.family-day { display: flex; flex-direction: column; gap: 4rpx; padding: 14rpx 18rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 16rpx; background: var(--mrc-surface); }
-.family-day:active { transform: scale(0.97); }
-.family-day__day { color: var(--mrc-text-light); font-size: 19rpx; font-weight: 700; }
-.family-day__dish { overflow: hidden; color: var(--mrc-text-deep); font-size: 22rpx; font-weight: 700; white-space: nowrap; text-overflow: ellipsis; }
-.family-day__cook { align-self: flex-start; padding: 2rpx 14rpx; border-radius: 999rpx; background: var(--mrc-accent-soft); color: var(--mrc-accent); font-size: 18rpx; font-weight: 800; }
-.family-day__cook.is-none { background: var(--mrc-surface-2); color: var(--mrc-text-light); }
 .done { color: var(--mrc-text-light) !important; text-decoration: line-through; }
 .checked { font-weight: 800; }
 

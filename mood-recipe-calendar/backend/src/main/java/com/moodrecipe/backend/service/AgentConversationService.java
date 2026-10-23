@@ -33,6 +33,32 @@ public class AgentConversationService {
                            String lastAction, DialogueState.Turn turn,
                            List<TranscriptMessage> messages) {}
 
+    /** 取会话行，不存在则原子建行，返回时保证持写锁；死锁重试仅兜底（详见仓库 insertIfAbsent 注释）。 */
+    private AgentConversation lockOrCreate(String openid, String conversationId) {
+        for (int attempt = 1; ; attempt++) {
+            try {
+                Optional<AgentConversation> existing =
+                        conversations.findByOpenidAndConversationId(openid, conversationId);
+                if (existing.isPresent())
+                    return existing.get();
+                conversations.insertIfAbsent(openid, conversationId, com.moodrecipe.backend.config.AppClock.now());
+                return conversations.findByOpenidAndConversationId(openid, conversationId)
+                        .orElseThrow(() -> new IllegalStateException("会话初始化失败，请重试"));
+            }
+            catch (org.springframework.dao.CannotAcquireLockException e) {
+                if (attempt >= 3)
+                    throw e;
+                try {
+                    Thread.sleep(20L * attempt + (long) (Math.random() * 20));
+                }
+                catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw e;
+                }
+            }
+        }
+    }
+
     @Transactional
     public Optional<Snapshot> latest(String openid) {
         return conversations.findFirstByOpenidAndStatusOrderByUpdatedAtDesc(openid, "ACTIVE")
@@ -55,7 +81,7 @@ public class AgentConversationService {
     public DialogueState.AgentState state(String openid, String conversationId,
                                           DialogueState.AgentState clientState) {
         if (conversationId == null || conversationId.isBlank()) return safeClientState(clientState);
-        return conversations.findByOpenidAndConversationId(openid, conversationId.trim())
+        return conversations.findOneByOpenidAndConversationId(openid, conversationId.trim())
                 .map(this::readState)
                 .orElseGet(() -> safeClientState(clientState));
     }
@@ -63,7 +89,7 @@ public class AgentConversationService {
     @Transactional
     public String lastAction(String openid, String conversationId) {
         if (conversationId == null || conversationId.isBlank()) return null;
-        return conversations.findByOpenidAndConversationId(openid, conversationId.trim())
+        return conversations.findOneByOpenidAndConversationId(openid, conversationId.trim())
                 .map(AgentConversation::getLastAction).orElse(null);
     }
 
@@ -71,13 +97,10 @@ public class AgentConversationService {
     public void save(String openid, String conversationId, DialogueState.Turn turn,
                      List<TranscriptMessage> transcript) {
         if (conversationId == null || conversationId.isBlank() || turn == null) return;
-        AgentConversation conversation = conversations.findByOpenidAndConversationId(openid, conversationId.trim())
-                .orElseGet(() -> {
-                    AgentConversation created = new AgentConversation();
-                    created.setOpenid(openid);
-                    created.setConversationId(conversationId.trim());
-                    return created;
-                });
+        // 与会话额度同源的死锁防护：不先锁不存在的行，改 upsert 原子建行后再锁行更新。
+        // （RR 下 FOR UPDATE 空行持间隙锁，并发首轮互等插入意向锁 → 死锁 500。）
+        String cid = conversationId.trim();
+        AgentConversation conversation = lockOrCreate(openid, cid);
         try {
             conversation.setStateJson(json.writeValueAsString(turn.state()));
             conversation.setTurnJson(json.writeValueAsString(turn));

@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import type {RecordItem} from '../../api/records'
-import {fetchRecords, fetchStats} from '../../api/records'
 import {computed, ref} from 'vue'
 import {useNavBar} from '@/composables/useNavBar'
 import {STATIC_BASE_URL} from '@/utils/assets'
@@ -8,7 +6,6 @@ import Icon from '../../components/common/Icon.vue'
 import {useUserStore} from '../../stores/user'
 import {refreshUserInfo, navigateToLogin} from '../../utils/login'
 import {toast, toastError} from '../../utils/toast'
-import { useWishlist } from '@/composables/useWishlist'
 import SuccessModal from '../../components/guozai/SuccessModal.vue'
 import {fetchShareStatus, type ShareStatus} from '@/api/share'
 import {fetchCheckinStatus, doCheckin, type CheckinStatus} from '@/api/gallery'
@@ -28,7 +25,6 @@ definePage({
 
 const router = useRouter()
 const userStore = useUserStore()
-const { favorites, syncFromServer: syncWishlist } = useWishlist()
 /** 转发给好友/群：必须定义 onShareAppMessage 胶囊「···」里的转发才可用 */
 onShareAppMessage(() => {
   const sharer = userStore.openid
@@ -51,8 +47,6 @@ const avatarUpdating = ref(false)
 const showEdit = ref(false)
 const editNickname = ref('')
 const nicknameSaving = ref(false)
-const stats = ref({ totalRecords: 0, totalDays: 0, currentStreak: 0, topDishes: [] as { name: string, count: number }[] })
-const history = ref<RecordItem[]>([])
 const shareStatus = ref<ShareStatus>({ isSharer: false, sharedToday: false })
 const checkinStatus = ref<CheckinStatus | null>(null)
 const checkingIn = ref(false)
@@ -69,44 +63,23 @@ const fridgeHasAlert = computed(() => {
   return !!s && (s.expired > 0 || s.soon > 0)
 })
 const showCheckinModal = ref(false)
-const activeMembership = computed(() => userStore.userInfo?.isMember === 1
-  && Boolean(userStore.userInfo?.memberExpire)
-  && new Date(userStore.userInfo!.memberExpire!).getTime() > Date.now())
 
-const MOOD_IMG_MAP: Record<string, string> = {
-  开心: `${STATIC_BASE_URL}
-/static/guozai/mood_01_happy.png`,
-  平静: `${STATIC_BASE_URL}/static/guozai/mood_02_calm.png`,
-  疲惫: `${STATIC_BASE_URL}/static/guozai/mood_03_tired.png`,
-  焦虑: `${STATIC_BASE_URL}/static/guozai/mood_04_anxious.png`,
-  难过: `${STATIC_BASE_URL}/static/guozai/mood_05_sad.png`,
-  嘴馋: `${STATIC_BASE_URL}/static/guozai/mood_06_hungry.png`,
-  低落: `${STATIC_BASE_URL}/static/guozai/mood_07_low.png`,
-  想家: `${STATIC_BASE_URL}/static/guozai/mood_08_homesick.png`,
-}
-
+/** 「我的」页只加载账号域数据：记录域已迁至记录 tab，这里不再拉记录/统计 */
 async function loadData() {
   loading.value = true
   userStore.restoreFromStorage()
   if (!userStore.isLoggedIn) {
-    stats.value = { totalRecords: 0, totalDays: 0, currentStreak: 0, topDishes: [] }
-    history.value = []
     loading.value = false
     return
   }
   try {
     await refreshUserInfo()
-    // 记录是「我的」页核心内容，独立加载；统计接口失败不应清空历史列表
-    history.value = (await fetchRecords()).slice(0, 3)
-    fetchStats().then(s => { stats.value = s }).catch(() => {})
     // 分享家徽章与签到状态：失败静默，不阻塞主流程
     fetchShareStatus().then(s => { shareStatus.value = s }).catch(() => {})
     fetchCheckinStatus().then(s => { checkinStatus.value = s }).catch(() => {})
     fetchFridgeSummary().then(s => { fridgeSummary.value = s }).catch(() => {})
   }
   catch (e: any) {
-    stats.value = { totalRecords: 0, totalDays: 0, currentStreak: 0, topDishes: [] }
-    history.value = []
     toastError(e, '加载失败，请稍后重试')
   }
   finally {
@@ -116,7 +89,6 @@ async function loadData() {
 
 onShow(() => {
   loadData()
-  syncWishlist()
   achievementUnread.value = Number(uni.getStorageSync('mrc_achv_unread') || 0)
 })
 
@@ -227,54 +199,9 @@ function showPrivacy() {
 function goAbout() {
   router.push({ name: 'about' })
 }
-// 节流：一次点击若被极快连发两次，会触发两次 navigateTo 叠出「转场动画播放两次」的怪象
-let lastTimelineNavAt = 0
-function goTimeline() {
-  const now = Date.now()
-  if (now - lastTimelineNavAt < 600) return
-  lastTimelineNavAt = now
-  router.push({ name: 'timeline' }).catch(() => {
-    router.replace({ name: 'timeline' }).catch(() => {
-      toast('暂时打不开时光机，请稍后再试')
-      lastTimelineNavAt = 0
-    })
-  })
-}
-function goRecommendationHistory() {
-  router.push({ name: 'recommendation-history' })
-}
-function goWishlist() {
-  router.push({ name: 'wishlist' })
-}
 
-// 节流 + 失败兜底：router.push 是异步的，页面栈满 / 路由超时会 reject，
-// 不 catch 就会「点了没反应」。这里失败降级为 redirectTo，再失败才提示。
-let lastHistoryNavAt = 0
-function openHistoryRecord(item: RecordItem) {
-  const now = Date.now()
-  if (now - lastHistoryNavAt < 600) return
-  lastHistoryNavAt = now
-  // 注意：@wot-ui/router 用 name 跳转时只把 params 拼进 URL，query 会被丢弃，
-  // 必须传 params，否则目标页 route.query.id 为 undefined（报「记录不存在」）
-  const params = { id: String(item.id) }
-  router.push({ name: 'record-detail', params }).catch(() => {
-    router.replace({ name: 'record-detail', params }).catch(() => {
-      toast('这条记录暂时打不开，请稍后再试')
-      lastHistoryNavAt = 0
-    })
-  })
-}
-function goPreferences() {
-  router.push({ name: 'preferences' })
-}
 function goFridge() {
   router.push({ name: 'fridge' })
-}
-function goWeeklyPlan() {
-  router.push({ name: 'meal-agent' })
-}
-function goMembership() {
-  router.push({ name: 'membership' })
 }
 function goFeedback() {
   router.push({ name: 'feedback' })
@@ -316,19 +243,6 @@ async function quickCheckin() {
   }
 }
 
-function openStat(type: 'records' | 'days' | 'streak') {
-  if (!userStore.isLoggedIn) {
-    navigateToLogin()
-    return
-  }
-  // #ifdef MP-WEIXIN
-  try {
-    uni.vibrateShort({type: 'light'})
-  } catch {
-  }
-  // #endif
-  router.push({name: type === 'records' ? 'timeline' : 'calendar'})
-}
 </script>
 
 <template>
@@ -397,51 +311,6 @@ function openStat(type: 'records' | 'days' | 'streak') {
       </view>
     </view>
 
-    <!-- 统计卡 -->
-    <view class="profile-stats" aria-label="我的饮食记录统计">
-      <view aria-label="查看全部饮食记录" class="profile-stats__item" role="button" @click="openStat('records')">
-        <text class="profile-stats__label">
-          总记录
-        </text>
-        <text class="profile-stats__value">
-          {{ stats.totalRecords }}<text class="profile-stats__unit">
-            条
-          </text>
-        </text>
-        <text class="profile-stats__link">
-          去翻看 ›
-        </text>
-      </view>
-      <view class="profile-stats__divider" />
-      <view aria-label="按日历查看记录天数" class="profile-stats__item" role="button" @click="openStat('days')">
-        <text class="profile-stats__label">
-          记录天数
-        </text>
-        <text class="profile-stats__value">
-          {{ stats.totalDays }}<text class="profile-stats__unit">
-            天
-          </text>
-        </text>
-        <text class="profile-stats__link">
-          看日历 ›
-        </text>
-      </view>
-      <view class="profile-stats__divider" />
-      <view aria-label="查看连续打卡记录" class="profile-stats__item" role="button" @click="openStat('streak')">
-        <text class="profile-stats__label">
-          连续打卡
-        </text>
-        <text class="profile-stats__value">
-          {{ stats.currentStreak }}<text class="profile-stats__unit">
-            天
-          </text>
-        </text>
-        <text class="profile-stats__link">
-          看足迹 ›
-        </text>
-      </view>
-    </view>
-
     <view class="profile-section-head">
       <view>
         <text class="profile-section-head__eyebrow">
@@ -455,24 +324,6 @@ function openStat(type: 'records' | 'days' | 'streak') {
       </text>
     </view>
 
-    <view class="profile-member" role="button" aria-label="查看锅仔会员权益" @click="goMembership">
-      <view class="profile-member__mark">
-        <image
-          :src="`${STATIC_BASE_URL}/static/guozai/action_06_glasses.png`"
-          aria-hidden="true"
-          class="profile-member__mark-image"
-          mode="aspectFit"
-        />
-      </view>
-      <view class="profile-member__main">
-        <text class="profile-member__eyebrow">GUOZAI CLUB</text>
-        <text class="profile-member__title">{{ activeMembership ? '锅仔会员陪伴中' : '开通锅仔会员' }}</text>
-        <text class="profile-member__sub">管饭智能体 · 私人菜单 · 高清画册，全都包含</text>
-      </view>
-      <view class="profile-member__badge">{{ activeMembership ? '已开通' : '看权益' }}</view>
-      <text class="profile-member__arrow">›</text>
-    </view>
-
     <view class="profile-fridge" :class="{ 'profile-fridge--alert': fridgeHasAlert }" role="button" aria-label="打开我的冰箱" @click="goFridge">
       <image :src="`${STATIC_BASE_URL}/static/guozai/action_07_empty.png`" class="profile-fridge__guozai" mode="aspectFit"/>
       <view class="profile-fridge__main">
@@ -481,41 +332,6 @@ function openStat(type: 'records' | 'days' | 'streak') {
         <text class="profile-fridge__sub">{{ fridgeSummaryText }}</text>
       </view>
       <text class="profile-fridge__arrow">›</text>
-    </view>
-
-    <view class="profile-memory" role="button" aria-label="打开我的口味与忌口" @click="goPreferences">
-      <image :src="`${STATIC_BASE_URL}/static/guozai/action_10_thinking.png`" class="profile-memory__guozai"
-             mode="aspectFit"/>
-      <view class="profile-memory__main">
-        <text class="profile-memory__eyebrow">
-          锅仔会一直记得
-        </text>
-        <text class="profile-memory__title">
-          我的口味与忌口
-        </text>
-        <text class="profile-memory__sub">
-          喜欢什么 · 葱和香菜 · 辣度 · 过敏食材
-        </text>
-      </view>
-      <text class="profile-memory__arrow">
-        ›
-      </text>
-    </view>
-
-    <view class="profile-weekly-plan" role="button" aria-label="让锅仔安排这一周晚餐" @click="goWeeklyPlan">
-      <image :src="`${STATIC_BASE_URL}/static/guozai/action_06_glasses.png`" class="profile-weekly-plan__guozai"
-             mode="aspectFit"/>
-      <view class="profile-weekly-plan__main">
-        <text class="profile-weekly-plan__title">
-          锅仔管饭
-        </text>
-        <text class="profile-weekly-plan__sub">
-          记得口味 · 安排一周 · 随时帮你调整
-        </text>
-      </view>
-      <text class="profile-weekly-plan__arrow">
-        ›
-      </text>
     </view>
 
     <!-- 锅仔形象馆入口：成就墙 + 表情包 + 订单三馆合一 -->
@@ -589,99 +405,6 @@ function openStat(type: 'records' | 'days' | 'streak') {
             看看这一年的味道
           </text>
         </view>
-      </view>
-      <view class="profile-action" role="button" aria-label="打开菜谱时光机" @click="goTimeline">
-        <image :src="`${STATIC_BASE_URL}/static/guozai/action_06_glasses.png`" class="profile-action__guozai"
-               mode="aspectFit"/>
-        <view class="profile-action__copy">
-          <text class="profile-action__text">
-            菜谱时光机
-          </text><text class="profile-action__sub">
-            往回翻每一顿饭
-          </text>
-        </view>
-      </view>
-      <view class="profile-action" role="button" aria-label="打开我的想吃清单" @click="goWishlist">
-        <image :src="`${STATIC_BASE_URL}/static/guozai/action_08_peek.png`" class="profile-action__guozai"
-               mode="aspectFit"/>
-        <view class="profile-action__copy">
-          <text class="profile-action__text">
-            想吃清单
-          </text><text class="profile-action__sub">
-            {{ favorites.length ? `已收藏 ${favorites.length} 道` : '以后想做的菜' }}
-          </text>
-        </view>
-      </view>
-      <view class="profile-action" role="button" aria-label="打开推荐记录" @click="goRecommendationHistory">
-        <image :src="`${STATIC_BASE_URL}/static/guozai/action_02_soup.png`" class="profile-action__guozai" mode="aspectFit" />
-        <view class="profile-action__copy"><text class="profile-action__text">推荐记录</text><text class="profile-action__sub">找回锅仔推荐过的菜</text></view>
-      </view>
-    </view>
-
-    <!-- 历史记录列表 -->
-    <view class="profile-history">
-      <view class="profile-history__head" role="button" aria-label="查看全部菜谱记录" @click="goTimeline">
-        <view>
-          <text class="profile-history__eyebrow">
-            RECENT TABLE
-          </text>
-          <text class="profile-history__month">
-            最近的食光
-          </text>
-        </view>
-        <view class="profile-history__all">
-          <text>{{ stats.totalRecords }} 顿</text>
-          <text>查看全部 ›</text>
-        </view>
-      </view>
-      <view v-if="history.length === 0" class="profile-history__empty">
-        <image :src="`${STATIC_BASE_URL}/static/guozai/action_08_peek.png`" mode="aspectFit"/>
-        <view>
-          <text class="profile-history__empty-title">
-            第一顿饭，等你来记
-          </text><text class="profile-history__empty-sub">
-            记录后，锅仔会把它收进时光机
-          </text>
-        </view>
-      </view>
-      <view
-        v-for="(item, i) in history"
-        :key="item.id"
-        class="profile-history__item"
-        :aria-label="`查看 ${item.recordDate} 的${item.dishName}记录`"
-        :class="{ 'profile-history__item--featured': i === 0 }"
-        role="button"
-        @click="openHistoryRecord(item)"
-      >
-        <view class="profile-history__photo">
-          <image :aria-label="item.dishName" :src="item.imageUrl" lazy-load mode="aspectFill"/>
-          <text class="profile-history__date">
-            {{ item.recordDate?.slice(5) }}
-          </text>
-        </view>
-        <view class="profile-history__main">
-          <view class="profile-history__title-row">
-            <text class="profile-history__dish">
-              {{ item.dishName }}
-            </text>
-            <image :aria-label="`${item.moodTag}心情`"
-                   :src="MOOD_IMG_MAP[item.moodTag] || `${STATIC_BASE_URL}/static/guozai/mood_01_happy.png`"
-                   class="profile-history__mood" mode="aspectFit"/>
-          </view>
-          <text class="profile-history__meta">
-            {{ item.moodTag }} · {{ item.cookingTime || 30 }} 分钟
-          </text>
-          <text v-if="item.note" class="profile-history__note">
-            {{ item.note }}
-          </text>
-        </view>
-        <text class="profile-history__arrow">
-          ›
-        </text>
-      </view>
-      <view v-if="history.length" class="profile-history__companion">
-        <image :src="`${STATIC_BASE_URL}/static/guozai/action_08_peek.png`" aria-hidden="true" mode="aspectFit"/>
-        <text>最近三顿已经收好，更多回忆在时光机里。</text>
       </view>
     </view>
 
@@ -793,97 +516,12 @@ function openStat(type: 'records' | 'days' | 'streak') {
 .profile-login-state__dot { width: 12rpx; height: 12rpx; border-radius: 50%; background: var(--mrc-text-light); }
 .profile-login-state__dot--online { background: var(--mrc-mint); box-shadow: 0 0 0 6rpx rgba(40, 194, 160, .12); }
 .profile-identity__promise { padding-right: 92rpx; color: var(--mrc-accent); font-size: 21rpx; font-weight: 700; }
-.profile-weekly-plan { display:flex; min-height:138rpx; align-items:center; gap:18rpx; margin-bottom:16rpx; padding:22rpx 26rpx; box-sizing:border-box; border:2rpx solid var(--mrc-border); border-radius:30rpx; background:linear-gradient(135deg,var(--mrc-surface-sun),var(--mrc-surface-peach)); box-shadow:var(--mrc-shadow-soft),var(--mrc-gloss); }
-.profile-weekly-plan:active { transform: scale(.98); }
-.profile-weekly-plan__guozai { width:88rpx; height:88rpx; flex-shrink:0; }
-.profile-weekly-plan__main { flex:1; min-width:0; display:flex; flex-direction:column; gap:6rpx; }
-.profile-weekly-plan__title { color:var(--mrc-text-deep); font-size:32rpx; font-weight:var(--mrc-fw-heavy); }
-.profile-weekly-plan__sub { color:var(--mrc-text-sub); font-size:22rpx; line-height:1.45; }
-.profile-weekly-plan__arrow { color:var(--mrc-text-light); font-size:40rpx; }
-
-/* 统计卡 */
-.profile-stats {
-  display: flex;
-  align-items: center;
-  background: var(--mrc-surface);
-  border: 2rpx solid var(--mrc-border-light);
-  border-radius: 30rpx;
-  padding: 26rpx 0;
-  margin-bottom: 36rpx;
-  box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss);
-}
-.profile-stats__item {
-  flex: 1;
-  min-height: 112rpx;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 9rpx;
-  border-radius: 24rpx;
-  transition: background-color 180ms ease-out, transform 180ms ease-out, opacity 180ms ease-out;
-}
-
-.profile-stats__item:active {
-  background: var(--mrc-surface-peach);
-  transform: scale(.97);
-  opacity: .82;
-}
-.profile-stats__label {
-  font-size: 22rpx;
-  color: var(--mrc-text-sub);
-}
-.profile-stats__value {
-  font-size: 46rpx;
-  font-weight: var(--mrc-fw-heavy);
-  color: var(--mrc-text-deep);
-  line-height: 1;
-}
-.profile-stats__unit {
-  font-size: 23rpx;
-  font-weight: 600;
-  margin-left: 4rpx;
-}
-
-.profile-stats__link {
-  color: var(--mrc-accent);
-  font-size: 18rpx;
-  font-weight: 700;
-}
-.profile-stats__divider {
-  width: 2rpx;
-  height: 64rpx;
-  background: var(--mrc-border-light);
-}
-
-@media (max-width: 350px) {
-  .profile-stats__link {
-    font-size: 16rpx;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .profile-stats__item {
-    transition: none;
-  }
-}
 
 .profile-section-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 20rpx; margin: 0 4rpx 18rpx; }
 .profile-section-head__eyebrow, .profile-section-head__title { display: block; }
 .profile-section-head__eyebrow { margin-bottom: 6rpx; color: var(--mrc-accent); font-size: 20rpx; font-weight: 800; letter-spacing: 2rpx; }
 .profile-section-head__title { color: var(--mrc-text-strong); font-size: 32rpx; font-weight: var(--mrc-fw-heavy); }
 .profile-section-head__sub { padding-bottom: 2rpx; color: var(--mrc-text-sub); font-size: 20rpx; }
-.profile-member { display: flex; min-height: 146rpx; align-items: center; gap: 18rpx; box-sizing: border-box; margin-bottom: 16rpx; padding: 22rpx 24rpx; overflow: hidden; border-radius: 32rpx; background: linear-gradient(135deg, #2f1b14, #643322); box-shadow: 0 16rpx 32rpx rgba(70, 35, 23, .18); }
-.profile-member:active { transform: scale(.98); }
-.profile-member__mark { display: flex; width: 82rpx; height: 82rpx; flex: 0 0 auto; align-items: center; justify-content: center; border: 2rpx solid rgba(255, 221, 167, .38); border-radius: 50%; background: rgba(255, 224, 178, .12); }
-.profile-member__mark-image { width: 70rpx; height: 70rpx; }
-.profile-member__main { min-width: 0; flex: 1; }
-.profile-member__eyebrow, .profile-member__title, .profile-member__sub { display: block; }
-.profile-member__eyebrow { color: #eab66f; font-size: 16rpx; font-weight: 850; letter-spacing: 2rpx; }
-.profile-member__title { margin-top: 4rpx; color: #fff8ee; font-size: 29rpx; font-weight: 900; }
-.profile-member__sub { margin-top: 5rpx; color: rgba(255, 245, 230, .67); font-size: 18rpx; line-height: 1.4; }
-.profile-member__badge { flex: 0 0 auto; padding: 8rpx 12rpx; border-radius: 18rpx; color: #45251a; background: #f2c37d; font-size: 17rpx; font-weight: 850; }
-.profile-member__arrow { color: rgba(255, 245, 230, .55); font-size: 36rpx; }
 
 /* 锅仔形象馆入口 */
 .profile-fridge { display: flex; min-height: 138rpx; align-items: center; gap: 18rpx; padding: 22rpx 26rpx; box-sizing: border-box; margin-bottom: 16rpx; border: 2rpx solid var(--mrc-border); border-radius: 30rpx; background: linear-gradient(135deg, var(--mrc-surface-mint), var(--mrc-surface)); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }
@@ -897,15 +535,6 @@ function openStat(type: 'records' | 'days' | 'streak') {
 .profile-fridge__sub { color: var(--mrc-text-sub); font-size: 21rpx; }
 .profile-fridge__arrow { flex-shrink: 0; color: var(--mrc-text-light); font-size: 40rpx; font-weight: 300; }
 
-.profile-memory { display: flex; min-height: 138rpx; align-items: center; gap: 18rpx; padding: 22rpx 26rpx; box-sizing: border-box; margin-bottom: 16rpx; border: 2rpx solid var(--mrc-border); border-radius: 30rpx; background: linear-gradient(135deg, var(--mrc-surface-sun), var(--mrc-surface-peach)); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }
-.profile-memory:active { transform: scale(.98); }
-.profile-memory__guozai { width: 88rpx; height: 88rpx; flex-shrink: 0; }
-.profile-memory__main { flex: 1; min-width: 0; }
-.profile-memory__eyebrow, .profile-memory__title, .profile-memory__sub { display: block; }
-.profile-memory__eyebrow { color: var(--mrc-accent); font-size: 20rpx; font-weight: 800; letter-spacing: 2rpx; }
-.profile-memory__title { margin-top: 4rpx; color: var(--mrc-text-deep); font-size: 32rpx; font-weight: var(--mrc-fw-heavy); }
-.profile-memory__sub { margin-top: 6rpx; color: var(--mrc-text-sub); font-size: 22rpx; }
-.profile-memory__arrow { color: var(--mrc-text-light); font-size: 40rpx; }
 
 .profile-gallery {
   display: flex;
@@ -1022,222 +651,6 @@ function openStat(type: 'records' | 'days' | 'streak') {
 .profile-action--wide { grid-column: 1 / -1; }
 .profile-action:active {
   transform: scale(0.96);
-}
-
-/* 历史记录 */
-.profile-history {
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(150deg, var(--mrc-surface), var(--mrc-surface-peach));
-  border: 2rpx solid var(--mrc-border-light);
-  border-radius: 32rpx;
-  padding: 26rpx;
-  margin-bottom: 24rpx;
-  box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss);
-}
-.profile-history__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 88rpx;
-  margin-bottom: 18rpx;
-}
-
-.profile-history__head > view:first-child {
-  display: flex;
-  flex-direction: column;
-  gap: 5rpx;
-}
-
-.profile-history__eyebrow {
-  color: var(--mrc-accent);
-  font-size: 18rpx;
-  font-weight: 800;
-  letter-spacing: 2rpx;
-}
-.profile-history__month {
-  font-size: 34rpx;
-  font-weight: var(--mrc-fw-heavy);
-  color: var(--mrc-text-deep);
-}
-
-.profile-history__all {
-  display: flex;
-  min-height: 72rpx;
-  flex-direction: column;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 4rpx;
-  color: var(--mrc-text-sub);
-  font-size: 19rpx;
-}
-
-.profile-history__all text:last-child {
-  color: var(--mrc-accent);
-  font-size: 21rpx;
-  font-weight: 800;
-}
-.profile-history__item {
-  position: relative;
-  display: grid;
-  grid-template-columns: 116rpx minmax(0, 1fr) 36rpx;
-  align-items: center;
-  gap: 18rpx;
-  min-height: 132rpx;
-  margin-top: 14rpx;
-  padding: 12rpx;
-  box-sizing: border-box;
-  border: 2rpx solid var(--mrc-border-light);
-  border-radius: 26rpx;
-  background: var(--mrc-surface);
-  transition: transform 180ms ease-out, opacity 180ms ease-out;
-}
-
-.profile-history__item:active {
-  transform: scale(.985);
-  opacity: .82;
-}
-
-.profile-history__item--featured {
-  display: block;
-  overflow: hidden;
-  padding: 0;
-  border-radius: 30rpx;
-  box-shadow: var(--mrc-shadow-soft);
-}
-.profile-history__empty { display: flex; align-items: center; gap: 20rpx; min-height: 132rpx; padding: 8rpx 4rpx; }
-.profile-history__empty image { width: 92rpx; height: 92rpx; flex-shrink: 0; }
-.profile-history__empty-title, .profile-history__empty-sub { display: block; }
-.profile-history__empty-title { color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 800; }
-.profile-history__empty-sub { margin-top: 8rpx; color: var(--mrc-text-sub); font-size: 21rpx; line-height: 1.45; }
-
-.profile-history__photo {
-  position: relative;
-  width: 116rpx;
-  height: 108rpx;
-  overflow: hidden;
-  border-radius: 20rpx;
-  background: var(--mrc-surface-2);
-}
-
-.profile-history__photo image {
-  width: 100%;
-  height: 100%;
-}
-
-.profile-history__item--featured .profile-history__photo {
-  width: 100%;
-  height: 260rpx;
-  border-radius: 0;
-}
-.profile-history__date {
-  position: absolute;
-  top: 10rpx;
-  left: 10rpx;
-  min-height: 42rpx;
-  padding: 0 13rpx;
-  display: flex;
-  align-items: center;
-  border-radius: 21rpx;
-  color: var(--mrc-text-deep);
-  background: var(--mrc-surface);
-  box-shadow: var(--mrc-shadow-sm);
-  font-size: 18rpx;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-}
-.profile-history__main {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 7rpx;
-}
-
-.profile-history__item--featured .profile-history__main {
-  padding: 22rpx 66rpx 24rpx 22rpx;
-}
-
-.profile-history__title-row {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 10rpx;
-}
-.profile-history__dish {
-  overflow: hidden;
-  font-size: 29rpx;
-  color: var(--mrc-text-deep);
-  font-weight: 800;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.profile-history__item--featured .profile-history__dish {
-  font-size: 34rpx;
-}
-.profile-history__mood {
-  width: 38rpx;
-  height: 38rpx;
-  flex-shrink: 0;
-}
-
-.profile-history__meta {
-  color: var(--mrc-accent);
-  font-size: 20rpx;
-  font-weight: 700;
-}
-
-.profile-history__note {
-  overflow: hidden;
-  color: var(--mrc-text-sub);
-  font-size: 21rpx;
-  line-height: 1.45;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.profile-history__arrow {
-  font-size: 36rpx;
-  color: var(--mrc-text-light);
-  flex-shrink: 0;
-}
-
-.profile-history__item--featured .profile-history__arrow {
-  position: absolute;
-  right: 24rpx;
-  bottom: 30rpx;
-}
-
-.profile-history__companion {
-  display: flex;
-  min-height: 88rpx;
-  align-items: center;
-  gap: 10rpx;
-  padding: 12rpx 6rpx 0;
-  color: var(--mrc-text-sub);
-  font-size: 20rpx;
-  line-height: 1.45;
-}
-
-.profile-history__companion image {
-  width: 66rpx;
-  height: 66rpx;
-  flex-shrink: 0;
-}
-
-@media (max-width: 350px) {
-  .profile-history__item {
-    grid-template-columns: 100rpx minmax(0, 1fr) 28rpx;
-    gap: 12rpx;
-  }
-  .profile-history__photo {
-    width: 100rpx;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .profile-history__item {
-    transition: none;
-  }
 }
 
 /* 底部 */

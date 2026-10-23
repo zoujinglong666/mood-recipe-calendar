@@ -14,14 +14,12 @@
     "pages/profile/index",
     "pages/recipe/index",
     "pages/recipe-library/index",
-    "pages/recommendation-history/index",
     "pages/record/detail",
     "pages/record/edit",
     "pages/record/index",
     "pages/settings/index",
     "pages/weekly-plan/detail",
     "pages/weekly-plan/index",
-    "pages/wishlist/index",
     "pages/admin/recipes/edit",
     "pages/admin/recipes/index",
     "pages/admin/feedback/index"
@@ -78,12 +76,6 @@
     },
     {
       "root": "pages/privacy",
-      "pages": [
-        "index"
-      ]
-    },
-    {
-      "root": "pages/almanac",
       "pages": [
         "index"
       ]

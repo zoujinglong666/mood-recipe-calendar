@@ -113,8 +113,6 @@ page {
 
   /* ---- bento 暖色渐变卡（首页组件墙）：抽成令牌，页面不再硬编码十六进制 ---- */
   --mrc-bento-amber: linear-gradient(135deg, #FFF5DF, #FFEAD0);   /* 主题横幅 / 老黄历 */
-  --mrc-bento-wheel: linear-gradient(150deg, #FFF8E8, #FFEDCB);   /* 转一转 */
-  --mrc-bento-nine: linear-gradient(150deg, #FFF3EA, #FFE7D6);    /* 跑一圈 */
   --mrc-bento-flip: linear-gradient(150deg, #FFFBF4, #FFF1DF);    /* 翻一翻 */
   --mrc-bento-agent: linear-gradient(135deg, #FFF3DC, #FFE6C4);   /* 锅仔管饭 */
   --mrc-bento-library: linear-gradient(135deg, #FFEFE2, #FFDFC8); /* 藏菜阁 */
@@ -124,8 +122,6 @@ page {
   --mrc-bento-text-sub: #A1826A;
 
   /* 「今日宜」印章徽章（老黄历卡） */
-  --mrc-seal-bg: rgba(198, 60, 40, 0.12);
-  --mrc-seal-text: #C63C28;
 
   /* ---- 反色面（徽章/强调条：与页面明暗相反，保证两种模式都"跳"出来） ---- */
   --mrc-inverse-bg: #3A2E28;
@@ -210,8 +206,6 @@ page {
        像一排黑洞，标题再亮也显闷、副标题直接糊掉；提亮后卡片有"暖色卡"存在感，
        标题对比 ≈9:1、副标题 ≈5.5:1，均过 WCAG AA。 */
     --mrc-bento-amber: linear-gradient(135deg, #3B2E18, #473821);
-    --mrc-bento-wheel: linear-gradient(150deg, #3A2E1A, #463620);
-    --mrc-bento-nine: linear-gradient(150deg, #37291C, #433321);
     --mrc-bento-flip: linear-gradient(150deg, #362B20, #403327);
     --mrc-bento-agent: linear-gradient(135deg, #382B16, #443420);
     --mrc-bento-library: linear-gradient(135deg, #39271A, #453121);
@@ -221,8 +215,6 @@ page {
     --mrc-bento-text-sub: #D4B88F;
 
     /* 「今日宜」印章：深红字在深棕底上几乎不可读，换成珊瑚粉字 + 同色系半透明底 */
-    --mrc-seal-bg: rgba(255, 138, 104, 0.18);
-    --mrc-seal-text: #FF9B7E;
 
     /* 反色面：深色模式下翻转为暖白底 + 深咖字，徽章照样跳出来 */
     --mrc-inverse-bg: #F2DEC2;

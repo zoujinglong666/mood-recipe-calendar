@@ -468,6 +468,11 @@ function goRecord() {
   router.pushTab({ name: 'record' })
 }
 
+/** 忌口与偏好管理：入口从「我的」页迁到推荐现场，改完偏好下次推荐即生效 */
+function goPreferences() {
+  router.push({ name: 'preferences' })
+}
+
 async function loadFeedbackState() {
   if (!recipe.value || !feedbackAvailable.value)
     return
@@ -792,11 +797,15 @@ async function waitForDelivery(orderNo: string) {
             <image class="guozai-note__avatar guozai-breathe" :src="`${STATIC_BASE_URL}/static/guozai/action_16_chopsticks.png`" mode="aspectFit" aria-label="锅仔" />
             <view class="guozai-note__bubble">
               <text class="guozai-note__label">
-                锅仔为什么推荐它
+                适合现在的你
               </text>
               <text class="guozai-note__text">
                 {{ healingText }}
               </text>
+              <!-- 口味忌口上下文入口：从「我的」页迁到推荐发生的现场，改完立即见效 -->
+              <view v-if="userStore.isLoggedIn" class="guozai-note__pref" role="button" aria-label="管理我的口味与忌口" @click="goPreferences">
+                锅仔按你的口味推荐 · 忌口与偏好管理 ›
+              </view>
             </view>
           </view>
           <view v-if="showGuideline" class="guozai-basis">
@@ -922,20 +931,6 @@ async function waitForDelivery(orderNo: string) {
             aria-label="告诉锅仔这道菜是否合胃口"
             @select="selectRecipeFeedback"
           />
-        </view>
-
-        <view class="custom-entry pressable" role="button" aria-label="打开主题专辑" @click="router.push({ name: 'theme-albums' })">
-          <image class="custom-entry__image" :src="`${STATIC_BASE_URL}/static/guozai/action_09_celebrate.png`" mode="aspectFit" />
-          <view class="custom-entry__copy">
-            <text class="custom-entry__title">
-              主题专辑
-            </text><text class="custom-entry__subtitle">
-              减脂 21 天 · 一人食 30 道 · 过年家宴，一次购买长期可看
-            </text>
-          </view>
-          <text class="custom-entry__link">
-            去逛专辑
-          </text>
         </view>
 
         <view class="custom-entry pressable" role="button" aria-label="打开按食材定制菜单" @click="openAiPanel">
@@ -1185,6 +1180,8 @@ async function waitForDelivery(orderNo: string) {
 .guozai-note__bubble { flex: 1; min-width: 0; padding: 16rpx 20rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 8rpx 22rpx 22rpx; background: var(--mrc-surface-2); }
 .guozai-note__label { display: block; color: var(--mrc-accent); font-size: 20rpx; font-weight: 800; letter-spacing: 1rpx; }
 .guozai-note__text { display: block; margin-top: 6rpx; color: var(--mrc-text-deep); font-size: 24rpx; line-height: 1.45; }
+.guozai-note__pref { display: inline-block; margin-top: 10rpx; color: var(--mrc-text-sub); font-size: 20rpx; }
+.guozai-note__pref:active { opacity: .7; }
 .guozai-basis { margin: 20rpx 24rpx 0; padding: 18rpx 20rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 22rpx; background: var(--mrc-surface-2); }
 .guozai-basis__head { display: flex; align-items: center; gap: 12rpx; margin-bottom: 8rpx; }
 .guozai-basis__badge { flex-shrink: 0; padding: 4rpx 12rpx; border-radius: 999rpx; color: #fff; font-size: 18rpx; font-weight: 800; background: linear-gradient(135deg, var(--mrc-primary), var(--mrc-primary-deep)); }

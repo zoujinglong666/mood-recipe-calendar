@@ -264,10 +264,6 @@ function copyInviteCode() {
   })
 }
 
-function goNutritionReport() {
-  router.push({ name: 'nutrition-report' })
-}
-
 /** 购买指定 SKU 的会员（月卡/年卡）；已是会员时即续费，时长由后端顺延。 */
 async function purchase(sku: string) {
   const target = sku === MEMBER_YEAR_SKU ? yearProduct.value : product.value
@@ -458,16 +454,6 @@ async function waitForDelivery(orderNo: string) {
       </template>
     </view>
 
-    <!-- 本月营养月报入口（会员专享） -->
-    <view v-if="active" class="member-report-entry" role="button" aria-label="查看本月营养月报" @click="goNutritionReport">
-      <image class="member-report-entry__img" :src="`${STATIC_BASE_URL}/static/guozai/action_02_soup.png`" mode="aspectFit" />
-      <view class="member-report-entry__copy">
-        <text class="member-report-entry__title">本月营养月报</text>
-        <text class="member-report-entry__sub">锅仔写给你的一封信，每月一期</text>
-      </view>
-      <text class="member-report-entry__arrow">›</text>
-    </view>
-
     <view class="member-note">
       基础推荐和饮食记录继续免费；会员购买的是更深度、更省心的持续服务。
       <text class="member-note__legal">
@@ -613,15 +599,6 @@ async function waitForDelivery(orderNo: string) {
 .member-family__role { padding: 2rpx 12rpx; border-radius: 999rpx; background: var(--mrc-surface-sun); color: var(--mrc-accent); font-size: 16rpx; font-weight: 700; }
 .member-family__role--me { background: var(--mrc-surface-2); color: var(--mrc-text-sub); }
 .member-family__leave { margin-top: 16rpx; color: var(--mrc-text-light); font-size: 21rpx; text-align: center; }
-
-/* 营养月报入口 */
-.member-report-entry { display: flex; align-items: center; gap: 20rpx; margin: 20rpx 0 8rpx; padding: 22rpx 26rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 28rpx; background: linear-gradient(135deg, var(--mrc-surface-mint), var(--mrc-surface)); box-shadow: var(--mrc-shadow-soft); }
-.member-report-entry:active { transform: scale(.98); }
-.member-report-entry__img { width: 80rpx; height: 80rpx; flex-shrink: 0; }
-.member-report-entry__copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6rpx; }
-.member-report-entry__title { color: var(--mrc-text-deep); font-size: 30rpx; font-weight: 800; }
-.member-report-entry__sub { color: var(--mrc-text-sub); font-size: 21rpx; }
-.member-report-entry__arrow { color: var(--mrc-text-light); font-size: 40rpx; }
 
 /* 底部双 SKU：占满一行，价格不换行，触控高度 ≥ 88rpx */
 .member-footer__plans { display: flex; align-items: stretch; gap: 16rpx; }

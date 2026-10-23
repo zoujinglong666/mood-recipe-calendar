@@ -113,7 +113,7 @@ public class RecordController {
         try {
             receipt = learning.learn(openid, req.recipeId(), req.exposureId(),
                     Boolean.TRUE.equals(req.liked()), Boolean.TRUE.equals(req.tooHard()),
-                    Boolean.TRUE.equals(req.leftover()));
+                    Boolean.TRUE.equals(req.leftover()), req.dishName());
         } catch (RuntimeException ignored) {
             receipt = LearningReceipt.learningUnavailable();
         }

@@ -1,0 +1,6 @@
+{
+  "component": true,
+  "usingComponents": {
+    "wd-popup": "../../node-modules/@wot-ui/ui/components/wd-popup/wd-popup"
+  }
+}

@@ -7,9 +7,11 @@ import com.moodrecipe.backend.repository.UserRepository;
 import com.moodrecipe.backend.repository.CheckinRepository;
 import com.moodrecipe.backend.repository.ShareRecordRepository;
 import jakarta.transaction.Transactional;
+import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import java.time.*;
+import java.util.Optional;
 
 @Service
 public class UsageQuotaService {
@@ -62,13 +64,7 @@ public class UsageQuotaService {
         LocalDate today = AppClock.today();
         LocalDate start = periodStart(feature, today);
         int limit = limit(openid, feature, isMember, today);
-        UsageQuota quota = quotas.findForUpdate(openid, feature.name(), start).orElseGet(() -> {
-            UsageQuota q = new UsageQuota();
-            q.setOpenid(openid);
-            q.setFeature(feature.name());
-            q.setPeriodStart(start);
-            return q;
-        });
+        UsageQuota quota = lockOrInit(openid, feature.name(), start);
         if (requestId != null && !requestId.isBlank() && requestId.equals(quota.getLastRequestId())) {
             return viewOf(isMember, limit, quota.getUsedCount(), today, feature, start);
         }
@@ -82,6 +78,43 @@ public class UsageQuotaService {
         if (requestId != null && !requestId.isBlank()) quota.setLastRequestId(requestId.trim());
         quotas.save(quota);
         return viewOf(isMember, limit, quota.getUsedCount(), today, feature, start);
+    }
+
+    /**
+     * 取配额行，不存在则原子建行，返回时保证对该行持写锁。
+     *
+     * 为什么不是「FOR UPDATE 查不到就 new + save」：
+     * RR 隔离下 SELECT ... FOR UPDATE 扫不到行时会拿间隙锁，两个并发首扣请求
+     * 各握对方 INSERT 所需的间隙锁 → InnoDB 判死锁随机杀一个 → 500
+     * （线上 POST /weekly-plans/{id}/days/{i}/cover/{j} 并发补图触发）。
+     * 现在：已存在 → FOR UPDATE 锁行；不存在 → 单条 upsert 建行后再 FOR UPDATE 锁行。
+     * upsert 只持插入意向锁，同键并发不成环；撞唯一键的一方空转后走锁行路径。
+     *
+     * 死锁重试只是兜底：真正消除死锁源靠的是不打间隙锁。
+     */
+    private UsageQuota lockOrInit(String openid, String feature, LocalDate start) {
+        for (int attempt = 1; ; attempt++) {
+            try {
+                Optional<UsageQuota> existing = quotas.findForUpdate(openid, feature, start);
+                if (existing.isPresent())
+                    return existing.get();
+                quotas.insertIfAbsent(openid, feature, start);
+                return quotas.findForUpdate(openid, feature, start)
+                        .orElseThrow(() -> new IllegalStateException("额度初始化失败，请重试"));
+            }
+            catch (CannotAcquireLockException e) {
+                // 残余锁竞争（多行锁顺序等）兜底：短退避重试，死锁语句已被 InnoDB 回滚，事务可继续
+                if (attempt >= 3)
+                    throw e;
+                try {
+                    Thread.sleep(20L * attempt + (long) (Math.random() * 20));
+                }
+                catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    throw e;
+                }
+            }
+        }
     }
 
     public View view(String openid, Feature feature) {
@@ -115,38 +148,23 @@ public class UsageQuotaService {
             throw new IllegalStateException("会员权益已全覆盖，不需要看广告");
         LocalDate today = AppClock.today();
         // 广告计数行按天、先行加锁：同一用户的并发发放被串行化，杜绝并发双发
-        UsageQuota adRow = quotas.findForUpdate(openid, AD_REWARD_FEATURE, today)
-                .orElseGet(() -> newQuotaRow(openid, AD_REWARD_FEATURE, today));
+        UsageQuota adRow = lockOrInit(openid, AD_REWARD_FEATURE, today);
         if (requestId != null && !requestId.isBlank() && requestId.equals(adRow.getLastRequestId()))
             return view(openid, feature);
         if (adRow.getUsedCount() >= DAILY_AD_REWARD_LIMIT)
             throw new IllegalStateException("今天看广告换额度的次数用完了，明天再来");
         LocalDate start = periodStart(feature, today);
         int limit = limit(openid, feature, false, today);
-        UsageQuota target = quotas.findForUpdate(openid, feature.name(), start).orElse(null);
-        int used = target == null ? 0 : target.getUsedCount();
+        UsageQuota target = lockOrInit(openid, feature.name(), start);
+        int used = target.getUsedCount();
         if (used < limit)
             throw new IllegalStateException("额度还没用完，先把今天的次数用掉再来看广告");
-        if (target == null) {
-            target = newQuotaRow(openid, feature.name(), start);
-            target.setUsedCount(limit - 1);
-        }
-        else {
-            target.setUsedCount(Math.max(-1, used - 1));
-        }
+        target.setUsedCount(Math.max(-1, used - 1));
         quotas.save(target);
         adRow.setUsedCount(adRow.getUsedCount() + 1);
         if (requestId != null && !requestId.isBlank()) adRow.setLastRequestId(requestId.trim());
         quotas.save(adRow);
         return view(openid, feature);
-    }
-
-    private UsageQuota newQuotaRow(String openid, String feature, LocalDate start) {
-        UsageQuota q = new UsageQuota();
-        q.setOpenid(openid);
-        q.setFeature(feature);
-        q.setPeriodStart(start);
-        return q;
     }
 
     private LocalDate periodStart(Feature feature, LocalDate today) {

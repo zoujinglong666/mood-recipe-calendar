@@ -28,29 +28,42 @@ public class RecordLearningService {
 
     public LearningReceipt learn(String openid, Long recipeId, String exposureId,
                                  boolean liked, boolean tooHard, boolean leftover) {
+        return learn(openid, recipeId, exposureId, liked, tooHard, leftover, null);
+    }
+
+    /**
+     * 记录后的学习回执——「记录有价值感」的瞬间（2026-10-23 打磨项②）。
+     * 文案原则：像老朋友当面说话，不写系统日志；能点名就点名（带上菜名），
+     * 每条都回答「这对你下次有什么用」，而不是「我做了什么」。
+     */
+    public LearningReceipt learn(String openid, Long recipeId, String exposureId,
+                                 boolean liked, boolean tooHard, boolean leftover, String dishName) {
         if (!memories.personalizationEnabled(openid)) return LearningReceipt.savedOnly();
+        String dish = dishName == null || dishName.isBlank() ? null : dishName.trim();
 
         List<LearningReceiptItem> learned = new ArrayList<>();
         boolean madeWritten = recordAction(openid, recipeId, "MADE");
         boolean madeExposureWritten = recordExposure(openid, exposureId, "MADE");
         if (madeWritten || madeExposureWritten) {
-            learned.add(new LearningReceiptItem("MADE", "记住你做过这道菜", null));
+            learned.add(new LearningReceiptItem("MADE",
+                    dish != null ? "「" + dish + "」你又完整拿下了一次，这股劲头我记住了" : "这道菜你做过，锅仔记住了",
+                    null));
         }
         if (liked) {
             boolean likedWritten = recordAction(openid, recipeId, "LIKE");
             boolean likedExposureWritten = recordExposure(openid, exposureId, "LIKE");
             if (likedWritten || likedExposureWritten) {
-                learned.add(new LearningReceiptItem("LIKED", "以后多推荐你喜欢的味道", null));
+                learned.add(new LearningReceiptItem("LIKED", "喜欢就说，以后多往这个方向替你挑", null));
             }
         }
         if (tooHard) {
             boolean simpleWritten = remember(openid, AgentMemoryStore.KEY_SIMPLE, "true", "用户记录时反馈做起来太难");
             boolean timeWritten = remember(openid, AgentMemoryStore.KEY_MAX_MINUTES, "35", "用户记录时反馈做起来太难");
             if (simpleWritten && timeWritten) {
-                learned.add(new LearningReceiptItem("SIMPLE", "下次优先 35 分钟内的简单菜",
+                learned.add(new LearningReceiptItem("SIMPLE", "下次优先 35 分钟内能搞定的简单菜",
                         AgentMemoryStore.KEY_SIMPLE));
             } else if (simpleWritten) {
-                learned.add(new LearningReceiptItem("SIMPLE", "下次优先做法简单的菜",
+                learned.add(new LearningReceiptItem("SIMPLE", "下次先给你做法简单的菜",
                         AgentMemoryStore.KEY_SIMPLE));
             } else if (timeWritten) {
                 learned.add(new LearningReceiptItem("TIME", "下次尽量控制在 35 分钟内",
@@ -58,7 +71,7 @@ public class RecordLearningService {
             }
         }
         if (leftover && remember(openid, KEY_AVOID_LEFTOVER, "true", "用户记录时反馈有剩菜")) {
-            learned.add(new LearningReceiptItem("LEFTOVER", "下次会把分量安排得更克制", KEY_AVOID_LEFTOVER));
+            learned.add(new LearningReceiptItem("LEFTOVER", "剩菜我记下了，下次分量收着点", KEY_AVOID_LEFTOVER));
         }
         return learned.isEmpty() ? LearningReceipt.savedOnly() : LearningReceipt.learned(learned);
     }

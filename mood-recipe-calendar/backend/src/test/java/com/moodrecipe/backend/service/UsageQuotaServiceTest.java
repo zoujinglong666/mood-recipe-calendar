@@ -20,6 +20,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class UsageQuotaServiceTest {
@@ -240,5 +242,46 @@ class UsageQuotaServiceTest {
         Field f = UsageQuotaService.class.getDeclaredField("adReward");
         f.setAccessible(true);
         f.set(svc, adReward);
+    }
+
+    // ===== 并发首扣的防死锁契约（线上 POST /weekly-plans/{id}/days/{i}/cover/{j} 500 告警回归）=====
+
+    /**
+     * 行不存在时必须走「原子 upsert 建行 → 再 FOR UPDATE 锁行」，而不是
+     * 「FOR UPDATE 锁不存在的行（RR 下持间隙锁）→ INSERT」——后者两个并发首扣
+     * 互等对方的插入意向锁，InnoDB 判死锁杀一个，直接 500。
+     */
+    @Test
+    void firstConsumeCreatesRowByUpsertThenLocks() {
+        UsageQuota quota = quota(0);
+        when(quotas.findForUpdate(anyString(), anyString(), any()))
+                .thenReturn(Optional.empty())      // 首次查不到
+                .thenReturn(Optional.of(quota));   // upsert 后锁到已建的行
+
+        UsageQuotaService.View view = service.consume("user-1", UsageQuotaService.Feature.COVER_GENERATE);
+
+        verify(quotas).insertIfAbsent("user-1", "COVER_GENERATE", AppClock.today());
+        assertEquals(1, quota.getUsedCount());
+        assertEquals(19, view.remaining()); // 普通用户每日 20 次补图
+    }
+
+    /** 行已存在时不得触发建行 upsert（避免无谓的写路径与锁竞争）。 */
+    @Test
+    void existingRowSkipsUpsertEntirely() {
+        UsageQuota quota = quota(1);
+        when(quotas.findForUpdate(anyString(), anyString(), any())).thenReturn(Optional.of(quota));
+
+        service.consume("user-1", UsageQuotaService.Feature.COVER_GENERATE);
+
+        verify(quotas, never()).insertIfAbsent(anyString(), anyString(), any());
+    }
+
+    /** 建行后仍锁不到行（极端并发下的瞬时态）必须报错重试，而不是静默放行超额。 */
+    @Test
+    void missingRowAfterUpsertFailsLoudly() {
+        when(quotas.findForUpdate(anyString(), anyString(), any())).thenReturn(Optional.empty());
+
+        assertThrows(IllegalStateException.class,
+                () -> service.consume("user-1", UsageQuotaService.Feature.COVER_GENERATE));
     }
 }

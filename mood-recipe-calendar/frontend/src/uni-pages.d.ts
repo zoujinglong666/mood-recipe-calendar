@@ -18,14 +18,12 @@ type _LocationUrl =
   "/pages/profile/index" |
   "/pages/recipe/index" |
   "/pages/recipe-library/index" |
-  "/pages/recommendation-history/index" |
   "/pages/record/detail" |
   "/pages/record/edit" |
   "/pages/record/index" |
   "/pages/settings/index" |
   "/pages/weekly-plan/detail" |
   "/pages/weekly-plan/index" |
-  "/pages/wishlist/index" |
   "/pages/admin/feedback/index" |
   "/pages/admin/recipes/edit" |
   "/pages/admin/recipes/index" |
@@ -38,8 +36,7 @@ type _LocationUrl =
   "/pages/nutrition-report/index" |
   "/pages/feedback/index" |
   "/pages/about/index" |
-  "/pages/privacy/index" |
-  "/pages/almanac/index";
+  "/pages/privacy/index";
 
 interface NavigateToOptions {
   url: _LocationUrl;

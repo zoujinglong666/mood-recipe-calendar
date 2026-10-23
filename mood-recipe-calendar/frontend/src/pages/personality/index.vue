@@ -33,7 +33,7 @@ definePage({
 
 const router = useRouter()
 
-/* ---- 双测试状态机：每套测试独立进度，切 tab 不丢 ---- */
+/* ---- 合并流程：干饭人格 + 做饭人格一次测完，顺序出结果 ---- */
 interface TestState {
   step: 'intro' | 'quiz' | 'analyzing' | 'result'
   answers: number[]
@@ -42,19 +42,19 @@ interface TestState {
   serverRes: PersonalityView | null
   shareMode: 'self' | 'dual'
 }
+
+const seq: TestKey[] = ['eat', 'cook']
+const phase = ref(0)
+
 const freshState = (): TestState => ({ step: 'intro', answers: [], qIndex: 0, locked: false, serverRes: null, shareMode: 'self' })
 
-const activeTest = ref<TestKey>('eat')
 const states = reactive<Record<TestKey, TestState>>({ eat: freshState(), cook: freshState() })
-const st = computed(() => states[activeTest.value])
-const cfg = computed(() => TESTS[activeTest.value])
+const st = computed(() => states[seq[phase.value]])
+const cfg = computed(() => TESTS[seq[phase.value]])
 const OPTION_TAGS = ['A', 'B', 'C', 'D']
-
-/** 测试类型 Tab 数据源（视觉为胶囊分段式，切换仍直接写 activeTest，业务等价） */
-const TEST_TABS = [
-  { key: 'eat' as TestKey, emoji: '', label: '干饭人格' },
-  { key: 'cook' as TestKey, emoji: '', label: '做饭人格' },
-]
+/** 合并进度：12+12 共 24 题，跨测试连续计数 */
+const overallIndex = computed(() => seq.slice(0, phase.value).reduce((n, k) => n + TESTS[k].quiz.length, 0) + st.value.qIndex + 1)
+const overallTotal = computed(() => seq.reduce((n, k) => n + TESTS[k].quiz.length, 0))
 
 /* ---- 锅仔 IP 延展：每题换一个姿势「出题」，配一句锅仔台词；进度条上锅仔随进度走 ---- */
 const QUIZ_AVATARS = [
@@ -89,10 +89,10 @@ const quizAvatar = computed(() =>
   `${STATIC_BASE_URL}/static/guozai/${QUIZ_AVATARS[st.value.qIndex % QUIZ_AVATARS.length]}.png`)
 const quizQuip = computed(() =>
   cfg.value.quiz[st.value.qIndex]?.quip || QUIZ_QUIPS[st.value.qIndex % QUIZ_QUIPS.length])
-const progressPct = computed(() => `${((st.value.qIndex + 1) / cfg.value.quiz.length) * 100}%`)
+const progressPct = computed(() => `${(overallIndex.value / overallTotal.value) * 100}%`)
 const introQuip = computed(() => {
-  if (activeTest.value === 'eat' && isDual.value) return '饭搭子已下单，接招吧'
-  return activeTest.value === 'cook' ? '颠勺的事，锅仔最懂' : '锅仔出题，你负责说实话'
+  if (seq[phase.value] === 'eat' && isDual.value) return '饭搭子已下单，接招吧'
+  return seq[phase.value] === 'cook' ? '颠勺的事，锅仔最懂' : '锅仔出题，你负责说实话'
 })
 
 /** 默契模式（仅干饭人格）：链接里带 ?dual=，好友进来直接进入「接招」状态 */
@@ -104,12 +104,16 @@ onLoad((options: { dual?: string } = {}) => {
   if (dual) {
     hostAnswers.value = dual
     isDual.value = true
-    activeTest.value = 'eat'
+    phase.value = 0
   }
 })
 
 function start() {
-  Object.assign(st.value, { step: 'quiz', qIndex: 0, answers: [] })
+  phase.value = 0
+  Object.assign(states.eat, freshState(), { step: 'quiz', qIndex: 0, answers: [] })
+  Object.assign(states.cook, freshState())
+  if (isDual.value)
+    Object.assign(states.cook, { step: 'intro' }) // 默契模式只测干饭人格
 }
 
 function pick(optionIndex: number) {
@@ -128,30 +132,40 @@ function pick(optionIndex: number) {
   }, 280)
 }
 
-/** 交卷 → AI 语义判定（loading 有锅仔陪伴）；失败静默退回本地确定性计分 */
+/** 交卷 → AI 语义判定（loading 有锅仔陪伴）；失败静默退回本地确定性计分。
+ *  合并流：当前测试判完还有下一套（且非默契模式）就顺势进入下一套答题，不打断节奏。 */
 async function finish() {
   st.value.step = 'analyzing'
   try {
-    st.value.serverRes = await analyzePersonality(st.value.answers, activeTest.value)
+    st.value.serverRes = await analyzePersonality(st.value.answers, seq[phase.value])
   }
   catch {
     st.value.serverRes = null
+  }
+  const hasNext = phase.value < seq.length - 1 && !isDual.value
+  if (hasNext) {
+    phase.value += 1
+    Object.assign(st.value, { step: 'quiz', qIndex: 0, answers: [] })
+    return
   }
   st.value.step = 'result'
 }
 
 /* ---- 结果：服务端 AI 判型优先，本地确定性计分兜底（答案不全不出结果） ---- */
-const resultComplete = computed(() => st.value.answers.length === cfg.value.quiz.length)
-const localResult = computed<PersonalityResult | null>(() =>
-  resultComplete.value ? scorePersonality(st.value.answers, activeTest.value) : null)
+function resultCompleteOf(t: TestKey) {
+  return states[t].answers.length === TESTS[t].quiz.length
+}
+function localResultOf(t: TestKey): PersonalityResult | null {
+  return resultCompleteOf(t) ? scorePersonality(states[t].answers, t) : null
+}
 
-const finalRes = computed(() => {
-  const local = localResult.value
+function finalResOf(t: TestKey) {
+  const local = localResultOf(t)
   if (!local)
     return null
-  const ai = st.value.serverRes
+  const ai = states[t].serverRes
   if (ai) {
-    const fallbackType = cfg.value.types[ai.typeCode] || local.type
+    const fallbackType = TESTS[t].types[ai.typeCode] || local.type
     return {
       code: ai.typeCode,
       type: { ...fallbackType, name: ai.name, emoji: ai.emoji, tagline: ai.tagline },
@@ -162,47 +176,49 @@ const finalRes = computed(() => {
     }
   }
   return { ...local, ai: false }
-})
+}
 
 const compat = computed(() => {
-  if (activeTest.value !== 'eat')
+  if (!isDual.value || !resultCompleteOf('eat') || hostAnswers.value.length !== TESTS.eat.quiz.length)
     return null
-  if (!isDual.value || !resultComplete.value || hostAnswers.value.length !== cfg.value.quiz.length)
-    return null
-  return compatOf(hostAnswers.value, st.value.answers)
+  return compatOf(hostAnswers.value, states.eat.answers)
 })
 
 function optionLabel(item: CompatItem, side: 'host' | 'guest') {
   return side === 'host' ? item.host : item.guest
 }
 
-/* ---- 分享：默认晒人格；干饭人格可切「测默契」带上答案的对战邀请 ---- */
+/* ---- 分享：默认晒双重人格；干饭人格可切「测默契」带上答案的对战邀请 ---- */
 function inviteDual() {
-  st.value.shareMode = 'dual'
+  states.eat.shareMode = 'dual'
 }
 
 onShareAppMessage(() => {
-  const test = activeTest.value
-  const prefix = test === 'cook' ? '做饭人格' : '干饭人格'
-  if (st.value.shareMode === 'dual' && resultComplete.value) {
+  const eat = finalResOf('eat')
+  const cook = finalResOf('cook')
+  if (states.eat.shareMode === 'dual' && resultCompleteOf('eat')) {
     return {
-      title: `我是「${finalRes.value?.type.name}」（${finalRes.value?.code}），来测测咱俩吃饭默契`,
-      path: `/pages/personality/index?dual=${encodeAnswers(st.value.answers)}`,
+      title: `我是「${eat?.type.name}」（${eat?.code}），来测测咱俩吃饭默契`,
+      path: `/pages/personality/index?dual=${encodeAnswers(states.eat.answers)}`,
     }
   }
-  return { title: `我测出${prefix}是「${finalRes.value?.type.name}」，你呢？`, path: '/pages/personality/index' }
+  const cookPart = cook && !isDual.value ? `，做饭人格是「${cook.type.name}」` : ''
+  return { title: `我的干饭人格是「${eat?.type.name}」${cookPart}，你呢？`, path: '/pages/personality/index' }
 })
-onShareTimeline(() => ({ title: '干饭人格 / 做饭人格 · 12 道题测出你的 4 字母 · 锅仔出品' }))
+onShareTimeline(() => ({ title: '干饭人格 + 做饭人格 · 一次测出双重人格 · 锅仔出品' }))
 
 function again() {
-  Object.assign(st.value, freshState(), { step: 'intro' as const })
+  phase.value = 0
+  Object.assign(states.eat, freshState(), { step: 'intro' as const })
+  Object.assign(states.cook, freshState())
 }
 
 /** 幸运菜出口：按判定维度映射的心情标签去菜谱库——测完不止一张卡，还能吃到 */
 function goLuckyDishes() {
-  if (!finalRes.value)
+  const luckyMood = finalResOf('eat')?.luckyMood
+  if (!luckyMood)
     return
-  router.push({ name: 'recipe-library', query: { mood: finalRes.value.luckyMood } })
+  router.push({ name: 'recipe-library', query: { mood: luckyMood } })
 }
 </script>
 
@@ -210,21 +226,7 @@ function goLuckyDishes() {
   <view class="pea">
     <wd-navbar title="人格测试" left-arrow safe-area-inset-top custom-style="background-color: transparent !important;" @click-left="navBack" />
 
-    <!-- 双测试切换：干饭（怎么吃）/ 做饭（怎么做）——胶囊分段式，切换逻辑不变 -->
-    <view class="pea__tabs" role="tablist" aria-label="选择测试类型">
-      <view
-        v-for="t in TEST_TABS"
-        :key="t.key"
-        class="pea__tab"
-        :class="{ 'is-active': activeTest === t.key }"
-        role="tab"
-        :aria-selected="activeTest === t.key"
-        @click="activeTest = t.key"
-      >
-        <text class="pea__tab-emoji">{{ t.emoji }}</text>
-        <text class="pea__tab-label">{{ t.label }}</text>
-      </view>
-    </view>
+    <!-- 合并流程：干饭人格 + 做饭人格一次测完，无 tab 切换 -->
 
     <!-- 开场：主视觉容器（淡桃色 stage），一屏一个焦点 -->
     <view v-if="st.step === 'intro'" class="pea__intro">
@@ -234,43 +236,41 @@ function goLuckyDishes() {
       <view class="pea__deco pea__deco--star-b" aria-hidden="true" />
       <view class="pea__deco pea__deco--dot" aria-hidden="true" />
 
-      <image class="pea__hero-img guozai-breathe" :src="`${STATIC_BASE_URL}/static/guozai/${activeTest === 'cook' ? 'action_02_soup' : 'action_09_celebrate'}.png`" mode="aspectFit" aria-hidden="true" />
+      <image class="pea__hero-img guozai-breathe" :src="`${STATIC_BASE_URL}/static/guozai/action_09_celebrate.png`" mode="aspectFit" aria-hidden="true" />
       <view class="pea__hero-bubble"><text>{{ introQuip }}</text></view>
 
-      <text class="pea__eyebrow">{{ activeTest === 'cook' ? 'COOKING MBTI · 4 LETTERS' : 'FOODIE MBTI · 4 LETTERS' }}</text>
+      <text class="pea__eyebrow">FOODIE + COOKING MBTI · 4 LETTERS</text>
       <view class="pea__title" role="heading" aria-level="1">
-        <text class="pea__title-line">你的{{ activeTest === 'cook' ? '做饭' : '干饭' }}人格，</text>
-        <text class="pea__title-line pea__title-line--accent">到底是哪一型？</text>
+        <text class="pea__title-line">一次测出你的</text>
+        <text class="pea__title-line pea__title-line--accent">干饭人格 + 做饭人格</text>
       </view>
       <text class="pea__sub">
-        {{ activeTest === 'cook'
-          ? '12 道厨房场景题，四个选项随你挑。锅仔读完你的每一次颠勺，判断你到底是哪种做饭人格。'
-          : '12 道场景题，四个选项随你挑。锅仔会读完你的每一次选择，认真判断你的人格——像 MBTI 一样认真，比 MBTI 好吃。' }}
+        24 道场景题，四个选项随你挑。锅仔会读完你的每一次选择，认真判断你怎么吃、怎么做——像 MBTI 一样认真，比 MBTI 好吃。
       </text>
 
       <view class="pea__facts">
         <view class="pea__fact">
-          <text class="pea__fact-num">12</text>
+          <text class="pea__fact-num">24</text>
           <text class="pea__fact-label">道场景题</text>
         </view>
         <view class="pea__fact">
-          <text class="pea__fact-num">4</text>
+          <text class="pea__fact-num">8</text>
           <text class="pea__fact-label">个维度</text>
         </view>
         <view class="pea__fact">
-          <text class="pea__fact-num">16</text>
-          <text class="pea__fact-label">型人格</text>
+          <text class="pea__fact-num">2</text>
+          <text class="pea__fact-label">种人格</text>
         </view>
       </view>
 
-      <view v-if="activeTest === 'eat' && isDual" class="pea__dual-banner">
+      <view v-if="isDual" class="pea__dual-banner">
         <text class="pea__dual-text">有饭搭子想跟你比吃饭默契，接招？</text>
       </view>
 
-      <view class="pea__cta" role="button" :aria-label="isDual && activeTest === 'eat' ? '接招开始答题' : '开始测试'" @click="start">
-        {{ activeTest === 'eat' && isDual ? '接招，开测' : (activeTest === 'cook' ? '测测我的做饭人格 →' : '测测我的干饭人格 →') }}
+      <view class="pea__cta" role="button" :aria-label="isDual ? '接招开始答题' : '开始测试'" @click="start">
+        {{ isDual ? '接招，开测' : '一次测完两种人格 →' }}
       </view>
-      <view v-if="activeTest === 'eat' && isDual" class="pea__skip" role="button" aria-label="先测自己的人格" @click="isDual = false; start()">
+      <view v-if="isDual" class="pea__skip" role="button" aria-label="先测自己的人格" @click="isDual = false; start()">
         先测自己的人格
       </view>
     </view>
@@ -278,13 +278,13 @@ function goLuckyDishes() {
     <!-- 答题：进度条 + 单题四选一 -->
     <view v-else-if="st.step === 'quiz'" class="pea__quiz">
       <view class="pea__progress-row">
-        <text class="pea__progress-num">{{ st.qIndex + 1 }} / {{ cfg.quiz.length }}</text>
+        <text class="pea__progress-num">{{ overallIndex }} / {{ overallTotal }}</text>
         <view class="pea__progress-bar">
           <view class="pea__progress-fill" :style="{ width: progressPct }" />
           <image class="pea__progress-walker" :style="{ left: progressPct }" :src="`${STATIC_BASE_URL}/static/guozai/mood_06_hungry.png`" mode="aspectFit" aria-hidden="true" />
         </view>
       </view>
-      <view :key="`${activeTest}-${st.qIndex}`" class="pea__q mrc-card pop-in">
+      <view :key="`${seq[phase]}-${st.qIndex}`" class="pea__q mrc-card pop-in">
         <view class="pea__q-head">
           <image class="pea__q-avatar guozai-breathe" :src="quizAvatar" mode="aspectFit" aria-hidden="true" />
           <view class="pea__q-bubble">
@@ -318,7 +318,8 @@ function goLuckyDishes() {
     </view>
 
     <!-- 结果：4 字母人格卡 → 维度条 → 行动区 -->
-    <view v-else-if="resultComplete && finalRes" class="pea__result">
+    <!-- 结果：干饭人格 + 做饭人格双卡 → 行动区 -->
+    <view v-else-if="(isDual ? (resultCompleteOf('eat') && !!finalResOf('eat')) : (resultCompleteOf('eat') && !!finalResOf('eat') && resultCompleteOf('cook') && !!finalResOf('cook')))" class="pea__result">
       <!-- 默契环 + 逐题对比（仅干饭人格的默契模式） -->
       <view v-if="compat" class="pea__card mrc-card pop-in">
         <text class="pea__eyebrow">CHOPSTICK CHEMISTRY</text>
@@ -348,45 +349,47 @@ function goLuckyDishes() {
         </view>
       </view>
 
-      <!-- 4 字母人格卡 -->
-      <view class="pea__card mrc-card pop-in">
-        <text class="pea__eyebrow">{{ activeTest === 'cook' ? 'YOUR COOKING DNA' : 'YOUR FOODIE DNA' }}</text>
-        <view class="pea__code" role="img" :aria-label="`人格代码 ${finalRes.code}`">
-          <text v-for="(ch, i) in finalRes.code.split('')" :key="i" class="pea__code-letter">{{ ch }}</text>
-        </view>
-        <text class="pea__p-emoji">{{ finalRes.type.emoji }}</text>
-        <text class="pea__p-name">{{ finalRes.type.name }}</text>
-        <text class="pea__p-tagline">{{ finalRes.type.tagline }}</text>
-        <text v-if="finalRes.ai" class="pea__ai-badge">锅仔读完你的 12 个选择后写的</text>
+      <!-- 双人格卡：干饭 + 做饭（默契模式只出干饭卡） -->
+      <template v-for="t in (isDual ? ['eat'] : seq)" :key="t">
+        <view v-if="resultCompleteOf(t) && finalResOf(t)" class="pea__card mrc-card pop-in">
+          <text class="pea__eyebrow">{{ t === 'cook' ? 'YOUR COOKING DNA' : 'YOUR FOODIE DNA' }}</text>
+          <view class="pea__code" role="img" :aria-label="`人格代码 ${finalResOf(t).code}`">
+            <text v-for="(ch, i) in finalResOf(t).code.split('')" :key="i" class="pea__code-letter">{{ ch }}</text>
+          </view>
+          <text class="pea__p-emoji">{{ finalResOf(t).type.emoji }}</text>
+          <text class="pea__p-name">{{ finalResOf(t).type.name }}</text>
+          <text class="pea__p-tagline">{{ finalResOf(t).type.tagline }}</text>
+          <text v-if="finalResOf(t).ai" class="pea__ai-badge">锅仔读完你的 12 个选择后写的</text>
 
-        <!-- 四维倾向条：MBTI 式左右两极 -->
-        <view class="pea__dims">
-          <view v-for="dim in finalRes.dimensions" :key="dim.key" class="pea__dim">
-            <view class="pea__dim-labels">
-              <text class="pea__dim-pole" :class="{ 'is-win': dim.letter === dim.left.letter }">{{ dim.left.label }} {{ dim.left.letter }}</text>
-              <text class="pea__dim-name">{{ dim.name }}</text>
-              <text class="pea__dim-pole" :class="{ 'is-win': dim.letter === dim.right.letter }">{{ dim.right.letter }} {{ dim.right.label }}</text>
-            </view>
-            <view class="pea__dim-bar">
-              <view class="pea__dim-fill" :style="{ width: `${100 - dim.percent}%` }" />
-              <view class="pea__dim-marker" :style="{ left: `${100 - dim.percent}%` }" />
+          <!-- 四维倾向条：MBTI 式左右两极 -->
+          <view class="pea__dims">
+            <view v-for="dim in finalResOf(t).dimensions" :key="dim.key" class="pea__dim">
+              <view class="pea__dim-labels">
+                <text class="pea__dim-pole" :class="{ 'is-win': dim.letter === dim.left.letter }">{{ dim.left.label }} {{ dim.left.letter }}</text>
+                <text class="pea__dim-name">{{ dim.name }}</text>
+                <text class="pea__dim-pole" :class="{ 'is-win': dim.letter === dim.right.letter }">{{ dim.right.letter }} {{ dim.right.label }}</text>
+              </view>
+              <view class="pea__dim-bar">
+                <view class="pea__dim-fill" :style="{ width: `${100 - dim.percent}%` }" />
+                <view class="pea__dim-marker" :style="{ left: `${100 - dim.percent}%` }" />
+              </view>
             </view>
           </view>
-        </view>
 
-        <text class="pea__reading">{{ finalRes.reading }}</text>
-        <view class="pea__lucky-go" role="button" :aria-label="`看${finalRes.luckyMood}的菜`" @click="goLuckyDishes">
-          看看你的「{{ finalRes.luckyMood }}」系有哪些菜 ›
+          <text class="pea__reading">{{ finalResOf(t).reading }}</text>
+          <view v-if="t === 'eat'" class="pea__lucky-go" role="button" :aria-label="`看${finalResOf('eat').luckyMood}的菜`" @click="goLuckyDishes">
+            看看你的「{{ finalResOf('eat').luckyMood }}」系有哪些菜 ›
+          </view>
         </view>
-      </view>
+      </template>
 
       <!-- 行动区：拉人对战（仅干饭人格）/ 晒结果 / 重测 -->
       <view class="pea__actions">
-        <button v-if="activeTest === 'eat'" class="pea__share-btn pea__share-btn--primary" open-type="share" @click="inviteDual">
+        <button v-if="!isDual" class="pea__share-btn pea__share-btn--primary" open-type="share" @click="inviteDual">
           测测和 TA 的默契
         </button>
-        <button class="pea__share-btn pea__share-btn--outline" open-type="share" @click="st.shareMode = 'self'">
-          晒出我的 4 字母
+        <button class="pea__share-btn pea__share-btn--outline" open-type="share" @click="states.eat.shareMode = 'self'">
+          晒出我的双重人格
         </button>
         <view class="pea__again" role="button" aria-label="再测一次" @click="again">
           再测一次
@@ -414,36 +417,6 @@ function goLuckyDishes() {
   max-width: 560px;               /* 宽屏（H5/平板预览）保持窄内容列居中 */
   margin: 0 auto;
 }
-
-/* ---- 测试类型 Tab：胶囊分段式（选中 = 浅珊瑚底 + 主色文字，含底色即非纯色彩区分） ---- */
-.pea__tabs {
-  display: flex;
-  gap: 8rpx;
-  margin: 12rpx 0 20rpx;
-  padding: 8rpx;
-  border-radius: 999rpx;
-  background: var(--mrc-surface-2);
-}
-.pea__tab {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  justify-content: center;
-  gap: 8rpx;
-  height: 92rpx;
-  border-radius: 999rpx;
-  color: var(--mrc-text-sub);
-  font-size: 28rpx;
-  font-weight: 600;
-  transition: background-color .2s ease, color .2s ease;
-}
-.pea__tab.is-active {
-  background: var(--mrc-surface);
-  color: var(--mrc-accent);
-  font-weight: 800;
-  box-shadow: var(--mrc-shadow-sm);
-}
-.pea__tab-emoji { font-size: 30rpx; }
 
 /* ---- 开场主视觉容器：淡桃色 stage，一屏一个焦点 ---- */
 .pea__intro {

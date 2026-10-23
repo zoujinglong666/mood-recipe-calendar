@@ -2,15 +2,14 @@
 import type { ApiBackend } from '@/api/request'
 import type { ThemeMode } from '@/composables/useManualTheme'
 import { computed, ref } from 'vue'
-import { logout as apiLogout, deleteAccount, updateUserInfo } from '@/api/auth'
-import { API_BACKENDS, getApiBaseUrl, setApiBaseUrl, uploadFile } from '@/api/request'
+import { logout as apiLogout, deleteAccount } from '@/api/auth'
+import { API_BACKENDS, getApiBaseUrl, setApiBaseUrl } from '@/api/request'
 import Icon from '@/components/common/Icon.vue'
 import { useManualTheme } from '@/composables/useManualTheme'
 import { navBack } from '@/composables/useNavBar'
 import { useUserStore } from '@/stores/user'
 import { STATIC_BASE_URL } from '@/utils/assets'
-import { chooseImageFile } from '@/utils/chooseImage'
-import { refreshUserInfo, navigateToLogin } from '@/utils/login'
+import { refreshUserInfo } from '@/utils/login'
 import { adminCheck } from '@/api/admin'
 import { toast, toastError, toastSuccess } from '@/utils/toast'
 
@@ -40,15 +39,10 @@ const THEME_CHOICES: { value: ThemeChoice, label: string, icon: 'phone' | 'user'
 const userStore = useUserStore()
 const router = useRouter()
 const { isDark, followSystem, currentThemeColor, themeColorOptions, toggleTheme, setFollowSystem, selectThemeColor } = useManualTheme()
-const nickname = ref('')
-const avatarUpdating = ref(false)
-const nicknameSaving = ref(false)
 const logoutLoading = ref(false)
 const deleteLoading = ref(false)
 const adminVisible = ref(false)
 
-const avatar = computed(() => userStore.userInfo?.avatarUrl || `${STATIC_BASE_URL}/static/guozai/mood_01_happy.png`)
-const themeChoice = computed<ThemeChoice>(() => followSystem.value ? 'system' : isDark.value ? 'dark' : 'light')
 
 /** 检查更新（逻辑在 utils/update，微信原生分发，零维护） */
 function goAdminRecipes() { router.push({ name: 'admin-recipes' }) }
@@ -100,73 +94,7 @@ onShow(async () => {
     await refreshUserInfo()
     try { adminVisible.value = !!(await adminCheck()).admin } catch (e) { adminVisible.value = false }
   }
-  nickname.value = userStore.userInfo?.nickname || ''
 })
-
-async function updateAvatar(filePath: string) {
-  if (!userStore.isLoggedIn) {
-    navigateToLogin()
-    return
-  }
-  if (!filePath || avatarUpdating.value)
-    return
-  avatarUpdating.value = true
-  try {
-    const uploaded = await uploadFile(filePath, 'avatar')
-    await updateUserInfo({ openid: userStore.openid, avatarUrl: uploaded.url })
-    await refreshUserInfo(true)
-    toastSuccess('头像已更新')
-  }
-  catch (error) {
-    toastError(error, '头像更新失败，请重试')
-  }
-  finally {
-    avatarUpdating.value = false
-  }
-}
-
-function onChooseAvatar(event: any) {
-  updateAvatar(event.detail?.avatarUrl || '')
-}
-
-function chooseH5Avatar() {
-  if (!userStore.isLoggedIn) {
-    navigateToLogin()
-    return
-  }
-  chooseImageFile({
-    onSelected: filePath => updateAvatar(filePath),
-    onFail: () => toast('未能读取图片，请重试'),
-  })
-}
-
-async function saveNickname() {
-  const value = nickname.value.trim()
-  if (!userStore.isLoggedIn) {
-    navigateToLogin()
-    return
-  }
-  if (!value) {
-    toast('昵称不能为空')
-    return
-  }
-  if (nicknameSaving.value || value === userStore.userInfo?.nickname)
-    return
-  nicknameSaving.value = true
-  try {
-    await updateUserInfo({ openid: userStore.openid, nickname: value })
-    await refreshUserInfo(true)
-    nickname.value = userStore.userInfo?.nickname || value
-    toastSuccess('昵称已保存')
-  }
-  catch (error) {
-    nickname.value = userStore.userInfo?.nickname || ''
-    toastError(error, '昵称保存失败，请重试')
-  }
-  finally {
-    nicknameSaving.value = false
-  }
-}
 
 function chooseTheme(value: ThemeChoice) {
   if (value === 'system') {
@@ -199,9 +127,9 @@ async function performLogout() {
   }
   finally {
     userStore.logout()
-    nickname.value = ''
     logoutLoading.value = false
-    toastSuccess('已退出登录')
+    // 退出即回登录页：账号域操作完成，不把用户留在已登出的设置页
+    uni.reLaunch({ url: '/pages/login/index' })
   }
 }
 
@@ -220,9 +148,9 @@ function askDeleteAccount() {
       try {
         await deleteAccount()
         userStore.logout()
-        nickname.value = ''
         toastSuccess('账号已注销')
-        setTimeout(() => uni.reLaunch({ url: '/pages/profile/index' }), 500)
+        // 注销后同样是未登录态：与退出登录一致，直达登录页
+        setTimeout(() => uni.reLaunch({ url: '/pages/login/index' }), 500)
       }
       catch (error) {
         toastError(error, '注销失败，数据尚未删除，请重试')
@@ -249,97 +177,6 @@ function askDeleteAccount() {
           <text class="settings-intro__title">最舒服的样子</text>
         </view>
         <image class="settings-intro__image guozai-breathe" :src="`${STATIC_BASE_URL}/static/guozai/action_06_glasses.png`" mode="aspectFit" />
-      </view>
-
-      <view v-if="userStore.isLoggedIn" class="settings-section">
-        <view class="settings-heading">
-          <text class="settings-heading__title">
-            锅仔记忆
-          </text>
-          <text class="settings-heading__hint">
-            你可以随时查看、删除或关闭个性化
-          </text>
-        </view>
-        <view class="memory-card pressable" role="button" aria-label="打开锅仔记忆专属页面" @click="router.push({ name: 'preferences' })">
-          <view class="memory-switch">
-            <view>
-              <text class="memory-switch__title">
-                打开锅仔记忆本
-              </text><text class="memory-switch__hint">
-                查看、修改和删除锅仔记住的全部内容
-              </text>
-            </view><text>›</text>
-          </view>
-        </view>
-      </view>
-
-      <view class="settings-section">
-        <view class="settings-heading">
-          <text class="settings-heading__title">
-            用户基本信息
-          </text>
-          <text class="settings-heading__hint">
-            头像和昵称会同步到“我的”
-          </text>
-        </view>
-
-        <view v-if="userStore.isLoggedIn" class="account-card">
-          <!-- #ifdef MP-WEIXIN -->
-          <button class="avatar-button" open-type="chooseAvatar" :disabled="avatarUpdating" aria-label="更换头像" @chooseavatar="onChooseAvatar">
-            <view class="account-avatar">
-              <image :src="avatar" :mode="userStore.userInfo?.avatarUrl ? 'aspectFill' : 'aspectFit'" />
-              <view class="account-avatar__badge">
-                <Icon name="camera" :size="26" color="#EF5A3C" />
-              </view>
-              <view v-if="avatarUpdating" class="account-avatar__loading">
-                上传中
-              </view>
-            </view>
-          </button>
-          <!-- #endif -->
-          <!-- #ifndef MP-WEIXIN -->
-          <view class="avatar-button" role="button" aria-label="更换头像" @click="chooseH5Avatar">
-            <view class="account-avatar">
-              <image :src="avatar" :mode="userStore.userInfo?.avatarUrl ? 'aspectFill' : 'aspectFit'" />
-              <view class="account-avatar__badge">
-                <Icon name="camera" :size="26" color="#EF5A3C" />
-              </view>
-              <view v-if="avatarUpdating" class="account-avatar__loading">
-                上传中
-              </view>
-            </view>
-          </view>
-          <!-- #endif -->
-
-          <view class="account-main">
-            <view class="account-state">
-              <text class="account-state__dot is-online" /><text>微信身份已连接</text>
-            </view>
-            <text class="field-label">
-              昵称
-            </text>
-            <!-- #ifdef MP-WEIXIN -->
-            <input v-model="nickname" class="nickname-input" type="nickname" :maxlength="24" placeholder="给自己取个昵称" confirm-type="done" @confirm="saveNickname" />
-            <!-- #endif -->
-            <!-- #ifndef MP-WEIXIN -->
-            <input v-model="nickname" class="nickname-input" type="text" :maxlength="24" placeholder="给自己取个昵称" confirm-type="done" @confirm="saveNickname" />
-            <!-- #endif -->
-            <view class="nickname-save pressable" :class="{ 'is-disabled': nicknameSaving || !nickname.trim() || nickname.trim() === userStore.userInfo?.nickname }" role="button" aria-label="保存昵称" @click="saveNickname">
-              {{ nicknameSaving ? '保存中…' : '保存昵称' }}
-            </view>
-          </view>
-        </view>
-        <view v-else class="account-card account-card--signed-out">
-          <image class="account-card__guozai" :src="`${STATIC_BASE_URL}/static/guozai/action_08_peek.png`" mode="aspectFit" />
-          <view>
-            <text class="account-card__title">
-              还没有连接微信身份
-            </text>
-            <text class="account-card__hint">
-              请回到“我的”页，点击顶部卡片登录。
-            </text>
-          </view>
-        </view>
       </view>
 
       <view class="settings-section">
@@ -441,6 +278,23 @@ function askDeleteAccount() {
         </view>
       </view>
 
+      <!-- 会员：从「我的」页 C 位降级为设置页一行。0 付费用户阶段不占首屏，入口保留可找回 -->
+      <view class="settings-section">
+        <view class="settings-heading">
+          <text class="settings-heading__title">会员</text>
+        </view>
+        <view class="about-card">
+          <view class="about-row about-check pressable" role="button" aria-label="查看锅仔会员权益" @click="router.push({ name: 'membership' })">
+            <Icon name="vip" :size="30" color="#EF5A3C" />
+            <view class="about-row__text">
+              <text class="about-row__name">锅仔会员</text>
+              <text class="about-row__desc">{{ userStore.isActiveMember ? '会员陪伴中 · 管饭智能体与高清画册已解锁' : '管饭智能体 · 私人菜单 · 高清画册' }}</text>
+            </view>
+            <text class="about-row__arrow">›</text>
+          </view>
+        </view>
+      </view>
+
       <!-- 关于我们：轻入口，内容（初心/检查更新/隐私/反馈）全部在关于页，设置页只做导航 -->
       <view class="settings-section">
         <view class="settings-heading">
@@ -483,36 +337,9 @@ function askDeleteAccount() {
 .settings-heading__title, .settings-heading__hint { display: block; }
 .settings-heading__title { color: var(--mrc-text-strong); font-size: 32rpx; font-weight: 800; }
 .settings-heading__hint { margin-top: 6rpx; color: var(--mrc-text-sub); font-size: 22rpx; }
-.account-card, .theme-card { padding: 26rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 30rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); }
-.memory-card { padding: 8rpx 26rpx 22rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 30rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); }
-.memory-switch { display: flex; min-height: 112rpx; align-items: center; justify-content: space-between; gap: 20rpx; border-bottom: 2rpx solid var(--mrc-border-light); }
-.memory-switch__title, .memory-switch__hint, .memory-item__value, .memory-item__source, .memory-empty { display: block; }
-.memory-switch__title, .memory-item__value { color: var(--mrc-text-strong); font-size: 26rpx; font-weight: 800; }
-.memory-switch__hint, .memory-item__source, .memory-empty { margin-top: 6rpx; color: var(--mrc-text-sub); font-size: 21rpx; line-height: 1.5; }
-.memory-empty { padding: 30rpx 0 10rpx; text-align: center; }
-.memory-item { display: flex; min-height: 92rpx; align-items: center; gap: 20rpx; border-bottom: 2rpx solid var(--mrc-border-light); }
-.memory-item__copy { flex: 1; min-width: 0; }
-.memory-item__delete { color: var(--mrc-color-danger); font-size: 22rpx; font-weight: 700; }
-.memory-clear { display: flex; min-height: 76rpx; align-items: center; justify-content: center; margin-top: 18rpx; border-radius: 38rpx; color: var(--mrc-color-danger); background: var(--mrc-color-danger-soft); font-size: 23rpx; font-weight: 700; }
-.account-card { display: flex; align-items: flex-start; gap: 26rpx; }
-.avatar-button { width: 136rpx; height: 136rpx; flex-shrink: 0; margin: 0; padding: 0; border: 0; border-radius: 50%; background: transparent; line-height: 1; }
-.avatar-button::after { border: 0; }
-.account-avatar { position: relative; display: flex; width: 136rpx; height: 136rpx; align-items: center; justify-content: center; border: 4rpx solid var(--mrc-surface-peach); border-radius: 50%; background: var(--mrc-surface-peach); box-shadow: var(--mrc-shadow-sm); }
-.account-avatar image { width: 126rpx; height: 126rpx; border-radius: 50%; }
-.account-avatar__badge { position: absolute; right: -4rpx; bottom: -4rpx; display: flex; width: 48rpx; height: 48rpx; align-items: center; justify-content: center; border: 3rpx solid var(--mrc-surface); border-radius: 50%; background: var(--mrc-surface-sun); }
-.account-avatar__loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; border-radius: 50%; color: #fff; background: rgba(40, 24, 16, .62); font-size: 20rpx; font-weight: 700; }
-.account-main { display: flex; flex: 1; min-width: 0; flex-direction: column; }
-.account-state { display: flex; min-height: 44rpx; align-items: center; gap: 10rpx; color: var(--mrc-text-sub); font-size: 22rpx; }
-.account-state__dot { width: 12rpx; height: 12rpx; border-radius: 50%; background: var(--mrc-text-light); }
-.account-state__dot.is-online { background: var(--mrc-mint); box-shadow: 0 0 0 6rpx rgba(40, 194, 160, .12); }
+.theme-card { padding: 26rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 30rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft); }
 .field-label { display: block; margin-top: 12rpx; color: var(--mrc-text-deep); font-size: 23rpx; font-weight: 700; }
-.nickname-input { height: 76rpx; border-bottom: 2rpx solid var(--mrc-border); color: var(--mrc-text-deep); font-size: 30rpx; font-weight: 700; }
-.nickname-save { display: flex; min-height: 88rpx; align-items: center; justify-content: center; margin-top: 14rpx; border-radius: 44rpx; color: #fff; background: var(--mrc-primary-grad); font-size: 27rpx; font-weight: 700; }
-.account-card--signed-out { min-height: 136rpx; align-items: center; }
-.account-card__guozai { width: 126rpx; height: 126rpx; flex: 0 0 auto; }
-.account-card__title, .account-card__hint { display: block; }
-.account-card__title { color: var(--mrc-text-strong); font-size: 28rpx; font-weight: 800; }
-.account-card__hint { margin-top: 10rpx; color: var(--mrc-text-sub); font-size: 23rpx; line-height: 1.5; }
+
 .theme-card { padding-top: 12rpx; }
 .theme-options { display: flex; flex-direction: column; }
 .theme-option { display: flex; min-height: 96rpx; align-items: center; gap: 16rpx; border-bottom: 2rpx solid var(--mrc-border-light); color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 700; }
@@ -553,6 +380,6 @@ function askDeleteAccount() {
 .pressable { transition: transform 180ms ease, opacity 180ms ease; }
 .pressable:active { transform: scale(.97); }
 .is-disabled { opacity: .48; pointer-events: none; }
-@media (max-width: 350px) { .settings-content { width: calc(100% - 32rpx); } .settings-intro__image { width: 190rpx; height: 190rpx; opacity: .76; } .account-card { gap: 18rpx; padding: 22rpx; } .theme-colors__list { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 350px) { .settings-content { width: calc(100% - 32rpx); } .settings-intro__image { width: 190rpx; height: 190rpx; opacity: .76; } .theme-colors__list { grid-template-columns: repeat(2, 1fr); } }
 @media (prefers-reduced-motion: reduce) { .pressable { transition: none; } .pressable:active { transform: none; } }
 </style>

@@ -2,6 +2,7 @@
 import { useImagePreview } from '@wot-ui/ui'
 import { computed, ref } from 'vue'
 import { deleteRecord, fetchRecord, type RecordItem } from '@/api/records'
+import { fetchRecipeDetail } from '@/api/recipes'
 import { generateRecordPoster } from '@/api/recordPoster'
 import { exportRecordShare, saveShareImage } from '@/utils/albumShare'
 import EmptyState from '@/components/guozai/EmptyState.vue'
@@ -10,6 +11,7 @@ import GuozaiWotButton from '@/components/guozai/GuozaiWotButton.vue'
 import LoadingState from '@/components/guozai/LoadingState.vue'
 import { navBack } from '@/composables/useNavBar'
 import { ensureLogin } from '@/utils/login'
+import { COOKING_PROGRESS_KEY, saveCookingDraft } from '@/utils/cookingDraft'
 import { toastError, toastSuccess } from '@/utils/toast'
 import { useUserStore } from '@/stores/user'
 
@@ -155,6 +157,32 @@ function edit() {
   router.push({ name: 'record-edit', params: { id: String(record.value.id) } })
 }
 
+/**
+ * 再做一次——核心循环的收口（2026-10-23 打磨项③）。
+ * 翻看到的那一顿，一键回到做菜页：清掉旧进度从头开始，心情沿用当时的心情。
+ * 与时光机内联详情的「重新做这道菜」同语义，补上记录 tab 详情页断掉的环。
+ */
+const recooking = ref(false)
+const hasRecipe = computed(() => Number(record.value?.recipeId) > 0)
+async function cookAgain() {
+  const id = Number(record.value?.recipeId)
+  if (!id || recooking.value) return
+  recooking.value = true
+  try {
+    await ensureLogin()
+    const recipe = await fetchRecipeDetail(id)
+    saveCookingDraft(recipe, record.value?.moodTag || '满足')
+    uni.removeStorageSync(COOKING_PROGRESS_KEY)
+    router.push({ name: 'cooking' })
+  }
+  catch (e: any) {
+    toastError(e, '这道菜暂时打不开，请稍后再试')
+  }
+  finally {
+    recooking.value = false
+  }
+}
+
 async function remove() {
   if (!record.value) return
   const confirmation = await uni.showModal({ title: '删除这条记录？', content: '删除后无法恢复。', confirmColor: '#D94A43' })
@@ -264,6 +292,7 @@ onShow(load)
         <view v-else class="record-detail__server-poster-error"><text>暂时没有生成成功</text><GuozaiButton variant="primary" @click="selectMode('server')">重新生成</GuozaiButton></view>
       </view>
       <view class="record-detail__actions">
+        <GuozaiWotButton v-if="hasRecipe" type="primary" size="medium" block round icon="refresh" :loading="recooking" @click="cookAgain">再做一次</GuozaiWotButton>
         <GuozaiWotButton type="primary" size="medium" block round icon="download" :loading="exportingPoster" @click="savePoster">保存海报</GuozaiWotButton>
         <view class="record-detail__actions-row">
           <GuozaiWotButton type="primary" variant="plain" size="medium" block round icon="share-alt" :disabled="exportingPoster" @click="sharePoster">分享海报</GuozaiWotButton>

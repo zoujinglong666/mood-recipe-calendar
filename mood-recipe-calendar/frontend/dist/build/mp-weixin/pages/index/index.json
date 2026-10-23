@@ -5,9 +5,8 @@
   "usingComponents": {
     "wd-curtain": "../../node-modules/@wot-ui/ui/components/wd-curtain/wd-curtain",
     "wd-navbar": "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar",
-    "guozai-wheel": "../../components/guozai/GuozaiWheel",
-    "guozai-nine": "../../components/guozai/GuozaiNine",
     "guozai-flip": "../../components/guozai/GuozaiFlip",
-    "meal-sheet": "../../components/guozai/MealSheet"
+    "meal-sheet": "../../components/guozai/MealSheet",
+    "plan-mode-sheet": "../../components/guozai/PlanModeSheet"
   }
 }

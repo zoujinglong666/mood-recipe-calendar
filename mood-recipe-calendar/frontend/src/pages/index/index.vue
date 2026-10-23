@@ -76,16 +76,13 @@ import { fetchDailyBoard, refreshDailyBoard, generateDailyMenuCover, splitComboD
 import { fetchWeeklyTheme, type WeeklyTheme } from '../../api/weeklyTheme'
 import { saveCookingDraft } from '../../utils/cookingDraft'
 import { navLocked } from '../../utils/nav'
-import GuozaiWheel from '../../components/guozai/GuozaiWheel.vue'
-import GuozaiNine from '../../components/guozai/GuozaiNine.vue'
 import GuozaiFlip from '../../components/guozai/GuozaiFlip.vue'
 import MealSheet from '../../components/guozai/MealSheet.vue'
-import { getTodayYi } from '../../data/growth'
+import PlanModeSheet from '../../components/guozai/PlanModeSheet.vue'
 import { useUserStore } from '../../stores/user'
 import { funnel } from '../../utils/funnel'
 
 /** 老黄历钩子卡文案：当日「宜」第一条（按日期种子轮换，当天恒定） */
-const todayYi = getTodayYi()[0] || '好好吃饭'
 
 definePage({ name: 'home', layout: 'tabbar', style: { navigationStyle: 'custom', navigationBarTitleText: '首页', enablePullDownRefresh: true } })
 const userStore = useUserStore()
@@ -275,19 +272,43 @@ async function loadCompanion() {
     companion.value = localCompanion(hour)
   }
 }
-/** 今日菜单（TodayBoard）：打开即有的零输入答案；加载失败静默，不影响首屏其余内容。 */
-const todayBoard = ref<DailyBoard>()
+/** 今日菜单（TodayBoard）：打开即有的零输入答案；加载失败静默，不影响首屏其余内容。
+ *  [2026-10-23] 打磨项⑤：按天缓存——冷启动先用当天缓存即时渲染整块三餐卡，
+ *  网络回来后静默覆盖；有缓存兜底时请求失败不再显示失败态（画面上已有内容）。
+ *  recipe_delivered 埋点只在「本次拿到的菜与缓存里的不同」时上报，避免冷启动双报。 */
+const TODAY_BOARD_CACHE_KEY = 'mrc_today_board'
+function todayKey() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 async function loadTodayBoard() {
-  boardLoading.value = true
+  let cachedBoard: DailyBoard | undefined
+  try {
+    const cached = uni.getStorageSync(TODAY_BOARD_CACHE_KEY)
+    if (cached?.key === todayKey() && cached.board)
+      cachedBoard = cached.board as DailyBoard
+  }
+  catch { /* 缓存坏了当没有 */ }
+  const hasCache = Boolean(cachedBoard)
+  if (hasCache)
+    todayBoard.value = cachedBoard
+  boardLoading.value = !hasCache
   boardLoadFailed.value = false
   try {
     todayBoard.value = await withTimeout(fetchDailyBoard(), BOARD_LOAD_TIMEOUT, '今日菜单加载超时')
-    if (todayBoard.value?.recipe) funnel('recipe_delivered', { name: todayBoard.value.recipe.name })
+    if (todayBoard.value?.recipe && (!hasCache || todayBoard.value.recipe.name !== cachedBoard?.recipe?.name))
+      funnel('recipe_delivered', { name: todayBoard.value.recipe.name })
     backfillBoardCover()
+    if (todayBoard.value) {
+      try { uni.setStorageSync(TODAY_BOARD_CACHE_KEY, { key: todayKey(), board: todayBoard.value }) }
+      catch { /* 存储满等异常忽略，缓存只是加速手段 */ }
+    }
   }
   catch {
-    todayBoard.value = undefined
-    boardLoadFailed.value = true
+    if (!hasCache) {
+      todayBoard.value = undefined
+      boardLoadFailed.value = true
+    }
   }
   finally {
     boardLoading.value = false
@@ -489,109 +510,6 @@ function sampleDiverseDishes(pool: RecipeItem[], count: number, excludeName = ''
       picked.push(item)
   }
   return picked
-}
-
-/** 锅仔转盘：扇区图源=全库 AI 推荐菜随机抽样；结果永远是真实接口返回的那道菜。 */
-const showWheel = ref(false)
-const wheelPool = ref<{ name: string, image?: string }[]>([])
-const wheelRef = ref<InstanceType<typeof GuozaiWheel>>()
-async function openWheel() {
-  haptic('light')
-  showWheel.value = true
-  try {
-    const pool = await recipePool()
-    // 当前这道菜固定占一格，其余 7 格去重 + 同类限流抽样
-    const current = todayBoard.value?.recipe
-    const others = sampleDiverseDishes(pool, 7, current?.name)
-    wheelPool.value = [
-      ...(current?.name ? [{ name: current.name, image: current.image }] : []),
-      ...others.map(item => ({ name: item.name, image: item.image })),
-    ]
-  }
-  catch {
-    wheelPool.value = []
-  }
-}
-async function onWheelSpin() {
-  try {
-    // 真随机：从已预加载的 8 格里随机定格一道真实菜（不再恒为「今日菜」）
-    let pool = wheelPool.value
-    if (!pool.length) {
-      const full = await recipePool()
-      pool = full.map(item => ({ name: item.name, image: item.image }))
-    }
-    if (!pool.length) {
-      toastError(new Error('菜谱还没备好，稍后再来试试'), '转一转')
-      wheelRef.value?.fail()
-      return
-    }
-    const pick = pool[Math.floor(Math.random() * pool.length)]
-    wheelRef.value?.land(pick.name, pick.image)
-  }
-  catch {
-    toastError(new Error('今天没有别的菜可换啦'), '转一转')
-    wheelRef.value?.fail()
-  }
-}
-
-/** 锅仔九宫格（再来一道）：外圈 8 格=真实 AI 菜池抽样，停在即所得，「就做这道」直达做菜页。 */
-const showNine = ref(false)
-const nineItems = ref<{ name: string, image?: string }[]>([])
-const nineRecipes = ref<RecipeItem[]>([])
-const ninePick = ref<RecipeItem>()
-const nineRef = ref<InstanceType<typeof GuozaiNine>>()
-async function openNine() {
-  haptic('light')
-  showNine.value = true
-  try {
-    const pool = await recipePool()
-    const sampled = buildFlipCards(pool)
-    nineRecipes.value = sampled
-    nineItems.value = sampled.map(item => ({ name: item.name, image: item.image }))
-  }
-  catch {
-    nineRecipes.value = []
-    nineItems.value = []
-  }
-}
-async function onNineStart() {
-  // 菜池未就绪（预加载失败/被清）时先补拉：不能让灯带永远停在「跑圈中」
-  if (!nineRecipes.value.length) {
-    try {
-      const pool = await recipePool()
-      nineRecipes.value = buildFlipCards(pool)
-      nineItems.value = nineRecipes.value.map(item => ({ name: item.name, image: item.image }))
-    }
-    catch {
-      nineRecipes.value = []
-      nineItems.value = []
-    }
-    if (!nineRecipes.value.length) {
-      toastError(new Error('菜谱还没备好，稍后再来试试'), '跑一圈')
-      nineRef.value?.fail()
-      return
-    }
-  }
-  // 真随机：由组件让灯带自然跑到某格停下，该格真实菜即为结果（不再父组件先定结果）。
-  // 等一格渲染周期，确保组件已拿到最新 items 再起转，避免冷缓存重试时停在彩蛋装饰格。
-  await nextTick()
-  nineRef.value?.land()
-}
-/** 灯带自然停定的格：该格真实菜即结果（做菜链路由 onNineCook 按格序号取菜，此处仅同步给 ninePick 做兜底）。 */
-function onNineResult(target: number) {
-  const r = nineRecipes.value[target]
-  if (r && r.name)
-    ninePick.value = r
-}
-function onNineCook(index: number) {
-  const recipe = ninePick.value && nineRecipes.value[index] === ninePick.value ? ninePick.value : nineRecipes.value[index]
-  if (!recipe) {
-    toastError(new Error('这一格是锅仔的彩蛋，再翻一次吧'), '翻到装饰格了')
-    return
-  }
-  showNine.value = false
-  saveCookingDraft(recipe, '满足')
-  navLocked(() => router.push({ name: 'cooking' }))
 }
 
 /** 锅仔翻牌（squarenine 复刻）：洗牌后任选一张，翻开的即真实抽中的那道菜。 */
@@ -872,6 +790,17 @@ const MOODS = ['开心', '平静', '疲惫', '焦虑', '难过', '嘴馋', '低�
 /** 「让锅仔替你决定」点击展开餐别选择器：选一顿后带上餐别去推荐页，让推荐有《膳食指南》可依 */
 const showMealSheet = ref(false)
 function openMealSheet() { showMealSheet.value = true }
+
+/** 锅仔管饭单一入口：弹层里选排菜方式（智能体对话式 / 普通填口味自动排） */
+const showPlanMode = ref(false)
+function openPlanMode() {
+  haptic('light')
+  showPlanMode.value = true
+}
+function onPlanModePick(mode: 'agent' | 'plan') {
+  showPlanMode.value = false
+  navLocked(() => router.push({ name: mode === 'agent' ? 'meal-agent' : 'weekly-plan' }))
+}
 function pickMeal(type: 'BREAKFAST' | 'LUNCH' | 'DINNER') {
   funnel('recommend_click', { mealType: type })
   funnel('meal_sheet_pick', { meal: type, from: 'home' })
@@ -1035,19 +964,12 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
           <image class="home-bento__lucky-img" :src="STATIC_BASE_URL + '/static/guozai/action_10_thinking.png'" mode="aspectFit" />
           <text class="home-bento__lucky-arrow">›</text>
         </view>
-        <view class="home-bento__card home-bento__card--agent" role="button" aria-label="打开锅仔管饭，对话式安排一整周" @click="goto('meal-agent')">
+        <!-- 锅仔管饭：单一入口，智能体/普通排法二选一在弹层里完成 -->
+        <view class="home-bento__card home-bento__card--agent" role="button" aria-label="打开锅仔管饭，选择排菜方式" @click="openPlanMode">
           <view class="home-bento__hot">HOT</view>
           <image class="home-bento__img" :src="STATIC_BASE_URL + '/static/guozai/action_06_glasses.png'" mode="aspectFit" />
           <text class="home-bento__name">锅仔管饭</text>
-          <text class="home-bento__hint">安排一整周</text>
-        </view>
-        <view class="home-bento__card home-bento__card--wheel" role="button" aria-label="转盘抽一道菜" @click="openWheel">
-          <image class="home-bento__img" :src="STATIC_BASE_URL + '/static/guozai/action_08_peek.png'" mode="aspectFit" />
-          <text class="home-bento__name">转一转</text>
-        </view>
-        <view class="home-bento__card home-bento__card--nine" role="button" aria-label="九宫格跑马灯抽一道菜" @click="openNine">
-          <image class="home-bento__img" :src="STATIC_BASE_URL + '/static/guozai/action_09_celebrate.png'" mode="aspectFit" />
-          <text class="home-bento__name">跑一圈</text>
+          <text class="home-bento__hint">两种排法随你挑</text>
         </view>
         <view class="home-bento__card home-bento__card--flip" role="button" aria-label="翻牌抽一道菜" @click="openFlip">
           <image class="home-bento__img" :src="STATIC_BASE_URL + '/static/guozai/action_02_soup.png'" mode="aspectFit" />
@@ -1060,20 +982,7 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
           </view>
           <image class="home-bento__record-img" :src="STATIC_BASE_URL + '/static/guozai/action_06_glasses.png'" mode="aspectFit" />
         </view>
-        <!-- 增长钩子：老黄历（玄学钩子，文案每天轮换） + 干饭人格（裂变钩子），填满 4×4 网格 -->
-        <view class="home-bento__card home-bento__card--almanac" role="button" aria-label="打开锅仔老黄历，看今日宜吃" @click="goto('almanac')">
-          <view class="home-bento__seal" aria-hidden="true">
-            宜
-          </view>
-          <view class="home-bento__record-copy">
-            <text class="home-bento__name">锅仔老黄历</text>
-            <view class="home-bento__sub-row">
-              <text class="home-bento__sub-chip">今日宜</text>
-              <text class="home-bento__sub">{{ todayYi }}</text>
-            </view>
-          </view>
-          <image class="home-bento__record-img" :src="STATIC_BASE_URL + '/static/guozai/action_16_chopsticks.png'" mode="aspectFit" />
-        </view>
+        <!-- 干饭人格（裂变钩子），与上方增长卡填满 4×4 网格 -->
         <view class="home-bento__card home-bento__card--quiz" role="button" aria-label="测试你的干饭人格" @click="goto('personality')">
           <view class="home-bento__quiz-deco" aria-hidden="true">？</view>
           <view class="home-bento__record-copy">
@@ -1088,6 +997,7 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
       </view>
 
       <MealSheet v-model="showMealSheet" @select="pickMeal" />
+      <PlanModeSheet v-model="showPlanMode" @select="onPlanModePick" />
 
       <view class="home-cal">
         <view class="home-cal__header">
@@ -1122,8 +1032,6 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
         </view>
       </view>
       <view class="home-slogan"><view class="home-slogan__line" /><text class="home-slogan__text">好好吃饭，也好好生活</text><view class="home-slogan__line" /></view>
-    <GuozaiWheel ref="wheelRef" :visible="showWheel" :items="wheelPool" @spin="onWheelSpin" @close="showWheel = false" />
-    <GuozaiNine ref="nineRef" :visible="showNine" :items="nineItems" @start="onNineStart" @result="onNineResult" @cook="onNineCook" @close="showNine = false" />
     <GuozaiFlip ref="flipRef" :visible="showFlip" :items="flipItems" @start="onFlipStart" @pick="onFlipPick" @decoy="onFlipDecoy" @cook="onFlipCook" @close="showFlip = false" />
   </view>
 </template>
@@ -1322,8 +1230,7 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
 .home-bento__card--guanfan .home-bento__hint { color: rgba(255, 255, 255, 0.9); font-size: 20rpx; }
 .home-bento__hero-img { position: absolute; right: 0; bottom: 0; width: 172rpx; height: 172rpx; filter: drop-shadow(0 8rpx 14rpx rgba(120, 40, 20, 0.22)); }
 /* 抽奖三小卡：暖色家族三段微层次（暖阳黄 / 蜜桃 / 奶油），告别灰白，与红主卡同一色温 */
-.home-bento__card--wheel { border-color: rgba(230, 160, 120, 0.20); background: var(--mrc-bento-wheel); }
-.home-bento__card--nine { border-color: rgba(230, 160, 120, 0.20); background: var(--mrc-bento-nine); }
+
 .home-bento__card--flip { border-color: rgba(230, 160, 120, 0.20); background: var(--mrc-bento-flip); }
 /* 锅仔管饭：薄荷绿 → 暖杏金（智能体的暖光感），HOT 红徽章与红主卡呼应 */
 .home-bento__card--agent { border-color: transparent; background: var(--mrc-bento-agent); }
@@ -1343,28 +1250,6 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
 .home-bento__card--library .home-bento__name { font-size: 27rpx; }
 .home-bento__record-copy { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; gap: 6rpx; }
 .home-bento__record-img { width: 92rpx; height: 92rpx; flex-shrink: 0; filter: drop-shadow(0 4rpx 8rpx rgba(96, 52, 28, 0.10)); }
-/* 增长钩子宽卡：老黄历（米金黄，宜字朱印）与干饭人格（胭脂粉，五题进度点），与红卡同色温不同调 */
-.home-bento__card--almanac { position: relative; grid-column: span 2; flex-direction: row; justify-content: space-between; padding: 0 20rpx 0 26rpx; border-color: transparent; background: var(--mrc-bento-amber); overflow: hidden; }
-.home-bento__card--almanac .home-bento__name { font-size: 27rpx; }
-.home-bento__seal {
-  position: absolute;
-  top: -14rpx;
-  right: 118rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 52rpx;
-  height: 52rpx;
-  border: 3rpx solid rgba(198, 60, 40, 0.55);
-  border-radius: 12rpx;
-  color: rgba(198, 60, 40, 0.72);
-  font-size: 26rpx;
-  font-weight: 900;
-  transform: rotate(10deg);
-  opacity: .85;
-}
-.home-bento__sub-row { display: flex; align-items: center; gap: 10rpx; min-width: 0; }
-.home-bento__sub-chip { flex-shrink: 0; padding: 2rpx 12rpx; border-radius: 999rpx; background: var(--mrc-seal-bg); color: var(--mrc-seal-text); font-size: 18rpx; font-weight: 800; }
 .home-bento__card--quiz { position: relative; overflow: hidden; grid-column: span 2; flex-direction: row; justify-content: space-between; padding: 0 20rpx 0 26rpx; border-color: transparent; background: linear-gradient(135deg, #FFEEE9, #FFE0D4); }
 /* 测题氛围：右上超大半透明问号锁定「测试」语义，右下淡光晕托住锅仔 */
 .home-bento__quiz-deco {

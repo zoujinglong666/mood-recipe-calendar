@@ -104,7 +104,7 @@ class RecordControllerTest {
         RecordLearningService learning = mock(RecordLearningService.class);
         LearningReceipt receipt = LearningReceipt.learned(List.of(
                 new LearningReceiptItem("SIMPLE", "下次优先简单菜", "preference.simpleDishes")));
-        when(learning.learn("user-1", 1L, "exp-1", true, true, false)).thenReturn(receipt);
+        when(learning.learn("user-1", 1L, "exp-1", true, true, false, "番茄炒蛋")).thenReturn(receipt);
         RecordController controller = new RecordController(records, learning, allowSafety(), mock(UsageQuotaService.class), mock(RecordPosterService.class), mock(AchievementService.class), mock(OperationalEventService.class));
         RecordRequest request = new RecordRequest("https://example.com/a.jpg", "番茄炒蛋", "平静", "",
                 1L, "exp-1", "request-1", 20, "2026-09-22", List.of(), true, true, false);
@@ -113,7 +113,7 @@ class RecordControllerTest {
 
         assertEquals(15L, response.getData().record().getId());
         assertEquals(receipt, response.getData().learningReceipt());
-        verify(learning).learn("user-1", 1L, "exp-1", true, true, false);
+        verify(learning).learn("user-1", 1L, "exp-1", true, true, false, "番茄炒蛋");
     }
 
     @Test
@@ -121,7 +121,7 @@ class RecordControllerTest {
         UserRecordRepository records = mock(UserRecordRepository.class);
         when(records.save(org.mockito.ArgumentMatchers.any())).thenAnswer(invocation -> invocation.getArgument(0));
         RecordLearningService learning = mock(RecordLearningService.class);
-        when(learning.learn("user-1", 1L, null, false, false, false))
+        when(learning.learn("user-1", 1L, null, false, false, false, "番茄炒蛋"))
                 .thenThrow(new IllegalStateException("learning unavailable"));
         RecordController controller = new RecordController(records, learning, allowSafety(), mock(UsageQuotaService.class), mock(RecordPosterService.class), mock(AchievementService.class), mock(OperationalEventService.class));
         RecordRequest request = new RecordRequest("https://example.com/a.jpg", "番茄炒蛋", "平静", "",
@@ -132,7 +132,7 @@ class RecordControllerTest {
         assertEquals(0, response.getCode());
         assertEquals("番茄炒蛋", response.getData().record().getDishName());
         assertEquals("SAVED_ONLY", response.getData().learningReceipt().status());
-        assertEquals("记录已保存，锅仔稍后再整理", response.getData().learningReceipt().title());
+        assertEquals("这一顿收好了，味道锅仔稍后再理", response.getData().learningReceipt().title());
         verify(records).save(org.mockito.ArgumentMatchers.any());
     }
 

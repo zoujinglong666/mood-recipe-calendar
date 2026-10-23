@@ -1,8 +1,8 @@
 ﻿<script setup lang="ts">
-import type { LearningReceipt } from '../../api/records'
+import type { LearningReceipt, RecordItem } from '../../api/records'
 import { computed, ref, watch } from 'vue'
 import { STATIC_BASE_URL } from '@/utils/assets'
-import { fetchRecord, saveRecord, updateRecord } from '../../api/records'
+import { fetchRecord, fetchRecords, fetchStats, saveRecord, updateRecord } from '../../api/records'
 import { uploadFile } from '../../api/request'
 import Icon from '../../components/common/Icon.vue'
 import GuozaiChoiceChips from '../../components/guozai/GuozaiChoiceChips.vue'
@@ -11,7 +11,7 @@ import MoodPicker from '../../components/guozai/MoodPicker.vue'
 import SuccessModal from '../../components/guozai/SuccessModal.vue'
 import { chooseImageFiles } from '../../utils/chooseImage'
 import { createRequestId, RECORD_DRAFT_KEY } from '../../utils/cookingDraft'
-import { ensureLogin } from '../../utils/login'
+import { ensureLogin, navigateToLogin } from '../../utils/login'
 import { navBack } from '@/composables/useNavBar'
 import { toast, toastError, toastSuccess } from '../../utils/toast'
 import { haptic } from '@/utils/haptic'
@@ -40,13 +40,13 @@ onShareAppMessage(() => {
   const path = `/pages/record/index${sharer ? `?sharer=${encodeURIComponent(sharer)}` : ''}`
   // 记录分享：发放「分享家」徽章 + 非会员当日 +1 次对话激励
   void recordShare('record').catch(() => {})
-  return { title: '锅仔 · 记录今天吃了什么', path }
+  return { title: '锅仔 · 记录与翻看每一餐', path }
 })
 /** 分享到朋友圈 */
 onShareTimeline(() => {
   const sharer = userStore.openid
   return {
-    title: '锅仔 · 记录今天吃了什么',
+    title: '锅仔 · 记录与翻看每一餐',
     query: sharer ? `sharer=${encodeURIComponent(sharer)}` : '',
   }
 })
@@ -75,8 +75,53 @@ const feedbackOptions = [
   { value: 'leftover', label: '有剩菜' },
 ]
 
+/* ---- 记录域聚合：统计反馈条 + 最近食光（原「我的」页内容，随记录意图迁到本 tab） ---- */
+const MOOD_IMG_MAP: Record<string, string> = {
+  开心: `${STATIC_BASE_URL}/static/guozai/mood_01_happy.png`,
+  平静: `${STATIC_BASE_URL}/static/guozai/mood_02_calm.png`,
+  疲惫: `${STATIC_BASE_URL}/static/guozai/mood_03_tired.png`,
+  焦虑: `${STATIC_BASE_URL}/static/guozai/mood_04_anxious.png`,
+  难过: `${STATIC_BASE_URL}/static/guozai/mood_05_sad.png`,
+  嘴馋: `${STATIC_BASE_URL}/static/guozai/mood_06_hungry.png`,
+  低落: `${STATIC_BASE_URL}/static/guozai/mood_07_low.png`,
+  想家: `${STATIC_BASE_URL}/static/guozai/mood_08_homesick.png`,
+}
+const stats = ref({ totalRecords: 0, totalDays: 0, currentStreak: 0 })
+const recent = ref<RecordItem[]>([])
+
+/** 记录 tab 内部分区：记一笔（表单）/ 食光（翻看），切换不丢表单状态 */
+const recordTab = ref<'compose' | 'log'>('compose')
+
+/** 统计与最近列表独立于表单加载：失败静默，不阻塞记一笔主流程 */
+async function loadRecent() {
+  if (!userStore.isLoggedIn) {
+    stats.value = { totalRecords: 0, totalDays: 0, currentStreak: 0 }
+    recent.value = []
+    return
+  }
+  try {
+    recent.value = (await fetchRecords()).slice(0, 3)
+    fetchStats().then(s => { stats.value = s }).catch(() => {})
+  }
+  catch { /* 静默 */ }
+}
+
+function openRecentRecord(item: RecordItem) {
+  router.push({ name: 'record-detail', params: { id: String(item.id) } }).catch(() => {})
+}
+
+/** 时光机入口：记录 tab 是「翻看」的意图归属地，「我的」页不再保留 */
+function goTimeline() {
+  router.push({ name: 'timeline' }).catch(() => {
+    router.replace({ name: 'timeline' }).catch(() => {
+      toast('暂时打不开时光机，请稍后再试')
+    })
+  })
+}
+
 // tabbar 页通过 switchTab 进入，无法带 query；从推荐页跳转时由 storage 暂存菜名与心情
 onShow(async () => {
+  void loadRecent()
   const editId = Number(uni.getStorageSync('mrc_record_edit_id'))
   if (editId && editId !== editingId.value) {
     uni.removeStorageSync('mrc_record_edit_id')
@@ -320,7 +365,8 @@ async function publish() {
 function onSuccessConfirm() {
   showSuccess.value = false
   resetForm()
-  router.push({ name: 'timeline' })
+  // 保存成功就地切到「食光」tab：刚记的这顿就在最近列表里，不用跳页
+  recordTab.value = 'log'
 }
 
 function onSuccessSecondary() {
@@ -360,6 +406,29 @@ function chooseCookingTime() {
   <view class="record-page mrc-hero">
     <wd-navbar title="记一笔今天" safe-area-inset-top custom-style="background-color: transparent !important;" />
 
+    <!-- 记录 tab 内部分区：记一笔（表单）/ 食光（翻看记录） -->
+    <view class="record-tabs" role="tablist" aria-label="记录页分区">
+      <view
+        class="record-tabs__item"
+        :class="{ 'is-active': recordTab === 'compose' }"
+        role="tab"
+        :aria-selected="recordTab === 'compose'"
+        @click="recordTab = 'compose'"
+      >
+        <text class="record-tabs__label">记一笔</text>
+      </view>
+      <view
+        class="record-tabs__item"
+        :class="{ 'is-active': recordTab === 'log' }"
+        role="tab"
+        :aria-selected="recordTab === 'log'"
+        @click="recordTab = 'log'"
+      >
+        <text class="record-tabs__label">食光</text>
+      </view>
+    </view>
+
+    <view v-if="recordTab === 'compose'">
     <view class="record-intro">
       <view class="record-intro__copy">
         <text class="record-intro__eyebrow">今天也有好好吃饭</text>
@@ -447,6 +516,65 @@ function chooseCookingTime() {
       <text v-if="!submitting" class="record-submit__sub">{{ isEditing ? '照片顺序会同步更新' : '以后翻到今天，还能想起这一餐' }}</text>
     </view>
 
+    </view>
+
+    <!-- 食光 tab：统计反馈 + 最近记录，写完顺手就能翻 -->
+    <view v-else class="record-log">
+    <view v-if="!userStore.isLoggedIn" class="record-log__guest">
+      <image :src="`${STATIC_BASE_URL}/static/guozai/action_08_peek.png`" mode="aspectFit" />
+      <text class="record-log__guest-title">登录后才能翻看食光</text>
+      <text class="record-log__guest-sub">记录跟着账号走，换设备也不会丢</text>
+      <view class="record-log__guest-btn" role="button" aria-label="微信登录" @click="navigateToLogin()">
+        微信登录
+      </view>
+    </view>
+    <!-- 统计反馈条：记录的「坚持感」留在记录域，替代原「我的」页统计卡 -->
+    <view v-if="userStore.isLoggedIn" class="record-stats" role="button" aria-label="查看全部饮食记录" @click="goTimeline">
+      <view class="record-stats__main">
+        <text class="record-stats__num">{{ stats.totalRecords }}</text>
+        <text class="record-stats__unit">顿已收好</text>
+        <text class="record-stats__dot">·</text>
+        <text class="record-stats__num">{{ stats.currentStreak }}</text>
+        <text class="record-stats__unit">天连续打卡</text>
+      </view>
+      <text class="record-stats__link">去翻看 ›</text>
+    </view>
+
+    <!-- 最近的食光：原「我的」页记录列表迁到记录 tab，写完顺手就能翻 -->
+    <view v-if="userStore.isLoggedIn" class="record-recent">
+      <view class="record-recent__head" role="button" aria-label="查看全部饮食记录" @click="goTimeline">
+        <text class="record-recent__title">最近的食光</text>
+        <text class="record-recent__all">查看全部 ›</text>
+      </view>
+      <view v-if="!recent.length" class="record-recent__empty" role="button" aria-label="去记一笔" @click="recordTab = 'compose'">
+        <image :src="`${STATIC_BASE_URL}/static/guozai/action_03_camera.png`" mode="aspectFit" />
+        <text class="record-recent__empty-title">第一顿饭，等你来记</text>
+        <text class="record-recent__empty-sub">记下后，锅仔会把它收进这里 · 点这个就去记</text>
+      </view>
+      <template v-else>
+        <view
+          v-for="item in recent"
+          :key="item.id"
+          class="record-recent__item"
+          role="button"
+          :aria-label="`查看 ${item.recordDate} 的${item.dishName}记录`"
+          @click="openRecentRecord(item)"
+        >
+          <image class="record-recent__img" :src="item.imageUrl" mode="aspectFill" />
+          <view class="record-recent__main">
+            <view class="record-recent__title-row">
+              <text class="record-recent__dish">{{ item.dishName }}</text>
+              <image class="record-recent__mood" :src="MOOD_IMG_MAP[item.moodTag] || MOOD_IMG_MAP['开心']" mode="aspectFit" />
+            </view>
+            <text class="record-recent__meta">{{ item.moodTag }} · {{ item.recordDate?.slice(5) }} · {{ item.cookingTime || 30 }} 分钟</text>
+          </view>
+          <text class="record-recent__arrow">›</text>
+        </view>
+      </template>
+    </view>
+
+    </view>
+
     <!-- 成功弹窗 -->
     <SuccessModal
       :visible="showSuccess"
@@ -475,6 +603,17 @@ function chooseCookingTime() {
   box-sizing: border-box;
 }
 
+/* 记录 tab 内部分区：记一笔 / 食光，胶囊分段式 */
+.record-tabs { display: flex; gap: 8rpx; margin: 8rpx 0 20rpx; padding: 8rpx; border-radius: 999rpx; background: var(--mrc-surface-2); }
+.record-tabs__item { display: flex; flex: 1; align-items: center; justify-content: center; height: 72rpx; border-radius: 999rpx; color: var(--mrc-text-sub); font-size: 27rpx; font-weight: 600; transition: background-color .2s ease, color .2s ease; }
+.record-tabs__item.is-active { background: var(--mrc-surface); color: var(--mrc-accent); font-weight: 800; box-shadow: var(--mrc-shadow-sm); }
+.record-log__guest { display: flex; min-height: 560rpx; flex-direction: column; align-items: center; justify-content: center; gap: 12rpx; }
+.record-log__guest image { width: 200rpx; height: 200rpx; opacity: .85; }
+.record-log__guest-title { color: var(--mrc-text-deep); font-size: 30rpx; font-weight: 800; }
+.record-log__guest-sub { color: var(--mrc-text-sub); font-size: 22rpx; }
+.record-log__guest-btn { margin-top: 16rpx; padding: 18rpx 56rpx; border-radius: 999rpx; background: var(--mrc-primary-grad); color: #fff; font-size: 27rpx; font-weight: 800; box-shadow: var(--mrc-shadow-coral); }
+.record-log__guest-btn:active { transform: scale(.97); }
+
 .record-intro { position: relative; display: flex; min-height: 176rpx; margin: 4rpx 0 24rpx; padding: 28rpx 28rpx 24rpx; overflow: hidden; box-sizing: border-box; border: 2rpx solid var(--mrc-border); border-radius: 36rpx; background: linear-gradient(145deg, var(--mrc-surface), var(--mrc-surface-peach)); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }
 .record-intro__copy { position: relative; z-index: 1; max-width: 76%; }
 .record-intro__eyebrow, .record-intro__title, .record-intro__sub { display: block; }
@@ -484,6 +623,34 @@ function chooseCookingTime() {
 .record-intro__guozai { position: absolute; right: -4rpx; bottom: -12rpx; width: 142rpx; height: 142rpx; }
 .record-backfill-tip { display: flex; align-items: center; gap: 12rpx; margin: 0 0 20rpx; padding: 18rpx 22rpx; border-radius: 24rpx; color: var(--mrc-accent); background: var(--mrc-surface-sun); font-size: 22rpx; line-height: 1.4; }
 .record-backfill-tip__date { font-weight: 800; }
+
+/* 统计反馈条：一行读完「已记 N 顿 · 连续 N 天」，整条可点进时光机 */
+.record-stats { display: flex; align-items: center; justify-content: space-between; margin: 0 0 24rpx; padding: 20rpx 26rpx; border: 2rpx var(--mrc-border-light) solid; border-radius: 26rpx; background: var(--mrc-surface-2); }
+.record-stats__main { display: flex; align-items: baseline; gap: 6rpx; }
+.record-stats__num { color: var(--mrc-accent); font-size: 34rpx; font-weight: 900; }
+.record-stats__unit { color: var(--mrc-text-sub); font-size: 22rpx; font-weight: 600; }
+.record-stats__dot { margin: 0 6rpx; color: var(--mrc-text-light); }
+.record-stats__link { color: var(--mrc-text-sub); font-size: 22rpx; font-weight: 700; }
+
+/* 最近的食光：紧凑列表，承接原「我的」页记录域 */
+.record-recent { margin-bottom: 24rpx; padding: 26rpx 28rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 32rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }
+.record-recent__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18rpx; }
+.record-recent__title { color: var(--mrc-text-strong); font-size: 29rpx; font-weight: 800; }
+.record-recent__all { color: var(--mrc-accent); font-size: 22rpx; font-weight: 700; }
+.record-recent__empty { display: flex; flex-direction: column; align-items: center; gap: 10rpx; padding: 40rpx 0 20rpx; color: var(--mrc-text-sub); font-size: 22rpx; line-height: 1.6; text-align: center; }
+.record-recent__empty:active { opacity: .75; }
+.record-recent__empty image { width: 180rpx; height: 180rpx; opacity: .85; }
+.record-recent__empty-title { color: var(--mrc-text-deep); font-size: 28rpx; font-weight: 800; }
+.record-recent__empty-sub { max-width: 460rpx; font-size: 21rpx; }
+.record-recent__item { display: flex; align-items: center; gap: 18rpx; padding: 14rpx 0; border-top: 2rpx solid var(--mrc-border-light); }
+.record-recent__item:first-of-type { border-top: none; }
+.record-recent__img { width: 104rpx; height: 104rpx; flex-shrink: 0; border-radius: 18rpx; background: var(--mrc-surface-2); }
+.record-recent__main { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 6rpx; }
+.record-recent__title-row { display: flex; align-items: center; gap: 10rpx; }
+.record-recent__dish { overflow: hidden; color: var(--mrc-text-deep); font-size: 28rpx; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+.record-recent__mood { width: 36rpx; height: 36rpx; flex-shrink: 0; }
+.record-recent__meta { overflow: hidden; color: var(--mrc-text-sub); font-size: 20rpx; text-overflow: ellipsis; white-space: nowrap; }
+.record-recent__arrow { color: var(--mrc-text-light); font-size: 30rpx; }
 
 .record-photo-section { margin-bottom: 24rpx; padding: 28rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 32rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }
 .record-photo-section__head { display: flex; justify-content: space-between; margin-bottom: 20rpx; color: var(--mrc-text-strong); font-size: 29rpx; font-weight: 800; }

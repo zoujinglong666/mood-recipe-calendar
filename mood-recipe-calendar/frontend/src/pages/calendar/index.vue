@@ -5,7 +5,7 @@ import { computed, ref, onUnmounted } from 'vue'
 import { navBack } from '@/composables/useNavBar'
 import { STATIC_BASE_URL } from '@/utils/assets'
 import { resolveAssetUrl } from '@/api/request'
-import { fetchRecordsByMonth, fetchStats } from '../../api/records'
+import { fetchRecordsByMonth } from '../../api/records'
 import ErrorState from '../../components/guozai/ErrorState.vue'
 import LoadingState from '../../components/guozai/LoadingState.vue'
 import GuozaiImage from '../../components/guozai/GuozaiImage.vue'
@@ -51,8 +51,6 @@ const monthNumber = computed(() => String(month.value).padStart(2, '0'))
 const loading = ref(true)
 const error = ref('')
 const records = ref<RecordItem[]>([])
-const stats = ref({ totalDays: 0, currentStreak: 0 })
-const statsError = ref(false)
 
 // 记录日期映射：同一天可能有多条记录，存为数组而非单条（避免互相覆盖）
 const recordMap = computed(() => {
@@ -106,9 +104,6 @@ async function loadData() {
     await ensureLogin()
     // 日历记录是核心，独立加载；统计（连续天数等）失败不应清空整月日历
     records.value = await fetchRecordsByMonth(monthStr.value)
-    fetchStats()
-      .then(s => { stats.value = { totalDays: s.totalDays, currentStreak: s.currentStreak }; statsError.value = false })
-      .catch(() => { statsError.value = true })
     if (!initialDayHandled) {
       initialDayHandled = true
       // 首页按 params 跳转（@wot-ui/router 在 name 跳转下会丢弃 query，见 record/edit 注释），params/query 双读兜底
@@ -163,11 +158,6 @@ function nextMonth() {
     month.value++
   }
   reloadMonth()
-}
-function retryStats() {
-  fetchStats()
-    .then(s => { stats.value = { totalDays: s.totalDays, currentStreak: s.currentStreak }; statsError.value = false })
-    .catch(() => { statsError.value = true })
 }
 bus.on(MRC_EVENTS.RECORDS_CHANGED, reloadMonth)
 onUnmounted(() => bus.off(MRC_EVENTS.RECORDS_CHANGED, reloadMonth))
@@ -266,39 +256,6 @@ function previewRecordPhoto(record: RecordItem | null) {
 
     <!-- 内容 -->
     <template v-else>
-      <view class="cal-intro">
-        <view class="cal-intro__topline">
-          <text>GUOZAI FOOD DIARY</text><text>{{ year }} / {{ monthNumber }}</text>
-        </view>
-        <view class="cal-intro__content">
-          <view class="cal-intro__copy">
-            <text class="cal-intro__eyebrow">
-              锅仔替你收好的本月食光
-            </text>
-            <text class="cal-intro__title">
-              这个月，认真吃过
-            </text>
-            <view class="cal-intro__stats">
-              <view>
-                <text>本月记录</text><text>
-                  {{ recordMap.size }}<text class="cal-intro__unit">
-                    天
-                  </text>
-                </text>
-              </view>
-              <view role="button" aria-label="连续打卡天数，点击重试" @click="retryStats">
-                <text>连续打卡</text><text>
-                  {{ statsError ? '—' : stats.currentStreak }}<text class="cal-intro__unit">
-                    天
-                  </text>
-                </text>
-              </view>
-            </view>
-          </view>
-          <image :src="`${STATIC_BASE_URL}/static/guozai/action_04_calendar.png`" mode="aspectFit" aria-label="抱着日历的锅仔" />
-        </view>
-      </view>
-
       <view class="cal-board" @touchstart="onBoardTouchStart" @touchend="onBoardTouchEnd">
         <view class="cal-board__heading">
           <view class="cal-board__nav">
@@ -307,7 +264,7 @@ function previewRecordPhoto(record: RecordItem | null) {
               <text class="cal-board__kicker">
                 MONTHLY TABLE
               </text><text class="cal-board__title">
-                {{ month }}月食光簿
+                {{ year }}年{{ month }}月食光簿
               </text>
             </view>
             <text class="cal-board__nav-btn" :class="{ 'cal-board__nav-btn--disabled': !canGoNext }" role="button" aria-label="下个月" @click="nextMonth">›</text>
@@ -456,98 +413,6 @@ function previewRecordPhoto(record: RecordItem | null) {
   box-sizing: border-box;
 }
 
-.cal-intro {
-  position: relative;
-  overflow: hidden;
-  margin-bottom: 24rpx;
-  padding: 24rpx 26rpx 20rpx;
-  border: 2rpx solid var(--mrc-border-light);
-  border-radius: 36rpx 36rpx 24rpx 24rpx;
-  background: linear-gradient(145deg, var(--mrc-surface-sun), var(--mrc-surface-peach));
-  box-shadow: var(--mrc-shadow-soft);
-}
-.cal-intro::after {
-  position: absolute;
-  right: -86rpx;
-  bottom: -100rpx;
-  width: 290rpx;
-  height: 290rpx;
-  border: 2rpx dashed var(--mrc-border);
-  border-radius: 50%;
-  content: '';
-}
-.cal-intro__topline,
-.cal-intro__stats,
-.cal-board__heading,
-.cal-board__legend,
-.cal-board__note,
-.cal-album {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.cal-intro__topline {
-  position: relative;
-  z-index: 1;
-  color: var(--mrc-accent);
-  font-size: 18rpx;
-  font-weight: 850;
-  letter-spacing: 2rpx;
-}
-.cal-intro__content {
-  position: relative;
-  z-index: 1;
-  display: block;
-  min-height: 230rpx;
-  padding-top: 24rpx;
-}
-.cal-intro__copy { position: relative; z-index: 2; width: 68%; }
-.cal-intro__eyebrow {
-  display: block;
-  color: var(--mrc-accent);
-  font-size: 21rpx;
-  font-weight: 800;
-}
-.cal-intro__title {
-  display: block;
-  margin-top: 8rpx;
-  color: var(--mrc-text-strong);
-  font-size: 38rpx;
-  font-weight: 850;
-  line-height: 1.2;
-}
-.cal-intro__stats {
-  justify-content: flex-start;
-  gap: 14rpx;
-  margin-top: 26rpx;
-}
-.cal-intro__stats > view {
-  min-width: 132rpx;
-  padding: 12rpx 16rpx;
-  border: 2rpx solid var(--mrc-border-light);
-  border-radius: 18rpx;
-  background: var(--mrc-surface);
-}
-.cal-intro__stats > view > text:first-child {
-  display: block;
-  color: var(--mrc-text-sub);
-  font-size: 18rpx;
-}
-.cal-intro__stats > view > text:last-child {
-  display: block;
-  margin-top: 2rpx;
-  color: var(--mrc-text-strong);
-  font-size: 30rpx;
-  font-weight: 850;
-}
-.cal-intro__unit { display: inline !important; font-size: 18rpx !important; font-weight: 650 !important; }
-.cal-intro__content > image {
-  position: absolute;
-  right: -12rpx;
-  bottom: -24rpx;
-  width: 250rpx;
-  height: 250rpx;
-}
 
 .cal-board {
   overflow: hidden;
