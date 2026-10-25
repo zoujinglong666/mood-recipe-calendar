@@ -1,0 +1,1 @@
+"use strict";const t=require("./request.js");async function e(e,c){try{return await e()}catch(r){if(r instanceof t.ApiError&&404===r.code)return await c();throw r}}exports.doCheckin=function(){return e((()=>t.post("/checkin")),(()=>t.post("/gallery/checkin")))},exports.fetchCheckinStatus=function(){return e((()=>t.get("/checkin/status")),(()=>t.get("/gallery/checkin/status")))};

@@ -8,7 +8,7 @@ import {refreshUserInfo, navigateToLogin} from '../../utils/login'
 import {toast, toastError} from '../../utils/toast'
 import SuccessModal from '../../components/guozai/SuccessModal.vue'
 import {fetchShareStatus, type ShareStatus} from '@/api/share'
-import {fetchCheckinStatus, doCheckin, type CheckinStatus} from '@/api/gallery'
+import {fetchCheckinStatus, doCheckin, type CheckinStatus} from '@/api/checkin'
 import {fetchFridgeSummary, type FridgeSummary} from '@/api/fridge'
 import {uploadFile} from '@/api/request'
 import {updateUserInfo} from '@/api/auth'
@@ -324,59 +324,49 @@ async function quickCheckin() {
       </text>
     </view>
 
-    <view class="profile-fridge" :class="{ 'profile-fridge--alert': fridgeHasAlert }" role="button" aria-label="打开我的冰箱" @click="goFridge">
-      <image :src="`${STATIC_BASE_URL}/static/guozai/action_07_empty.png`" class="profile-fridge__guozai" mode="aspectFit"/>
-      <view class="profile-fridge__main">
-        <text class="profile-fridge__eyebrow">锅仔的新记忆</text>
-        <text class="profile-fridge__title">我的冰箱</text>
-        <text class="profile-fridge__sub">{{ fridgeSummaryText }}</text>
+    <!-- 功能行：统一行卡系统（同圆角/同内结构/同右端），渐变只留给顶部身份卡 -->
+    <view class="profile-row" :class="{ 'profile-row--alert': fridgeHasAlert }" role="button" aria-label="打开我的冰箱" @click="goFridge">
+      <image :src="`${STATIC_BASE_URL}/static/guozai/action_07_empty.png`" class="profile-row__img" mode="aspectFit"/>
+      <view class="profile-row__main">
+        <text class="profile-row__eyebrow">锅仔的新记忆</text>
+        <text class="profile-row__title">我的冰箱</text>
+        <text class="profile-row__sub">{{ fridgeSummaryText }}</text>
       </view>
-      <text class="profile-fridge__arrow">›</text>
+      <view class="profile-row__arrow">›</view>
     </view>
 
-    <!-- 锅仔形象馆入口：成就墙 + 表情包 + 订单三馆合一 -->
-    <view class="profile-gallery" role="button" aria-label="打开锅仔形象馆" @click="goGallery">
-      <image :src="`${STATIC_BASE_URL}/static/guozai/mood_06_hungry.png`" class="profile-gallery__guozai"
-             mode="aspectFit"/>
-      <view class="profile-gallery__main">
-        <text class="profile-gallery__title">
-          锅仔形象馆
-        </text>
-        <text class="profile-gallery__sub">
-          {{ achievementUnread > 0 ? `有 ${achievementUnread} 个新成就，去点亮` : '成就徽章 · 表情包 · 我的订单' }}
-        </text>
-      </view>
-      <view class="profile-gallery__badges">
-        <view v-if="achievementUnread > 0" class="profile-gallery__dot">
-          {{ achievementUnread }}
+    <!-- 锅仔形象馆入口：成就墙 + 表情包 + 锅仔养成 -->
+    <view class="profile-row" role="button" aria-label="打开锅仔形象馆" @click="goGallery">
+      <image :src="`${STATIC_BASE_URL}/static/guozai/mood_06_hungry.png`" class="profile-row__img" mode="aspectFit"/>
+      <view class="profile-row__main">
+        <text class="profile-row__eyebrow">锅仔的收藏</text>
+        <view class="profile-row__title-row">
+          <text class="profile-row__title">锅仔形象馆</text>
+          <text v-if="shareStatus.isSharer" class="profile-row__tag profile-row__tag--sharer">分享家</text>
         </view>
-        <view v-if="shareStatus.isSharer" class="profile-gallery__badge profile-gallery__badge--sharer">
-          分享家
-        </view>
+        <text class="profile-row__sub">{{ achievementUnread > 0 ? `有 ${achievementUnread} 个新成就，去点亮` : '成就徽章 · 表情包 · 锅仔养成' }}</text>
       </view>
-      <text class="profile-gallery__arrow">
-        ›
-      </text>
+      <view class="profile-row__arrow">
+        <text v-if="achievementUnread > 0" class="profile-row__dot">{{ achievementUnread }}</text>›
+      </view>
     </view>
 
     <!-- 内联签到：非会员签到随机领对话券或三餐券，留在「我的」页一步完成 -->
     <view
-      class="profile-checkin"
+      class="profile-row profile-row--action"
       role="button"
       :aria-label="checkinStatus?.checkedIn ? '今日已签到' : '签到领取今日随机赠礼'"
       @click="quickCheckin"
     >
-      <view class="profile-checkin__main">
-        <text class="profile-checkin__title">
-          {{ checkinGiftTitle }}
-        </text>
-        <text class="profile-checkin__sub">
-          {{ checkinGiftSub }}
-        </text>
+      <image :src="`${STATIC_BASE_URL}/static/guozai/action_13_wave.png`" class="profile-row__img" mode="aspectFit"/>
+      <view class="profile-row__main">
+        <text class="profile-row__eyebrow">每日签到</text>
+        <text class="profile-row__title">{{ checkinGiftTitle }}</text>
+        <text class="profile-row__sub">{{ checkinGiftSub }}</text>
       </view>
       <view
-        class="profile-checkin__btn"
-        :class="{ 'profile-checkin__btn--done': checkinStatus?.checkedIn }"
+        class="profile-row__btn"
+        :class="{ 'profile-row__btn--done': checkinStatus?.checkedIn }"
       >
         {{ checkinStatus?.checkedIn ? '已签' : (checkingIn ? '签到中' : '签到') }}
       </view>
@@ -393,19 +383,15 @@ async function quickCheckin() {
       @confirm="onCheckinGiftConfirm"
     />
 
-    <!-- 功能按钮 -->
-    <view class="profile-actions">
-      <view class="profile-action" role="button" aria-label="打开我的年度报告" @click="goReport">
-        <image :src="`${STATIC_BASE_URL}/static/guozai/action_09_celebrate.png`" class="profile-action__guozai"
-               mode="aspectFit"/>
-        <view class="profile-action__copy">
-          <text class="profile-action__text">
-            年度报告
-          </text><text class="profile-action__sub">
-            看看这一年的味道
-          </text>
-        </view>
+    <!-- 年度报告：同一行卡系统，不再是缩一圈的小格 -->
+    <view class="profile-row" role="button" aria-label="打开我的年度报告" @click="goReport">
+      <image :src="`${STATIC_BASE_URL}/static/guozai/action_09_celebrate.png`" class="profile-row__img" mode="aspectFit"/>
+      <view class="profile-row__main">
+        <text class="profile-row__eyebrow">年度回顾</text>
+        <text class="profile-row__title">年度报告</text>
+        <text class="profile-row__sub">看看这一年的味道</text>
       </view>
+      <view class="profile-row__arrow">›</view>
     </view>
 
     <!-- 底部链接 -->
@@ -523,68 +509,49 @@ async function quickCheckin() {
 .profile-section-head__title { color: var(--mrc-text-strong); font-size: 32rpx; font-weight: var(--mrc-fw-heavy); }
 .profile-section-head__sub { padding-bottom: 2rpx; color: var(--mrc-text-sub); font-size: 20rpx; }
 
-/* 锅仔形象馆入口 */
-.profile-fridge { display: flex; min-height: 138rpx; align-items: center; gap: 18rpx; padding: 22rpx 26rpx; box-sizing: border-box; margin-bottom: 16rpx; border: 2rpx solid var(--mrc-border); border-radius: 30rpx; background: linear-gradient(135deg, var(--mrc-surface-mint), var(--mrc-surface)); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }
-.profile-fridge:active { transform: scale(.98); }
-.profile-fridge--alert { background: linear-gradient(135deg, var(--mrc-surface-sun), var(--mrc-surface-peach)); }
-.profile-fridge--alert .profile-fridge__eyebrow { color: var(--mrc-accent); }
-.profile-fridge__guozai { width: 88rpx; height: 88rpx; flex-shrink: 0; }
-.profile-fridge__main { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 6rpx; }
-.profile-fridge__eyebrow { color: var(--mrc-mint); font-size: 20rpx; font-weight: 800; letter-spacing: 1px; }
-.profile-fridge__title { color: var(--mrc-text-deep); font-size: 30rpx; font-weight: 800; }
-.profile-fridge__sub { color: var(--mrc-text-sub); font-size: 21rpx; }
-.profile-fridge__arrow { flex-shrink: 0; color: var(--mrc-text-light); font-size: 40rpx; font-weight: 300; }
-
-
-.profile-gallery {
+/* ============ 功能行卡系统（「我的」页列表统一语言） ============
+   同圆角/同内边距/同最低高度/同右端件；整卡近白暖面，色彩交给左侧锅仔图，
+   渐变只留给顶部身份卡——这是本页从「四种卡片语言」收拢为一种的关键。 */
+.profile-row {
   display: flex;
+  min-height: 144rpx;
   align-items: center;
   gap: 20rpx;
-  background: linear-gradient(135deg, var(--mrc-surface-peach), var(--mrc-surface-sun));
-  border: 2rpx solid var(--mrc-border);
-  border-radius: 32rpx;
-  min-height: 138rpx;
-  padding: 22rpx 26rpx;
-  margin-bottom: 24rpx;
+  padding: 24rpx 28rpx;
   box-sizing: border-box;
+  margin-bottom: 16rpx;
+  border: 2rpx solid var(--mrc-border-light);
+  border-radius: 32rpx;
+  background: var(--mrc-surface);
   box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss);
   transition: transform 0.15s ease;
 }
-.profile-gallery:active {
-  transform: scale(0.98);
-}
-
-.profile-gallery__guozai {
-  width: 88rpx;
-  height: 88rpx;
-  animation: guozai-breathe 3s ease-in-out infinite;
-}
-.profile-gallery__main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8rpx;
-}
-.profile-gallery__title {
-  font-size: 31rpx;
-  font-weight: 800;
-  color: var(--mrc-text-deep);
-}
-.profile-gallery__sub {
-  font-size: 22rpx;
-  color: var(--mrc-text-sub);
-}
-.profile-gallery__badge {
-  font-size: 22rpx;
-  color: var(--mrc-accent);
+.profile-row:active { transform: scale(.98); }
+/* 临期预警态：整卡换暖阳底，是本系统里唯一的整卡变色（语义需要，不是装饰） */
+.profile-row--alert { background: linear-gradient(135deg, var(--mrc-surface-sun), var(--mrc-surface-peach)); border-color: var(--mrc-border); }
+.profile-row__img { width: 88rpx; height: 88rpx; flex-shrink: 0; }
+.profile-row__main { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 5rpx; }
+.profile-row__eyebrow { color: var(--mrc-accent); font-size: 20rpx; font-weight: 800; letter-spacing: 2rpx; }
+.profile-row__title-row { display: flex; align-items: center; gap: 12rpx; min-width: 0; }
+.profile-row__title { color: var(--mrc-text-deep); font-size: 30rpx; font-weight: 800; }
+.profile-row__sub { color: var(--mrc-text-sub); font-size: 21rpx; line-height: 1.4; }
+/* 标题旁小徽章（分享家等）：从右侧堆叠改为内联，行高立刻齐整 */
+.profile-row__tag {
+  flex-shrink: 0;
+  padding: 4rpx 14rpx;
+  border-radius: 999rpx;
+  font-size: 18rpx;
+  font-weight: 700;
   background: var(--mrc-accent-soft);
-  padding: 8rpx 16rpx;
-  border-radius: 24rpx;
-  font-weight: 600;
+  color: var(--mrc-accent);
 }
-.profile-gallery__badges { display: flex; flex-direction: column; align-items: flex-end; gap: 8rpx; }
-.profile-gallery__badge--sharer { background: rgba(26, 173, 25, .12); color: #1AAD19; }
-.profile-gallery__dot {
+.profile-row__tag--sharer { background: rgba(26, 173, 25, .12); color: #1AAD19; }
+/* 右端：箭头（未读红点挂在箭头上）或动作按钮，二选一 */
+.profile-row__arrow { position: relative; flex-shrink: 0; color: var(--mrc-text-light); font-size: 40rpx; font-weight: 300; line-height: 1; }
+.profile-row__dot {
+  position: absolute;
+  top: -18rpx;
+  left: -26rpx;
   min-width: 34rpx;
   height: 34rpx;
   padding: 0 8rpx;
@@ -598,60 +565,8 @@ async function quickCheckin() {
   justify-content: center;
   box-shadow: 0 4rpx 10rpx rgba(255, 107, 91, 0.4);
 }
-
-/* 内联签到卡 */
-.profile-checkin { display: flex; align-items: center; gap: 18rpx; margin-bottom: 16rpx; padding: 22rpx 26rpx; box-sizing: border-box; border: 2rpx solid var(--mrc-border); border-radius: 30rpx; background: linear-gradient(135deg, var(--mrc-surface-sun), var(--mrc-surface-peach)); box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss); }
-.profile-checkin:active { transform: scale(.98); }
-.profile-checkin__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6rpx; }
-.profile-checkin__title { color: var(--mrc-text-deep); font-size: 30rpx; font-weight: var(--mrc-fw-heavy); }
-.profile-checkin__sub { color: var(--mrc-text-sub); font-size: 22rpx; line-height: 1.4; }
-.profile-checkin__btn { flex-shrink: 0; padding: 16rpx 34rpx; border-radius: 999rpx; background: var(--mrc-accent); color: #fff; font-size: 26rpx; font-weight: 800; box-shadow: var(--mrc-shadow-sm); }
-.profile-checkin__btn--done { background: rgba(148, 91, 56, .16); color: var(--mrc-text-sub); box-shadow: none; }
-.profile-gallery__arrow {
-  font-size: 40rpx;
-  color: var(--mrc-text-light);
-}
-
-/* 功能按钮 */
-.profile-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16rpx;
-  margin-bottom: 24rpx;
-}
-.profile-action {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 12rpx;
-  min-width: 0;
-  min-height: 124rpx;
-  background: linear-gradient(145deg, var(--mrc-surface) 0%, var(--mrc-surface-peach) 100%);
-  border: 2rpx solid var(--mrc-border-light);
-  border-radius: 28rpx;
-  padding: 18rpx 20rpx;
-  box-sizing: border-box;
-  box-shadow: var(--mrc-shadow-soft), var(--mrc-gloss);
-  transition: transform 0.15s ease;
-}
-.profile-action__copy { min-width: 0; text-align: left; }
-.profile-action__text {
-  display: block;
-  font-size: 28rpx;
-  color: var(--mrc-text-deep);
-  font-weight: 700;
-}
-.profile-action__sub { display: block; margin-top: 6rpx; color: var(--mrc-text-sub); font-size: 20rpx; line-height: 1.35; }
-.profile-action__guozai {
-  width: 72rpx;
-  height: 72rpx;
-  flex-shrink: 0;
-  object-fit: contain;
-}
-.profile-action--wide { grid-column: 1 / -1; }
-.profile-action:active {
-  transform: scale(0.96);
-}
+.profile-row__btn { flex-shrink: 0; padding: 16rpx 34rpx; border-radius: 999rpx; background: var(--mrc-accent); color: #fff; font-size: 26rpx; font-weight: 800; box-shadow: var(--mrc-shadow-sm); }
+.profile-row__btn--done { background: rgba(148, 91, 56, .16); color: var(--mrc-text-sub); box-shadow: none; }
 
 /* 底部 */
 .profile-footer {

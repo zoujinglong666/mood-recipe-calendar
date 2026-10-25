@@ -63,7 +63,7 @@ function getPeriod(hour: number) {
 </script>
 
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import Icon from '../../components/common/Icon.vue'
 import { ensureLogin } from '../../utils/login'
 import { toast, toastError } from '../../utils/toast'
@@ -71,11 +71,12 @@ import { haptic } from '../../utils/haptic'
 import { acceptShareInvite } from '../../api/share'
 import { onLoad, onPullDownRefresh } from '@dcloudio/uni-app'
 import { fetchCompanionMessage, fetchRecordsByMonth, type CompanionMessage, type RecordItem } from '../../api/records'
-import { fetchRecipePool, fetchRecipeQuota, type RecipeItem, type UsageQuotaView } from '../../api/recipes'
+import { fetchRecipePool, fetchRecipeQuota, fetchRecipeDetail, type RecipeItem, type UsageQuotaView } from '../../api/recipes'
 import { fetchDailyBoard, refreshDailyBoard, generateDailyMenuCover, splitComboDishName, type DailyBoard } from '../../api/dailyMenu'
 import { fetchWeeklyTheme, type WeeklyTheme } from '../../api/weeklyTheme'
 import { saveCookingDraft } from '../../utils/cookingDraft'
 import { navLocked } from '../../utils/nav'
+import { imgThumb, imgList, imgHero } from '../../utils/imageUrl'
 import GuozaiFlip from '../../components/guozai/GuozaiFlip.vue'
 import MealSheet from '../../components/guozai/MealSheet.vue'
 import PlanModeSheet from '../../components/guozai/PlanModeSheet.vue'
@@ -94,7 +95,7 @@ function bounceGuozai() {
   setTimeout(() => {
     isBouncing.value = false
     if (companion.value.actionTarget === 'meal-agent') {
-      navLocked(() => router.push({ name: 'meal-agent', query: { prompt: companion.value.actionPrompt || companion.value.actionText } }))
+      navLocked(() => router.push({ name: 'meal-agent', params: { prompt: companion.value.actionPrompt || companion.value.actionText } }))
       return
     }
     navLocked(() => router.push({ name: 'mood' }))
@@ -336,6 +337,8 @@ const boardNameParts = computed(() => splitComboDishName(todayBoard.value?.recip
 /** 今日菜牌上下滑换菜（微创新）：跟手阻尼位移 + 松手过阈值按方向切换。
  *  上滑换新菜（与转盘同源接口，本地压栈记历史）；下滑弹栈回看上一道；
  *  入场/离场方向跟随手势（上滑内容从下浮入，下滑从上浮入）；动画期间防抖。 */
+/** 今日餐板数据：打开即有的零输入答案；加载失败静默，不影响首屏其余内容 */
+const todayBoard = ref<DailyBoard>()
 const boardSwitching = ref(false)
 const boardLeaving = ref(false)
 const boardDragging = ref(false)
@@ -458,13 +461,14 @@ function preloadRecipePool(force = false): Promise<void> {
       const pool = await fetchRecipePool()
       recipePoolCache.value = pool
       recipePoolAt.value = Date.now()
-      // 预热前 8 张封面：抽样大多落在其中，开抽时图片已在本地缓存，不再「转完了图才出来」。
-      // 控制在 8 张：AI 封面为 1024px+ 大图，单张解码约占 4MB 内存，24 张会在冷启动期
-      // 与首屏请求抢带宽、把低端机推向 OOM（线上 Wasm out of memory 的内存压力源之一）。
+      // 预热前 8 张封面（与翻牌卡面同一 imgList 变体——同 URL 才能命中同一份缓存）：
+      // 抽样大多落在其中，开抽时图片已在本地缓存，不再「转完了图才出来」。
+      // 控制在 8 张：800px WebP 单张约 60KB（原 1.2MB 全尺寸 PNG 的 1/20），
+      // 既省 CDN 流量也避开冷启动期解码大图的内存峰值（低端机 OOM 的历史压力源）。
       pool.slice(0, 8).forEach((item) => {
         if (!item.image)
           return
-        uni.getImageInfo({ src: item.image, fail: () => {} })
+        uni.getImageInfo({ src: imgList(item.image), fail: () => {} })
       })
     }
     catch { /* 预加载失败静默：打开弹层时还有兜底拉取 */ }
@@ -602,14 +606,62 @@ const friendDishImage = ref('')
 const friendDishImgFailed = ref(false)
 const inviteBonus = ref(false)
 const isShowShareCurtain = ref(false)
-/** 分享链接带的菜谱 id：幕帘点图后深链到这道菜（recipe 页已支持 ?recipeId= 直达） */
+/** 分享链接带的菜谱 id：幕帘「看做法」深链到这道菜（recipe 页已支持 ?recipeId= 直达） */
 const sharedRecipeId = ref(0)
+/** 幕帘翻转卡：正面好友的菜（大图），背面食材清单；轻点翻面，整体居中构图 */
+const curtainFlipped = ref(false)
+const curtainIngredients = ref<string[]>([])
+const curtainChips = ref<{ time?: number, difficulty?: string }>({})
+function toggleCurtainFlip() {
+  curtainFlipped.value = !curtainFlipped.value
+  haptic('light')
+}
+/** 食材串兼容三种形态：JSON 数组 / 顿号分隔 / 逗号分隔（历史数据与模型输出都有） */
+function parseIngredientList(value?: string): string[] {
+  const raw = (value || '').trim()
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    if (Array.isArray(parsed))
+      return parsed.map(String).map(item => item.trim()).filter(Boolean)
+  }
+  catch {}
+  return raw.split(/[、,，;；]/).map(item => item.trim()).filter(Boolean)
+}
+/** 幕帘食材拉的代数令牌：迟到的响应不得写回已关闭/已重开的幕帘 */
+let curtainFetchToken = 0
+watch(isShowShareCurtain, (open) => {
+  const token = ++curtainFetchToken
+  if (!open) {
+    curtainFlipped.value = false
+    return
+  }
+  // 每次打开都回到正面，并重拉食材（分享的可能是一周前的那道菜）
+  curtainFlipped.value = false
+  curtainIngredients.value = []
+  curtainChips.value = {}
+  const id = sharedRecipeId.value
+  if (!id) return
+  // 首页 loadData 已 ensureLogin；未登录时静默失败，背面走兜底文案，不打断欢迎。
+  // 关键：幕帘常比网络先关（点「看做法」即关即跳），root-portal 的节点随关闭被摘除，
+  // 迟到的结果若写 ref，Vue 会向不存在的原生父节点插子节点——
+  // 微信报 insertTextView/insertImageView:fail parent not found 级联错。故令牌+开态双保险丢弃。
+  fetchRecipeDetail(id)
+    .then((recipe) => {
+      if (token !== curtainFetchToken || !isShowShareCurtain.value) return
+      curtainIngredients.value = parseIngredientList(recipe?.ingredients)
+      curtainChips.value = { time: recipe?.cookingTime, difficulty: recipe?.difficulty }
+    })
+    .catch(() => {})
+})
 function openSharedDish() {
   if (!sharedRecipeId.value) return
   // 点了主 CTA 视为已欢迎：先关幕帘（触发 @close 打频控标记），再跳菜谱，
   // 避免从菜谱返回首页时幕帘还挂在屏幕上
   isShowShareCurtain.value = false
-  navLocked(() => router.push({ name: 'recipe', query: { recipeId: String(sharedRecipeId.value) } }))
+  // 坑位：@wot-ui/router 的 name 导航只认 params（resolve 里 finalQuery = to.params，query 字段被丢弃），
+  // 传 query 会静默丢参数导致菜谱页收不到 recipeId。传 params，stringifyQuery 会拼进 URL，onLoad 正常收到。
+  navLocked(() => router.push({ name: 'recipe', params: { recipeId: String(sharedRecipeId.value) } }))
 }
 /** 幕帘「我也要安排」：给分享来的新用户第一条主动路径（选心情→推荐） */
 function goMoodFromShare() {
@@ -763,6 +815,7 @@ onShareAppMessage(() => {
     sharer ? `sharer=${encodeURIComponent(sharer)}` : '',
     dish ? `dish=${encodeURIComponent(dish)}` : '',
     dishImage ? `img=${encodeURIComponent(dishImage)}` : '',
+    todayBoard.value?.recipe?.id ? `recipeId=${todayBoard.value.recipe.id}` : '',
   ].filter(Boolean).join('&')
   const path = `/pages/index/index${params ? `?${params}` : ''}`
   const title = dish ? `我用锅仔安排了「${dish}」，也替你留了一份` : '锅仔 · 按心情帮你决定今天吃什么'
@@ -778,6 +831,7 @@ onShareTimeline(() => {
   const query = [
     sharer ? `sharer=${encodeURIComponent(sharer)}` : '',
     dishImage ? `img=${encodeURIComponent(dishImage)}` : '',
+    todayBoard.value?.recipe?.id ? `recipeId=${todayBoard.value.recipe.id}` : '',
   ].filter(Boolean).join('&')
   // 朋友圈卡封面用菜图（无图时省略，微信默认用小程序截图）
   const payload: { title: string, query: string, imageUrl?: string }
@@ -805,14 +859,16 @@ function pickMeal(type: 'BREAKFAST' | 'LUNCH' | 'DINNER') {
   funnel('recommend_click', { mealType: type })
   funnel('meal_sheet_pick', { meal: type, from: 'home' })
   const mood = MOODS[Math.floor(Math.random() * MOODS.length)]
-  navLocked(() => router.push({ name: 'recipe', params: { mood }, query: { mood, mealType: type } }))
+  // 坑位：name 导航只认 params（query 会被路由器丢弃），mood/mealType 都走 params
+  navLocked(() => router.push({ name: 'recipe', params: { mood, mealType: type } }))
 }
 const TABBAR_NAMES = ['home', 'record', 'profile']
 function goto(name: string, q?: Record<string, string>) {
   // tabBar 页必须用 switchTab(pushTab)，用 navigateTo(push) 会报 can not navigate to a tab bar page
   haptic('light')
   if (TABBAR_NAMES.includes(name)) navLocked(() => router.pushTab({ name }))
-  else navLocked(() => router.push({ name, query: q || {} }))
+  // 同 openSharedDish 坑位注释：name 导航只认 params，query 会被路由器丢弃
+  else navLocked(() => router.push({ name, params: q || {} }))
 }
 function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
   if (cell.records.length) navLocked(() => router.push({ name: 'calendar', params: { day: String(cell.d) } }))
@@ -856,33 +912,80 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
         <view class="home-hero__spark home-hero__spark--one" /><view class="home-hero__spark home-hero__spark--two" />
       </view>
 
-      <!-- 分享回流幕帘：wd-curtain 全屏大幕展示好友的菜（遮罩/进场动画/圆角由组件负责），
-           底部操作区用 close 插槽自绘——情境+菜名+奖励一行不丢，点图看菜、「我也要安排」给新用户第一条主动路径 -->
-      <wd-curtain
+      <!-- 分享回流欢迎幕：好友的菜以居中翻转卡呈现——正面大图 + 菜名 + 时长/难度，
+           轻点翻面看食材清单；下方主 CTA 给新用户第一条主动路径，「看做法」保留原深链 -->
+      <wd-popup
         v-model="isShowShareCurtain"
-        :src="friendDishImage && !friendDishImgFailed ? friendDishImage : STATIC_BASE_URL + '/static/guozai/action_01_bowl.png'"
-        :width="320"
-        close-position="bottom"
-        close-on-click-modal
+        position="center"
         root-portal
-        @click="openSharedDish"
-        @error="isShowShareCurtain = false"
+        :z-index="100"
+        :close-on-click-modal="true"
+        custom-style="background: transparent; overflow: visible;"
+        modal-style="background: rgba(48, 26, 14, 0.82);"
         @close="onCurtainClosed"
       >
-        <template #close>
-          <view class="share-curtain">
-            <view class="share-curtain__info">
-              <text v-if="friendDish" class="share-curtain__dish">好友用锅仔安排了「{{ friendDish }}」</text>
-              <text v-else class="share-curtain__dish">好友给你留了一份菜</text>
-              <text v-if="inviteBonus" class="share-curtain__bonus">你和好友各得 1 次对话额度</text>
-            </view>
-            <view class="share-curtain__actions">
-              <view class="share-curtain__cta" role="button" aria-label="也让锅仔给我安排一道" @click="goMoodFromShare">我也要安排</view>
-              <view class="share-curtain__cta share-curtain__cta--ghost" role="button" aria-label="关闭欢迎弹窗" @click="isShowShareCurtain = false">我知道啦</view>
+        <view class="share-welcome__stage">
+          <view class="share-welcome__glow share-welcome__glow--warm" />
+          <view class="share-welcome__glow share-welcome__glow--cool" />
+
+          <view
+            class="flip"
+            :class="{ 'is-flipped': curtainFlipped }"
+            role="button"
+            :aria-label="curtainFlipped ? '翻回看菜品大图' : '翻面查看食材清单'"
+            @click.stop="toggleCurtainFlip"
+          >
+            <view class="flip__inner">
+              <!-- 正面：好友的菜 -->
+              <view class="flip__face flip__face--front">
+                <image
+                  class="flip__img"
+                  :src="friendDishImage && !friendDishImgFailed ? imgHero(friendDishImage) : STATIC_BASE_URL + '/static/guozai/action_01_bowl.png'"
+                  mode="aspectFill"
+                  @error="friendDishImgFailed = true"
+                />
+                <view class="flip__shade" />
+                <view class="flip__caption">
+                  <text class="flip__kicker">好友用锅仔安排了</text>
+                  <text class="flip__dish">{{ friendDish || '一道好菜' }}</text>
+                  <view v-if="curtainChips.time || curtainChips.difficulty" class="flip__chips">
+                    <text v-if="curtainChips.time" class="flip__chip">{{ curtainChips.time }} 分钟</text>
+                    <text v-if="curtainChips.difficulty" class="flip__chip">{{ curtainChips.difficulty }}</text>
+                  </view>
+                </view>
+                <view class="flip__hint"><text class="flip__hint-icon">↻</text><text>轻点翻面 · 看看食材</text></view>
+              </view>
+              <!-- 背面：食材清单 -->
+              <view class="flip__face flip__face--back">
+                <view class="flip__back-head">
+                  <text class="flip__back-title">食材清单</text>
+                  <text class="flip__back-sub">{{ friendDish || '这道菜' }}</text>
+                  <view class="flip__back-rule" />
+                </view>
+                <scroll-view class="flip__back-scroll" scroll-y :show-scrollbar="false">
+                  <view v-for="(item, index) in curtainIngredients" :key="`${item}-${index}`" class="flip__ing">
+                    <text class="flip__ing-dot" /><text class="flip__ing-text">{{ item }}</text>
+                  </view>
+                  <view v-if="!curtainIngredients.length" class="flip__back-empty">锅仔还没拿到食材清单，点下方「看做法」去菜谱里瞧瞧</view>
+                </scroll-view>
+                <view class="flip__hint flip__hint--back"><text>再轻点一次 · 翻回看菜</text></view>
+              </view>
             </view>
           </view>
-        </template>
-      </wd-curtain>
+
+          <view class="share-curtain__info">
+            <text v-if="inviteBonus" class="share-curtain__bonus">你和好友各得 1 次对话额度</text>
+          </view>
+          <view class="share-curtain__actions">
+            <view class="share-curtain__cta" role="button" aria-label="也让锅仔给我安排一道" @click="goMoodFromShare">我也要安排</view>
+          </view>
+          <view class="share-welcome__subactions">
+            <text v-if="sharedRecipeId" class="share-welcome__link" role="button" aria-label="查看这道菜的做法" @click="openSharedDish">看做法</text>
+            <view v-if="sharedRecipeId" class="share-welcome__sep" />
+            <text class="share-welcome__link share-welcome__link--muted" role="button" aria-label="关闭欢迎弹窗" @click="isShowShareCurtain = false">我知道啦</text>
+          </view>
+        </view>
+      </wd-popup>
       <!-- 今日菜单（TodayBoard）：今日菜牌——菜图右侧通栏出血，信息在左；上下滑换牌（牌堆式微动效，顶牌动、垫牌不动） -->
       <view class="home-board-deck">
       <view
@@ -916,7 +1019,7 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
           </view>
         </view>
         <view class="home-board__media">
-          <image :key="todayBoard.recipe.image || todayBoard.recipe.name" v-if="todayBoard.recipe.image" class="home-board__img" :src="todayBoard.recipe.image" mode="aspectFill" />
+          <image :key="todayBoard.recipe.image || todayBoard.recipe.name" v-if="todayBoard.recipe.image" class="home-board__img" :src="imgList(todayBoard.recipe.image)" mode="aspectFill" />
           <image v-else class="home-board__img home-board__img--fallback" :src="STATIC_BASE_URL + '/static/guozai/action_01_bowl.png'" mode="aspectFit" />
           <view class="home-board__stamp"><text>今</text><text>日</text></view>
         </view>
@@ -1015,7 +1118,7 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
               :aria-label="c.records.length ? `${c.d}日，${c.records[0].dishName}${c.records.length > 1 ? `等${c.records.length}餐` : ''}，打开记录` : `${c.d}日，记录一餐`"
               @click="openCalendarCell(c)"
             >
-              <image v-if="c.records[0]?.imageUrl" class="home-cal__dish" :src="c.records[0].imageUrl" mode="aspectFill" />
+              <image v-if="c.records[0]?.imageUrl" class="home-cal__dish" :src="imgThumb(c.records[0].imageUrl)" mode="aspectFill" lazy-load />
               <text class="home-cal__day">{{ c.d }}</text>
               <view v-if="c.records.length && !c.records[0].imageUrl" class="home-cal__record-mark" />
               <text v-if="c.count > 1" class="home-cal__record-count">{{ c.count }}</text>
@@ -1084,44 +1187,136 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
 .theme-banner__close { position: absolute; top: 4rpx; right: 12rpx; padding: 6rpx 10rpx; color: var(--mrc-text-light); font-size: 30rpx; line-height: 1; }
 .theme-banner__close:active { opacity: .6; }
 
-/* 分享回流幕帘（wd-curtain）：操作区经 close 插槽悬在组件黑色遮罩上——
-   遮罩恒黑且不随主题切换，故文字/按钮一律用亮色（不能用 --mrc-text-* 主题令牌，
-   浅色模式下那些是深色字，压黑底会看不清） */
-.share-curtain {
+/* 分享回流欢迎幕（wd-popup + 自绘翻转卡）。
+   坑位记录：popup 经 root-portal 传送到页面根节点，scoped 类选择器（custom-class 传的类）
+   匹配不到根元素——底色/遮罩必须用内联 custom-style / modal-style 传（见模板）。
+   WXSS 对 var() 存渐变支持不稳，本块渐变一律写死，不引用 --mrc-* 令牌。
+   遮罩是暖深褐，故文字/按钮用亮色系。 */
+.share-welcome__stage {
+  position: relative;
   display: flex;
-  width: 100%;
-  min-width: 560rpx;
+  width: 640rpx;
   flex-direction: column;
   align-items: center;
-  gap: 22rpx;
-  padding: 36rpx 24rpx 8rpx;
+  gap: 26rpx;
+  padding: 20rpx 36rpx 56rpx;
   box-sizing: border-box;
 }
-.share-curtain__info { display: flex; flex-direction: column; align-items: center; gap: 6rpx; }
-.share-curtain__dish { color: #FFF6E8; font-size: 30rpx; font-weight: 800; line-height: 1.35; text-align: center; }
-.share-curtain__bonus { color: rgba(255, 214, 170, 0.92); font-size: 22rpx; font-weight: 600; }
+/* 舞台氛围光：径向渐变（WXSS 对 filter: blur 支持不稳，禁用） */
+.share-welcome__glow { position: absolute; border-radius: 50%; pointer-events: none; }
+.share-welcome__glow--warm {
+  width: 520rpx; height: 520rpx; top: -160rpx; left: -120rpx;
+  background: radial-gradient(circle, rgba(255, 138, 76, .34) 0%, rgba(255, 138, 76, 0) 68%);
+}
+.share-welcome__glow--cool {
+  width: 460rpx; height: 460rpx; bottom: -150rpx; right: -130rpx;
+  background: radial-gradient(circle, rgba(255, 205, 120, .26) 0%, rgba(255, 205, 120, 0) 70%);
+}
+
+/* 翻转卡：3D 两面，轻点切换；整体随舞台垂直水平居中 */
+.flip { width: 100%; height: 700rpx; perspective: 1600rpx; }
+.flip__inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform .55s cubic-bezier(.2, .7, .3, 1);
+}
+.flip.is-flipped .flip__inner { transform: rotateY(180deg); }
+.flip__face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  border-radius: 40rpx;
+  overflow: hidden;
+  border: 2rpx solid rgba(255, 240, 214, .14);
+  box-shadow: 0 28rpx 70rpx rgba(30, 14, 6, .5);
+}
+.flip__face--front { background: #2a1a10; }
+.flip__face--back {
+  transform: rotateY(180deg);
+  display: flex;
+  flex-direction: column;
+  padding: 48rpx 40rpx 36rpx;
+  box-sizing: border-box;
+  background: linear-gradient(165deg, #FFFDF6 0%, #FFE9C9 100%);
+}
+.flip__img { width: 100%; height: 100%; }
+.flip__shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(28, 14, 6, 0) 36%, rgba(28, 14, 6, .84) 100%); }
+.flip__caption { position: absolute; left: 40rpx; right: 40rpx; bottom: 64rpx; display: flex; flex-direction: column; gap: 12rpx; }
+.flip__kicker { color: rgba(255, 240, 214, .82); font-size: 22rpx; font-weight: 600; letter-spacing: 4rpx; }
+.flip__dish { color: #FFF9EC; font-size: 50rpx; font-weight: 900; line-height: 1.15; text-shadow: 0 4rpx 20rpx rgba(0, 0, 0, .4); }
+.flip__chips { display: flex; gap: 14rpx; margin-top: 10rpx; }
+.flip__chip {
+  padding: 8rpx 22rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, .14);
+  border: 2rpx solid rgba(255, 255, 255, .26);
+  color: #FFF6E8;
+  font-size: 20rpx;
+  font-weight: 700;
+  letter-spacing: 1rpx;
+}
+.flip__hint {
+  position: absolute;
+  top: 30rpx;
+  right: 30rpx;
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  padding: 12rpx 22rpx;
+  border-radius: 999rpx;
+  background: rgba(28, 16, 8, .45);
+  border: 2rpx solid rgba(255, 240, 214, .16);
+  color: #FFF6E8;
+  font-size: 20rpx;
+  font-weight: 600;
+}
+.flip__hint-icon { font-size: 26rpx; font-weight: 700; }
+.flip__hint--back { top: auto; bottom: 30rpx; right: 30rpx; background: rgba(255, 255, 255, .72); border-color: rgba(154, 122, 88, .18); color: #9A7A58; }
+.flip__back-head { display: flex; flex-direction: column; gap: 8rpx; margin-bottom: 6rpx; }
+.flip__back-title { color: #3D2519; font-size: 40rpx; font-weight: 900; letter-spacing: 2rpx; }
+.flip__back-sub { color: #A27B57; font-size: 24rpx; font-weight: 600; }
+.flip__back-rule { width: 64rpx; height: 8rpx; border-radius: 999rpx; background: #FF6B5B; margin: 12rpx 0 14rpx; }
+.flip__back-scroll { flex: 1; min-height: 0; }
+.flip__ing { display: flex; align-items: center; gap: 16rpx; padding: 18rpx 0; border-bottom: 2rpx solid rgba(196, 148, 96, .16); }
+.flip__ing-dot { width: 14rpx; height: 14rpx; border-radius: 50%; background: #FF6B5B; flex-shrink: 0; }
+.flip__ing-text { color: #4A3423; font-size: 27rpx; font-weight: 600; }
+.flip__back-empty { color: #A27B57; font-size: 24rpx; line-height: 1.7; padding: 32rpx 0; }
+.share-welcome__subactions { display: flex; align-items: center; gap: 6rpx; }
+.share-welcome__link { color: rgba(255, 246, 232, .92); font-size: 25rpx; font-weight: 700; padding: 14rpx 26rpx; }
+.share-welcome__link--muted { color: rgba(255, 246, 232, .55); font-weight: 600; }
+.share-welcome__sep { width: 2rpx; height: 24rpx; background: rgba(255, 240, 214, .22); }
+
+/* 奖励行：半透明暖黄药片，给「双方得额度」一个视觉落点 */
+.share-curtain__info { display: flex; align-items: center; min-height: 36rpx; }
+.share-curtain__bonus {
+  padding: 10rpx 28rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 205, 120, .12);
+  border: 2rpx solid rgba(255, 205, 120, .22);
+  color: rgba(255, 224, 182, .95);
+  font-size: 23rpx;
+  font-weight: 600;
+  letter-spacing: 1rpx;
+}
 .share-curtain__actions { display: flex; align-items: center; gap: 20rpx; }
+/* 主 CTA：WXSS 对 var() 存渐变支持不稳，渐变写死 */
 .share-curtain__cta {
   display: flex;
-  min-width: 220rpx;
-  min-height: 84rpx;
+  width: 480rpx;
+  min-height: 92rpx;
   align-items: center;
   justify-content: center;
-  padding: 0 40rpx;
   border-radius: 999rpx;
-  background: var(--mrc-primary-grad);
+  background: linear-gradient(135deg, #FFB98C 0%, #FF6B5B 100%);
   color: #fff;
-  font-size: 26rpx;
+  font-size: 30rpx;
   font-weight: 800;
-  box-shadow: 0 10rpx 24rpx rgba(255, 106, 61, .35);
+  letter-spacing: 3rpx;
+  box-shadow: 0 14rpx 32rpx rgba(255, 107, 91, .38);
 }
-.share-curtain__cta--ghost {
-  background: rgba(255, 255, 255, 0.14);
-  border: 2rpx solid rgba(255, 255, 255, 0.32);
-  color: #FFF6E8;
-  box-shadow: none;
-}
-.share-curtain__cta:active { transform: scale(0.96); }
+.share-curtain__cta:active { transform: scale(.97); }
 
 .home-entry { border-radius: 30rpx; box-sizing: border-box; }
 /* 牌堆底座：菜牌下面垫两张微旋转的静止牌——换牌时只有顶牌在动，位置感稳定（堆叠卡片语言） */

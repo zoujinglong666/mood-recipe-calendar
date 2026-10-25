@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {useImagePreview} from '@wot-ui/ui'
 import {navBack} from '@/composables/useNavBar'
+import { imgList } from '@/utils/imageUrl'
 import {STATIC_BASE_URL} from '@/utils/assets'
 import {computed, nextTick, ref} from 'vue'
 import type {TourStep} from '@wot-ui/ui/components/wd-tour/types'
@@ -224,7 +225,7 @@ function previewRecordImage(record: RecordItem, index: number) {
           <view class="timeline-rail"><view class="timeline-dot" /><view class="timeline-rail__line" /></view>
           <view class="timeline-card pressable" :class="{ 'timeline-card--alt': itemIndex % 2 }" role="button" :aria-label="`查看 ${item.recordDate} 的${item.dishName}记录`" @click="openDetail(item)">
             <view class="timeline-card__photo" :class="`timeline-card__photo--${item.imageUrls?.length || 1}`">
-              <image v-for="(image, imageIndex) in item.imageUrls || [item.imageUrl]" :key="image" class="timeline-card__img" :src="image" mode="aspectFill" lazy-load :aria-label="item.dishName" @click.stop="previewRecordImage(item, imageIndex)" />
+              <image v-for="(image, imageIndex) in item.imageUrls || [item.imageUrl]" :key="image" class="timeline-card__img" :src="imgList(image)" mode="aspectFill" lazy-load :aria-label="item.dishName" @click.stop="previewRecordImage(item, imageIndex)" />
               <view class="timeline-card__shade" />
               <view class="timeline-card__caption">
                 <text class="timeline-card__eyebrow">{{ item.moodTag }}时，{{ isDishRecord(item) ? '吃了' : '记下了' }}</text>

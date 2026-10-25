@@ -2,7 +2,7 @@
   <view class="recipe-card">
     <!-- 菜品图 -->
     <view class="recipe-card__img">
-      <image v-else :src="recipe.image" mode="aspectFill" class="recipe-card__img-src" />
+      <image v-else :src="imgList(recipe.image)" mode="aspectFill" lazy-load class="recipe-card__img-src" />
       <view v-if="recipe.moodTags?.length" class="recipe-card__tag">
         {{ recipe.moodTags[0] }}
       </view>
@@ -21,6 +21,7 @@
 </template>
 
 <script setup lang="ts">
+import { imgList } from '@/utils/imageUrl'
 export interface Recipe {
   id?: string
   name: string

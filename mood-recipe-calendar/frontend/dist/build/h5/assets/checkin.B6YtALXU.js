@@ -1,0 +1,1 @@
+import{c as t,g as c,p as n}from"./request.DVHAkeB3.js";async function a(c,n){try{return await c()}catch(a){if(a instanceof t&&404===a.code)return await n();throw a}}function r(){return a((()=>n("/checkin")),(()=>n("/gallery/checkin")))}function e(){return a((()=>c("/checkin/status")),(()=>c("/gallery/checkin/status")))}export{r as d,e as f};

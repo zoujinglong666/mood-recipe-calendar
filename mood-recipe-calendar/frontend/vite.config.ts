@@ -29,10 +29,8 @@ export default defineConfig({
       subPackages: [
         'src/pages/gallery',
         'src/pages/album',
-        'src/pages/theme-albums',
         'src/pages/report',
         'src/pages/timeline',
-        'src/pages/nutrition-report',
         'src/pages/feedback',
         'src/pages/about',
         'src/pages/privacy',

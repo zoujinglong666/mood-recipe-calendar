@@ -33,6 +33,16 @@ public class CosImageStorageService {
 
     private static final Logger log = LoggerFactory.getLogger(CosImageStorageService.class);
 
+    /**
+     * 全站图片的浏览器缓存策略：public + 一年 + immutable。
+     * 安全性依据：本项目所有上传 key 都是内容唯一或内容确定的——
+     * 随机 key（uploads/recipes/avatar 均为 日期_uuid，覆盖即新 URL）、
+     * 固定 key（小程序码，scene 确定则码确定），不存在「同 URL 内容变更」，
+     * 因此 immutable 不会让用户看到旧图。缺失该头时微信客户端不落盘缓存，
+     * 每次冷启动对所有 <image> 发条件请求（CDN 流量与体验双输）。
+     */
+    private static final String CACHE_CONTROL_IMMUTABLE = "public, max-age=31536000, immutable";
+
     @Value("${tencent.cos.enabled:true}")
     private boolean cosEnabled;
     @Value("${tencent.cos.secret-id:}")
@@ -204,6 +214,7 @@ public class CosImageStorageService {
             ObjectMetadata metadata = new ObjectMetadata();
             metadata.setContentLength(data.length);
             metadata.setContentType(contentType);
+            metadata.setCacheControl(CACHE_CONTROL_IMMUTABLE);
             client.putObject(new PutObjectRequest(cosBucket, key, new ByteArrayInputStream(data), metadata));
             return Optional.of(resolveOrigin() + "/" + key);
         } catch (Exception ex) {
@@ -228,6 +239,7 @@ public class CosImageStorageService {
             ObjectMetadata metadata = new ObjectMetadata();
             metadata.setContentLength(data.length);
             metadata.setContentType(contentType);
+            metadata.setCacheControl(CACHE_CONTROL_IMMUTABLE);
             metadata.setUserMetadata(new java.util.HashMap<>(userMetadata));
             metadata.getUserMetadata().put("content-id", filename.substring(0, filename.length() - ext.length()));
             client.putObject(new PutObjectRequest(cosBucket, key, new ByteArrayInputStream(data), metadata));

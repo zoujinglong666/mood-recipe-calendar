@@ -38,13 +38,6 @@
       ]
     },
     {
-      "root": "pages/theme-albums",
-      "pages": [
-        "detail",
-        "index"
-      ]
-    },
-    {
       "root": "pages/report",
       "pages": [
         "index"
@@ -52,12 +45,6 @@
     },
     {
       "root": "pages/timeline",
-      "pages": [
-        "index"
-      ]
-    },
-    {
-      "root": "pages/nutrition-report",
       "pages": [
         "index"
       ]

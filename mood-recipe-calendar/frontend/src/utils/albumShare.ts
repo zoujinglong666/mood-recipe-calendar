@@ -6,6 +6,11 @@
 import { getCurrentInstance } from 'vue'
 import { getWindowInfo } from '@/utils/wxSystem'
 import { ensureWxacodeUrl } from '@/api/wxacode'
+import { STATIC_BASE_URL } from '@/utils/assets'
+// 小程序码静态兜底图：后端 wxacode 接口未部署/失败（40066 等）时，海报里放真码，
+// 好友扫码照样能进小程序。四级降级 = 后端真码 → COS 静态码 → 本地包静态码 → 文字
+const COS_FALLBACK_CODE = STATIC_BASE_URL + '/static/guozai/miniprogram-code.jpg'
+import fallbackCodeImg from '@/static/guozai/miniprogram-code.jpg'
 
 export interface AlbumShareData {
   /** 顶部品牌名 */
@@ -268,23 +273,39 @@ function drawSectionHeading(ctx: any, label: string, title: string, y: number) {
   leftText(ctx, 52, y + 28, title, 30, COLORS.text, 'bold')
 }
 
-/** 画「扫码打开小程序」码盒：codeUrl 为后端生成的小程序码（COS 网络图）；
- *  缺失或加载失败时降级为文字，绝不留空白盒。 */
-async function drawCodeBox(ctx: any, canvas: any, codeUrl: string, codeY: number, fallbackText: string) {
+/** 画「扫码打开小程序」码盒（四级降级：后端真码 → COS 静态码 → 本地静态码 → 文字）。
+ *  codeUrl 为后端生成的小程序码（COS 网络图）；缺失或加载失败时依次用 COS 静态码、
+ *  本地包静态码兜底，全都失败才落文字——任何情况下盒子里都有可扫的内容，绝不留空白盒。 */
+async function drawPosterCode(ctx: any, canvas: any, codeUrl: string, x: number, y: number, box: number, inset = 12) {
+  if (codeUrl) {
+    try {
+      const code = await loadCanvasImage(canvas, codeUrl)
+      ctx.drawImage(code, x + inset, y + inset, box - inset * 2, box - inset * 2)
+      return
+    }
+    catch { /* 后端码缺失/加载失败，走静态兜底 */ }
+  }
+  for (const src of [COS_FALLBACK_CODE, fallbackCodeImg]) {
+    if (!src) continue
+    try {
+      const code = await loadCanvasImage(canvas, src)
+      ctx.drawImage(code, x + inset, y + inset, box - inset * 2, box - inset * 2)
+      return
+    }
+    catch { /* 换下一级兜底 */ }
+  }
+  centerText(ctx, x + box / 2, y + box / 2 - 14, '小程序码', 18, COLORS.sub, 'bold')
+  centerText(ctx, x + box / 2, y + box / 2 + 14, '加载中', 16, COLORS.sub)
+}
+
+/** 食谱海报页脚的码盒：白底圆角盒 + drawPosterCode 降级链 */
+async function drawCodeBox(ctx: any, canvas: any, codeUrl: string, codeY: number) {
   const codeBox = 150
   const codeX = W - 52 - codeBox
   ctx.fillStyle = COLORS.white
   roundRect(ctx, codeX, codeY, codeBox, codeBox, 16)
   ctx.fill()
-  if (codeUrl) {
-    try {
-      const code = await loadCanvasImage(canvas, codeUrl)
-      ctx.drawImage(code, codeX + 12, codeY + 12, codeBox - 24, codeBox - 24)
-      return
-    }
-    catch {}
-  }
-  leftText(ctx, codeX + 36, codeY + 62, fallbackText, 18, COLORS.sub, 'bold')
+  await drawPosterCode(ctx, canvas, codeUrl, codeX, codeY, codeBox)
 }
 
 async function drawRecipeCodeFooter(ctx: any, canvas: any, codeUrl: string) {
@@ -293,7 +314,7 @@ async function drawRecipeCodeFooter(ctx: any, canvas: any, codeUrl: string) {
   leftText(ctx, 52, footerY + 42, 'GUOZAI · MOOD RECIPE', 18, COLORS.accent, 'bold')
   leftText(ctx, 52, footerY + 78, '把今天这一顿，认真做完。', 31, COLORS.text, 'bold')
   leftText(ctx, 52, footerY + 124, '扫码打开小程序，收藏这道菜', 20, COLORS.sub)
-  await drawCodeBox(ctx, canvas, codeUrl, footerY + 28, '扫码做菜')
+  await drawCodeBox(ctx, canvas, codeUrl, footerY + 28)
 }
 
 /** 将当前一条推荐画成可保存的宣传型完整食谱卡；图片资源失败时仍输出文字卡。 */
@@ -468,6 +489,8 @@ export interface DailyMenuShareMeal {
   name: string
   mealLabel: string
   image: string
+  cookingTime?: number
+  difficulty?: string
   guideline?: { title: string; content: string; source?: string }
 }
 
@@ -477,23 +500,39 @@ export interface DailyMenuShareData {
   nutrition: { headline: string; tags: string[]; tip: string }
 }
 
-function drawTag(ctx: any, text: string, x: number, y: number): number {
-  ctx.font = '20px sans-serif'
-  const paddingX = 16
-  const w = ctx.measureText(text).width + paddingX * 2
-  const h = 42
-  ctx.fillStyle = COLORS.card
-  roundRect(ctx, x, y, w, h, 21)
-  ctx.fill()
-  ctx.fillStyle = COLORS.sub
-  ctx.textAlign = 'left'
-  ctx.textBaseline = 'middle'
-  ctx.fillText(text, x + paddingX, y + h / 2 + 1)
-  ctx.textBaseline = 'top'
-  return w + 14
+/**
+ * 一日三餐分享海报的专属调色板（与 App 现行设计系统对齐）：
+ * 注意不能改共享 COLORS——那会影响画册/食谱/回忆三张海报，本次只重绘三餐这张。
+ */
+const DMP = {
+  bg: '#F8ECDA', // 页面奶油底
+  surface: '#FFFCF7', // 卡面近白暖调
+  sun: '#FFF8E8', // 高光面
+  peach: '#FBEBD6', // 次级面
+  text: '#3D2519', // 深咖标题
+  body: '#6A4A37', // 暖褐正文
+  sub: '#9A7B62', // 弱文字
+  light: '#BFA98F', // 最弱文字
+  border: '#EBDCC6', // 发丝边
+  accent: '#EF5A3C', // 强调珊瑚
+  coral: '#FF6B5B', // 主珊瑚
+  coralSoft: 'rgba(239, 90, 60, 0.12)',
+  mint: '#28C2A0',
+  mintSoft: 'rgba(40, 194, 160, 0.12)',
+  mintText: '#1B8A6E',
+  white: '#FFFFFF',
+}
+const WEEK_CN = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+
+/** 海报刊头日期：「10/25」+「周日」，编辑感来自大数字 */
+function dmpDateParts(iso: string): { day: string, week: string } {
+  const d = new Date(`${iso || ''}T00:00:00`)
+  if (Number.isNaN(d.getTime())) return { day: iso || '', week: '' }
+  return { day: `${d.getMonth() + 1}/${d.getDate()}`, week: WEEK_CN[d.getDay()] }
 }
 
-/** 把「锅仔的一日三餐」绘成竖版营养卡长图（返回临时文件路径，由调用方保存相册/下载）。 */
+/** 把「锅仔的一日三餐」绘成竖版分享长图（返回临时文件路径，由调用方保存相册/下载）。
+ *  视觉语言与「今日三餐」页保持一致：奶油底 + 珊瑚主色 + 刊头大日期 + 锅仔印章。 */
 export async function exportDailyMenuShare(data: DailyMenuShareData, canvasId = 'dailyMenuShareCanvas'): Promise<string> {
   const inst = getCurrentInstance()
   const query = uni.createSelectorQuery()
@@ -506,12 +545,16 @@ export async function exportDailyMenuShare(data: DailyMenuShareData, canvasId = 
   })
 
   const W = 750
-  const headerH = 224
-  const nutritionH = 280
+  const PAD = 52
+  const headerH = 320
+  const nutritionH = 288
   const mealGap = 28
-  const mealH = 380
-  const footerH = 210
-  const totalH = headerH + nutritionH + mealGap + mealH * 3 + mealGap * 3 + footerH
+  const mealMediaH = 300
+  const mealBodyH = 196
+  const mealH = mealMediaH + mealBodyH
+  const footerH = 230
+  const { day, week } = dmpDateParts(data.date)
+  const totalH = headerH + nutritionH + mealGap + (mealH + mealGap) * data.meals.length + footerH
 
   const canvas = canvasInfo.node
   const ctx = canvas.getContext('2d')
@@ -520,113 +563,198 @@ export async function exportDailyMenuShare(data: DailyMenuShareData, canvasId = 
   canvas.height = totalH * dpr
   ctx.scale(dpr, dpr)
 
-  ctx.fillStyle = COLORS.bg
+  // 奶油底 + 顶部暖桃光斑（纯渐变，不用装饰圆点）
+  ctx.fillStyle = DMP.bg
   ctx.fillRect(0, 0, W, totalH)
+  const glow = ctx.createRadialGradient(W / 2, -40, 40, W / 2, -40, 460)
+  glow.addColorStop(0, 'rgba(255, 197, 61, .30)')
+  glow.addColorStop(1, 'rgba(255, 197, 61, 0)')
+  ctx.fillStyle = glow
+  ctx.fillRect(0, 0, W, 420)
 
-  ctx.fillStyle = COLORS.yellow
-  ctx.beginPath(); ctx.arc(70, 80, 24, 0, Math.PI * 2); ctx.fill()
-  ctx.fillStyle = COLORS.accent
-  ctx.beginPath(); ctx.arc(W - 76, 140, 20, 0, Math.PI * 2); ctx.fill()
+  // ---- 刊头：大日期 + 标题 + 副题 + 锅仔印章 ----
+  leftText(ctx, PAD, 108, day, 72, DMP.text, 'bold')
+  const dayW = ctx.measureText(day).width
+  leftText(ctx, PAD + dayW + 18, 152, week, 26, DMP.accent, 'bold')
+  leftText(ctx, PAD, 208, '今日三餐', 52, DMP.text, 'bold')
+  leftText(ctx, PAD, 276, '忌口与《中国居民膳食指南》，锅仔都替你想好了', 22, DMP.sub)
 
-  centerText(ctx, W / 2, 60, 'GUOZAI · DAILY MENU', 20, COLORS.sub, 'bold')
-  centerText(ctx, W / 2, 100, '锅仔的一日三餐', 46, COLORS.text, 'bold')
-  centerText(ctx, W / 2, 164, data.date || '', 24, COLORS.sub)
-
-  const nutY = headerH
-  ctx.fillStyle = COLORS.card
-  roundRect(ctx, 52, nutY, W - 104, nutritionH, 32)
-  ctx.fill()
-  leftText(ctx, 80, nutY + 28, '今日营养结构', 22, COLORS.accent, 'bold')
-  ctx.font = '28px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'
-  wrapText(ctx, data.nutrition.headline || '', W - 200, 2).forEach((line, i) => {
-    ctx.fillStyle = COLORS.text
-    ctx.fillText(line, 80, nutY + 66 + i * 34)
-  })
-  let tagX = 80
-  const tagY = nutY + 150
-  for (const t of (data.nutrition.tags || [])) {
-    const w = drawTag(ctx, t, tagX, tagY)
-    tagX += w
-    if (tagX > W - 130) break
+  // 印章：暖底圆 + 珊瑚细环 + 锅仔插画
+  const stampCx = W - PAD - 96
+  const stampCy = 176
+  const stampR = 92
+  ctx.fillStyle = DMP.peach
+  ctx.beginPath(); ctx.arc(stampCx, stampCy, stampR, 0, Math.PI * 2); ctx.fill()
+  ctx.strokeStyle = 'rgba(239, 90, 60, .25)'
+  ctx.lineWidth = 2
+  ctx.beginPath(); ctx.arc(stampCx, stampCy, stampR, 0, Math.PI * 2); ctx.stroke()
+  try {
+    const stamp = await loadCanvasImage(canvas, `${STATIC_BASE_URL}/static/guozai/action_01_bowl.png`)
+    ctx.drawImage(stamp, stampCx - 66, stampCy - 66, 132, 132)
   }
-  ctx.font = '22px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'
-  wrapText(ctx, data.nutrition.tip || '', W - 200, 2).forEach((line, i) => {
-    ctx.fillStyle = COLORS.sub
-    ctx.fillText(line, 80, nutY + 204 + i * 30)
+  catch { /* 印章加载失败保留暖底圆，不阻断导出 */ }
+
+  // ---- 今日营养达成 ----
+  const nutY = headerH
+  ctx.fillStyle = DMP.surface
+  roundRect(ctx, PAD, nutY, W - PAD * 2, nutritionH, 36)
+  ctx.fill()
+  ctx.strokeStyle = DMP.border
+  ctx.lineWidth = 2
+  roundRect(ctx, PAD, nutY, W - PAD * 2, nutritionH, 36)
+  ctx.stroke()
+
+  ctx.fillStyle = DMP.accent
+  ctx.beginPath(); ctx.arc(PAD + 30, nutY + 44, 7, 0, Math.PI * 2); ctx.fill()
+  leftText(ctx, PAD + 48, nutY + 33, '今日营养达成', 24, DMP.accent, 'bold')
+  ctx.font = 'bold 28px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'
+  ctx.fillStyle = DMP.text
+  wrapText(ctx, data.nutrition.headline || '', W - PAD * 2 - 96, 2).forEach((line, i) => {
+    ctx.fillText(line, PAD + 30, nutY + 72 + i * 38)
   })
 
+  // 覆盖大类 chips：薄荷底 + 深薄荷字
+  let chipX = PAD + 30
+  const chipY = nutY + 168
+  for (const t of (data.nutrition.tags || [])) {
+    ctx.font = '20px sans-serif'
+    const w = ctx.measureText(t).width + 36
+    if (chipX + w > W - PAD - 30) break
+    ctx.fillStyle = DMP.mintSoft
+    roundRect(ctx, chipX, chipY, w, 44, 22)
+    ctx.fill()
+    ctx.fillStyle = DMP.mintText
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle'
+    ctx.fillText(t, chipX + 18, chipY + 23)
+    ctx.textBaseline = 'top'
+    chipX += w + 12
+  }
+
+  // TIP：珊瑚规线引用块
+  ctx.fillStyle = DMP.accent
+  roundRect(ctx, PAD + 30, chipY + 62, 6, 44, 3)
+  ctx.fill()
+  wrapText(ctx, data.nutrition.tip || '', W - PAD * 2 - 110, 2).forEach((line, i) => {
+    leftText(ctx, PAD + 50, chipY + 60 + i * 30, line, 20, DMP.body)
+  })
+
+  // ---- 三餐卡：通栏大图 + 餐别语义色徽章 + 信息区 ----
+  const MEAL_GRADS: Array<[string, string]> = [
+    ['#FFC53D', '#FFA83D'], // 早 · 暖阳
+    ['#FF9D82', '#FF6B5B'], // 午 · 珊瑚
+    ['#E8652B', '#C94418'], // 晚 · 深珊瑚
+  ]
   let cardY = headerH + nutritionH + mealGap
   for (let i = 0; i < data.meals.length; i++) {
     const meal = data.meals[i]
-    ctx.fillStyle = COLORS.white
-    roundRect(ctx, 52, cardY, W - 104, mealH, 32)
+    // 卡体（圆角裁剪，让大图顶部贴卡圆角）
+    ctx.save()
+    ctx.fillStyle = DMP.surface
+    roundRect(ctx, PAD, cardY, W - PAD * 2, mealH, 36)
     ctx.fill()
+    roundRect(ctx, PAD, cardY, W - PAD * 2, mealH, 36)
+    ctx.clip()
 
-    const imgX = 76, imgY = cardY + 30, imgW = 200, imgH = 200
+    // 通栏大图
     let drawn = false
     if (meal.image) {
       try {
-        drawCover(ctx, await loadCanvasImage(canvas, meal.image), imgX, imgY, imgW, imgH, 20)
+        drawCover(ctx, await loadCanvasImage(canvas, meal.image), PAD, cardY, W - PAD * 2, mealMediaH, 0)
         drawn = true
       }
       catch { drawn = false }
     }
     if (!drawn) {
-      ctx.fillStyle = COLORS.card
-      roundRect(ctx, imgX, imgY, imgW, imgH, 20)
-      ctx.fill()
-      centerText(ctx, imgX + imgW / 2, imgY + imgH / 2 - 22, '锅仔', 30, COLORS.sub, 'bold')
-      centerText(ctx, imgX + imgW / 2, imgY + imgH / 2 + 16, '用心搭', 22, COLORS.sub)
+      ctx.fillStyle = DMP.peach
+      ctx.fillRect(PAD, cardY, W - PAD * 2, mealMediaH)
+      centerText(ctx, W / 2, cardY + mealMediaH / 2 - 24, '锅仔', 32, DMP.sub, 'bold')
+      centerText(ctx, W / 2, cardY + mealMediaH / 2 + 18, '用心搭', 22, DMP.sub)
     }
+    // 图底渐变 scrim，保徽章可读
+    const scrim = ctx.createLinearGradient(0, cardY, 0, cardY + mealMediaH)
+    scrim.addColorStop(0, 'rgba(30, 16, 8, .20)')
+    scrim.addColorStop(0.5, 'rgba(30, 16, 8, 0)')
+    scrim.addColorStop(1, 'rgba(30, 16, 8, .30)')
+    ctx.fillStyle = scrim
+    ctx.fillRect(PAD, cardY, W - PAD * 2, mealMediaH)
 
-    leftText(ctx, 304, cardY + 36, meal.mealLabel, 24, COLORS.accent, 'bold')
-    ctx.font = '34px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'
-    ctx.fillStyle = COLORS.text
-    ctx.fillText(String(meal.name || '').slice(0, 12), 304, cardY + 74)
-    leftText(ctx, 304, cardY + 124, '锅仔替你决定', 22, COLORS.sub)
+    // 餐别徽章（语义渐变）
+    const [g0, g1] = MEAL_GRADS[i] || MEAL_GRADS[1]
+    const badgeGrad = ctx.createLinearGradient(PAD + 24, cardY + 24, PAD + 160, cardY + 24)
+    badgeGrad.addColorStop(0, g0)
+    badgeGrad.addColorStop(1, g1)
+    ctx.fillStyle = badgeGrad
+    roundRect(ctx, PAD + 24, cardY + 24, 132, 52, 26)
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(255, 255, 255, .4)'
+    ctx.lineWidth = 2
+    roundRect(ctx, PAD + 24, cardY + 24, 132, 52, 26)
+    ctx.stroke()
+    centerText(ctx, PAD + 24 + 66, cardY + 37, meal.mealLabel, 24, DMP.white, 'bold')
+    ctx.restore()
 
+    // 信息区
+    const bodyY = cardY + mealMediaH
+    ctx.font = 'bold 36px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'
+    ctx.fillStyle = DMP.text
+    ctx.fillText(String(meal.name || '').slice(0, 14), PAD + 30, bodyY + 26)
+
+    // meta chips：时长 / 难度
+    const metas: string[] = []
+    if (meal.cookingTime) metas.push(`${meal.cookingTime} 分钟`)
+    if (meal.difficulty) metas.push(meal.difficulty)
+    let metaX = PAD + 30
+    metas.forEach((m) => {
+      ctx.font = '20px sans-serif'
+      const w = ctx.measureText(m).width + 36
+      ctx.fillStyle = DMP.peach
+      roundRect(ctx, metaX, bodyY + 84, w, 42, 21)
+      ctx.fill()
+      ctx.fillStyle = DMP.body
+      ctx.textAlign = 'left'; ctx.textBaseline = 'middle'
+      ctx.fillText(m, metaX + 18, bodyY + 106)
+      ctx.textBaseline = 'top'
+      metaX += w + 12
+    })
+
+    // 依据：徽章 + 标题一行，内容一行
     const g = meal.guideline
     if (g && (g.title || g.content)) {
-      ctx.fillStyle = COLORS.accent
-      roundRect(ctx, 76, cardY + 248, 96, 36, 18)
+      ctx.fillStyle = DMP.coral
+      roundRect(ctx, PAD + 30, bodyY + 142, 104, 38, 19)
       ctx.fill()
-      centerText(ctx, 76 + 48, cardY + 257, '有据可依', 19, COLORS.white, 'bold')
-      ctx.font = '22px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'
-      ctx.fillStyle = COLORS.accent
-      ctx.fillText((g.title || '').slice(0, 16), 188, cardY + 254)
-      ctx.font = '20px sans-serif'; ctx.fillStyle = COLORS.text
-      wrapText(ctx, g.content || '', W - 200, 2).forEach((line, li) => {
-        ctx.fillText(line, 76, cardY + 294 + li * 26)
-      })
-      if (g.source) {
-        ctx.fillStyle = COLORS.sub; ctx.font = '18px sans-serif'
-        ctx.fillText(`来源：${(g.source || '').slice(0, 22)}`, 76, cardY + 294 + 2 * 26 + 4)
+      centerText(ctx, PAD + 30 + 52, bodyY + 150, '有据可依', 19, DMP.white, 'bold')
+      ctx.font = 'bold 21px sans-serif'; ctx.textAlign = 'left'; ctx.textBaseline = 'top'
+      ctx.fillStyle = DMP.accent
+      ctx.fillText(String(g.title || '膳食指南建议').slice(0, 18), PAD + 148, bodyY + 151)
+      if (g.content) {
+        ctx.font = '20px sans-serif'
+        ctx.fillStyle = DMP.body
+        const line = wrapText(ctx, g.content, W - PAD * 2 - 60, 1)[0] || ''
+        ctx.fillText(line, PAD + 30, bodyY + 188 - 4)
       }
-    }
-    else {
-      leftText(ctx, 76, cardY + 256, '用心搭配的三餐，慢慢吃完。', 22, COLORS.sub)
     }
 
     cardY += mealH + mealGap
   }
 
-  const footerY = cardY + 8
+  // ---- 页脚：品牌 + 口号 + 小程序码 ----
+  const footerY = cardY + 4
   drawRule(ctx, footerY)
-  leftText(ctx, 52, footerY + 36, 'GUOZAI · MOOD RECIPE', 18, COLORS.accent, 'bold')
-  leftText(ctx, 52, footerY + 72, '依据《中国居民膳食指南（2022）》', 28, COLORS.text, 'bold')
-  leftText(ctx, 52, footerY + 114, '扫码让锅仔替你决定今天吃什么', 20, COLORS.sub)
-  const codeBox = 150
-  const codeX = W - 52 - codeBox
-  const codeY = footerY + 24
-  ctx.fillStyle = COLORS.white
-  roundRect(ctx, codeX, codeY, codeBox, codeBox, 16)
+  leftText(ctx, PAD, footerY + 36, 'GUOZAI · MOOD RECIPE', 18, DMP.accent, 'bold')
+  leftText(ctx, PAD, footerY + 70, '依据《中国居民膳食指南（2022）》', 28, DMP.text, 'bold')
+  leftText(ctx, PAD, footerY + 116, '扫码让锅仔替你决定今天吃什么', 20, DMP.sub)
+  const codeBox = 152
+  const codeX = W - PAD - codeBox
+  const codeY = footerY + 28
+  ctx.fillStyle = DMP.surface
+  roundRect(ctx, codeX, codeY, codeBox, codeBox, 18)
   ctx.fill()
-  try {
-    ctx.drawImage(await loadCanvasImage(canvas, await ensureWxacodeUrl('daily_menu')), codeX + 12, codeY + 12, codeBox - 24, codeBox - 24)
-  }
-  catch {
-    leftText(ctx, codeX + 36, codeY + 62, '扫码', 18, COLORS.sub, 'bold')
-  }
+  ctx.strokeStyle = DMP.border
+  ctx.lineWidth = 2
+  roundRect(ctx, codeX, codeY, codeBox, codeBox, 18)
+  ctx.stroke()
+  await drawPosterCode(ctx, canvas, await ensureWxacodeUrl('daily_menu'), codeX, codeY, codeBox, 14)
 
   return await new Promise<string>((resolve, reject) => {
     uni.canvasToTempFilePath({
@@ -751,12 +879,7 @@ export async function exportRecordShare(data: RecordShareData, canvasId = 'recor
   ctx.fillStyle = COLORS.white
   roundRect(ctx, codeX, codeY, codeBox, codeBox, 16)
   ctx.fill()
-  try {
-    ctx.drawImage(await loadCanvasImage(canvas, await ensureWxacodeUrl('record')), codeX + 12, codeY + 12, codeBox - 24, codeBox - 24)
-  }
-  catch {
-    leftText(ctx, codeX + 36, codeY + 62, '扫码', 18, COLORS.sub, 'bold')
-  }
+  await drawPosterCode(ctx, canvas, await ensureWxacodeUrl('record'), codeX, codeY, codeBox)
 
   return await new Promise<string>((resolve, reject) => {
     uni.canvasToTempFilePath({

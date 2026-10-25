@@ -486,7 +486,7 @@ async function waitForDelivery(orderNo: string) {
             <text class="member-plan__amount">{{ yearPrice }}</text>
             <text class="member-plan__unit">/ 365 天</text>
           </view>
-          <view class="member-plan__note">低至 ¥{{ yearDailyPrice }}/天 · 含家庭共享与营养月报</view>
+          <view class="member-plan__note">低至 ¥{{ yearDailyPrice }}/天 · 含家庭共享</view>
         </view>
         <view
           class="member-plan member-plan--month"

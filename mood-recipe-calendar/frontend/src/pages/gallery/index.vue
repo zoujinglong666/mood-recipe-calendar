@@ -2,7 +2,6 @@
 import { navBack } from '@/composables/useNavBar'
 import { STATIC_BASE_URL } from '@/utils/assets'
 import { ref, computed } from 'vue'
-import Icon from '../../components/common/Icon.vue'
 import LoadingState from '../../components/guozai/LoadingState.vue'
 import ErrorState from '../../components/guozai/ErrorState.vue'
 import { ensureLogin } from '../../utils/login'
@@ -13,14 +12,8 @@ import {
   fetchCheckinStatus,
   doCheckin,
   type CheckinStatus,
-} from '../../api/gallery'
+} from '@/api/checkin'
 import { fetchAchievements, checkAchievements, type AchievementItem, type AchievementView } from '../../api/achievements'
-import {
-  fetchVirtualProducts,
-  fetchVirtualOrders,
-  type VirtualProduct,
-  type VirtualOrder,
-} from '../../api/virtualCommerce'
 
 definePage({
   name: 'gallery',
@@ -46,14 +39,7 @@ const router = useRouter()
 // ---------- 数据状态 ----------
 const loading = ref(true)
 const error = ref('')
-// 遗留模板将在下一次整理中删除；不发起任何实物商品或订单请求。
-const products = ref<any[]>([])
-const orders = ref<{ orderNo: string, sku: string, title: string, amountFen: number, status: string }[]>([])
-const productTitleMap = ref<Record<string, string>>({})
-const selectedProduct = ref<any>(null)
-const buyType = ref<'normal' | 'exchange'>('normal')
-const showBuy = ref(false)
-const checkin = ref<CheckinStatus>({ checkedIn: false, streak: 0, exchangeReady: false, daysToExchange: 30, totalDays: 0 })
+const checkin = ref<CheckinStatus>({ checkedIn: false, streak: 0, totalDays: 0 })
 const growth = ref<GrowthStatus | null>(null)
 const checking = ref(false)
 const showCheckinModal = ref(false)
@@ -67,11 +53,10 @@ const achievementPct = computed(() => {
   return Math.min(100, Math.round((a.unlockedCount / a.total) * 100))
 })
 
-/** 形象馆三馆合一：成就墙 / 表情包 / 订单，Tab 切换（成就默认首位） */
+/** 形象馆两馆合一：成就墙 / 表情包，Tab 切换（成就默认首位） */
 const GALLERY_TABS = [
   { value: 'achievements', label: '成就' },
   { value: 'stickers', label: '表情包' },
-  { value: 'orders', label: '订单' },
 ] as const
 type GalleryTab = (typeof GALLERY_TABS)[number]['value']
 const activeTab = ref<GalleryTab>('achievements')
@@ -141,24 +126,14 @@ async function loadData() {
   error.value = ''
   try {
     await ensureLogin()
-    const [ck, prods, vOrders, achv, gr] = await Promise.all([
+    const [ck, achv, gr] = await Promise.all([
       fetchCheckinStatus(),
-      fetchVirtualProducts().catch(() => [] as VirtualProduct[]),
-      fetchVirtualOrders().catch(() => [] as VirtualOrder[]),
       fetchAchievements().catch(() => null),
       fetchGrowthStatus().catch(() => null),
     ])
     checkin.value = ck
     achievements.value = achv
     growth.value = gr
-    productTitleMap.value = Object.fromEntries(prods.map(p => [p.sku, p.title]))
-    orders.value = vOrders.map(o => ({
-      orderNo: o.orderNo,
-      sku: o.sku,
-      title: productTitleMap.value[o.sku] || o.sku,
-      amountFen: o.amountFen,
-      status: o.status,
-    }))
   } catch (e: any) {
     error.value = e.message || '加载失败'
   } finally {
@@ -198,14 +173,6 @@ onShow(() => {
     })
     .catch(() => {})
 })
-
-const orderStatusText: Record<string, string> = {
-  PENDING: '待支付',
-  PAID: '已支付',
-  DELIVERED: '已发货',
-  REFUNDED: '已退款',
-  CANCELLED: '已取消',
-}
 
 // ---------- 签到 ----------
 /** 今日随机赠礼：对话券 → 去锅仔对话；三餐券 → 去今日三餐。获赠即引导，一步到达使用页 */
@@ -259,9 +226,6 @@ function onDownloadSticker(sticker: { name: string; src: string }) {
   // #endif
 }
 
-function openBuy(_: any) {}
-function onBuy() {}
-
 </script>
 
 <template>
@@ -278,13 +242,12 @@ function onBuy() {}
         <view class="checkin-card__left">
           <view class="checkin-card__head">
             <text class="checkin-card__label">签到福利</text>
-            <text v-if="checkin.exchangeReady" class="checkin-card__ready">连续签到已达标</text>
           </view>
           <view class="checkin-card__progress">
             <text class="checkin-card__streak">
-              连续签到 <text class="checkin-card__num">{{ checkin.streak }}</text> / 30 天
+              连续签到 <text class="checkin-card__num">{{ checkin.streak }}</text> 天
             </text>
-            <text class="checkin-card__hint">满 30 天解锁锅仔限定纪念徽章</text>
+            <text class="checkin-card__hint">每天签到，抽对话券或三餐券</text>
           </view>
           <view class="checkin-bar">
             <view class="checkin-bar__inner" :style="{ width: progressPct + '%' }" />
@@ -293,12 +256,12 @@ function onBuy() {}
         <view class="checkin-card__right">
           <image
             class="checkin-card__guozai"
-            :src="checkin.exchangeReady ? STATIC_BASE_URL + '/static/guozai/action_09_celebrate.png' : (checkin.checkedIn ? STATIC_BASE_URL + '/static/guozai/mood_01_happy.png' : STATIC_BASE_URL + '/static/guozai/action_08_peek.png')"
+            :src="checkin.checkedIn ? STATIC_BASE_URL + '/static/guozai/mood_01_happy.png' : STATIC_BASE_URL + '/static/guozai/action_08_peek.png'"
             mode="aspectFit"
           />
           <view
             class="checkin-btn"
-            :class="{ 'checkin-btn--done': checkin.checkedIn, 'checkin-btn--ready': checkin.exchangeReady }"
+            :class="{ 'checkin-btn--done': checkin.checkedIn }"
             @click="onCheckin"
           >
             {{ checkin.checkedIn ? '今日已签到' : '签到' }}
@@ -321,14 +284,14 @@ function onBuy() {}
         </view>
         <view class="growth-card__skins">
           <view v-for="skin in growth.skins" :key="skin.level" class="growth-skin" :class="{ 'is-locked': !skin.unlocked }" :aria-label="skin.unlocked ? `已解锁${skin.name}` : `${skin.name}，${skin.unlockAtPoints} 点解锁`">
-            <image class="growth-skin__img" :src="STATIC_BASE_URL + skin.image" mode="aspectFit" />
+            <image class="growth-skin__img" :src="STATIC_BASE_URL + skin.image" mode="aspectFit" lazy-load />
             <text class="growth-skin__lv">LV.{{ skin.level }}</text>
           </view>
         </view>
         <text class="growth-card__foot">记录一餐 / 做计划菜 / 消灭临期食材都会喂锅仔——别让菜坏掉，锅仔会伤心</text>
       </view>
 
-      <!-- ============ 三馆合一 Tab：成就 / 表情包 / 订单 ============ -->
+      <!-- ============ Tab：成就 / 表情包 ============ -->
       <view class="gallery-tabs">
         <view
           v-for="tab in GALLERY_TABS"
@@ -369,6 +332,7 @@ function onBuy() {}
                 class="achv-item__img"
                 :src="STATIC_BASE_URL + item.badgeImage"
                 mode="aspectFit"
+                lazy-load
                 @error="badgeErrors[item.code] = true"
               />
               <text v-else class="achv-item__emoji">{{ item.unlocked ? item.emoji : '' }}</text>
@@ -380,7 +344,7 @@ function onBuy() {}
       </view>
 
       <!-- 表情包 -->
-      <view v-else-if="activeTab === 'stickers'">
+      <view v-else>
         <view class="asset-intro">
           <image class="asset-intro__guozai" :src="STATIC_BASE_URL + '/static/guozai/mood_06_hungry.png'" mode="aspectFit" />
           <view class="asset-intro__text">
@@ -397,33 +361,8 @@ function onBuy() {}
               class="asset-item"
               @click="onDownloadSticker(s)"
             >
-              <image class="asset-item__img" :src="s.src" mode="aspectFit" />
+              <image class="asset-item__img" :src="s.src" mode="aspectFit" lazy-load />
               <text class="asset-item__name">{{ s.name }}</text>
-            </view>
-          </view>
-        </view>
-      </view>
-
-      <!-- 订单 -->
-      <view v-else class="orders-section">
-        <view class="section-title">
-          <text>我的订单</text>
-          <text class="section-title__sub">已购数字权益与发货状态</text>
-        </view>
-        <view v-if="orders.length === 0" class="gallery-empty">
-          <image class="gallery-empty__img" :src="STATIC_BASE_URL + '/static/guozai/action_07_empty.png'" mode="aspectFit" />
-          <text class="gallery-empty__text">还没有订单，去「今日推荐」解锁锅仔的数字权益吧～</text>
-        </view>
-        <view v-for="o in orders" :key="o.orderNo" class="order-card">
-          <image class="order-card__img" :src="STATIC_BASE_URL + '/static/guozai/mood_01_happy.png'" mode="aspectFill" />
-          <view class="order-card__main">
-            <text class="order-card__name">{{ o.title }}</text>
-            <text class="order-card__no">单号 {{ o.orderNo }}</text>
-          </view>
-          <view class="order-card__right">
-            <text class="order-card__amount">¥{{ (o.amountFen / 100).toFixed(2) }}</text>
-            <view class="order-card__status" :class="'order-card__status--' + o.status.toLowerCase()">
-              {{ orderStatusText[o.status] || o.status }}
             </view>
           </view>
         </view>
@@ -434,54 +373,6 @@ function onBuy() {}
         <text class="gallery-footer__text">「用一道菜，治愈今天的你。」</text>
       </view>
     </template>
-
-    <view v-if="false" class="buy-mask">
-      <view class="buy-pop pop-in">
-        <image class="buy-pop__img" :src="selectedProduct.image" mode="aspectFill" />
-        <text class="buy-pop__name">{{ selectedProduct.name }}</text>
-        <text class="buy-pop__desc">{{ selectedProduct.description }}</text>
-
-        <view class="buy-pop__options">
-          <view
-            class="buy-option"
-            :class="{
-              'buy-option--active': buyType === 'normal',
-              'buy-option--disabled': !checkin.exchangeReady && buyType === 'normal',
-            }"
-            @click="buyType = 'normal'"
-          >
-            <view class="buy-option__top">
-              <text class="buy-option__name">原价购买</text>
-              <text class="buy-option__price">¥{{ selectedProduct.price }}</text>
-            </view>
-            <text class="buy-option__sub">立即带走锅仔周边</text>
-          </view>
-          <view
-            class="buy-option"
-            :class="{ 'buy-option--active': buyType === 'exchange' }"
-            @click="buyType = 'exchange'"
-          >
-            <view class="buy-option__top">
-              <text class="buy-option__name">1元兑换</text>
-              <text class="buy-option__price">¥{{ selectedProduct.exchangePrice }}</text>
-            </view>
-            <text v-if="checkin.exchangeReady" class="buy-option__sub buy-option__sub--ok">连续签到已达标，可兑换！</text>
-            <text v-else class="buy-option__sub">连续签到满 30 天解锁（当前 {{ checkin.streak }}/30）</text>
-          </view>
-        </view>
-
-        <view
-          class="buy-pop__btn"
-          :class="{ 'buy-pop__btn--disabled': buyType === 'exchange' && !checkin.exchangeReady }"
-          @click="onBuy"
-        >
-          {{ buyType === 'exchange' && !checkin.exchangeReady ? '签到满30天可兑换' : '周边筹备中，先预约关注' }}
-        </view>
-        <view class="buy-pop__close" @click="showBuy = false">
-          <Icon name="back" :size="32" color="#A1826A" />
-        </view>
-      </view>
-    </view>
 
     <!-- 签到成功弹窗：按今日随机赠礼类型定制，确认即直达使用页 -->
     <SuccessModal
@@ -529,14 +420,6 @@ function onBuy() {}
   font-size: 32rpx;
   font-weight: 700;
   color: var(--mrc-text-deep);
-}
-.checkin-card__ready {
-  font-size: 24rpx;
-  color: var(--mrc-accent);
-  background: var(--mrc-accent-soft);
-  padding: 4rpx 16rpx;
-  border-radius: 24rpx;
-  font-weight: 600;
 }
 .checkin-card__streak {
   font-size: 28rpx;
@@ -589,9 +472,6 @@ function onBuy() {}
 .checkin-btn--done {
   background: var(--mrc-green);
   box-shadow: none;
-}
-.checkin-btn--ready {
-  background: linear-gradient(135deg, var(--mrc-yellow), #ffb347);
 }
 .checkin-btn:active {
   transform: scale(0.96);
@@ -810,190 +690,6 @@ function onBuy() {}
   color: var(--mrc-text-sub);
 }
 
-/* 周边商城 */
-.shop-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 24rpx;
-}
-.shop-card {
-  background: var(--mrc-white);
-  border-radius: 24rpx;
-  overflow: hidden;
-  box-shadow: 0 4rpx 16rpx rgba(121, 73, 53, 0.06);
-  border: 2rpx solid var(--mrc-border-light);
-}
-.shop-card:active {
-  transform: scale(0.97);
-}
-.shop-card__img {
-  width: 100%;
-  height: 280rpx;
-  background: var(--mrc-surface);
-  border: 2rpx solid var(--mrc-border-light);
-  box-shadow: var(--mrc-shadow-soft);
-}
-.shop-card__body {
-  padding: 20rpx;
-}
-.shop-card__name {
-  display: block;
-  font-size: 30rpx;
-  font-weight: 700;
-  color: var(--mrc-text-deep);
-}
-.shop-card__desc {
-  display: block;
-  font-size: 22rpx;
-  color: var(--mrc-text-sub);
-  margin-top: 8rpx;
-  height: 56rpx;
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-}
-.shop-card__bottom {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 16rpx;
-}
-.shop-card__price {
-  display: flex;
-  align-items: baseline;
-  gap: 12rpx;
-}
-.shop-card__price--now {
-  font-size: 32rpx;
-  font-weight: 800;
-  color: var(--mrc-accent);
-}
-.shop-card__price--exchange {
-  font-size: 20rpx;
-  color: var(--mrc-text-light);
-}
-.shop-card__buy {
-  width: 64rpx;
-  height: 64rpx;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--mrc-primary), var(--mrc-primary-deep));
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 28rpx;
-  font-weight: 700;
-  box-shadow: 0 4rpx 12rpx rgba(255, 139, 106, 0.35);
-}
-
-/* 我的订单 */
-.orders-section {
-  margin: 16rpx 0 8rpx;
-}
-.section-title {
-  display: flex;
-  align-items: baseline;
-  gap: 16rpx;
-  font-size: 32rpx;
-  font-weight: 700;
-  color: var(--mrc-text-deep);
-  margin-bottom: 20rpx;
-  padding-left: 16rpx;
-  border-left: 8rpx solid var(--mrc-primary);
-}
-.section-title__sub {
-  font-size: 22rpx;
-  font-weight: 400;
-  color: var(--mrc-text-light);
-}
-.order-card {
-  display: flex;
-  align-items: center;
-  gap: 20rpx;
-  background: var(--mrc-white);
-  border-radius: 24rpx;
-  padding: 24rpx;
-  margin-bottom: 20rpx;
-  border: 2rpx solid var(--mrc-border-light);
-}
-.order-card__img {
-  width: 120rpx;
-  height: 120rpx;
-  border-radius: 16rpx;
-  background: var(--mrc-surface);
-  border: 2rpx solid var(--mrc-border-light);
-  box-shadow: var(--mrc-shadow-soft);
-  flex-shrink: 0;
-}
-.order-card__main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8rpx;
-  overflow: hidden;
-}
-.order-card__name {
-  font-size: 30rpx;
-  font-weight: 700;
-  color: var(--mrc-text-deep);
-}
-.order-card__type {
-  font-size: 22rpx;
-  color: var(--mrc-accent);
-  background: rgba(232, 131, 107, 0.12);
-  align-self: flex-start;
-  padding: 4rpx 16rpx;
-  border-radius: 20rpx;
-}
-.order-card__no {
-  font-size: 20rpx;
-  color: var(--mrc-text-light);
-}
-.order-card__right {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 12rpx;
-}
-.order-card__amount {
-  font-size: 32rpx;
-  font-weight: 800;
-  color: var(--mrc-text-deep);
-}
-.order-card__status {
-  font-size: 22rpx;
-  padding: 4rpx 16rpx;
-  border-radius: 20rpx;
-  background: var(--mrc-bg-card);
-  color: var(--mrc-text-sub);
-}
-.order-card__status--paid {
-  background: rgba(107, 203, 119, 0.15);
-  color: var(--mrc-green);
-}
-.order-card__status--pending {
-  background: rgba(255, 217, 61, 0.2);
-  color: #c99700;
-}
-
-/* 空状态 */
-.gallery-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 20rpx;
-  padding: 80rpx 0;
-}
-.gallery-empty__img {
-  width: 220rpx;
-  height: 220rpx;
-}
-.gallery-empty__text {
-  font-size: 26rpx;
-  color: var(--mrc-text-sub);
-}
-
 /* 底部 */
 .gallery-footer {
   display: flex;
@@ -1011,118 +707,4 @@ function onBuy() {}
   color: var(--mrc-text-light);
 }
 
-/* 购买弹窗 */
-.buy-mask {
-  position: fixed;
-  inset: 0;
-  background: rgba(90, 62, 43, 0.45);
-  z-index: 100;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-}
-.buy-pop {
-  width: 100%;
-  background: var(--mrc-bg);
-  border-radius: 40rpx 40rpx 0 0;
-  padding: 40rpx 40rpx calc(40rpx + env(safe-area-inset-bottom));
-  box-sizing: border-box;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-.buy-pop__img {
-  width: 200rpx;
-  height: 200rpx;
-  border-radius: 24rpx;
-  background: var(--mrc-surface);
-  border: 2rpx solid var(--mrc-border-light);
-  margin-bottom: 16rpx;
-}
-.buy-pop__name {
-  font-size: 36rpx;
-  font-weight: 800;
-  color: var(--mrc-text-deep);
-}
-.buy-pop__desc {
-  font-size: 24rpx;
-  color: var(--mrc-text-sub);
-  margin-top: 8rpx;
-  margin-bottom: 24rpx;
-}
-.buy-pop__options {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 20rpx;
-}
-.buy-option {
-  border: 3rpx solid var(--mrc-border);
-  border-radius: 24rpx;
-  padding: 24rpx;
-  display: flex;
-  flex-direction: column;
-  gap: 8rpx;
-  transition: all 0.15s ease;
-}
-.buy-option--active {
-  border-color: var(--mrc-accent);
-  background: rgba(232, 131, 107, 0.06);
-}
-.buy-option__top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.buy-option__name {
-  font-size: 30rpx;
-  font-weight: 700;
-  color: var(--mrc-text-deep);
-}
-.buy-option__price {
-  font-size: 36rpx;
-  font-weight: var(--mrc-fw-heavy);
-  color: var(--mrc-accent);
-}
-.buy-option__sub {
-  font-size: 22rpx;
-  color: var(--mrc-text-sub);
-}
-.buy-option__sub--ok {
-  color: var(--mrc-green);
-}
-.buy-pop__btn {
-  width: 100%;
-  margin-top: 32rpx;
-  height: 96rpx;
-  border-radius: 48rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, var(--mrc-primary), var(--mrc-primary-deep));
-  color: #fff;
-  font-size: 32rpx;
-  font-weight: 700;
-  box-shadow: 0 8rpx 20rpx rgba(255, 139, 106, 0.35);
-}
-.buy-pop__btn--disabled {
-  background: var(--mrc-border);
-  color: var(--mrc-text-light);
-  box-shadow: none;
-}
-.buy-pop__btn:active {
-  transform: scale(0.98);
-}
-.buy-pop__close {
-  position: absolute;
-  top: 32rpx;
-  right: 32rpx;
-  width: 60rpx;
-  height: 60rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transform: rotate(90deg);
-}
 </style>

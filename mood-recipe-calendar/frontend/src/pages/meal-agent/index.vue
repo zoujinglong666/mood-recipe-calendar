@@ -820,8 +820,9 @@ function openMembership() {
   router.push({ name: 'membership' })
 }
 
-function openGallery() {
-  router.push({ name: 'gallery' })
+/** 去「我的」页内联签到（tabBar 页必须 switchTab） */
+function goCheckin() {
+  uni.switchTab({ url: '/pages/profile/index' })
 }
 
 onShareAppMessage(() => {
@@ -1123,8 +1124,8 @@ onShareTimeline(() => {
         <view class="simple-plan__tag">每日签到 · 送 3 轮锅仔对话</view>
         <text class="simple-plan__title">手动选好，生成基础周菜单</text>
         <text class="simple-plan__copy">锅仔会按人数、做饭天数和菜数，避开你的忌口，整理出一份基础菜单和买菜清单。</text>
-        <text class="simple-plan__gift">去「锅仔形象馆」签到，今天就能和锅仔聊 3 轮。</text>
-        <button class="simple-plan__checkin" @click="openGallery">去签到领锅仔对话</button>
+        <text class="simple-plan__gift">去「我的」页签到，今天就能和锅仔聊 3 轮。</text>
+        <button class="simple-plan__checkin" @click="goCheckin">去签到领锅仔对话</button>
         <view v-if="!isMember" class="simple-plan__ad">
           <button class="quota-ad" :disabled="adShowing" @click="watchAdForQuota">{{ adShowing ? '广告加载中…' : '看广告 +1 次对话' }}</button>
         </view>

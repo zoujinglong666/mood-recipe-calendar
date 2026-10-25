@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { TourStep } from '@wot-ui/ui/components/wd-tour/types'
 import type { PlanDay, WeeklyPlan, WeeklyPlanSummary } from '@/api/weeklyPlans'
+import { imgThumb } from '@/utils/imageUrl'
 import { onLoad } from '@dcloudio/uni-app'
 import { computed, nextTick, onUnmounted, ref } from 'vue'
 import { generateWeeklyPlan, getCurrentPlan, getWeeklyPlanHistory, pollWeeklyPlanJob, requestWeeklyPlanCompletionNotice, toggleWeeklyPlanFavorite } from '@/api/weeklyPlans'
@@ -478,7 +479,7 @@ const toggleFavorite = throttleClick(async (id: number) => {
           :aria-label="`查看${item.day}的${item.dishes.join('和') || item.title}`"
           @click="openPlan()"
         >
-          <image v-if="item.image" class="menu-peek__thumb" :src="item.image" mode="aspectFill" />
+          <image v-if="item.image" class="menu-peek__thumb" :src="imgThumb(item.image)" mode="aspectFill" lazy-load />
           <view v-else class="menu-peek__thumb menu-peek__thumb--empty">
             {{ item.day.slice(-1) }}
           </view>

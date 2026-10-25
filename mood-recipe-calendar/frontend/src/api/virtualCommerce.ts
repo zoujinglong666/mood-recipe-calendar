@@ -64,7 +64,7 @@ export function fetchMemberBenefits() {
   return get<MemberBenefitGroup[]>('/virtual-commerce/member-benefits')
 }
 
-/** 商品目录只包含数字权益；实物周边仍使用 gallery API。 */
+/** 商品目录只包含数字权益（实物周边商城已下线）。 */
 export function fetchVirtualProducts() {
   return get<VirtualProduct[]>('/virtual-commerce/products')
 }

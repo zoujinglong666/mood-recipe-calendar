@@ -29,11 +29,8 @@ type _LocationUrl =
   "/pages/admin/recipes/index" |
   "/pages/gallery/index" |
   "/pages/album/index" |
-  "/pages/theme-albums/detail" |
-  "/pages/theme-albums/index" |
   "/pages/report/index" |
   "/pages/timeline/index" |
-  "/pages/nutrition-report/index" |
   "/pages/feedback/index" |
   "/pages/about/index" |
   "/pages/privacy/index";

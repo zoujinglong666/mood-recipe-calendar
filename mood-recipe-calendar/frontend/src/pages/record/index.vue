@@ -2,6 +2,7 @@
 import type { LearningReceipt, RecordItem } from '../../api/records'
 import { computed, ref, watch } from 'vue'
 import { STATIC_BASE_URL } from '@/utils/assets'
+import { imgThumb } from '@/utils/imageUrl'
 import { fetchRecord, fetchRecords, fetchStats, saveRecord, updateRecord } from '../../api/records'
 import { uploadFile } from '../../api/request'
 import Icon from '../../components/common/Icon.vue'
@@ -560,7 +561,7 @@ function chooseCookingTime() {
           :aria-label="`查看 ${item.recordDate} 的${item.dishName}记录`"
           @click="openRecentRecord(item)"
         >
-          <image class="record-recent__img" :src="item.imageUrl" mode="aspectFill" />
+          <image class="record-recent__img" :src="imgThumb(item.imageUrl)" mode="aspectFill" lazy-load />
           <view class="record-recent__main">
             <view class="record-recent__title-row">
               <text class="record-recent__dish">{{ item.dishName }}</text>

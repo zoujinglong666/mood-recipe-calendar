@@ -2,6 +2,7 @@
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import type { TourStep } from '@wot-ui/ui/components/wd-tour/types'
 import { createFridgeItem, consumeFridgeItem, deleteFridgeItem, fetchFridgeItems, fetchFridgeSummary, fetchStorageAdvice, notifyFridgeExpiring, recognizeFridgeImage, updateFridgeItem, type FridgeItem, type FridgeSummary, type RecognizedItem } from '@/api/fridge'
+import { imgThumb } from '@/utils/imageUrl'
 import { fetchRecipeDetail, fetchRecipeLibrary, type RecipeItem } from '@/api/recipes'
 import { saveCookingDraft } from '@/utils/cookingDraft'
 import GuozaiButton from '@/components/guozai/GuozaiButton.vue'
@@ -80,7 +81,8 @@ const cookable = computed(() => {
   return [...new Set(names)].slice(0, 8)
 })
 function searchWith(name: string) {
-  router.push({ name: 'recipe-library', query: { keyword: name } })
+  // 坑位：@wot-ui/router name 导航只认 params（query 字段被 resolve 丢弃），见 index.vue openSharedDish 注释
+  router.push({ name: 'recipe-library', params: { keyword: name } })
 }
 
 /** 组合找菜：把冰箱现有食材（最多 4 样）一次带去菜谱库搜索，结果就地展示——不再把用户丢去搜索页自己翻 */
@@ -602,7 +604,7 @@ function statusText(item: FridgeItem) {
         <view v-else-if="comboError" class="combo-state">{{ comboError }}</view>
         <view v-else class="combo-list">
           <view v-for="recipe in comboResults" :key="recipe.id" class="combo-row" role="button" :aria-label="`做${recipe.name}`" @click="cookComboDish(recipe)">
-            <image class="combo-row__img" :src="recipe.image || GZ_INSPECT" mode="aspectFill" />
+            <image class="combo-row__img" :src="imgThumb(recipe.image) || GZ_INSPECT" mode="aspectFill" lazy-load />
             <view class="combo-row__main">
               <text class="combo-row__name">{{ recipe.name }}</text>
               <text class="combo-row__meta">{{ [recipe.cookingTime ? `${recipe.cookingTime} 分钟` : '', recipe.difficulty].filter(Boolean).join(' · ') }}</text>

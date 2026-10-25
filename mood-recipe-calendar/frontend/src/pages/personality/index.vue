@@ -218,7 +218,8 @@ function goLuckyDishes() {
   const luckyMood = finalResOf('eat')?.luckyMood
   if (!luckyMood)
     return
-  router.push({ name: 'recipe-library', query: { mood: luckyMood } })
+  // 坑位：@wot-ui/router name 导航只认 params（query 字段被 resolve 丢弃），见 index.vue openSharedDish 注释
+  router.push({ name: 'recipe-library', params: { mood: luckyMood } })
 }
 </script>
 

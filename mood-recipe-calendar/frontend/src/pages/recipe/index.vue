@@ -4,6 +4,7 @@ import type { VirtualProduct } from '../../api/virtualCommerce'
 import { useImagePreview } from '@wot-ui/ui'
 import { computed, nextTick, ref } from 'vue'
 import { navBack } from '@/composables/useNavBar'
+import { imgHero } from '@/utils/imageUrl'
 import { STATIC_BASE_URL } from '@/utils/assets'
 import { createRecommendationJob, fetchRecipeDetail, fetchRecipeFeedback, fetchRecommendationJob, fetchRecipePoster, requestDeepRecipe, sendRecipeFeedback } from '../../api/recipes'
 import { createVirtualOrder, fetchVirtualOrder, fetchVirtualProducts, getVirtualPaymentParams, requestWechatVirtualPayment } from '../../api/virtualCommerce'
@@ -788,7 +789,7 @@ async function waitForDelivery(orderNo: string) {
             </view>
           </view>
           <view class="dish-media">
-            <image v-if="recipeImageAvailable" class="dish-media__image" :src="recipe.image" mode="aspectFill" aria-label="推荐菜品图片" @error="imageFailed = true" />
+            <image v-if="recipeImageAvailable" class="dish-media__image" :src="imgHero(recipe.image)" mode="aspectFill" aria-label="推荐菜品图片" @error="imageFailed = true" />
             <view v-else class="dish-media__fallback">
               <image :src="`${STATIC_BASE_URL}/static/guozai/action_01_bowl.png`" mode="aspectFit" />
             </view>

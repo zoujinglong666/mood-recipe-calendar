@@ -1,0 +1,1 @@
+const t="https://static.image-zero.art/";function n(n,r){return function(n){return!!n&&n.startsWith(t)&&!n.includes("?")}(n)?`${n}?imageMogr2/${r}`:n}function r(t){return n(t||"","thumbnail/240x/format/webp/quality/80")}function a(t){return n(t||"","thumbnail/800x/format/webp/quality/82")}function i(t){return n(t||"","format/webp")}export{r as a,i as b,a as i};

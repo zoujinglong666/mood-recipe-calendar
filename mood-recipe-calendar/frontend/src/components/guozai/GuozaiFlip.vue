@@ -10,6 +10,7 @@
  */
 import { computed, ref, watch } from 'vue'
 import { STATIC_BASE_URL } from '@/utils/assets'
+import { imgThumb, imgList } from '@/utils/imageUrl'
 
 interface FlipSlot {
   name: string
@@ -271,7 +272,7 @@ defineExpose({ deal, fail, reset, reshuffle })
               </view>
               <view class="gnf__face gnf__face--back">
                 <view v-if="cardBack(p - 1 > 4 ? p - 2 : p - 1)?.image" class="gnf__card-img">
-                  <image :src="cardBack(p - 1 > 4 ? p - 2 : p - 1)!.image" mode="aspectFill" />
+                  <image :src="imgList(cardBack(p - 1 > 4 ? p - 2 : p - 1)!.image)" mode="aspectFill" />
                 </view>
                 <view v-else class="gnf__card-img gnf__card-img--blank"><text>锅</text></view>
                 <text class="gnf__card-name">{{ cardBack(p - 1 > 4 ? p - 2 : p - 1)?.name }}</text>
@@ -281,7 +282,7 @@ defineExpose({ deal, fail, reset, reshuffle })
         </template>
       </view>
       <view v-if="phase === 'revealed'" class="gnf__result" role="status">
-        <image v-if="prize.image" class="gnf__result-img" :src="prize.image" mode="aspectFill" />
+        <image v-if="prize.image" class="gnf__result-img" :src="imgThumb(prize.image)" mode="aspectFill" />
         <view class="gnf__result-copy">
           <text class="gnf__result-label">撒花！翻到了</text>
           <text class="gnf__result-name">{{ prize.name }}</text>

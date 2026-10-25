@@ -99,7 +99,7 @@ declare global {
   const deleteAccount: typeof import('./api/auth')['deleteAccount']
   const deleteFridgeItem: typeof import('./api/fridge')['deleteFridgeItem']
   const deleteRecord: typeof import('./api/records')['deleteRecord']
-  const doCheckin: typeof import('./api/gallery')['doCheckin']
+  const doCheckin: typeof import('./api/checkin')['doCheckin']
   const eagerComputed: typeof import('@vueuse/core')['eagerComputed']
   const effectScope: typeof import('vue')['effectScope']
   const ensureLogin: typeof import('./utils/login')['ensureLogin']
@@ -112,7 +112,7 @@ declare global {
   const fetchAchievements: typeof import('./api/achievements')['fetchAchievements']
   const fetchAgentConversationQuota: typeof import('./api/weeklyPlans')['fetchAgentConversationQuota']
   const fetchAllRecipes: typeof import('./api/recipes')['fetchAllRecipes']
-  const fetchCheckinStatus: typeof import('./api/gallery')['fetchCheckinStatus']
+  const fetchCheckinStatus: typeof import('./api/checkin')['fetchCheckinStatus']
   const fetchCompanionMessage: typeof import('./api/records')['fetchCompanionMessage']
   const fetchCurrentAgentConversation: typeof import('./api/weeklyPlans')['fetchCurrentAgentConversation']
   const fetchDailyBoard: typeof import('./api/dailyMenu')['fetchDailyBoard']
@@ -132,7 +132,6 @@ declare global {
   const fetchMonthAlbum: typeof import('./api/albums')['fetchMonthAlbum']
   const fetchMoodTags: typeof import('./api/recipes')['fetchMoodTags']
   const fetchMyFeedback: typeof import('./api/feedback')['fetchMyFeedback']
-  const fetchNutritionReport: typeof import('./api/nutritionReport')['fetchNutritionReport']
   const fetchOrders: typeof import('./api/gallery')['fetchOrders']
   const fetchProducts: typeof import('./api/gallery')['fetchProducts']
   const fetchRecipeDetail: typeof import('./api/recipes')['fetchRecipeDetail']
@@ -152,8 +151,6 @@ declare global {
   const fetchShareStatus: typeof import('./api/share')['fetchShareStatus']
   const fetchStats: typeof import('./api/records')['fetchStats']
   const fetchStorageAdvice: typeof import('./api/fridge')['fetchStorageAdvice']
-  const fetchThemeAlbumDetail: typeof import('./api/themeAlbums')['fetchThemeAlbumDetail']
-  const fetchThemeAlbums: typeof import('./api/themeAlbums')['fetchThemeAlbums']
   const fetchVirtualOrder: typeof import('./api/virtualCommerce')['fetchVirtualOrder']
   const fetchVirtualOrders: typeof import('./api/virtualCommerce')['fetchVirtualOrders']
   const fetchVirtualProducts: typeof import('./api/virtualCommerce')['fetchVirtualProducts']
@@ -191,6 +188,9 @@ declare global {
   const hideLoading: typeof import('./utils/toast')['hideLoading']
   const humanizeMemoryValue: typeof import('./utils/memoryLabels')['humanizeMemoryValue']
   const ignorableWatch: typeof import('@vueuse/core')['ignorableWatch']
+  const imgHero: typeof import('./utils/imageUrl')['imgHero']
+  const imgList: typeof import('./utils/imageUrl')['imgList']
+  const imgThumb: typeof import('./utils/imageUrl')['imgThumb']
   const initializeThemeOnce: typeof import('./utils/systemTheme')['initializeThemeOnce']
   const inject: typeof import('vue')['inject']
   const injectLocal: typeof import('@vueuse/core')['injectLocal']
@@ -635,7 +635,6 @@ declare module 'vue' {
     readonly createFridgeItem: UnwrapRef<typeof import('./api/fridge')['createFridgeItem']>
     readonly createGlobalState: UnwrapRef<typeof import('@vueuse/core')['createGlobalState']>
     readonly createInjectionState: UnwrapRef<typeof import('@vueuse/core')['createInjectionState']>
-    readonly createOrder: UnwrapRef<typeof import('./api/gallery')['createOrder']>
     readonly createPinia: UnwrapRef<typeof import('pinia')['createPinia']>
     readonly createReactiveFn: UnwrapRef<typeof import('@vueuse/core')['createReactiveFn']>
     readonly createRecommendationJob: UnwrapRef<typeof import('./api/recipes')['createRecommendationJob']>
@@ -656,7 +655,7 @@ declare module 'vue' {
     readonly deleteAccount: UnwrapRef<typeof import('./api/auth')['deleteAccount']>
     readonly deleteFridgeItem: UnwrapRef<typeof import('./api/fridge')['deleteFridgeItem']>
     readonly deleteRecord: UnwrapRef<typeof import('./api/records')['deleteRecord']>
-    readonly doCheckin: UnwrapRef<typeof import('./api/gallery')['doCheckin']>
+    readonly doCheckin: UnwrapRef<typeof import('./api/checkin')['doCheckin']>
     readonly eagerComputed: UnwrapRef<typeof import('@vueuse/core')['eagerComputed']>
     readonly effectScope: UnwrapRef<typeof import('vue')['effectScope']>
     readonly ensureLogin: UnwrapRef<typeof import('./utils/login')['ensureLogin']>
@@ -668,7 +667,7 @@ declare module 'vue' {
     readonly extendRef: UnwrapRef<typeof import('@vueuse/core')['extendRef']>
     readonly fetchAchievements: UnwrapRef<typeof import('./api/achievements')['fetchAchievements']>
     readonly fetchAgentConversationQuota: UnwrapRef<typeof import('./api/weeklyPlans')['fetchAgentConversationQuota']>
-    readonly fetchCheckinStatus: UnwrapRef<typeof import('./api/gallery')['fetchCheckinStatus']>
+    readonly fetchCheckinStatus: UnwrapRef<typeof import('./api/checkin')['fetchCheckinStatus']>
     readonly fetchCompanionMessage: UnwrapRef<typeof import('./api/records')['fetchCompanionMessage']>
     readonly fetchCurrentAgentConversation: UnwrapRef<typeof import('./api/weeklyPlans')['fetchCurrentAgentConversation']>
     readonly fetchDailyBoard: UnwrapRef<typeof import('./api/dailyMenu')['fetchDailyBoard']>
@@ -688,9 +687,6 @@ declare module 'vue' {
     readonly fetchMonthAlbum: UnwrapRef<typeof import('./api/albums')['fetchMonthAlbum']>
     readonly fetchMoodTags: UnwrapRef<typeof import('./api/recipes')['fetchMoodTags']>
     readonly fetchMyFeedback: UnwrapRef<typeof import('./api/feedback')['fetchMyFeedback']>
-    readonly fetchNutritionReport: UnwrapRef<typeof import('./api/nutritionReport')['fetchNutritionReport']>
-    readonly fetchOrders: UnwrapRef<typeof import('./api/gallery')['fetchOrders']>
-    readonly fetchProducts: UnwrapRef<typeof import('./api/gallery')['fetchProducts']>
     readonly fetchRecipeDetail: UnwrapRef<typeof import('./api/recipes')['fetchRecipeDetail']>
     readonly fetchRecipeFeedback: UnwrapRef<typeof import('./api/recipes')['fetchRecipeFeedback']>
     readonly fetchRecipeLibrary: UnwrapRef<typeof import('./api/recipes')['fetchRecipeLibrary']>
@@ -708,8 +704,6 @@ declare module 'vue' {
     readonly fetchShareStatus: UnwrapRef<typeof import('./api/share')['fetchShareStatus']>
     readonly fetchStats: UnwrapRef<typeof import('./api/records')['fetchStats']>
     readonly fetchStorageAdvice: UnwrapRef<typeof import('./api/fridge')['fetchStorageAdvice']>
-    readonly fetchThemeAlbumDetail: UnwrapRef<typeof import('./api/themeAlbums')['fetchThemeAlbumDetail']>
-    readonly fetchThemeAlbums: UnwrapRef<typeof import('./api/themeAlbums')['fetchThemeAlbums']>
     readonly fetchVirtualOrder: UnwrapRef<typeof import('./api/virtualCommerce')['fetchVirtualOrder']>
     readonly fetchVirtualOrders: UnwrapRef<typeof import('./api/virtualCommerce')['fetchVirtualOrders']>
     readonly fetchVirtualProducts: UnwrapRef<typeof import('./api/virtualCommerce')['fetchVirtualProducts']>
@@ -747,6 +741,9 @@ declare module 'vue' {
     readonly hideLoading: UnwrapRef<typeof import('./utils/toast')['hideLoading']>
     readonly humanizeMemoryValue: UnwrapRef<typeof import('./utils/memoryLabels')['humanizeMemoryValue']>
     readonly ignorableWatch: UnwrapRef<typeof import('@vueuse/core')['ignorableWatch']>
+    readonly imgHero: UnwrapRef<typeof import('./utils/imageUrl')['imgHero']>
+    readonly imgList: UnwrapRef<typeof import('./utils/imageUrl')['imgList']>
+    readonly imgThumb: UnwrapRef<typeof import('./utils/imageUrl')['imgThumb']>
     readonly initializeThemeOnce: UnwrapRef<typeof import('./utils/systemTheme')['initializeThemeOnce']>
     readonly inject: UnwrapRef<typeof import('vue')['inject']>
     readonly injectLocal: UnwrapRef<typeof import('@vueuse/core')['injectLocal']>

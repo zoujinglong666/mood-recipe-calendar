@@ -2,6 +2,7 @@
 import { useImagePreview } from '@wot-ui/ui'
 import { computed, ref } from 'vue'
 import { deleteRecord, fetchRecord, type RecordItem } from '@/api/records'
+import { imgList } from '@/utils/imageUrl'
 import { fetchRecipeDetail } from '@/api/recipes'
 import { generateRecordPoster } from '@/api/recordPoster'
 import { exportRecordShare, saveShareImage } from '@/utils/albumShare'
@@ -252,7 +253,7 @@ onShow(load)
           <view class="record-detail__meta"><text>{{ record.recordDate }}</text><text class="record-detail__meta-dot">·</text><text>{{ record.cookingTime || 30 }} 分钟</text></view>
         </view>
         <view class="record-detail__photos" :class="photoClass()">
-          <image v-for="(photo, index) in photos" :key="photo" :src="photo" mode="aspectFill" role="button" :aria-label="`预览第${index + 1}张照片`" @click="preview(index)" />
+          <image v-for="(photo, index) in photos" :key="photo" :src="imgList(photo)" mode="aspectFill" lazy-load role="button" :aria-label="`预览第${index + 1}张照片`" @click="preview(index)" />
           <view v-if="photos.length > 1" class="record-detail__photo-count">{{ photos.length }} 张照片</view>
         </view>
         <view v-if="record.note" class="record-detail__note">
@@ -275,7 +276,7 @@ onShow(load)
             <text class="record-detail__poster-mood">{{ record.moodTag || '这一餐' }}</text>
           </view>
           <view class="record-detail__poster-grid" :class="posterPhotoClass()">
-            <image v-for="(photo, index) in photos" :key="`poster-${photo}`" :src="photo" mode="aspectFill" role="button" :aria-label="`预览第${index + 1}张照片`" @click="preview(index)" />
+            <image v-for="(photo, index) in photos" :key="`poster-${photo}`" :src="imgList(photo)" mode="aspectFill" role="button" :aria-label="`预览第${index + 1}张照片`" @click="preview(index)" />
             <view v-if="photos.length > 1" class="record-detail__poster-count">{{ photos.length }} PHOTOS</view>
           </view>
           <view class="record-detail__poster-caption">

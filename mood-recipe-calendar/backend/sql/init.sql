@@ -329,22 +329,8 @@ CREATE TABLE IF NOT EXISTS operational_events (
   INDEX idx_op_event_type_time (event_type, created_at)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='运营事件';
 
--- ---------- 周边商品表（锅仔形象馆·周边商城） ----------
-CREATE TABLE IF NOT EXISTS products (
-  id             BIGINT AUTO_INCREMENT PRIMARY KEY,
-  name           VARCHAR(100) COMMENT '商品名称',
-  image          TEXT         COMMENT '商品图片',
-  price          DECIMAL(10,2) NOT NULL DEFAULT 0 COMMENT '原价（元）',
-  exchange_price DECIMAL(10,2) NOT NULL DEFAULT 1.00 COMMENT '1元兑换价',
-  category       VARCHAR(30)  COMMENT '分类：cup/clothes/kitchen/...',
-  description    TEXT         COMMENT '商品简介',
-  stock          INT DEFAULT 0 COMMENT '库存',
-  sort_order     INT DEFAULT 0 COMMENT '排序权重',
-  is_active      TINYINT DEFAULT 1 COMMENT '是否上架',
-  created_at     DATETIME
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='锅仔周边商品';
 
--- ---------- 签到记录表（锅仔形象馆·签到福利） ----------
+-- ---------- 签到记录表（每日签到） ----------
 CREATE TABLE IF NOT EXISTS checkins (
   id           BIGINT AUTO_INCREMENT PRIMARY KEY,
   openid       VARCHAR(64) COMMENT '微信 openid',
@@ -353,21 +339,6 @@ CREATE TABLE IF NOT EXISTS checkins (
   UNIQUE KEY uk_openid_date (openid, checkin_date)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='签到记录';
 
--- ---------- 周边订单表（锅仔形象馆·购买/兑换） ----------
-CREATE TABLE IF NOT EXISTS shop_orders (
-  id            BIGINT AUTO_INCREMENT PRIMARY KEY,
-  order_no      VARCHAR(40) NOT NULL UNIQUE COMMENT '业务订单号',
-  openid        VARCHAR(64) COMMENT '微信 openid',
-  product_id    BIGINT COMMENT '商品ID',
-  product_name  VARCHAR(100) COMMENT '商品名称',
-  product_image TEXT COMMENT '商品图片',
-  amount        DECIMAL(10,2) COMMENT '实付金额（元）',
-  pay_type      VARCHAR(20) DEFAULT 'normal' COMMENT 'normal 原价 / exchange 1元兑换',
-  status        VARCHAR(20) DEFAULT 'pending' COMMENT 'pending 待支付 / paid 已支付 / cancelled 已取消',
-  created_at    DATETIME,
-  paid_at       DATETIME,
-  INDEX idx_shop_order_openid (openid)
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='周边订单';
 
 -- ---------- 虚拟商品与权益 ----------
 CREATE TABLE IF NOT EXISTS virtual_products (
@@ -678,69 +649,14 @@ INSERT INTO recipes (name, description, image, ingredients, steps, cooking_time,
 ('双皮奶', '双层奶皮的经典双皮奶，嫩滑香甜', 'https://aka.doubaocdn.com/s/vwGsxumUTB', '["全脂牛奶 500ml", "蛋清 2个", "白糖 25g"]', '["牛奶倒入锅中加热至微沸", "倒入碗中放凉，表面结奶皮", "倒出牛奶，留奶皮在碗底", "蛋清加白糖打散，与牛奶混合过筛", "沿碗边倒回，奶皮浮起", "盖保鲜膜蒸15分钟，放凉凝固"]', 25, '中等', '满足,害羞', '四季', NOW());
 
 
--- ---------- 初始周边商品（锅仔形象馆） ----------
-INSERT INTO products (name, image, price, exchange_price, category, description, stock, sort_order, is_active, created_at) VALUES
-('锅仔搪瓷杯',        '/static/guozai/mood_01_happy.png',    39.00, 1.00, 'cup',     '把锅仔带在身边，喝水也有好心情', 100, 1, 1, NOW()),
-('锅仔帆布袋',        '/static/guozai/action_07_empty.png',  49.00, 1.00, 'bag',     '背着锅仔去买菜，治愈整个通勤路', 100, 2, 1, NOW()),
-('锅仔保温杯',        '/static/guozai/mood_05_sad.png',      69.00, 1.00, 'cup',     '冬日暖心伴侣，让每杯热水都有温度', 80,  3, 1, NOW()),
-('锅仔围裙',          '/static/guozai/action_02_soup.png',   59.00, 1.00, 'clothes', '做饭仪式感拉满，锅仔陪你下厨',   60,  4, 1, NOW()),
-('锅仔搪瓷碗套装',    '/static/guozai/action_01_bowl.png',   79.00, 1.00, 'kitchen', '一套温暖饭碗，好好吃饭每一天',   50,  5, 1, NOW()),
-('锅仔手机壳',        '/static/guozai/mood_08_homesick.png', 29.00, 1.00, 'digital', '锅仔替你挡住生活的磕磕碰碰',     200, 6, 1, NOW());
-
 -- ---------- 虚拟商品（需在微信虚拟支付后台录入同名道具） ----------
 INSERT IGNORE INTO virtual_products
   (sku, platform_item_id, title, description, price_fen, entitlement_code, entitlement_amount, valid_days, active, sort_order, created_at)
 VALUES
   ('AI_MENU_7D', NULL, '锅仔私人菜单 7 天包', '7 天内可使用 21 次按食材、时长和口味生成的菜谱。', 690, 'AI_DEEP_RECOMMEND', 21, 7, 1, 1, NOW()),
   ('ALBUM_HD_EXPORT', 'YDHC_1124', '月度画册收藏版', '解锁 1 次高清无水印导出与收藏版排版。', 490, 'ALBUM_HD_EXPORT', 1, 0, 1, 2, NOW()),
-  ('GUOZAI_MEMBER_30D', 'GZHY_30D', '锅仔会员 30 天', '30 天内畅享锅仔管饭、AI 私人菜单与月度画册高清导出。', 990, 'MEMBER', 0, 30, 1, 3, NOW()),
-  ('THEME_FATLOSS_21D', NULL, '减脂 21 天', '21 道清淡低卡快手菜，一次购买长期可看。', 190, NULL, 'THEME_FATLOSS_21D', 0, 0, 1, 4, NOW()),
-  ('THEME_SOLO_COMFORT_30', NULL, '一人食治愈 30 道', '30 道小份治愈家常菜，一次购买长期可看。', 290, NULL, 'THEME_SOLO_COMFORT_30', 0, 0, 1, 5, NOW()),
-  ('THEME_NEW_YEAR_FEAST_18', NULL, '过年家宴 18 道', '18 道镇得住场面的宴客菜，一次购买长期可看。', 490, NULL, 'THEME_NEW_YEAR_FEAST_18', 0, 0, 1, 6, NOW());
+  ('GUOZAI_MEMBER_30D', 'GZHY_30D', '锅仔会员 30 天', '30 天内畅享锅仔管饭、AI 私人菜单与月度画册高清导出。', 990, 'MEMBER', 0, 30, 1, 3, NOW());
 
--- ---------- 主题菜谱专辑（内容编排层，购买走 virtual_products） ----------
-CREATE TABLE IF NOT EXISTS theme_albums (
-  sku           VARCHAR(64) PRIMARY KEY COMMENT '对应 virtual_products.sku',
-  title         VARCHAR(100) NOT NULL COMMENT '专辑标题',
-  subtitle      VARCHAR(200) COMMENT '副标题',
-  cover         VARCHAR(500) COMMENT '封面图（/static 相对路径）',
-  description   TEXT COMMENT '专辑介绍',
-  recipe_ids    TEXT COMMENT '菜谱ID JSON 数组',
-  preview_count INT NOT NULL DEFAULT 3 COMMENT '未购买可预览道数',
-  sort_order    INT NOT NULL DEFAULT 0,
-  active        TINYINT NOT NULL DEFAULT 1,
-  created_at    DATETIME
-) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='主题菜谱专辑（内容编排层）';
-
-INSERT IGNORE INTO theme_albums (sku, title, subtitle, cover, description, preview_count, sort_order, active, created_at) VALUES
-('THEME_FATLOSS_21D', '减脂 21 天', '清淡、低卡、不挨饿', '/static/guozai/action_07_empty.png', '锅仔按减脂餐的常见思路挑出 21 道快手清淡菜：多蒸煮、少红烧，简单到不需要意志力。一次购买，长期可看。', 3, 1, 1, NOW()),
-('THEME_SOLO_COMFORT_30', '一人食治愈 30 道', '一碗热汤，接住一整天的疲惫', '/static/guozai/action_02_soup.png', '一个人也要好好吃饭。30 道小份量的家常治愈菜，有面有汤有一锅炖，10 分钟也能吃得踏实。一次购买，长期可看。', 3, 2, 1, NOW()),
-('THEME_NEW_YEAR_FEAST_18', '过年家宴 18 道', '镇得住一桌子人', '/static/guozai/action_09_celebrate.png', '18 道拿得出手的宴客菜：蒸鱼、油焖大虾、梅菜扣肉……按家宴节奏排好，提前一天照着备料就行。一次购买，长期可看。', 3, 3, 1, NOW());
-
--- 按菜名从菜谱库编排（同名菜只取最早入库的一个 id）
-UPDATE theme_albums SET recipe_ids = (
-  SELECT JSON_ARRAYAGG(id) FROM (
-    SELECT MIN(id) AS id FROM recipes WHERE name IN
-    ('蒜蓉西兰花','清蒸鲈鱼','凉拌黄瓜','番茄炒蛋','青椒炒蛋','黄瓜炒鸡蛋','酸辣土豆丝','蒸蛋羹','小葱拌豆腐','白菜炖豆腐','皮蛋豆腐','鲫鱼豆腐汤','香菇滑鸡','洋葱炒蛋','蛋炒饭','葱花鸡蛋面','苦瓜炒蛋','荷包蛋烧豆腐','木耳炒肉','青椒肉丝','鱼香豆腐')
-    GROUP BY name
-  ) t
-) WHERE sku = 'THEME_FATLOSS_21D';
-
-UPDATE theme_albums SET recipe_ids = (
-  SELECT JSON_ARRAYAGG(id) FROM (
-    SELECT MIN(id) AS id FROM recipes WHERE name IN
-    ('葱花鸡蛋面','番茄牛腩汤','银耳莲子羹','咖喱鸡肉饭','黄焖鸡米饭','蒸蛋羹','蛋炒饭','麻婆豆腐','酸辣土豆丝','可乐鸡翅','糖醋里脊','蒜蓉粉丝蒸虾','宫保鸡丁','鱼香肉丝','回锅肉','小炒肉','蒜苔炒肉','青椒炒蛋','黄瓜炒鸡蛋','洋葱炒蛋','虎皮鸡蛋','荷包蛋烧豆腐','白菜炖豆腐','鲫鱼豆腐汤','皮蛋豆腐','小葱拌豆腐','红烧豆腐','家常豆腐','客家酿豆腐','冻豆腐炖白菜')
-    GROUP BY name
-  ) t
-) WHERE sku = 'THEME_SOLO_COMFORT_30';
-
-UPDATE theme_albums SET recipe_ids = (
-  SELECT JSON_ARRAYAGG(id) FROM (
-    SELECT MIN(id) AS id FROM recipes WHERE name IN
-    ('红烧肉','糖醋排骨','清蒸鲈鱼','油焖大虾','蒜蓉粉丝蒸虾','可乐鸡翅','红烧排骨','黄焖鸡米饭','梅菜扣肉','东坡肉','锅包肉','咕咾肉','京酱肉丝','回锅肉','辣子鸡','糖醋里脊','宫保鸡丁','鱼香肉丝')
-    GROUP BY name
-  ) t
-) WHERE sku = 'THEME_NEW_YEAR_FEAST_18';
 
 -- ---------- 家庭共享 ----------
 CREATE TABLE IF NOT EXISTS family_groups (
@@ -901,7 +817,6 @@ CREATE TABLE IF NOT EXISTS daily_menus (
 
 SELECT '初始化完成' AS status;
 SELECT COUNT(*) AS total_recipes FROM recipes;
-SELECT COUNT(*) AS total_products FROM products;
 SELECT COUNT(*) AS total_virtual_products FROM virtual_products;
 
 -- ===== 锅仔养成（P1 增长引擎） =====
