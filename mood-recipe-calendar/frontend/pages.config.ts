@@ -11,6 +11,8 @@ import { defineUniPages } from '@uni-helper/vite-plugin-uni-pages'
 
 export default defineUniPages({
   pages: [],
+  // 分包在 vite.config.ts 的 UniHelperPages({ subPackages: [...] ) 中声明
+  // （defineUniPages 不支持 subPackages 选项，见 wot-starter 分包优化文档）。
   globalStyle: {
     // 关闭原生导航栏，统一使用自定义 AppNav 组件（含状态栏/胶囊适配）
     navigationStyle: 'custom',

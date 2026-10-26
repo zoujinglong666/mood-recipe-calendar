@@ -34,7 +34,7 @@ export function requireMember(key: MemberGateKey, opts?: { onOpen?: () => void }
         if (opts?.onOpen)
           opts.onOpen()
         else
-          uni.navigateTo({ url: '/pages/membership/index' })
+          uni.navigateTo({ url: '/subpkg-settings/membership/index' })
       }
     },
   })

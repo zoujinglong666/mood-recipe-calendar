@@ -263,7 +263,7 @@ declare global {
   const onUnmounted: typeof import('vue')['onUnmounted']
   const onUpdated: typeof import('vue')['onUpdated']
   const pausableWatch: typeof import('@vueuse/core')['pausableWatch']
-  const persistPlugin: typeof import('./store/persist')['persistPlugin']
+  const persistPlugin: typeof import('./stores/persist')['persistPlugin']
   const pollWeeklyPlanJob: typeof import('./api/weeklyPlans')['pollWeeklyPlanJob']
   const post: typeof import('./api/request')['post']
   const provide: typeof import('vue')['provide']
@@ -293,6 +293,7 @@ declare global {
   const removeFavorite: typeof import('./api/favorites')['removeFavorite']
   const replaceDailyMealPlanMeal: typeof import('./api/dailyMealPlan')['replaceDailyMealPlanMeal']
   const replacePlanDay: typeof import('./api/weeklyPlans')['replacePlanDay']
+  const reportClientError: typeof import('./utils/errorReporter')['reportClientError']
   const reportPlanDishOutcome: typeof import('./api/weeklyPlans')['reportPlanDishOutcome']
   const requestAgentQuotaFromAd: typeof import('./api/weeklyPlans')['requestAgentQuotaFromAd']
   const requestDailyReminderNotice: typeof import('./api/weeklyPlans')['requestDailyReminderNotice']
@@ -443,7 +444,7 @@ declare global {
   const useMagicKeys: typeof import('@vueuse/core')['useMagicKeys']
   const useManualRefHistory: typeof import('@vueuse/core')['useManualRefHistory']
   const useManualTheme: typeof import('./composables/useManualTheme')['useManualTheme']
-  const useManualThemeStore: typeof import('./store/manualThemeStore')['useManualThemeStore']
+  const useManualThemeStore: typeof import('./stores/manualThemeStore')['useManualThemeStore']
   const useMediaControls: typeof import('@vueuse/core')['useMediaControls']
   const useMediaQuery: typeof import('@vueuse/core')['useMediaQuery']
   const useMemoize: typeof import('@vueuse/core')['useMemoize']
@@ -504,7 +505,7 @@ declare global {
   const useTextSelection: typeof import('@vueuse/core')['useTextSelection']
   const useTextareaAutosize: typeof import('@vueuse/core')['useTextareaAutosize']
   const useTheme: typeof import('./composables/useTheme')['useTheme']
-  const useThemeStore: typeof import('./store/themeStore')['useThemeStore']
+  const useThemeStore: typeof import('./stores/themeStore')['useThemeStore']
   const useThrottle: typeof import('@vueuse/core')['useThrottle']
   const useThrottleFn: typeof import('@vueuse/core')['useThrottleFn']
   const useThrottledRefHistory: typeof import('@vueuse/core')['useThrottledRefHistory']
@@ -521,6 +522,7 @@ declare global {
   const useTransition: typeof import('@vueuse/core')['useTransition']
   const useUrlSearchParams: typeof import('@vueuse/core')['useUrlSearchParams']
   const useUserMedia: typeof import('@vueuse/core')['useUserMedia']
+  const useUserStore: typeof import('./stores/user')['useUserStore']
   const useVModel: typeof import('@vueuse/core')['useVModel']
   const useVModels: typeof import('@vueuse/core')['useVModels']
   const useVibrate: typeof import('@vueuse/core')['useVibrate']
@@ -816,7 +818,7 @@ declare module 'vue' {
     readonly onUnmounted: UnwrapRef<typeof import('vue')['onUnmounted']>
     readonly onUpdated: UnwrapRef<typeof import('vue')['onUpdated']>
     readonly pausableWatch: UnwrapRef<typeof import('@vueuse/core')['pausableWatch']>
-    readonly persistPlugin: UnwrapRef<typeof import('./store/persist')['persistPlugin']>
+    readonly persistPlugin: UnwrapRef<typeof import('./stores/persist')['persistPlugin']>
     readonly pollWeeklyPlanJob: UnwrapRef<typeof import('./api/weeklyPlans')['pollWeeklyPlanJob']>
     readonly post: UnwrapRef<typeof import('./api/request')['post']>
     readonly provide: UnwrapRef<typeof import('vue')['provide']>
@@ -846,6 +848,7 @@ declare module 'vue' {
     readonly removeFavorite: UnwrapRef<typeof import('./api/favorites')['removeFavorite']>
     readonly replaceDailyMealPlanMeal: UnwrapRef<typeof import('./api/dailyMealPlan')['replaceDailyMealPlanMeal']>
     readonly replacePlanDay: UnwrapRef<typeof import('./api/weeklyPlans')['replacePlanDay']>
+    readonly reportClientError: UnwrapRef<typeof import('./utils/errorReporter')['reportClientError']>
     readonly reportPlanDishOutcome: UnwrapRef<typeof import('./api/weeklyPlans')['reportPlanDishOutcome']>
     readonly requestAgentQuotaFromAd: UnwrapRef<typeof import('./api/weeklyPlans')['requestAgentQuotaFromAd']>
     readonly requestDailyReminderNotice: UnwrapRef<typeof import('./api/weeklyPlans')['requestDailyReminderNotice']>
@@ -993,7 +996,7 @@ declare module 'vue' {
     readonly useMagicKeys: UnwrapRef<typeof import('@vueuse/core')['useMagicKeys']>
     readonly useManualRefHistory: UnwrapRef<typeof import('@vueuse/core')['useManualRefHistory']>
     readonly useManualTheme: UnwrapRef<typeof import('./composables/useManualTheme')['useManualTheme']>
-    readonly useManualThemeStore: UnwrapRef<typeof import('./store/manualThemeStore')['useManualThemeStore']>
+    readonly useManualThemeStore: UnwrapRef<typeof import('./stores/manualThemeStore')['useManualThemeStore']>
     readonly useMediaControls: UnwrapRef<typeof import('@vueuse/core')['useMediaControls']>
     readonly useMediaQuery: UnwrapRef<typeof import('@vueuse/core')['useMediaQuery']>
     readonly useMemoize: UnwrapRef<typeof import('@vueuse/core')['useMemoize']>
@@ -1054,7 +1057,7 @@ declare module 'vue' {
     readonly useTextSelection: UnwrapRef<typeof import('@vueuse/core')['useTextSelection']>
     readonly useTextareaAutosize: UnwrapRef<typeof import('@vueuse/core')['useTextareaAutosize']>
     readonly useTheme: UnwrapRef<typeof import('./composables/useTheme')['useTheme']>
-    readonly useThemeStore: UnwrapRef<typeof import('./store/themeStore')['useThemeStore']>
+    readonly useThemeStore: UnwrapRef<typeof import('./stores/themeStore')['useThemeStore']>
     readonly useThrottle: UnwrapRef<typeof import('@vueuse/core')['useThrottle']>
     readonly useThrottleFn: UnwrapRef<typeof import('@vueuse/core')['useThrottleFn']>
     readonly useThrottledRefHistory: UnwrapRef<typeof import('@vueuse/core')['useThrottledRefHistory']>
@@ -1071,6 +1074,7 @@ declare module 'vue' {
     readonly useTransition: UnwrapRef<typeof import('@vueuse/core')['useTransition']>
     readonly useUrlSearchParams: UnwrapRef<typeof import('@vueuse/core')['useUrlSearchParams']>
     readonly useUserMedia: UnwrapRef<typeof import('@vueuse/core')['useUserMedia']>
+    readonly useUserStore: UnwrapRef<typeof import('./stores/user')['useUserStore']>
     readonly useVModel: UnwrapRef<typeof import('@vueuse/core')['useVModel']>
     readonly useVModels: UnwrapRef<typeof import('@vueuse/core')['useVModels']>
     readonly useVibrate: UnwrapRef<typeof import('@vueuse/core')['useVibrate']>

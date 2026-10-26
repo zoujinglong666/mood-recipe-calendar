@@ -73,7 +73,7 @@ public class WechatSubscriptionMessageService {
             Map<String, Object> body = Map.of(
                     "touser", openid,
                     "template_id", fridgeTemplateId,
-                    "page", "pages/fridge/index",
+                    "page", "subpkg-settings/fridge/index",
                     "miniprogram_state", state,
                     "lang", "zh_CN",
                     "data", Map.of(
@@ -106,7 +106,7 @@ public class WechatSubscriptionMessageService {
             Map<String, Object> body = Map.of(
                     "touser", openid,
                     "template_id", templateId,
-                    "page", "pages/weekly-plan/detail?id=" + planId,
+                    "page", "subpkg-planning/weekly-plan/detail?id=" + planId,
                     "miniprogram_state", state,
                     "lang", "zh_CN",
                     "data", Map.of(
@@ -129,7 +129,7 @@ public class WechatSubscriptionMessageService {
      * 订阅消息是一次性授权：用户在生成周菜单时勾选「日程提醒」授权后才能送达。
      */
     public void sendShoppingListReady(String openid) {
-        sendScheduleReminder(openid, "pages/weekly-plan/index",
+        sendScheduleReminder(openid, "subpkg-planning/weekly-plan/index",
                 "本周买菜清单已备好", "采购提醒", "周六采购正合适，照着清单一次买齐");
     }
 
@@ -182,7 +182,7 @@ public class WechatSubscriptionMessageService {
             Map<String, Object> body = Map.of(
                     "touser", openid,
                     "template_id", memberTemplateId,
-                    "page", "pages/membership/index",
+                    "page", "subpkg-settings/membership/index",
                     "miniprogram_state", state,
                     "lang", "zh_CN",
                     "data", Map.of(

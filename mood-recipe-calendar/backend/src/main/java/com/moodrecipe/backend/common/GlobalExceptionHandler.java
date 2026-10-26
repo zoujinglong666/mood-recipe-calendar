@@ -37,9 +37,13 @@ public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
     private final WxPusherNotifier wxPusherNotifier;
+    /** [2026-10-26] 当日 500 计数（P2-9 每日健康摘要用），推告警的同时累加。 */
+    private final com.moodrecipe.backend.common.HealthMetrics healthMetrics;
 
-    public GlobalExceptionHandler(WxPusherNotifier wxPusherNotifier) {
+    public GlobalExceptionHandler(WxPusherNotifier wxPusherNotifier,
+                                  com.moodrecipe.backend.common.HealthMetrics healthMetrics) {
         this.wxPusherNotifier = wxPusherNotifier;
+        this.healthMetrics = healthMetrics;
     }
 
     /** 参数校验失败（@Valid / @Validated） */
@@ -153,6 +157,7 @@ public class GlobalExceptionHandler {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
         log.error("[write-500] {} {} -> {}: {}", request.getMethod(), request.getRequestURI(), e.getClass().getName(), e.getMessage(), e);
+        healthMetrics.incrementServerErrors();
         wxPusherNotifier.send(String.format("[锅仔后端 500 告警] %s %s%n%s: %s",
                 request.getMethod(), request.getRequestURI(), e.getClass().getSimpleName(), e.getMessage()));
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -208,6 +213,7 @@ public class GlobalExceptionHandler {
         // 但若异常本质属于「客户端错误」（如框架层面的方法不允许 / 4xx 状态异常），只是正常业务分支被错误兜底，
         // 不应推送 500 告警造成误报——此类已在上方显式处理器里给出正确状态码，这里再兜底一层防漏网。
         if (!isClientError(e)) {
+            healthMetrics.incrementServerErrors();
             wxPusherNotifier.send(String.format("[锅仔后端 500 告警] %s %s%n%s: %s",
                     request.getMethod(), request.getRequestURI(), e.getClass().getSimpleName(), e.getMessage()));
         }

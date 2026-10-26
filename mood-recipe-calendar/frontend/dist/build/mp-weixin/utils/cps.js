@@ -1,1 +1,0 @@
-"use strict";const s=require("../common/vendor.js"),t=require("./toast.js");exports.goToMeituanBuy=async function(a,o){try{await(e=o,new Promise(((t,a)=>{s.index.setClipboardData({data:e,showToast:!1,success:()=>t(),fail:()=>a(new Error("复制失败"))})}))),t.toastSuccess("清单已复制，打开拼多多/超市搜索即可")}catch{t.toast("复制失败，请手动记录")}var e};

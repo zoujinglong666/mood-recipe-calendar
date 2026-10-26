@@ -5,33 +5,33 @@
 
 type _LocationUrl =
   "/pages/index/index" |
-  "/pages/calendar/index" |
-  "/pages/cooking/index" |
-  "/pages/daily-meal-plan/index" |
-  "/pages/fridge/index" |
   "/pages/login/index" |
-  "/pages/meal-agent/index" |
-  "/pages/membership/index" |
   "/pages/mood/index" |
-  "/pages/personality/index" |
-  "/pages/preferences/index" |
   "/pages/profile/index" |
   "/pages/recipe/index" |
-  "/pages/recipe-library/index" |
   "/pages/record/detail" |
   "/pages/record/edit" |
   "/pages/record/index" |
   "/pages/settings/index" |
-  "/pages/weekly-plan/detail" |
-  "/pages/weekly-plan/index" |
   "/pages/admin/feedback/index" |
   "/pages/admin/recipes/edit" |
   "/pages/admin/recipes/index" |
-  "/pages/gallery/index" |
-  "/pages/album/index" |
-  "/pages/report/index" |
-  "/pages/timeline/index" |
-  "/pages/feedback/index" |
+  "/subpkg-content/album/index" |
+  "/subpkg-content/calendar/index" |
+  "/subpkg-content/gallery/index" |
+  "/subpkg-content/report/index" |
+  "/subpkg-content/timeline/index" |
+  "/subpkg-planning/cooking/index" |
+  "/subpkg-planning/daily-meal-plan/index" |
+  "/subpkg-planning/meal-agent/index" |
+  "/subpkg-planning/recipe-library/index" |
+  "/subpkg-planning/weekly-plan/detail" |
+  "/subpkg-planning/weekly-plan/index" |
+  "/subpkg-settings/feedback/index" |
+  "/subpkg-settings/fridge/index" |
+  "/subpkg-settings/membership/index" |
+  "/subpkg-settings/personality/index" |
+  "/subpkg-settings/preferences/index" |
   "/pages/about/index" |
   "/pages/privacy/index";
 

@@ -1,60 +1,19 @@
 {
   "pages": [
     "pages/index/index",
-    "pages/calendar/index",
-    "pages/cooking/index",
-    "pages/daily-meal-plan/index",
-    "pages/fridge/index",
     "pages/login/index",
-    "pages/meal-agent/index",
-    "pages/membership/index",
     "pages/mood/index",
-    "pages/personality/index",
-    "pages/preferences/index",
     "pages/profile/index",
     "pages/recipe/index",
-    "pages/recipe-library/index",
     "pages/record/detail",
     "pages/record/edit",
     "pages/record/index",
     "pages/settings/index",
-    "pages/weekly-plan/detail",
-    "pages/weekly-plan/index",
+    "pages/admin/feedback/index",
     "pages/admin/recipes/edit",
-    "pages/admin/recipes/index",
-    "pages/admin/feedback/index"
+    "pages/admin/recipes/index"
   ],
   "subPackages": [
-    {
-      "root": "pages/gallery",
-      "pages": [
-        "index"
-      ]
-    },
-    {
-      "root": "pages/album",
-      "pages": [
-        "index"
-      ]
-    },
-    {
-      "root": "pages/report",
-      "pages": [
-        "index"
-      ]
-    },
-    {
-      "root": "pages/timeline",
-      "pages": [
-        "index"
-      ]
-    },
-    {
-      "root": "pages/feedback",
-      "pages": [
-        "index"
-      ]
-    },
     {
       "root": "pages/about",
       "pages": [
@@ -65,6 +24,37 @@
       "root": "pages/privacy",
       "pages": [
         "index"
+      ]
+    },
+    {
+      "root": "subpkg-content",
+      "pages": [
+        "album/index",
+        "calendar/index",
+        "gallery/index",
+        "report/index",
+        "timeline/index"
+      ]
+    },
+    {
+      "root": "subpkg-planning",
+      "pages": [
+        "cooking/index",
+        "daily-meal-plan/index",
+        "meal-agent/index",
+        "recipe-library/index",
+        "weekly-plan/detail",
+        "weekly-plan/index"
+      ]
+    },
+    {
+      "root": "subpkg-settings",
+      "pages": [
+        "feedback/index",
+        "fridge/index",
+        "membership/index",
+        "personality/index",
+        "preferences/index"
       ]
     }
   ],

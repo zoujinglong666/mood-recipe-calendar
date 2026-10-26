@@ -1,1 +1,1 @@
-<view style="position:relative"><view class="{{b}}" style="{{c}}" id="{{d}}"><wd-resize u-s="{{['d']}}" bindresize="{{a}}" u-i="48ac4fb6-0" bind:__l="__l"><slot/></wd-resize></view></view>
+<view style="position:relative"><view class="{{b}}" style="{{c}}" id="{{d}}"><wd-resize u-s="{{['d']}}" bindresize="{{a}}" u-i="717304db-0" bind:__l="__l"><slot/></wd-resize></view></view>

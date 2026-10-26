@@ -3,8 +3,19 @@ import PrivacyPopup from './components/PrivacyPopup.vue'
 import { refreshNavMetrics } from './composables/useNavBar'
 import { autoCheckUpdate } from './utils/update'
 import { useUserStore } from './stores/user'
+import { reportClientError } from './utils/errorReporter'
+
+onError((err) => {
+  reportClientError('js', err)
+})
 
 onLaunch(() => {
+  // 全局未处理 Promise 拒绝上报（架构评审 P1-4：此前前端报错完全无感知）
+  uni.onUnhandledRejection(({ reason }) => {
+    const err = reason as unknown
+    if (err instanceof Error) reportClientError('unhandledrejection', err.message, err.stack)
+    else reportClientError('unhandledrejection', String(err))
+  })
   // 适配微信状态栏与胶囊按钮
   refreshNavMetrics()
   // 静默检查小程序更新（微信后台上传新包后自动分发，零维护）

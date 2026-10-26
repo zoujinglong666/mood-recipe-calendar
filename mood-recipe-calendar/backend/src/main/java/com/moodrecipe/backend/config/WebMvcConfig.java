@@ -30,6 +30,9 @@ public class WebMvcConfig implements WebMvcConfigurer {
         registry.addInterceptor(sessionAuthInterceptor)
             .addPathPatterns("/api/**")
             .excludePathPatterns("/api/auth/login", "/api/health", "/api/wechat/virtual-payment/callback",
-                    "/api/breakfast-pool/seed");
+                    "/api/breakfast-pool/seed",
+                    // [2026-10-26] 前端错误上报（P1-4）：错误可能发生在登录前，故免鉴权；
+                    // 防刷依赖字段截断 + 指纹去重 + RateLimitFilter
+                    "/api/client-errors");
     }
 }

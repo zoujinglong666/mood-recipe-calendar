@@ -289,7 +289,7 @@ CREATE TABLE IF NOT EXISTS user_profile_snapshots (
   id           BIGINT AUTO_INCREMENT PRIMARY KEY,
   openid       VARCHAR(64) NOT NULL COMMENT '微信 openid',
   snapshot_at  DATETIME    NOT NULL COMMENT '快照时间',
-  trigger      VARCHAR(16) COMMENT '触发原因：LIKE/DISLIKE/MADE/SCHEDULED',
+  `trigger`    VARCHAR(16) COMMENT '触发原因：LIKE/DISLIKE/MADE/SCHEDULED',
   confidence   DOUBLE COMMENT '当时画像置信度',
   profile_json TEXT COMMENT '完整 UserProfile JSON，支持回溯与离线重算',
   INDEX idx_profile_snapshot_openid_time (openid, snapshot_at)

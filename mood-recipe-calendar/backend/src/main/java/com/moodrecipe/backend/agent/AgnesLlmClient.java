@@ -52,6 +52,12 @@ public class AgnesLlmClient implements LlmClient {
      */
     private final Semaphore concurrency;
 
+    /**
+     * [2026-10-26] 熔断器（架构评审 P2-1）：供应商持续 5xx/超时时快速失败，
+     * 不再每个请求都完整走 2 次尝试 + 退避。免费层与付费层实例各自独立。
+     */
+    private final LlmCircuitBreaker breaker = new LlmCircuitBreaker();
+
     public AgnesLlmClient(ObjectMapper json,
                           @Value("${ai.recipe.api-key:}") String apiKey,
                           @Value("${ai.recipe.base-url:https://apihub.agnes-ai.com/v1/chat/completions}") String baseUrl,
@@ -102,6 +108,11 @@ public class AgnesLlmClient implements LlmClient {
             return LlmResult.failed(LlmResult.Failure.NOT_CONFIGURED, 0, 0L);
         }
         long start = System.currentTimeMillis();
+        if (!breaker.allowRequest()) {
+            // 熔断 open：直接快速失败，上层 Agent 的本地降级链路立即接管，用户仍拿得到结果
+            log.warn("LLM 熔断开启中，快速失败 purpose={} traceId={}", request.purpose(), traceId);
+            return LlmResult.failed(LlmResult.Failure.SERVER_ERROR, 0, System.currentTimeMillis() - start);
+        }
         List<LlmMessage> messages = new ArrayList<>(request.messages());
         boolean useNativeTools = !request.tools().isEmpty() && supportsTools();
         boolean useJsonMode = request.jsonMode() && !useNativeTools;
@@ -159,6 +170,7 @@ public class AgnesLlmClient implements LlmClient {
                 log.info("LLM 调用成功 purpose={} attempt={} latencyMs={} tokens={} traceId={}",
                         request.purpose(), attempt, System.currentTimeMillis() - start,
                         parsed.usage().totalTokens(), traceId);
+                breaker.onSuccess();
                 return LlmResult.ok(parsed, attempts, System.currentTimeMillis() - start);
             } catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
@@ -174,6 +186,10 @@ public class AgnesLlmClient implements LlmClient {
         }
         log.warn("LLM 调用失败 purpose={} failure={} attempts={} traceId={}",
                 request.purpose(), failure, attempts, traceId);
+        // 只有供应商侧故障（5xx/超时）计入熔断；429 限流、400 参数问题不计
+        if (failure == LlmResult.Failure.SERVER_ERROR || failure == LlmResult.Failure.TIMEOUT) {
+            breaker.onFailure();
+        }
         return LlmResult.failed(failure, attempts, System.currentTimeMillis() - start);
     }
 

@@ -39,20 +39,8 @@ public class TieredLlmClient implements LlmClient {
     private final String planningModel;
     private final String flashModel;
 
-    public TieredLlmClient(FallbackLlmClient freeClient,
-                           UsageQuotaService quota,
-                           ObjectMapper json,
-                           @Value("${ai.llm.paid.enabled:false}") boolean paidEnabled,
-                           @Value("${ai.llm.paid.api-key:}") String paidApiKey,
-                           @Value("${ai.llm.paid.base-url:https://api.deepseek.com/chat/completions}") String paidBaseUrl,
-                           @Value("${ai.llm.paid.planning-model:deepseek-v4-pro}") String planningModel,
-                           @Value("${ai.llm.paid.flash-model:deepseek-flash}") String flashModel,
-                           @Value("${ai.llm.max-attempts:2}") int maxAttempts,
-                           @Value("${ai.llm.tool-calling:true}") boolean toolCallingEnabled,
-                           @Value("${ai.llm.paid.max-concurrency:16}") int paidMaxConcurrency) {
-        this(freeClient, quota, new LlmUsageCounter(), json, paidEnabled, paidApiKey, paidBaseUrl,
-                planningModel, flashModel, maxAttempts, toolCallingEnabled, paidMaxConcurrency);
-    }
+    // [2026-10-26] P2-5：删除了无引用的便捷构造函数（内部会 new 独立 LlmUsageCounter，
+    // 线上误用会导致用量统计分裂到不受管理的实例）——统一走 @Autowired 构造。
 
     @Autowired
     public TieredLlmClient(FallbackLlmClient freeClient,

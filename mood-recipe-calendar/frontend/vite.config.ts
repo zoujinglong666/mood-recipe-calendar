@@ -24,17 +24,17 @@ export default defineConfig({
     UniHelperPages({
       dts: 'src/uni-pages.d.ts',
       exclude: ['**/components/**/*.*'],
-      // 分包：把次要页面移出主包，规避微信主包 2MB 体积上限。
-      // 注意：personality / recipe-library / admin 因平台专属标题或 MP 专属逻辑保留在主包。
+      // 分包：把次要页面移出主包，规避微信主包 2MB 体积上限（P1-2，2026-10-26 扩展）。
+      // 此前只分出 8 个轻页面（gallery/album/report/timeline/feedback/about/privacy/almanac），
+      // 主包仍 1.34MB；现按域扩展为三个分包：内容 / 规划 / 设置。
+      // 注意：tabBar 页面与核心转化页（recipe）、记录链路（record）必须留在主包；
+      // 相关跳转路径已从 /pages/X 同步改为 /subpkg-*/X（含后端订阅消息深链）。
       subPackages: [
-        'src/pages/gallery',
-        'src/pages/album',
-        'src/pages/report',
-        'src/pages/timeline',
-        'src/pages/feedback',
+        'src/subpkg-content',
+        'src/subpkg-planning',
+        'src/subpkg-settings',
         'src/pages/about',
         'src/pages/privacy',
-        'src/pages/almanac',
       ],
     }),
     // https://github.com/uni-helper/vite-plugin-uni-layouts
@@ -65,7 +65,7 @@ export default defineConfig({
         imports: ['useToast', 'useDialog', 'useNotify', 'CommonUtil'],
       }],
       dts: 'src/auto-imports.d.ts',
-      dirs: ['src/composables', 'src/store', 'src/utils', 'src/api'],
+      dirs: ['src/composables', 'src/stores', 'src/utils', 'src/api'],
       vueTemplate: true,
     }),
     // https://github.com/antfu/unocss
