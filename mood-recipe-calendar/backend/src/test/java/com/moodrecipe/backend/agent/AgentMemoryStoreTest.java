@@ -7,7 +7,9 @@ import com.moodrecipe.backend.repository.RecipeInteractionRepository;
 import com.moodrecipe.backend.repository.RecipeRepository;
 import com.moodrecipe.backend.repository.UserFoodPreferenceRepository;
 import com.moodrecipe.backend.repository.UserRecordRepository;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -31,6 +33,11 @@ class AgentMemoryStoreTest {
     private final AgentMemoryStore store = new AgentMemoryStore(facts.repository(),
             mock(UserFoodPreferenceRepository.class), mock(UserRecordRepository.class),
             interactions, mock(RecipeRepository.class), outcomes);
+    @BeforeEach
+    void injectSelf() {
+        // 生产中 forget/clear 通过 @Lazy 自注入代理 self 调 forgetTx/clearTx（REQUIRES_NEW）；纯单测无容器，手动注入自身。
+        ReflectionTestUtils.setField(store, "self", store);
+    }
 
     @Test
     void remembersValueWithConfidenceSourceAndEvidence() {

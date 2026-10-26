@@ -5,6 +5,7 @@ import com.moodrecipe.backend.agent.DialogueState;
 import com.moodrecipe.backend.entity.AgentConversation;
 import com.moodrecipe.backend.repository.AgentConversationRepository;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 import java.util.Optional;
@@ -29,6 +30,8 @@ class AgentConversationServiceTest {
         when(repo.findByOpenidAndConversationId("o123", "c1")).thenReturn(Optional.of(existing));
 
         AgentConversationService service = new AgentConversationService(repo, new ObjectMapper());
+        // 生产中 save() 通过 @Lazy 自注入代理 self 调 saveTx（REQUIRES_NEW）；纯单测无容器，手动注入自身。
+        ReflectionTestUtils.setField(service, "self", service);
         DialogueState.Turn turn = new DialogueState.Turn("南昌拌粉安排上，还有其他菜一起排吗？",
                 "READY", DialogueState.AgentState.empty(), null, "", List.of(), List.of(), List.of(), List.of(), List.of());
         service.save("o123", "c1", turn,
@@ -59,6 +62,8 @@ class AgentConversationServiceTest {
         when(repo.findByOpenidAndConversationId("o123", "c1")).thenReturn(Optional.of(existing));
 
         AgentConversationService service = new AgentConversationService(repo, new ObjectMapper());
+        // 生产中 save() 通过 @Lazy 自注入代理 self 调 saveTx（REQUIRES_NEW）；纯单测无容器，手动注入自身。
+        ReflectionTestUtils.setField(service, "self", service);
         String longReply = "长".repeat(600);
         DialogueState.Turn turn = new DialogueState.Turn(longReply, "ASK_SPICE", DialogueState.AgentState.empty(), null, "", List.of(), List.of(), List.of(), List.of(), List.of());
         service.save("o123", "c1", turn, List.of());
