@@ -4,8 +4,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.moodrecipe.backend.agent.DialogueState;
 import com.moodrecipe.backend.entity.AgentConversation;
 import com.moodrecipe.backend.repository.AgentConversationRepository;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 
 import java.util.List;
 import java.util.Optional;
@@ -21,6 +24,9 @@ public class AgentConversationService {
         this.json = json;
     }
 
+    /** 自注入：save() 降级捕获需要调用带 REQUIRES_NEW 事务的代理方法，Spring 代理对内部直接调用不生效。 */
+    @Autowired @Lazy private AgentConversationService self;
+
     /** card：该条锅仔消息携带的确认卡（历史回看用）；用户消息恒为 null。 */
     public record TranscriptMessage(String role, String text, List<String> tags, Boolean selected,
                                     DialogueState.Card card) {
@@ -35,28 +41,15 @@ public class AgentConversationService {
 
     /** 取会话行，不存在则原子建行，返回时保证持写锁；死锁重试仅兜底（详见仓库 insertIfAbsent 注释）。 */
     private AgentConversation lockOrCreate(String openid, String conversationId) {
-        for (int attempt = 1; ; attempt++) {
-            try {
-                Optional<AgentConversation> existing =
-                        conversations.findByOpenidAndConversationId(openid, conversationId);
-                if (existing.isPresent())
-                    return existing.get();
-                conversations.insertIfAbsent(openid, conversationId, com.moodrecipe.backend.config.AppClock.now());
-                return conversations.findByOpenidAndConversationId(openid, conversationId)
-                        .orElseThrow(() -> new IllegalStateException("会话初始化失败，请重试"));
-            }
-            catch (org.springframework.dao.CannotAcquireLockException e) {
-                if (attempt >= 3)
-                    throw e;
-                try {
-                    Thread.sleep(20L * attempt + (long) (Math.random() * 20));
-                }
-                catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    throw e;
-                }
-            }
-        }
+        // 不能在 @Transactional 方法内 catch CannotAcquireLockException 后 sleep 重试：
+        // Spring 已标记当前事务 rollback-only，重试成功后提交必然 UnexpectedRollbackException。
+        Optional<AgentConversation> existing =
+                conversations.findByOpenidAndConversationId(openid, conversationId);
+        if (existing.isPresent())
+            return existing.get();
+        conversations.insertIfAbsent(openid, conversationId, com.moodrecipe.backend.config.AppClock.now());
+        return conversations.findByOpenidAndConversationId(openid, conversationId)
+                .orElseThrow(() -> new IllegalStateException("会话初始化失败，请重试"));
     }
 
     @Transactional
@@ -93,13 +86,14 @@ public class AgentConversationService {
                 .map(AgentConversation::getLastAction).orElse(null);
     }
 
-    @Transactional
-    public void save(String openid, String conversationId, DialogueState.Turn turn,
-                     List<TranscriptMessage> transcript) {
-        if (conversationId == null || conversationId.isBlank() || turn == null) return;
+    /** 事务内写入会话：REQUIRES_NEW 独立事务，保存失败只回滚会话记录本身。
+     *  异常向上抛给 save() 捕获降级——不会在"事务内吞异常后正常返回"时抛
+     *  UnexpectedRollbackException（线上「锅仔后端 500 告警」同类根因，2026-10-26 修复）。 */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void saveTx(String openid, String cid, DialogueState.Turn turn,
+                       List<TranscriptMessage> transcript) {
         // 与会话额度同源的死锁防护：不先锁不存在的行，改 upsert 原子建行后再锁行更新。
         // （RR 下 FOR UPDATE 空行持间隙锁，并发首轮互等插入意向锁 → 死锁 500。）
-        String cid = conversationId.trim();
         AgentConversation conversation = lockOrCreate(openid, cid);
         try {
             conversation.setStateJson(json.writeValueAsString(turn.state()));
@@ -110,9 +104,22 @@ public class AgentConversationService {
             if (turn.reply() != null && !turn.reply().isBlank())
                 full.add(new TranscriptMessage("agent", turn.reply(), List.of(), false, turn.card()));
             conversation.setTranscriptJson(json.writeValueAsString(safeTranscript(full)));
-            conversation.setLastAction(turn.action());
-            conversation.setTurnCount(conversation.getTurnCount() + 1);
-            conversations.save(conversation);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            // JSON 序列化失败：转为 unchecked，事务才能正确回滚（Spring 默认不回滚 checked 异常）
+            throw new IllegalStateException("会话状态序列化失败", e);
+        }
+        conversation.setLastAction(turn.action());
+        conversation.setTurnCount(conversation.getTurnCount() + 1);
+        conversations.save(conversation);
+    }
+
+    @Transactional
+    public void save(String openid, String conversationId, DialogueState.Turn turn,
+                     List<TranscriptMessage> transcript) {
+        if (conversationId == null || conversationId.isBlank() || turn == null) return;
+        String cid = conversationId.trim();
+        try {
+            self.saveTx(openid, cid, turn, transcript);
         } catch (Exception e) {
             // 降级不打断聊天响应，但会话状态/记录丢失必须留痕可查（线上"刷新后少了半轮"的定位依据）
             log.error("[agent-conversation] 会话持久化失败 openid={} conversationId={}", openid, conversationId, e);

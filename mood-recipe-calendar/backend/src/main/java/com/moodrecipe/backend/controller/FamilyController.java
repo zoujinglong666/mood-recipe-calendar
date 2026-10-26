@@ -33,6 +33,10 @@ public class FamilyController {
         catch (IllegalStateException e) {
             return ApiResponse.error(400, e.getMessage());
         }
+        catch (org.springframework.dao.DataIntegrityViolationException e) {
+            // 并发创建唯一键冲突：事务已回滚（无孤儿组），重新查询返回已存在的家庭（幂等成功）
+            return ApiResponse.ok(family.myFamily(openid));
+        }
     }
 
     @PostMapping("/join")
@@ -42,6 +46,10 @@ public class FamilyController {
         }
         catch (IllegalStateException e) {
             return ApiResponse.error(400, e.getMessage());
+        }
+        catch (org.springframework.dao.DataIntegrityViolationException e) {
+            // 并发加入唯一键冲突：事务已回滚，重新查询返回当前家庭（幂等成功）
+            return ApiResponse.ok(family.myFamily(openid));
         }
     }
 

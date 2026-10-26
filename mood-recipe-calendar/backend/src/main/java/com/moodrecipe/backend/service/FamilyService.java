@@ -9,7 +9,6 @@ import com.moodrecipe.backend.repository.UserRepository;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
 import java.security.SecureRandom;
 import java.util.List;
@@ -55,17 +54,11 @@ public class FamilyService {
         owner.setGroupId(group.getId());
         owner.setOpenid(openid);
         owner.setRole("OWNER");
-        try {
-            members.save(owner);
-        }
-        catch (DataIntegrityViolationException e) {
-            // 并发创建：唯一键拦截第二笔。必须显式回滚本事务刚插入的组（否则留下无 owner 的孤儿组），
-            // 再返回已存在的家庭，把冲突转成幂等成功。
-            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
-            FamilyMember already = members.findByOpenid(openid).orElse(null);
-            if (already != null) return viewOf(already);
-            throw e;
-        }
+        // 并发创建冲突（唯一键拦截第二笔）：DataIntegrityViolationException 默认回滚整个事务，
+        // 不会留下无 owner 的孤儿组。异常向上抛，由 controller 重新查询返回已存在的家庭（幂等成功）。
+        // 注意：不能在事务内 setRollbackOnly() 后又 return——Spring 提交时必抛
+        // UnexpectedRollbackException（线上「锅仔后端 500 告警」同类根因，2026-10-26 修复）。
+        members.save(owner);
         return viewOf(openid, group);
     }
 
@@ -82,16 +75,8 @@ public class FamilyService {
         member.setGroupId(group.getId());
         member.setOpenid(openid);
         member.setRole("MEMBER");
-        try {
-            members.save(member);
-        }
-        catch (DataIntegrityViolationException e) {
-            // 并发加入：已在家庭里则幂等返回（本事务无其他写入，回滚无害）；否则原样抛出
-            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
-            FamilyMember already = members.findByOpenid(openid).orElse(null);
-            if (already != null) return viewOf(already);
-            throw e;
-        }
+        // 并发加入冲突：同上抛给 controller 幂等重查；本事务无其他写入，回滚无害。
+        members.save(member);
         return viewOf(member);
     }
 

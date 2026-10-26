@@ -16,7 +16,10 @@ import com.moodrecipe.backend.repository.UserRecordRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
@@ -97,6 +100,9 @@ public class AgentMemoryStore {
         this.recipes = recipes;
         this.outcomes = outcomes;
     }
+
+    /** 自注入：forget/clear 的幂等降级需要调用带 REQUIRES_NEW 事务的代理方法。 */
+    @Autowired @Lazy private AgentMemoryStore self;
 
     /** 写入或更新一条事实；相同值会增强置信度，更可信的新值会覆盖旧值。 */
     public MemoryItem remember(RememberCommand command) {
@@ -190,31 +196,40 @@ public class AgentMemoryStore {
                 .toList();
     }
 
-    @Transactional
     public void forget(String openid, String key) {
         if (KEY_PERSONALIZATION.equals(key)) return;
-        // 防御：即便未来回退成逐条删除写法，目标行已不存在也应幂等通过，不 500
-        idempotentDelete(() -> facts.deleteByOpenidAndMemoryKey(openid, key));
+        try {
+            // 防御：即便未来回退成逐条删除写法，目标行已不存在也应幂等通过，不 500
+            self.forgetTx(openid, key);
+        } catch (ObjectOptimisticLockingFailureException e) {
+            // 乐观锁（目标行已被删）按幂等 no-op 处理；catch 位于无事务方法内，
+            // 不会像"事务内吞异常"那样在提交时抛 UnexpectedRollbackException（2026-10-26 修复）。
+            log.warn("记忆删除目标行已不存在，按幂等 no-op 处理: {}", e.getMessage());
+        }
     }
 
-    @Transactional
+    /** REQUIRES_NEW 独立事务内执行派生删除（deleteByXxx 不自带事务，需手动开启）。 */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void forgetTx(String openid, String key) {
+        facts.deleteByOpenidAndMemoryKey(openid, key);
+    }
+
     public void clear(String openid) {
         boolean enabled = personalizationEnabled(openid);
-        // 防御：即便未来回退成逐条删除写法，重复清空/并发清空时目标行已不存在也应幂等通过
-        idempotentDelete(() -> {
-            facts.deleteByOpenid(openid);
-            interactions.deleteByOpenid(openid);
-        });
+        try {
+            // 防御：即便未来回退成逐条删除写法，重复清空/并发清空时目标行已不存在也应幂等通过
+            self.clearTx(openid);
+        } catch (ObjectOptimisticLockingFailureException e) {
+            log.warn("记忆清空目标行已不存在，按幂等 no-op 处理: {}", e.getMessage());
+        }
         setPersonalizationEnabled(openid, enabled);
     }
 
-    /** 删除失败时若是乐观锁（目标行已被删），按幂等 no-op 处理，避免记忆清空/遗忘接口 500。 */
-    private void idempotentDelete(Runnable deletes) {
-        try {
-            deletes.run();
-        } catch (ObjectOptimisticLockingFailureException e) {
-            log.warn("记忆删除目标行已不存在，按幂等 no-op 处理: {}", e.getMessage());
-        }
+    /** REQUIRES_NEW 独立事务内执行清空（deleteByXxx 不自带事务，需手动开启）。 */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void clearTx(String openid) {
+        facts.deleteByOpenid(openid);
+        interactions.deleteByOpenid(openid);
     }
 
     public boolean personalizationEnabled(String openid) {

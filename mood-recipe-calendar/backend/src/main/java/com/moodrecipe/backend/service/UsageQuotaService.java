@@ -93,28 +93,16 @@ public class UsageQuotaService {
      * 死锁重试只是兜底：真正消除死锁源靠的是不打间隙锁。
      */
     private UsageQuota lockOrInit(String openid, String feature, LocalDate start) {
-        for (int attempt = 1; ; attempt++) {
-            try {
-                Optional<UsageQuota> existing = quotas.findForUpdate(openid, feature, start);
-                if (existing.isPresent())
-                    return existing.get();
-                quotas.insertIfAbsent(openid, feature, start);
-                return quotas.findForUpdate(openid, feature, start)
-                        .orElseThrow(() -> new IllegalStateException("额度初始化失败，请重试"));
-            }
-            catch (CannotAcquireLockException e) {
-                // 残余锁竞争（多行锁顺序等）兜底：短退避重试，死锁语句已被 InnoDB 回滚，事务可继续
-                if (attempt >= 3)
-                    throw e;
-                try {
-                    Thread.sleep(20L * attempt + (long) (Math.random() * 20));
-                }
-                catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    throw e;
-                }
-            }
-        }
+        // 注意：不能在 @Transactional 方法内 catch CannotAcquireLockException 后 sleep 重试——
+        // Spring 已把当前事务标记 rollback-only，重试成功后提交必然抛 UnexpectedRollbackException
+        // （线上 POST /weekly-plans/{id}/days/{i}/cover/{j} 并发补图触发过）。死锁源已由 upsert
+        // 消除，剩余锁竞争直接抛出回滚，由调用方/全局异常处理转为「系统繁忙」提示让客户端重试。
+        Optional<UsageQuota> existing = quotas.findForUpdate(openid, feature, start);
+        if (existing.isPresent())
+            return existing.get();
+        quotas.insertIfAbsent(openid, feature, start);
+        return quotas.findForUpdate(openid, feature, start)
+                .orElseThrow(() -> new IllegalStateException("额度初始化失败，请重试"));
     }
 
     public View view(String openid, Feature feature) {

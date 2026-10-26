@@ -12,6 +12,7 @@ import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.dao.CannotAcquireLockException;
 
 import org.apache.tomcat.util.http.InvalidParameterException;
 import org.springframework.web.multipart.MultipartException;
@@ -183,6 +184,19 @@ public class GlobalExceptionHandler {
         if (m == null) return false;
         for (String kw : keywords) if (m.contains(kw)) return true;
         return false;
+    }
+
+    /**
+     * 数据库锁竞争（行锁等待超时 / 死锁，CannotAcquireLockException）：
+     * 并发尖峰下的瞬时故障，业务侧（如配额扣减）已整体回滚、无副作用。
+     * 转 503「系统繁忙」并抑制 500 告警——否则每次并发补图/签到尖峰都会推一条
+     * 「锅仔后端 500 告警」，且 UnexpectedRollbackException 同样源于此路径。
+     */
+    @ExceptionHandler(CannotAcquireLockException.class)
+    public ResponseEntity<ApiResponse<Void>> handleLockContention(CannotAcquireLockException e, HttpServletRequest request) {
+        log.warn("[lock-contention] {} {} -> 503: {}", request.getMethod(), request.getRequestURI(), e.getMessage());
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+            .body(ApiResponse.error(503, "系统繁忙，请稍后重试"));
     }
 
     /** 兜底：所有未捕获异常 */

@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -24,7 +25,8 @@ public class DeadRecipeImageCleaner implements ApplicationRunner {
         this.recipes = recipes;
     }
 
-    @Transactional
+    /** REQUIRES_NEW：原生 update 需事务；独立事务 + catch 吞异常不会触发 rollback-only 提交异常。 */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     @Override
     public void run(ApplicationArguments args) {
         try {

@@ -144,6 +144,10 @@ public class WeeklyMealPlanController {
             quotas.consume(openid, UsageQuotaService.Feature.COVER_GENERATE);
         } catch (IllegalStateException e) {
             return ApiResponse.error(429, e.getMessage());
+        } catch (org.springframework.dao.CannotAcquireLockException e) {
+            // 配额行锁竞争（同用户并发补图尖峰）：consume 已整体回滚、未扣费，转 503 让客户端重试，
+            // 不再落到全局兜底误报「锅仔后端 500 告警」（UnexpectedRollbackException 同类根因）。
+            return ApiResponse.error(503, "系统繁忙，请稍后重试");
         }
         try {
             var result = call.get();
@@ -159,6 +163,10 @@ public class WeeklyMealPlanController {
         } catch (IllegalStateException e) {
             quotas.release(openid, UsageQuotaService.Feature.COVER_GENERATE);
             return ApiResponse.error(500, "封面生成失败，可稍后重试");
+        } catch (org.springframework.dao.CannotAcquireLockException e) {
+            // 菜单行保存时的锁竞争：同样归还配额并转 503，避免 500 告警误报。
+            quotas.release(openid, UsageQuotaService.Feature.COVER_GENERATE);
+            return ApiResponse.error(503, "系统繁忙，请稍后重试");
         }
     }
     @PostMapping("/{id}/days/{index}/cover") public ApiResponse<?> cover(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @PathVariable Long id, @PathVariable int index) { return coverGuarded(openid, () -> plans.ensureCover(openid, id, index)); }

@@ -5,7 +5,10 @@ import com.moodrecipe.backend.entity.GrowthEvent;
 import com.moodrecipe.backend.entity.GrowthState;
 import com.moodrecipe.backend.repository.GrowthEventRepository;
 import com.moodrecipe.backend.repository.GrowthStateRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
@@ -60,30 +63,41 @@ public class GrowthService {
         this.events = events;
     }
 
+    /** 自注入：award() 降级捕获需要调用带 REQUIRES_NEW 事务的代理方法。 */
+    @Autowired @Lazy private GrowthService self;
+
     /** 记一笔成长值；超出每日上限的自动事件静默丢弃（签到不受限）。返回最新状态视图。 */
-    @Transactional
     public StatusView award(String openid, Event event) {
         try {
-            if (event != Event.CHECKIN && todayAutoPoints(openid) + event.points() > DAILY_AUTO_CAP) {
-                return status(openid);
-            }
-            GrowthEvent row = new GrowthEvent();
-            row.setOpenid(openid);
-            row.setType(event.name());
-            row.setPoints(event.points());
-            events.save(row);
-
-            GrowthState state = states.findByOpenid(openid).orElseGet(() -> {
-                GrowthState fresh = new GrowthState();
-                fresh.setOpenid(openid);
-                return fresh;
-            });
-            state.setPoints(state.getPoints() + event.points());
-            state.setLevel(levelOf(state.getPoints()));
-            states.save(state);
+            return self.awardTx(openid, event);
         } catch (RuntimeException ignored) {
-            // 养成是增益行为，任何失败都不能拖垮主流程（记录/签到/消耗各自照常完成）
+            // 养成是增益行为，任何失败都不能拖垮主流程（记录/签到/消耗各自照常完成）。
+            // awardTx 为 REQUIRES_NEW 独立事务：失败只回滚本次成长记录，
+            // 不会在"事务内吞异常后正常返回"时抛 UnexpectedRollbackException（2026-10-26 修复）。
+            return status(openid);
         }
+    }
+
+    /** 事务内写成长值：REQUIRES_NEW 独立事务，避免被外层调用事务（如周菜单生成）连带污染。 */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public StatusView awardTx(String openid, Event event) {
+        if (event != Event.CHECKIN && todayAutoPoints(openid) + event.points() > DAILY_AUTO_CAP) {
+            return status(openid);
+        }
+        GrowthEvent row = new GrowthEvent();
+        row.setOpenid(openid);
+        row.setType(event.name());
+        row.setPoints(event.points());
+        events.save(row);
+
+        GrowthState state = states.findByOpenid(openid).orElseGet(() -> {
+            GrowthState fresh = new GrowthState();
+            fresh.setOpenid(openid);
+            return fresh;
+        });
+        state.setPoints(state.getPoints() + event.points());
+        state.setLevel(levelOf(state.getPoints()));
+        states.save(state);
         return status(openid);
     }
 
