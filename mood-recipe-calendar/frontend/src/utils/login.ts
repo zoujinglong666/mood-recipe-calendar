@@ -77,6 +77,26 @@ export function ensureLogin(): Promise<string> {
 }
 
 /**
+ * [2026-10-27] 静默重登（架构保证：会话过期绝不打断用户）。
+ * request 层收到 401 时先走这里：wx.login 对用户完全无感，成功后原请求自动重试一次；
+ * 只有静默重登也失败（真断网等）才回退到「跳登录页」的老路径。
+ * 尊重主动退出（userInitiatedLogout），复用 startWechatLogin 的 in-flight 去重，
+ * 并发 401 只会触发一次真实登录，且新 token 全局生效。
+ */
+export async function silentRelogin(): Promise<boolean> {
+  const userStore = useUserStore()
+  if (userStore.userInitiatedLogout)
+    return false
+  try {
+    await startWechatLogin()
+    return true
+  }
+  catch {
+    return false
+  }
+}
+
+/**
  * 虚拟支付必须使用当前设备最新的微信 session_key 生成用户态签名。
  * 不能复用普通会话的 sessionToken：同一账号在另一设备登录后，旧 session_key
  * 仍能访问业务接口，却会在 requestVirtualPayment 时被微信拒绝为 SIGNATURE_INVALID。

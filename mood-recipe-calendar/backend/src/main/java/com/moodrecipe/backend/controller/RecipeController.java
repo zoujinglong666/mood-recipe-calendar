@@ -206,7 +206,7 @@ public class RecipeController {
         try { if (quotas != null) quotas.consume(openid, UsageQuotaService.Feature.HOME_RECOMMEND); }
         catch (IllegalStateException e) { return ApiResponse.error(403, e.getMessage()); }
         Recipe recipe;
-        try { recipe = recommendInternal(openid, mood, null, null); }
+        try { recipe = recommendInternal(openid, mood, null, null, null); }
         catch (RuntimeException e) { if (quotas != null) quotas.release(openid, UsageQuotaService.Feature.HOME_RECOMMEND); throw e; }
         if (recipe == null && quotas != null) quotas.release(openid, UsageQuotaService.Feature.HOME_RECOMMEND);
         return recipe == null
@@ -222,11 +222,13 @@ public class RecipeController {
             String mood = request == null || request.mood() == null || request.mood().isBlank()
                 ? "平静" : request.mood().trim();
             String mealType = request == null ? null : request.mealType();
+            // [2026-10-26] 时间预算一级输入（主循环 P1）："今晚只想快点做完"直接约束推荐打分与生成 prompt
+            Integer maxMinutes = request == null ? null : request.maxMinutes();
         try {
             return ApiResponse.ok(recommendationJobs.start(openid, mood,
                     () -> { }, progress -> {
             try {
-                Recipe recipe = recommendInternal(openid, mood, mealType, progress);
+                Recipe recipe = recommendInternal(openid, mood, mealType, progress, maxMinutes);
                 if (recipe == null && quotas != null) quotas.release(openid, UsageQuotaService.Feature.HOME_RECOMMEND);
                 return recipe;
             } catch (RuntimeException e) {
@@ -283,8 +285,9 @@ public class RecipeController {
         }
     }
 
-    private Recipe recommendInternal(String openid, String mood, String mealType, RecommendationJobService.Progress progress) {
-        return guozaiAgent.recommend(openid, mood, mealType, progress);
+    private Recipe recommendInternal(String openid, String mood, String mealType,
+                                      RecommendationJobService.Progress progress, Integer maxMinutes) {
+        return guozaiAgent.recommend(openid, mood, mealType, progress, maxMinutes);
     }
 
     @PostMapping("/{id}/feedback")
@@ -443,7 +446,7 @@ public class RecipeController {
     public record DeepRecommendRequest(String mood, String ingredients, String maxMinutes, String preference) { }
     public record RecipeFeedbackRequest(String action) { }
     public record FeedbackState(boolean liked, boolean disliked, boolean made) { }
-    public record RecommendJobRequest(String mood, String mealType) { }
+    public record RecommendJobRequest(String mood, String mealType, Integer maxMinutes) { }
     public record RecipeHistoryItem(Long id, String name, String description, String image, String ingredients, String steps,
                                     Integer cookingTime, String difficulty, String source,
                                     java.time.LocalDateTime recommendedAt) { }

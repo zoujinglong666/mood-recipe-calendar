@@ -167,15 +167,33 @@ function uniRequest<T>(opts: RequestOptions): Promise<T> {
       .join('&')}`
     : ''
   return new Promise((resolve, reject) => {
-    uni.request({
-      url: getApiBaseUrl() + opts.url + query,
-      method: opts.method,
-      timeout: opts.timeout ?? DEFAULT_TIMEOUT,
-      data: opts.data,
-      header: { 'Content-Type': 'application/json', ...authHeader() },
-      success: (res: any) => handleResponse(res, resolve, reject),
-      fail: err => reject(new Error(err.errMsg || '网络错误')),
-    })
+    /**
+     * [2026-10-27] 会话过期静默恢复（架构保证：任何时刻进入小程序都不被打断）：
+     * 401 → 静默 wx.login 重登（用户无感，全局单次）→ 原请求自动重试一次；
+     * 重试仍 401 或静默重登失败（真断网等）才回退「清登录态 + 跳登录页」老路径。
+     * 登录/鉴权接口自身不重试。并发 401 共享同一次重登，新 token 全局生效。
+     */
+    const send = (isRetry: boolean) => {
+      uni.request({
+        url: getApiBaseUrl() + opts.url + query,
+        method: opts.method,
+        timeout: opts.timeout ?? DEFAULT_TIMEOUT,
+        data: opts.data,
+        header: { 'Content-Type': 'application/json', ...authHeader() },
+        success: async (res: any) => {
+          if (isAuthExpired(res) && !isRetry && !opts.url.startsWith('/auth/')) {
+            const { silentRelogin } = await import('@/utils/login')
+            if (await silentRelogin()) {
+              send(true)
+              return
+            }
+          }
+          handleResponse<T>(res, resolve, reject)
+        },
+        fail: err => reject(new Error(err.errMsg || '网络错误')),
+      })
+    }
+    send(false)
   })
 }
 

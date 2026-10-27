@@ -17,4 +17,7 @@ public interface DailyMenuRepository extends JpaRepository<DailyMenu, Long> {
     /** 沉睡召回：某天打开过首页今日菜牌的用户集合。 */
     @org.springframework.data.jpa.repository.Query("SELECT DISTINCT d.openid FROM DailyMenu d WHERE d.menuDate = :menuDate")
     java.util.List<String> findOpenidsByMenuDate(@org.springframework.data.repository.query.Param("menuDate") LocalDate menuDate);
+
+    /** [2026-10-27] 召回消息个性化：用户最近一次的今日菜牌行（取其中的菜谱做钩子）。 */
+    java.util.Optional<DailyMenu> findTopByOpenidOrderByMenuDateDesc(String openid);
 }

@@ -30,6 +30,9 @@ const { previewImage } = useImagePreview()
 const mood = ref('开心')
 /** 餐别：BREAKFAST / LUNCH / DINNER，来自首页「让锅仔替你决定」选择器，用于联动《膳食指南》依据 */
 const mealType = ref('')
+/** [2026-10-26] 时间预算一级输入（主循环 P1）：MealSheet 勾选「今晚想快一点」后带 quick=1 进入，本次推荐按 20 分钟约束 */
+const QUICK_MODE_MAX_MINUTES = 20
+const quickMode = ref(false)
 /** 兼容跳转链接中经 encodeURIComponent 编码的 mood（如 %E5%BC%80%E5%BF%83），避免页面显示编码串 */
 function normalizeMood(raw: unknown): string {
   if (typeof raw !== 'string' || !raw)
@@ -264,7 +267,11 @@ async function loadRecipe() {
         uni.removeStorageSync(ACTIVE_JOB_KEY)
       }
     }
-    const created = await createRecommendationJob(mood.value, mealType.value)
+    const created = await createRecommendationJob(
+      mood.value,
+      mealType.value,
+      quickMode.value ? QUICK_MODE_MAX_MINUTES : undefined,
+    )
     if (run !== pollRun)
       return
     recommendationJob.value = created
@@ -284,6 +291,7 @@ async function loadRecipe() {
 onLoad((query) => {
   mood.value = normalizeMood(query?.mood)
   mealType.value = (query?.mealType as string) || inferMealType()
+  quickMode.value = query?.quick === '1'
   linkedRecipeId.value = Number(query?.recipeId) || 0
   void loadRecipe()
 })
@@ -425,13 +433,32 @@ async function pollRecommendation(jobId: string, run: number) {
   catch (e: any) {
     if (run !== pollRun)
       return
+    // [2026-10-27] 会话过期：立即停轮询，交给全局登录恢复流程（跳登录页后回跳续跑），
+    // 绝不能继续打——那是曾经把出口 IP 刷进 401 封禁的根源。
+    if (e?.message?.includes('登录已过期')) {
+      loading.value = false
+      return
+    }
+    // 429 限流：指数退避后继续问（不算失败次数），用户网络恢复前不轻易砸出错终态
+    if (e?.code === 429) {
+      if (Date.now() - pollStartedAt >= POLL_TIMEOUT) {
+        loading.value = false
+        error.value = readableError(e, '这次推荐等得有点久，先去看看别的吧')
+        return
+      }
+      const backoff = Math.min(POLL_INTERVAL * (pollFailures + 2), 8000)
+      pollTimer = setTimeout(() => pollRecommendation(jobId, run), backoff)
+      return
+    }
     pollFailures += 1
     if (pollFailures >= MAX_POLL_FAILURES || Date.now() - pollStartedAt >= POLL_TIMEOUT) {
       loading.value = false
       error.value = readableError(e, '暂时读不到推荐进度，请重新试一次')
       return
     }
-    pollTimer = setTimeout(() => pollRecommendation(jobId, run), POLL_INTERVAL)
+    // 普通失败也小幅退避，避免后端抖动时 900ms 连击
+    const backoff = POLL_INTERVAL * (pollFailures + 1)
+    pollTimer = setTimeout(() => pollRecommendation(jobId, run), backoff)
   }
 }
 
@@ -766,6 +793,7 @@ async function waitForDelivery(orderNo: string) {
           <view class="recommend-card__topline">
             <view class="mood-chip">
               <text class="mood-chip__dot" /><text>今天有点{{ mood }}</text>
+              <text v-if="quickMode" class="mood-chip__quick">⚡ 20分钟内</text>
             </view>
             <view class="recommend-card__share pressable" role="button" aria-label="生成或分享今日食谱卡" @click="openShareSheet">
               <Icon name="share" :size="36" color="#EF5A3C" />
@@ -1164,6 +1192,8 @@ async function waitForDelivery(orderNo: string) {
 .recommend-card { overflow: hidden; border: 2rpx solid var(--mrc-border-light); border-radius: 40rpx; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-lift), var(--mrc-gloss); }
 .recommend-card__topline { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; min-height: 88rpx; padding: 0 28rpx; }
 .mood-chip { display: inline-flex; align-items: center; gap: 12rpx; color: var(--mrc-text-deep); font-size: 24rpx; font-weight: 700; }
+/* 快手模式徽章：与 .home-board__chip 同款小标签语言（pill + surface 底 + accent 文字） */
+.mood-chip__quick { padding: 4rpx 16rpx; border: 1rpx solid var(--mrc-border-light); border-radius: 999rpx; color: var(--mrc-accent); background: var(--mrc-accent-soft); font-size: 20rpx; font-weight: 700; }
 .mood-chip__dot { width: 14rpx; height: 14rpx; border-radius: 50%; background: var(--mrc-pop); box-shadow: 0 0 0 8rpx var(--mrc-surface-sun); }
 .recommend-card__share { display: flex; align-items: center; justify-content: center; width: 88rpx; height: 88rpx; margin-right: -20rpx; border-radius: 50%; }
 .dish-media { position: relative; width: 100%; height: 0; padding-bottom: 75%; overflow: hidden; background: var(--mrc-surface-peach); }

@@ -79,6 +79,7 @@ import { navLocked } from '../../utils/nav'
 import { imgThumb, imgList, imgHero } from '../../utils/imageUrl'
 import GuozaiFlip from '../../components/guozai/GuozaiFlip.vue'
 import MealSheet from '../../components/guozai/MealSheet.vue'
+import GuozaiOnboardingSheet from '../../components/guozai/GuozaiOnboardingSheet.vue'
 import PlanModeSheet from '../../components/guozai/PlanModeSheet.vue'
 import { useUserStore } from '../../stores/user'
 import { funnel } from '../../utils/funnel'
@@ -843,7 +844,23 @@ onShareTimeline(() => {
 const MOODS = ['开心', '平静', '疲惫', '焦虑', '难过', '嘴馋', '低落', '想家', '期待', '满足', '得意', '害羞']
 /** 「让锅仔替你决定」点击展开餐别选择器：选一顿后带上餐别去推荐页，让推荐有《膳食指南》可依 */
 const showMealSheet = ref(false)
-function openMealSheet() { showMealSheet.value = true }
+/** 冷启动画像问卷：与 mood 页共享同一份 asked 标记，两个入口合计只弹一次（展示时落标记） */
+const showOnboarding = ref(false)
+function openMealSheet() {
+  if (!uni.getStorageSync('mrc_preference_onboarded') && !uni.getStorageSync('mrc_onboarding_asked')) {
+    uni.setStorageSync('mrc_onboarding_asked', '1')
+    funnel('onboarding_shown', { from: 'home' })
+    showOnboarding.value = true
+    return
+  }
+  showMealSheet.value = true
+}
+function onOnboardingDone(result: { completed: boolean }) {
+  showOnboarding.value = false
+  funnel(result.completed ? 'onboarding_completed' : 'onboarding_skipped', {})
+  if (result.completed) uni.setStorageSync('mrc_preference_onboarded', '1')
+  showMealSheet.value = true
+}
 
 /** 锅仔管饭单一入口：弹层里选排菜方式（智能体对话式 / 普通填口味自动排） */
 const showPlanMode = ref(false)
@@ -855,12 +872,13 @@ function onPlanModePick(mode: 'agent' | 'plan') {
   showPlanMode.value = false
   navLocked(() => router.push({ name: mode === 'agent' ? 'meal-agent' : 'weekly-plan' }))
 }
-function pickMeal(type: 'BREAKFAST' | 'LUNCH' | 'DINNER') {
+function pickMeal(type: 'BREAKFAST' | 'LUNCH' | 'DINNER', options?: { quick?: boolean }) {
   funnel('recommend_click', { mealType: type })
-  funnel('meal_sheet_pick', { meal: type, from: 'home' })
+  funnel('meal_sheet_pick', { meal: type, from: 'home', quick: options?.quick ? 1 : 0 })
   const mood = MOODS[Math.floor(Math.random() * MOODS.length)]
   // 坑位：name 导航只认 params（query 会被路由器丢弃），mood/mealType 都走 params
-  navLocked(() => router.push({ name: 'recipe', params: { mood, mealType: type } }))
+  const quick: Record<string, string> = options?.quick ? { quick: '1' } : {}
+  navLocked(() => router.push({ name: 'recipe', params: { mood, mealType: type, ...quick }, query: { ...quick } }))
 }
 const TABBAR_NAMES = ['home', 'record', 'profile']
 function goto(name: string, q?: Record<string, string>) {
@@ -1100,6 +1118,7 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
       </view>
 
       <MealSheet v-model="showMealSheet" @select="pickMeal" />
+      <GuozaiOnboardingSheet v-model="showOnboarding" @done="onOnboardingDone" />
       <PlanModeSheet v-model="showPlanMode" @select="onPlanModePick" />
 
       <view class="home-cal">

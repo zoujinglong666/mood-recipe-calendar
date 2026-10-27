@@ -130,13 +130,19 @@ public class WechatSubscriptionMessageService {
      */
     public void sendShoppingListReady(String openid) {
         sendScheduleReminder(openid, "subpkg-planning/weekly-plan/index",
-                "本周买菜清单已备好", "采购提醒", "周六采购正合适，照着清单一次买齐");
+                "本周买菜清单已备好", "采购提醒", "照着菜单一次买齐，不跑第二趟");
     }
 
-    /** 沉睡召回：连续 2 天未打开时提示今日菜牌已留好。 */
-    public void sendMissYou(String openid) {
+    /**
+     * [2026-10-27] 沉睡召回（个性化）：用用户最近一次菜牌里的真实菜名做钩子——
+     * 「提醒了什么菜 / 为什么是你（口味对路）/ 有什么好处（时长）」三问都要有答案，
+     * 泛泛的"锅仔想你了"没有点开的理由。类型字段也不再暴露"召回"这种内部术语。
+     */
+    public void sendMissYou(String openid, String dishHook, String benefit) {
         sendScheduleReminder(openid, "pages/index/index",
-                "今天的菜已留好", "锅仔召回", "锅仔想你了，点开看看今日推荐");
+                dishHook != null && !dishHook.isBlank() ? dishHook : "今天的菜已留好",
+                "今日菜牌",
+                benefit != null && !benefit.isBlank() ? benefit : "按你的口味留了新推荐，点开就有");
     }
 
     /** 「日程提醒」模板（thing3=提醒事项 thing10=类型 thing9=备注）；模板未配置直接跳过。 */

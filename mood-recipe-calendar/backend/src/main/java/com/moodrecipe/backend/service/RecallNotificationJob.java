@@ -2,6 +2,7 @@ package com.moodrecipe.backend.service;
 
 import com.moodrecipe.backend.config.AppClock;
 import com.moodrecipe.backend.repository.DailyMenuRepository;
+import com.moodrecipe.backend.repository.RecipeRepository;
 import com.moodrecipe.backend.repository.UserRepository;
 import com.moodrecipe.backend.repository.WeeklyMealPlanRepository;
 import org.slf4j.Logger;
@@ -33,15 +34,18 @@ public class RecallNotificationJob {
     private final WeeklyMealPlanRepository weeklyPlans;
     private final DailyMenuRepository dailyMenus;
     private final UserRepository users;
+    private final RecipeRepository recipes;
 
     public RecallNotificationJob(WechatSubscriptionMessageService subscriptions,
                                  WeeklyMealPlanRepository weeklyPlans,
                                  DailyMenuRepository dailyMenus,
-                                 UserRepository users) {
+                                 UserRepository users,
+                                 RecipeRepository recipes) {
         this.subscriptions = subscriptions;
         this.weeklyPlans = weeklyPlans;
         this.dailyMenus = dailyMenus;
         this.users = users;
+        this.recipes = recipes;
     }
 
     /** 周六上午清单提醒：让用户照着本周菜单采购，把「生成菜单」延伸成「周末采购」回访。 */
@@ -62,7 +66,7 @@ public class RecallNotificationJob {
         log.info("周六清单提醒任务完成：候选 {} 人", sent);
     }
 
-    /** 每天 10:30 沉睡召回：昨天和今天都没打开过的用户，推今日菜牌预告。 */
+    /** 每天 10:30 沉睡召回：昨天和今天都没打开过的用户，推个性化菜名钩子。 */
     @Scheduled(cron = "0 30 10 * * ?", zone = "Asia/Shanghai")
     public void missYouRecall() {
         LocalDate today = AppClock.today();
@@ -74,12 +78,54 @@ public class RecallNotificationJob {
         int sent = 0;
         for (String openid : all) {
             try {
-                subscriptions.sendMissYou(openid);
+                // [2026-10-27] 个性化钩子：最近一次菜牌的菜名 + 菜谱事实（时长/口味）做好处，
+                // 回答"推了什么 / 为什么是你 / 吃了图什么"；查不到历史时回落通用文案。
+                DishHook hook = lastDishHook(openid);
+                subscriptions.sendMissYou(openid, hook.hook(), hook.benefit());
                 sent++;
             } catch (RuntimeException ignored) {
                 // 单个用户失败不影响批次
             }
         }
         log.info("沉睡召回任务完成：候选 {} 人", sent);
+    }
+
+    /** 召回文案素材：菜名钩子 + 好处短语（均 ≤20 字，模板 thing 字段截断由发送层兜底）。 */
+    private record DishHook(String hook, String benefit) { }
+
+    private DishHook lastDishHook(String openid) {
+        try {
+            return dailyMenus.findTopByOpenidOrderByMenuDateDesc(openid)
+                    .flatMap(menu -> recipes.findById(menu.getRecipeId()))
+                    .map(recipe -> {
+                        String name = recipe.getName() == null ? "" : recipe.getName().trim();
+                        if (name.length() < 2) return new DishHook(null, null);
+                        if (name.length() > 10) name = name.substring(0, 10);
+                        String hook = "「" + name + "」想你了";
+                        String benefit = buildBenefit(recipe);
+                        return new DishHook(hook, benefit);
+                    })
+                    .orElse(new DishHook(null, null));
+        } catch (RuntimeException ignored) {
+            return new DishHook(null, null);
+        }
+    }
+
+    /** 好处短语：能落实的才说——时长从 cooking_time 来，口味从菜谱自身口味标签来，不编造。 */
+    private String buildBenefit(com.moodrecipe.backend.entity.Recipe recipe) {
+        List<String> parts = new java.util.ArrayList<>();
+        Integer minutes = recipe.getCookingTime();
+        if (minutes != null && minutes > 0) {
+            parts.add(minutes <= 30 ? minutes + "分钟搞定" : "半小时慢慢做");
+        }
+        String flavor = (recipe.getTaste() == null ? "" : recipe.getTaste())
+                + "," + (recipe.getTags() == null ? "" : recipe.getTags());
+        if (flavor.contains("辣")) parts.add("够味下饭");
+        else if (flavor.contains("清淡")) parts.add("清淡不腻");
+        else if (flavor.contains("汤")) parts.add("热乎暖胃");
+        else if (flavor.contains("甜")) parts.add("甜甜治愈");
+        else if (flavor.contains("鲜")) parts.add("鲜得很");
+        if (parts.isEmpty()) return null;
+        return String.join("，", parts);
     }
 }

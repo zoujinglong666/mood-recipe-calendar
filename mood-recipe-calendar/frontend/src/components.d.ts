@@ -22,6 +22,7 @@ declare module 'vue' {
     GuozaiGuozaiFlip: typeof import('./components/guozai/GuozaiFlip.vue')['default']
     GuozaiGuozaiImage: typeof import('./components/guozai/GuozaiImage.vue')['default']
     GuozaiGuozaiInsightCard: typeof import('./components/guozai/GuozaiInsightCard.vue')['default']
+    GuozaiGuozaiOnboardingSheet: typeof import('./components/guozai/GuozaiOnboardingSheet.vue')['default']
     GuozaiGuozaiWotButton: typeof import('./components/guozai/GuozaiWotButton.vue')['default']
     GuozaiLoadingState: typeof import('./components/guozai/LoadingState.vue')['default']
     GuozaiMealSheet: typeof import('./components/guozai/MealSheet.vue')['default']

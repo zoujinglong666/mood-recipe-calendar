@@ -7,6 +7,7 @@
     "wd-navbar": "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar",
     "guozai-flip": "../../components/guozai/GuozaiFlip",
     "meal-sheet": "../../components/guozai/MealSheet",
+    "guozai-onboarding-sheet": "../../components/guozai/GuozaiOnboardingSheet",
     "plan-mode-sheet": "../../components/guozai/PlanModeSheet"
   }
 }

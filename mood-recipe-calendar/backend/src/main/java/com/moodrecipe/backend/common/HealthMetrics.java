@@ -16,6 +16,8 @@ public class HealthMetrics {
 
     private final AtomicLong serverErrors = new AtomicLong();
     private final AtomicLong clientErrors = new AtomicLong();
+    /** [2026-10-27] 限流拦截次数：设计红线是正常用户恒为 0，非 0 即误伤信号。 */
+    private final AtomicLong rateLimited = new AtomicLong();
 
     public void incrementServerErrors() {
         serverErrors.incrementAndGet();
@@ -25,11 +27,19 @@ public class HealthMetrics {
         clientErrors.incrementAndGet();
     }
 
+    public void incrementRateLimited() {
+        rateLimited.incrementAndGet();
+    }
+
     public long snapshotAndResetServerErrors() {
         return serverErrors.getAndSet(0);
     }
 
     public long snapshotAndResetClientErrors() {
         return clientErrors.getAndSet(0);
+    }
+
+    public long snapshotAndResetRateLimited() {
+        return rateLimited.getAndSet(0);
     }
 }

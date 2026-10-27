@@ -20,7 +20,7 @@ export interface RecipeItem {
 }
 
 export interface RecommendationInsight {
-  type: 'MEMORY' | 'CHANGE'
+  type: 'MEMORY' | 'CHANGE' | 'FRIDGE'
   text: string
   memoryKey?: string | null
 }
@@ -102,9 +102,9 @@ export function recommendRecipe(mood: string) {
   return get<RecipeItem>('/recipes/recommend', { mood }).then(normalizeRecipe)
 }
 
-/** 创建可查询真实执行阶段的今日推荐任务。mealType 可选：BREAKFAST / LUNCH / DINNER。 */
-export function createRecommendationJob(mood: string, mealType?: string) {
-  return post<RecommendationJob>('/recipes/recommend-jobs', { mood, mealType }).then(job => ({
+/** 创建可查询真实执行阶段的今日推荐任务。mealType 可选：BREAKFAST / LUNCH / DINNER；maxMinutes 为本次时间预算（分钟），约束推荐打分与生成。 */
+export function createRecommendationJob(mood: string, mealType?: string, maxMinutes?: number) {
+  return post<RecommendationJob>('/recipes/recommend-jobs', { mood, mealType, maxMinutes }).then(job => ({
     ...job,
     recipe: job.recipe ? normalizeRecipe(job.recipe) : undefined,
   }))

@@ -4,9 +4,12 @@
  * 餐别必须由用户自己选（早餐/午餐/晚餐），带着 mealType 去推荐页，
  * 推荐才能联动《中国居民膳食指南》的餐别依据。
  *
- * 用法：<MealSheet v-model="show" @select="onPick" />，select 回调携带 BREAKFAST/LUNCH/DINNER。
+ * [2026-10-26] 时间预算一级输入（主循环 P1）：可勾选「今晚想快一点」，
+ * 推荐将按 20 分钟内能做好的菜打分（select 回调携带 quick 标记）。
+ *
+ * 用法：<MealSheet v-model="show" @select="onPick" />，select 回调携带 BREAKFAST/LUNCH/DINNER 与 quick。
  */
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { haptic } from '@/utils/haptic'
 
 const props = withDefaults(defineProps<{
@@ -16,7 +19,7 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:modelValue', v: boolean): void
-  (e: 'select', type: 'BREAKFAST' | 'LUNCH' | 'DINNER'): void
+  (e: 'select', type: 'BREAKFAST' | 'LUNCH' | 'DINNER', options: { quick: boolean }): void
 }>()
 
 const show = computed({
@@ -24,14 +27,24 @@ const show = computed({
   set: v => emit('update:modelValue', v),
 })
 
+/** 快手模式：本次推荐优先 20 分钟内能搞定的菜（确认后重置，下次打开回到默认） */
+const quick = ref(false)
+
+function toggleQuick() {
+  haptic('light')
+  quick.value = !quick.value
+}
+
 function close() {
   show.value = false
 }
 
 function pick(type: 'BREAKFAST' | 'LUNCH' | 'DINNER') {
   haptic('light')
+  const options = { quick: quick.value }
+  quick.value = false
   close()
-  emit('select', type)
+  emit('select', type, options)
 }
 </script>
 
@@ -58,6 +71,16 @@ function pick(type: 'BREAKFAST' | 'LUNCH' | 'DINNER') {
           <text class="meal-option__name">晚餐</text>
           <text class="meal-option__desc">好好收尾这一天</text>
         </button>
+        <button class="meal-option meal-option--quick" :class="{ 'is-on': quick }" role="switch" :aria-checked="quick" aria-label="今晚想快一点，优先 20 分钟内的菜" @click="toggleQuick">
+          <text class="meal-option__emoji">⚡</text>
+          <view class="meal-option__copy">
+            <text class="meal-option__name">今晚想快一点</text>
+            <text class="meal-option__desc">锅仔只挑 20 分钟内能做好的</text>
+          </view>
+          <view class="meal-option__switch" :class="{ 'is-on': quick }">
+            <view class="meal-option__switch-dot" />
+          </view>
+        </button>
       </view>
       <button class="meal-sheet__cancel" @click="close">取消</button>
     </view>
@@ -75,6 +98,16 @@ function pick(type: 'BREAKFAST' | 'LUNCH' | 'DINNER') {
 .meal-option__emoji { font-size: 44rpx; }
 .meal-option__name { color: var(--mrc-text-deep); font-size: 30rpx; font-weight: 800; }
 .meal-option__desc { margin-left: auto; color: var(--mrc-text-sub); font-size: 21rpx; }
+/* 快手模式开关行：文案左对齐成列，右侧自定义 switch（选中态走品牌珊瑚 token） */
+.meal-option--quick { background: var(--mrc-surface); }
+.meal-option--quick.is-on { border-color: var(--mrc-primary-deep); background: var(--mrc-accent-soft); }
+.meal-option__copy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 4rpx; }
+.meal-option__copy .meal-option__desc { margin-left: 0; }
+.meal-option--quick .meal-option__name { font-size: 27rpx; }
+.meal-option__switch { flex-shrink: 0; width: 84rpx; height: 48rpx; padding: 4rpx; border-radius: 999rpx; background: var(--mrc-border); box-sizing: border-box; transition: background var(--mrc-motion-fast); }
+.meal-option__switch.is-on { background: var(--mrc-primary-deep); }
+.meal-option__switch-dot { width: 40rpx; height: 40rpx; border-radius: 50%; background: var(--mrc-surface); box-shadow: var(--mrc-shadow-sm); transition: transform var(--mrc-motion-fast); }
+.meal-option__switch.is-on .meal-option__switch-dot { transform: translateX(36rpx); }
 .meal-sheet__cancel { width: 100%; margin-top: 20rpx; min-height: 92rpx; border-radius: 24rpx; color: var(--mrc-text-sub); background: var(--mrc-surface-2); font-size: 27rpx; font-weight: 700; }
 .meal-sheet__cancel::after { border: none; }
 </style>

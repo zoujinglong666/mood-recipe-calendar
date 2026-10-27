@@ -86,6 +86,17 @@ public class GuozaiAgent {
         this.coverBackfill = coverBackfill;
     }
 
+    /**
+     * [2026-10-26] 冰箱库存服务（可选依赖，主循环 P1：存→选联动）。
+     * 临期食材进推荐加分项、理由与洞察，让冰箱从记账本变成推荐引擎的输入。
+     */
+    private FridgeInventoryService fridgeInventory;
+
+    @Autowired(required = false)
+    void setFridgeInventory(FridgeInventoryService fridgeInventory) {
+        this.fridgeInventory = fridgeInventory;
+    }
+
     // ==================== 能力一：菜谱推荐 ====================
 
     /**
@@ -97,10 +108,20 @@ public class GuozaiAgent {
      * AI 失败时回退本地菜谱库。
      */
     public Recipe recommend(String openid, String mood, RecommendationJobService.Progress progress) {
-        return recommend(openid, mood, null, progress);
+        return recommend(openid, mood, null, progress, null);
     }
 
     public Recipe recommend(String openid, String mood, String mealType, RecommendationJobService.Progress progress) {
+        return recommend(openid, mood, mealType, progress, null);
+    }
+
+    /**
+     * [2026-10-26] 带时间预算的推荐（主循环 P1）。
+     * requestedMaxMinutes 是用户本次的"一级输入"（"今晚只想快点做完"）：
+     * 取比记忆里更紧的那个值生效——记忆是长期习惯，本次选择是当下事实。
+     */
+    public Recipe recommend(String openid, String mood, String mealType,
+                            RecommendationJobService.Progress progress, Integer requestedMaxMinutes) {
         update(progress, RecommendationJobService.Stage.MEMORY,
                 RecommendationJobService.StepStatus.RUNNING, "锅仔正在回想你的吃饭习惯");
         UserFoodPreference preference = preferences.findByOpenid(openid).orElse(null);
@@ -109,9 +130,12 @@ public class GuozaiAgent {
         // 取代原先在排序循环里逐候选查库的 N+1 写法（见 RecommendationExposureService.load）。
         RecommendationExposureService.ExposureView ev = exposureView(openid);
 
+        // [2026-10-26] 一次性加载临期食材（3 天内到期），供打分/理由/洞察三处共用（存→选联动）。
+        List<FridgeInventoryService.ItemView> expiring = expiringFridgeItems(openid);
+
         // 智能体记忆聚合：口味偏好 + 情绪趋势 + 历史记录
         int hour = java.time.LocalTime.now().getHour();
-        GuozaiMemory.MemorySnapshot snapshot = memory.snapshot(openid, hour);
+        GuozaiMemory.MemorySnapshot snapshot = applyRequestedMaxMinutes(memory.snapshot(openid, hour), requestedMaxMinutes);
         String userAnalysis = memory.buildAnalysis(snapshot);
 
         update(progress, RecommendationJobService.Stage.MEMORY,
@@ -127,17 +151,26 @@ public class GuozaiAgent {
         String nutritionFocus = nutritionFocusText(guidelinePoints);
 
         // 早餐是硬约束：优先从现成早餐组合池（BreakfastPoolSeeder 生成的「主食 · 配饮品」）直接挑，
-        // 不交给文本模型即兴生成——prompt 软约束拦不住炒菜混进早餐；池子被忌口/曝光过滤光才走 AI 生成。
+        // 不交给文本模型即兴生成——prompt 软约束拦不住炒菜混进早餐。
         if (isBreakfast(mealType)) {
-            Recipe breakfast = breakfastPoolRecipe(openid, mood, preference, snapshot, progress, ev);
+            Recipe breakfast = breakfastPoolRecipe(openid, mood, preference, snapshot, progress, ev, expiring);
             if (breakfast != null) {
                 breakfast.setGuidelineBasis(guidelineBasis);
                 return breakfast;
             }
-            log.info("早餐组合池为空或全部被过滤，回退 AI 生成早餐");
         }
 
-        // 优先 AI 智能体推荐（基于记忆主动分析，不是简单传 mood+preference）
+        // [2026-10-27] 高并发主路径：菜谱库优先（DB-first）。
+        // 库里有合适的菜就毫秒级直接出——零 AI 成本、零 AI 延迟与故障面，并发再大也只是
+        // 内存池打分 + 几次索引查询；只有库中真的没有符合忌口/曝光约束的候选时，才动用 AI 生成
+        // （生成成功即落库，池子越滚越大，后续推荐继续走库）。
+        Recipe localPick = localPoolRecipe(openid, mood, mealType, preference, snapshot, progress, ev, expiring, true);
+        if (localPick != null) {
+            localPick.setGuidelineBasis(guidelineBasis);
+            return localPick;
+        }
+
+        // 菜谱库没有合适候选 → AI 生成兜底（基于记忆主动分析，不是简单传 mood+preference）
         try {
             String preferenceText = preferencePrompt(preference);
             String smartPrompt = persona.recipePrompt(mood, userAnalysis, preferenceText, mealType, nutritionFocus);
@@ -179,9 +212,11 @@ public class GuozaiAgent {
                 }
                 update(progress, RecommendationJobService.Stage.FINALIZE,
                         RecommendationJobService.StepStatus.RUNNING, "锅仔正在整理这道菜");
-                // 动态推荐理由：结合记忆分析 + AI 生成的 description
-                generated.setRecommendationReason(buildSmartReason(mood, snapshot, preference, generated.getDescription()));
-                generated.setRecommendationInsights(recommendationInsights(generated, snapshot));
+                // 动态推荐理由：结合记忆分析 + AI 生成的 description + 冰箱临期食材
+                generated.setRecommendationReason(buildSmartReason(mood, snapshot, preference,
+                        generated.getDescription(), matchedExpiring(generated, expiring)));
+                generated.setRecommendationInsights(recommendationInsights(generated, snapshot,
+                        matchedExpiring(generated, expiring)));
                 generated.setGuidelineBasis(guidelineBasis);
                 if (generated.getId() != null) recordInteraction(openid, generated.getId(), "SHOWN");
                 generated.setExposureId(exposures.recordShown(openid, generated, "AI"));
@@ -193,10 +228,15 @@ public class GuozaiAgent {
             log.warn("锅仔 AI 推荐失败，回退本地池: {}", ex.toString());
         }
 
-        // 回退：本地菜谱库
-        Recipe fallback = fallbackLocalRecipe(openid, mood, mealType, preference, snapshot, progress, ev);
-        fallback.setGuidelineBasis(guidelineBasis);
-        return fallback;
+        // AI 也失败：最后再扫一遍本地池（放宽进度文案）；仍无候选则明确失败，绝不让 NPE 打穿任务
+        Recipe lastResort = localPoolRecipe(openid, mood, mealType, preference, snapshot, progress, ev, expiring, false);
+        if (lastResort == null) {
+            operationalEvents.record("AI_RECOMMEND_FAILED", "ALERT", openid, null,
+                    "no local candidate and AI failed");
+            throw new IllegalStateException("锅仔暂时没有合适的菜可推荐");
+        }
+        lastResort.setGuidelineBasis(guidelineBasis);
+        return lastResort;
     }
 
     private boolean isBreakfast(String mealType) {
@@ -224,7 +264,8 @@ public class GuozaiAgent {
     private Recipe breakfastPoolRecipe(String openid, String mood, UserFoodPreference preference,
                                        GuozaiMemory.MemorySnapshot snapshot,
                                        RecommendationJobService.Progress progress,
-                                       RecommendationExposureService.ExposureView ev) {
+                                       RecommendationExposureService.ExposureView ev,
+                                       List<FridgeInventoryService.ItemView> expiring) {
         Set<Long> rejected = interactions.findByOpenidAndAction(openid, "DISLIKE").stream()
                 .map(RecipeInteraction::getRecipeId).filter(Objects::nonNull).collect(Collectors.toSet());
         List<Recipe> pool = recipePool.all().stream()
@@ -250,7 +291,8 @@ public class GuozaiAgent {
                 .max(Comparator
                         .comparingInt((Recipe r) -> hasRealImage(r) ? 1 : 0)
                         .thenComparingInt(r -> feedback.getOrDefault(r.getId(), 0)
-                                + preferenceScore(r, preference) + recommendationMemoryScore(r, snapshot)))
+                                + preferenceScore(r, preference) + recommendationMemoryScore(r, snapshot)
+                                + fridgeAffinityScore(r, expiring)))
                 .orElse(null);
         if (recipe == null) return null;
 
@@ -258,8 +300,10 @@ public class GuozaiAgent {
                 RecommendationJobService.StepStatus.COMPLETED, "从早餐组合里挑了一道现成的");
         update(progress, RecommendationJobService.Stage.IMAGE,
                 RecommendationJobService.StepStatus.COMPLETED, "使用早餐组合的现有封面");
-        recipe.setRecommendationReason(buildSmartReason(mood, snapshot, preference, recipe.getDescription()));
-        recipe.setRecommendationInsights(recommendationInsights(recipe, snapshot));
+        recipe.setRecommendationReason(buildSmartReason(mood, snapshot, preference,
+                recipe.getDescription(), matchedExpiring(recipe, expiring)));
+        recipe.setRecommendationInsights(recommendationInsights(recipe, snapshot,
+                matchedExpiring(recipe, expiring)));
         if (recipe.getId() != null) recordInteraction(openid, recipe.getId(), "SHOWN");
         recipe.setExposureId(exposures.recordShown(openid, recipe, "AI"));
         update(progress, RecommendationJobService.Stage.FINALIZE,
@@ -395,6 +439,24 @@ public class GuozaiAgent {
         if (menu.size() >= required) return menu.subList(0, required);
 
         log.info("AI 周菜单数量不足，使用本地菜谱补齐: ai={}, required={}", menu.size(), required);
+        List<Recipe> poolFill = poolWeeklyMenu(openid, safeDays, safeDishes, requestedHealthGoal, requestedBudget);
+        poolFill.forEach(recipe -> addUnique(menu, recipe));
+        return menu;
+    }
+
+    /**
+     * [2026-10-27] 纯菜谱库排周菜单（DB-first，零 LLM 调用）——周菜单主路径。
+     * 按忌口/反馈/健康目标/预算/荤素搭配打分挑满 required 道不重名菜；
+     * 库里凑不齐时返回不足额列表，由调用方决定是否回退 AI 生成。
+     * 单菜推荐（recommend）已是同款 DB-first 结构，周菜单此次对齐。
+     */
+    public List<Recipe> poolWeeklyMenu(String openid, int days, int dishesPerDay,
+                                       String requestedHealthGoal, String requestedBudget) {
+        UserFoodPreference preference = preferences.findByOpenid(openid).orElse(null);
+        GuozaiMemory.MemorySnapshot snapshot = memory.snapshot(openid, java.time.LocalTime.now().getHour());
+        int safeDays = Math.max(1, Math.min(days, 7));
+        int safeDishes = Math.max(1, Math.min(dishesPerDay, 20));
+        int required = safeDays * safeDishes;
         Set<Long> rejected = interactions.findByOpenidAndAction(openid, "DISLIKE").stream()
                 .map(RecipeInteraction::getRecipeId).filter(Objects::nonNull).collect(Collectors.toSet());
         Map<Long, Integer> feedback = new HashMap<>();
@@ -415,6 +477,7 @@ public class GuozaiAgent {
                 .filter(recipe -> allowedByPreference(recipe, preference))
                 .forEach(recipe -> uniqueCandidates.putIfAbsent(recipe.getName().trim(), recipe));
         List<Recipe> candidates = new ArrayList<>(uniqueCandidates.values());
+        List<Recipe> menu = new ArrayList<>();
         while (menu.size() < required && !candidates.isEmpty()) {
             boolean sideDish = safeDishes > 1 && menu.size() % safeDishes > 0;
             Set<String> used = menu.stream().map(Recipe::getName).collect(Collectors.toSet());
@@ -442,15 +505,32 @@ public class GuozaiAgent {
                 RecommendationExposureService.ExposureView.EMPTY);
     }
 
-    private Recipe fallbackLocalRecipe(String openid, String mood, String mealType, UserFoodPreference preference,
-                                       GuozaiMemory.MemorySnapshot snapshot,
-                                       RecommendationJobService.Progress progress,
-                                       RecommendationExposureService.ExposureView ev) {
-        update(progress, RecommendationJobService.Stage.TEXT,
-                RecommendationJobService.StepStatus.DEGRADED, "文本模型暂时不可用，改从锅仔菜谱库挑选");
-        update(progress, RecommendationJobService.Stage.IMAGE,
-                RecommendationJobService.StepStatus.DEGRADED, "本地菜谱使用已有封面");
-        if (progress != null) progress.usedFallback();
+    /**
+     * [2026-10-27] 本地菜谱池挑选（推荐主路径，原"AI 失败兜底"升格）。
+     * asPrimary=true：正常主路径——进度文案按"现成的"表述，不打降级标；
+     * asPrimary=false：AI 失败后的最后挽回——保留降级文案并记运营事件。
+     * 只从锅仔 AI 生成且带真实图片的菜谱池挑选（旧的无图种子数据不再进入推荐）；
+     * AI 生成的新菜落库后会自动进入本池，池子随使用越滚越大。
+     */
+    private Recipe localPoolRecipe(String openid, String mood, String mealType, UserFoodPreference preference,
+                                   GuozaiMemory.MemorySnapshot snapshot,
+                                   RecommendationJobService.Progress progress,
+                                   RecommendationExposureService.ExposureView ev,
+                                   List<FridgeInventoryService.ItemView> expiring,
+                                   boolean asPrimary) {
+        if (asPrimary) {
+            update(progress, RecommendationJobService.Stage.TEXT,
+                    RecommendationJobService.StepStatus.COMPLETED, "锅仔从菜谱库里为你挑了现成的一道");
+            update(progress, RecommendationJobService.Stage.IMAGE,
+                    RecommendationJobService.StepStatus.COMPLETED, "使用菜谱库里现成的封面");
+        }
+        else {
+            update(progress, RecommendationJobService.Stage.TEXT,
+                    RecommendationJobService.StepStatus.DEGRADED, "文本模型暂时不可用，改从锅仔菜谱库挑选");
+            update(progress, RecommendationJobService.Stage.IMAGE,
+                    RecommendationJobService.StepStatus.DEGRADED, "本地菜谱使用已有封面");
+            if (progress != null) progress.usedFallback();
+        }
         update(progress, RecommendationJobService.Stage.LOCAL_FALLBACK,
                 RecommendationJobService.StepStatus.RUNNING, "正在按忌口、喜欢和最近看过的菜筛选");
 
@@ -486,8 +566,11 @@ public class GuozaiAgent {
         if (candidates.isEmpty()) {
             update(progress, RecommendationJobService.Stage.LOCAL_FALLBACK,
                     RecommendationJobService.StepStatus.FAILED, "没有找到符合当前忌口的菜");
-            operationalEvents.record("AI_RECOMMEND_FAILED", "ALERT", openid, null,
-                    "AI unavailable and no local candidate");
+            // 主路径池空属正常（交给 AI 兜底）；仅"AI 也失败后仍为空"才是需要运营警觉的异常
+            if (!asPrimary) {
+                operationalEvents.record("AI_RECOMMEND_FAILED", "ALERT", openid, null,
+                        "no local candidate and AI failed");
+            }
             return null;
         }
         List<Recipe> unseen = candidates.stream()
@@ -496,12 +579,14 @@ public class GuozaiAgent {
 
         Recipe recipe = candidates.stream()
                 .max(Comparator.comparingInt((Recipe r) -> score.getOrDefault(r.getId(), 0)
-                                + preferenceScore(r, preference) + recommendationMemoryScore(r, snapshot))
+                                + preferenceScore(r, preference) + recommendationMemoryScore(r, snapshot)
+                                + fridgeAffinityScore(r, expiring))
                         .thenComparing(Recipe::getId, Comparator.reverseOrder()))
                 .orElse(null);
         if (recipe != null) {
-            recipe.setRecommendationReason(localRecommendationReason(recipe, mood, preference, score));
-            recipe.setRecommendationInsights(recommendationInsights(recipe, snapshot));
+            List<String> expiringUsed = matchedExpiring(recipe, expiring);
+            recipe.setRecommendationReason(localRecommendationReason(recipe, mood, preference, score, expiringUsed));
+            recipe.setRecommendationInsights(recommendationInsights(recipe, snapshot, expiringUsed));
             recordInteraction(openid, recipe.getId(), "SHOWN");
         }
         update(progress, RecommendationJobService.Stage.LOCAL_FALLBACK,
@@ -656,34 +741,47 @@ public class GuozaiAgent {
 
     /**
      * 动态生成推荐理由——不是固定模板，而是结合用户记忆和 AI 描述。
-     * 优先级：AI 生成的 description > 基于连续记录/常做菜的动态理由 > 固定模板
+     * 优先级：AI 生成的 description > 基于连续记录/常做菜的动态理由 > 固定模板；
+     * [2026-10-26] 冰箱临期食材命中时追加一句"不浪费"的理由（主循环：存→选）。
      */
     private String buildSmartReason(String mood, GuozaiMemory.MemorySnapshot snap,
-                                    UserFoodPreference preference, String aiDescription) {
+                                    UserFoodPreference preference, String aiDescription,
+                                    List<String> expiringUsed) {
         String healthReason = healthRecommendationReason(preference);
         // 1. 如果 AI 生成了有意义的描述，直接用（它已经基于记忆分析）
         if (aiDescription != null && !aiDescription.isBlank() && aiDescription.length() > 4) {
-            return healthReason.isBlank() ? aiDescription : healthReason + aiDescription;
+            return appendFridgeLine(healthReason.isBlank() ? aiDescription : healthReason + aiDescription, expiringUsed);
         }
-        if (!healthReason.isBlank()) return healthReason;
+        if (!healthReason.isBlank()) return appendFridgeLine(healthReason, expiringUsed);
         // 2. 基于连续记录天数
         if (snap.streak() >= 7) {
-            return "你已经连续记录 " + snap.streak() + " 天了，锅仔记得你常做 " + snap.topDish()
-                    + "，今天「" + mood + "」换这道试试。";
+            return appendFridgeLine("你已经连续记录 " + snap.streak() + " 天了，锅仔记得你常做 " + snap.topDish()
+                    + "，今天「" + mood + "」换这道试试。", expiringUsed);
         }
         if (snap.streak() >= 3) {
-            return "连续 " + snap.streak() + " 天好好吃饭，锅仔给你点个赞。今天「" + mood + "」，这道正合适。";
+            return appendFridgeLine("连续 " + snap.streak() + " 天好好吃饭，锅仔给你点个赞。今天「" + mood + "」，这道正合适。",
+                    expiringUsed);
         }
         // 3. 基于常做菜
         if (!snap.topDish().isBlank() && !snap.topDish().equals("还在了解")) {
-            return "锅仔看你常做 " + snap.topDish() + "，今天「" + mood + "」，给你换个口味。";
+            return appendFridgeLine("锅仔看你常做 " + snap.topDish() + "，今天「" + mood + "」，给你换个口味。", expiringUsed);
         }
         // 4. 新用户/无记忆
         if (snap.isNewUser()) {
-            return "锅仔还在了解你，先根据你现在「" + mood + "」的心情推荐这道。";
+            return appendFridgeLine("锅仔还在了解你，先根据你现在「" + mood + "」的心情推荐这道。", expiringUsed);
         }
         // 5. 兜底
-        return "根据你现在「" + mood + "」的心情，锅仔特意为你想了这道菜。";
+        return appendFridgeLine("根据你现在「" + mood + "」的心情，锅仔特意为你想了这道菜。", expiringUsed);
+    }
+
+    /**
+     * [2026-10-26] 理由尾部追加冰箱临期说明；理由里已提到食材名就不重复加，理由超长也截断不再加。
+     */
+    private String appendFridgeLine(String reason, List<String> expiringUsed) {
+        if (expiringUsed == null || expiringUsed.isEmpty() || reason == null || reason.isBlank()) return reason;
+        boolean alreadyMentioned = expiringUsed.stream().anyMatch(reason::contains);
+        if (alreadyMentioned || reason.length() > 80) return reason;
+        return reason + "冰箱里的「" + String.join("、", expiringUsed) + "」快到期了，正好今晚用上。";
     }
 
     private String buildTrendData(GuozaiMemory.MoodTrend trend) {
@@ -891,9 +989,15 @@ public class GuozaiAgent {
     }
 
     private List<RecommendationInsight> recommendationInsights(Recipe recipe,
-                                                                GuozaiMemory.MemorySnapshot snapshot) {
+                                                                GuozaiMemory.MemorySnapshot snapshot,
+                                                                List<String> expiringUsed) {
         if (snapshot == null || !snapshot.personalizationEnabled()) return List.of();
         List<RecommendationInsight> result = new ArrayList<>();
+        // 冰箱联动洞察放最前：这是"账本在替你省钱"的直接证据（主循环：存→选）
+        if (expiringUsed != null && !expiringUsed.isEmpty()) {
+            result.add(new RecommendationInsight("FRIDGE",
+                    "用上了冰箱里快到期的「" + String.join("、", expiringUsed) + "」，不浪费", null));
+        }
         if (snapshot.preferSimple() && isSimple(recipe)) {
             result.add(new RecommendationInsight("CHANGE", "你说上次有点难，这次换成更省事的做法",
                     com.moodrecipe.backend.agent.AgentMemoryStore.KEY_SIMPLE));
@@ -951,9 +1055,12 @@ public class GuozaiAgent {
     }
 
     private String localRecommendationReason(Recipe recipe, String mood, UserFoodPreference preference,
-                                             Map<Long, Integer> historyScore) {
+                                             Map<Long, Integer> historyScore, List<String> expiringUsed) {
         String healthReason = healthRecommendationReason(preference);
-        if (!healthReason.isBlank()) return healthReason;
+        if (!healthReason.isBlank()) return appendFridgeLine(healthReason, expiringUsed);
+        if (expiringUsed != null && !expiringUsed.isEmpty()) {
+            return "冰箱里的「" + String.join("、", expiringUsed) + "」正等着消耗，这道菜正好用上，不浪费。";
+        }
         if (historyScore.getOrDefault(recipe.getId(), 0) >= 5) {
             return "我记得你做过并喜欢这类菜，今天再吃一次也很合适。";
         }
@@ -1012,6 +1119,59 @@ public class GuozaiAgent {
             case "LEAN" -> "轻盈吃饭不是挨饿，今天把蔬菜、优质蛋白和少油做法安排好。";
             default -> "";
         };
+    }
+
+    // ==================== 主循环联动辅助（2026-10-26） ====================
+
+    /** 时间预算一级输入：取"记忆值 vs 本次请求值"中更紧的（本次选择是当下事实，优先级更高）。 */
+    private GuozaiMemory.MemorySnapshot applyRequestedMaxMinutes(GuozaiMemory.MemorySnapshot snapshot,
+                                                                 Integer requestedMaxMinutes) {
+        if (requestedMaxMinutes == null || requestedMaxMinutes < 10 || requestedMaxMinutes > 120) return snapshot;
+        if (snapshot.maxCookingMinutes() != null && snapshot.maxCookingMinutes() <= requestedMaxMinutes) return snapshot;
+        return new GuozaiMemory.MemorySnapshot(snapshot.period(), snapshot.usualPeriod(), snapshot.topDish(),
+                snapshot.topMood(), snapshot.streak(), snapshot.recordedToday(), snapshot.favorite(),
+                snapshot.favoriteCuisine(), snapshot.preference(), snapshot.isNewUser(), snapshot.moodTrend(),
+                requestedMaxMinutes, snapshot.preferSimple(), snapshot.lovedDishes(), snapshot.personalizationEnabled());
+    }
+
+    /** 加载 3 天内到期的食材（复用 FridgeInventoryService 的 SOON 口径）；失败静默为空，绝不影响推荐。 */
+    private List<FridgeInventoryService.ItemView> expiringFridgeItems(String openid) {
+        if (fridgeInventory == null) return List.of();
+        try {
+            return fridgeInventory.list(openid).stream()
+                    .filter(item -> "SOON".equals(item.status()))
+                    .limit(10)
+                    .toList();
+        } catch (RuntimeException ex) {
+            log.warn("冰箱临期加载失败，本次推荐不融合冰箱: {}", ex.toString());
+            return List.of();
+        }
+    }
+
+    /** 冰箱临期加分：菜谱文本每命中一种临期食材 +7，封顶 14——足以影响排序，不至压过口味与忌口。 */
+    private int fridgeAffinityScore(Recipe recipe, List<FridgeInventoryService.ItemView> expiring) {
+        if (expiring == null || expiring.isEmpty()) return 0;
+        String text = searchableText(recipe);
+        int score = 0;
+        for (FridgeInventoryService.ItemView item : expiring) {
+            String name = item.name() == null ? "" : item.name().trim();
+            if (name.length() >= 2 && text.contains(name)) {
+                score += 7;
+                if (score >= 14) return 14;
+            }
+        }
+        return score;
+    }
+
+    /** 命中菜谱的临期食材名（至多 2 个），供理由与洞察点名——"被记住"要能落到具体食材上。 */
+    private List<String> matchedExpiring(Recipe recipe, List<FridgeInventoryService.ItemView> expiring) {
+        if (expiring == null || expiring.isEmpty()) return List.of();
+        String text = searchableText(recipe);
+        return expiring.stream()
+                .map(item -> item.name() == null ? "" : item.name().trim())
+                .filter(name -> name.length() >= 2 && text.contains(name))
+                .limit(2)
+                .toList();
     }
 
     private void recordInteraction(String openid, Long recipeId, String action) {

@@ -311,6 +311,7 @@ declare global {
   const safeDecodePrompt: typeof import('./utils/safeDecodePrompt')['safeDecodePrompt']
   const saveCookingDraft: typeof import('./utils/cookingDraft')['saveCookingDraft']
   const saveFoodPreference: typeof import('./api/preferences')['saveFoodPreference']
+  const saveOnboarding: typeof import('./api/preferences')['saveOnboarding']
   const saveRecord: typeof import('./api/records')['saveRecord']
   const saveRecordDraft: typeof import('./utils/cookingDraft')['saveRecordDraft']
   const saveShareImage: typeof import('./utils/albumShare')['saveShareImage']
@@ -324,6 +325,7 @@ declare global {
   const shallowReadonly: typeof import('vue')['shallowReadonly']
   const shallowRef: typeof import('vue')['shallowRef']
   const showLoading: typeof import('./utils/toast')['showLoading']
+  const silentRelogin: typeof import('./utils/login')['silentRelogin']
   const sourceLabel: typeof import('./utils/memoryLabels')['sourceLabel']
   const splitComboDishName: typeof import('./api/dailyMenu')['splitComboDishName']
   const storeToRefs: typeof import('pinia')['storeToRefs']
@@ -866,6 +868,7 @@ declare module 'vue' {
     readonly safeDecodePrompt: UnwrapRef<typeof import('./utils/safeDecodePrompt')['safeDecodePrompt']>
     readonly saveCookingDraft: UnwrapRef<typeof import('./utils/cookingDraft')['saveCookingDraft']>
     readonly saveFoodPreference: UnwrapRef<typeof import('./api/preferences')['saveFoodPreference']>
+    readonly saveOnboarding: UnwrapRef<typeof import('./api/preferences')['saveOnboarding']>
     readonly saveRecord: UnwrapRef<typeof import('./api/records')['saveRecord']>
     readonly saveRecordDraft: UnwrapRef<typeof import('./utils/cookingDraft')['saveRecordDraft']>
     readonly saveShareImage: UnwrapRef<typeof import('./utils/albumShare')['saveShareImage']>
@@ -879,6 +882,7 @@ declare module 'vue' {
     readonly shallowReadonly: UnwrapRef<typeof import('vue')['shallowReadonly']>
     readonly shallowRef: UnwrapRef<typeof import('vue')['shallowRef']>
     readonly showLoading: UnwrapRef<typeof import('./utils/toast')['showLoading']>
+    readonly silentRelogin: UnwrapRef<typeof import('./utils/login')['silentRelogin']>
     readonly sourceLabel: UnwrapRef<typeof import('./utils/memoryLabels')['sourceLabel']>
     readonly splitComboDishName: UnwrapRef<typeof import('./api/dailyMenu')['splitComboDishName']>
     readonly storeToRefs: UnwrapRef<typeof import('pinia')['storeToRefs']>

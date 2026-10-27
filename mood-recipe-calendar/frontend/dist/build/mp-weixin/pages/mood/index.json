@@ -4,6 +4,7 @@
   "usingComponents": {
     "wd-navbar": "../../node-modules/@wot-ui/ui/components/wd-navbar/wd-navbar",
     "mood-picker": "../../components/guozai/MoodPicker",
-    "meal-sheet": "../../components/guozai/MealSheet"
+    "meal-sheet": "../../components/guozai/MealSheet",
+    "guozai-onboarding-sheet": "../../components/guozai/GuozaiOnboardingSheet"
   }
 }

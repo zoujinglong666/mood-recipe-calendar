@@ -93,12 +93,30 @@ public class WeeklyMealPlanService {
         // 情绪 / 收藏 / 冰箱库存接进排菜上下文：让既有数据真正参与决策，而不是各链路互不相认
         String fullNotes = appendPlanContext(openid, request, notes);
 
-        MenuPlannerAgent.PlanResult planned = planWithAgent(openid, cookingDays, dishesPerDay, healthGoal, budget, fullNotes);
-        List<PlanDay> result = planned == null || planned.days() == null || planned.days().isEmpty()
-                ? legacyDays(openid, cookingDays, dishesPerDay, healthGoal, budget, fullNotes)
-                : fromPlanned(planned.days());
-        if (!displayablePlan(result)) {
-            result = legacyDays(openid, cookingDays, dishesPerDay, healthGoal, budget, fullNotes);
+        // [2026-10-27] DB-first（与单菜推荐同原则）：库里能凑齐整周就直接排——零 LLM 调用、
+        // 毫秒级、高并发安全；只有①用户在对话里点名了菜/提了要求（notes 非空，需要意图理解）
+        // 或②库中凑不齐时，才进 MenuPlannerAgent（AI 生成后落库反哺菜谱库，池子越滚越大）。
+        List<PlanDay> result = null;
+        MenuPlannerAgent.PlanResult planned = null;
+        if (notes.isBlank()) {
+            List<Recipe> poolMenu = agent.poolWeeklyMenu(openid, cookingDays.size(), dishesPerDay, healthGoal, budget);
+            if (poolMenu.size() >= cookingDays.size() * dishesPerDay) {
+                result = new ArrayList<>();
+                for (int i = 0; i < cookingDays.size(); i++) {
+                    result.add(toDay(poolMenu, i, cookingDays.get(i), dishesPerDay, healthGoal));
+                }
+                progress.update(WeeklyPlanJobService.Stage.PLAN, WeeklyPlanJobService.StepStatus.COMPLETED,
+                        "从锅仔菜谱库直接排好了这一周");
+            }
+        }
+        if (result == null) {
+            planned = planWithAgent(openid, cookingDays, dishesPerDay, healthGoal, budget, fullNotes);
+            result = planned == null || planned.days() == null || planned.days().isEmpty()
+                    ? legacyDays(openid, cookingDays, dishesPerDay, healthGoal, budget, fullNotes)
+                    : fromPlanned(planned.days());
+            if (!displayablePlan(result)) {
+                result = legacyDays(openid, cookingDays, dishesPerDay, healthGoal, budget, fullNotes);
+            }
         }
         if (!displayablePlan(result)) {
             throw new IllegalStateException("本次菜单数据异常，请重新生成");
@@ -189,7 +207,8 @@ public class WeeklyMealPlanService {
             issues.addAll(foodSafety.riskyCombos(texts));
         }
         if (planned == null) {
-            return new PlanAudit(null, List.of("规划智能体不可用，已退回菜谱库排菜"), List.of(), issues, null);
+            // 池子直排（DB-first 主路径）与 legacy 兜底都走这里：措辞不提"不可用"，避免误导
+            return new PlanAudit(null, List.of("本次菜单由锅仔菜谱库直接排定"), List.of(), issues, null);
         }
         MenuQualityScorer.MenuQuality quality = planned.quality();
         return new PlanAudit(quality == null ? null : quality.score(),

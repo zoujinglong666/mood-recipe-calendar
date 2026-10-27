@@ -34,7 +34,7 @@ export interface RecordPayload {
 }
 
 export interface LearningReceiptItem {
-  type: 'MADE' | 'LIKED' | 'SIMPLE' | 'TIME' | 'LEFTOVER'
+  type: 'MADE' | 'LIKED' | 'SIMPLE' | 'TIME' | 'LEFTOVER' | 'FRIDGE'
   text: string
   memoryKey?: string | null
 }

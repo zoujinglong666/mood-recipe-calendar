@@ -1,10 +1,13 @@
 package com.moodrecipe.backend.service;
 
 import com.moodrecipe.backend.agent.AgentMemoryStore;
+import com.moodrecipe.backend.entity.Recipe;
 import com.moodrecipe.backend.entity.RecipeInteraction;
 import com.moodrecipe.backend.model.LearningReceipt;
 import com.moodrecipe.backend.model.LearningReceiptItem;
 import com.moodrecipe.backend.repository.RecipeInteractionRepository;
+import com.moodrecipe.backend.repository.RecipeRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -18,12 +21,26 @@ public class RecordLearningService {
     private final RecommendationExposureService exposures;
     private final AgentMemoryStore memories;
 
+    /** [2026-10-26] 冰箱自动扣减（主循环 P1：吃→存闭环）。可选依赖走 setter 注入，保持测试构造器稳定。 */
+    private RecipeRepository recipes;
+    private FridgeInventoryService fridgeInventory;
+
     public RecordLearningService(RecipeInteractionRepository interactions,
                                  RecommendationExposureService exposures,
                                  AgentMemoryStore memories) {
         this.interactions = interactions;
         this.exposures = exposures;
         this.memories = memories;
+    }
+
+    @Autowired(required = false)
+    void setRecipes(RecipeRepository recipes) {
+        this.recipes = recipes;
+    }
+
+    @Autowired(required = false)
+    void setFridgeInventory(FridgeInventoryService fridgeInventory) {
+        this.fridgeInventory = fridgeInventory;
     }
 
     public LearningReceipt learn(String openid, Long recipeId, String exposureId,
@@ -48,6 +65,12 @@ public class RecordLearningService {
             learned.add(new LearningReceiptItem("MADE",
                     dish != null ? "「" + dish + "」你又完整拿下了一次，这股劲头我记住了" : "这道菜你做过，锅仔记住了",
                     null));
+        }
+        // [2026-10-26] 吃→存闭环：做完这顿，菜谱食材命中的冰箱条目自动扣减，采购清单不会再重复推
+        List<String> consumed = consumeFridgeForRecipe(openid, recipeId);
+        if (!consumed.isEmpty()) {
+            learned.add(new LearningReceiptItem("FRIDGE",
+                    "冰箱里的「" + String.join("、", consumed) + "」已经帮你记下消耗，买菜不会重复买", null));
         }
         if (liked) {
             boolean likedWritten = recordAction(openid, recipeId, "LIKE");
@@ -97,6 +120,36 @@ public class RecordLearningService {
             return exposures.feedback(openid, exposureId, action) != null;
         } catch (RuntimeException ignored) {
             return false;
+        }
+    }
+
+    /**
+     * [2026-10-26] 做完饭自动扣减冰箱：菜谱食材文本命中冰箱条目（名称互为包含、≥2 字，与
+     * 周计划采购清单同一套匹配口径）即整份消耗。至多扣 3 样、全程吞异常——扣减是增值动作，
+     * 任何失败都不影响记录主流程。
+     */
+    private List<String> consumeFridgeForRecipe(String openid, Long recipeId) {
+        if (recipeId == null || fridgeInventory == null || recipes == null) return List.of();
+        try {
+            Recipe recipe = recipes.findById(recipeId).orElse(null);
+            if (recipe == null) return List.of();
+            String ingredients = recipe.getIngredients() == null ? "" : recipe.getIngredients();
+            if (ingredients.isBlank()) return List.of();
+            List<String> consumed = new ArrayList<>();
+            for (FridgeInventoryService.ItemView item : fridgeInventory.list(openid)) {
+                String name = item.name() == null ? "" : item.name().trim();
+                if (name.length() < 2 || !ingredients.contains(name)) continue;
+                try {
+                    fridgeInventory.consume(openid, item.id(), item.quantity());
+                    consumed.add(name);
+                } catch (RuntimeException ignored) {
+                    // 单项扣减失败跳过（数量校验/并发删除），不影响其余食材
+                }
+                if (consumed.size() >= 3) break;
+            }
+            return consumed;
+        } catch (RuntimeException ignored) {
+            return List.of();
         }
     }
 

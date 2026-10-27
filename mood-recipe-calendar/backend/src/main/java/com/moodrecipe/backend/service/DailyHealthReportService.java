@@ -64,7 +64,9 @@ public class DailyHealthReportService {
 
         md.append("\n**稳定性**\n")
           .append(String.format("- 后端 500：%d 次%n", serverErrors))
-          .append(String.format("- 前端错误上报：%d 次%n", clientErrors));
+          .append(String.format("- 前端错误上报：%d 次%n", clientErrors))
+          .append(String.format("- 限流拦截：%d 次（设计红线=0，非 0 即误伤，需查限流配置）%n",
+                  metrics.snapshotAndResetRateLimited()));
 
         if (serverErrors > 0 || clientErrors > 10) {
             md.append("\n> ⚠️ 存在异常信号，建议翻看当日日志定位。");

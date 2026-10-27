@@ -3,6 +3,7 @@ import { navBack } from '@/composables/useNavBar'
 import { ref } from 'vue'
 import MoodPicker from '../../components/guozai/MoodPicker.vue'
 import MealSheet from '../../components/guozai/MealSheet.vue'
+import GuozaiOnboardingSheet from '../../components/guozai/GuozaiOnboardingSheet.vue'
 import { fetchFoodPreference } from '../../api/preferences'
 import { ensureLogin } from '../../utils/login'
 
@@ -29,6 +30,8 @@ const router = useRouter()
 const selected = ref('')
 /** 餐别与心情一样由用户自己选：确认心情后弹餐别选择器，选完一起带去推荐页 */
 const showMealSheet = ref(false)
+/** 冷启动画像问卷：新用户首日一次性的引导，完成/跳过都放行（只弹一次见 onConfirm） */
+const showOnboarding = ref(false)
 const pendingMood = ref('')
 
 async function onConfirm(m: { key: string }) {
@@ -44,14 +47,31 @@ async function onConfirm(m: { key: string }) {
     }
   }
   pendingMood.value = m.key
+  // [2026-10-27] 冷启动画像问卷：只弹一次的契约——展示时立刻落 asked 标记，
+  // 之后完成/跳过/下滑关闭都绝不再自动弹（问卷本身可跳过，不硬拦）。
+  if (!uni.getStorageSync('mrc_preference_onboarded') && !uni.getStorageSync('mrc_onboarding_asked')) {
+    uni.setStorageSync('mrc_onboarding_asked', '1')
+    funnel('onboarding_shown', { from: 'mood' })
+    showOnboarding.value = true
+    return
+  }
+  showMealSheet.value = true
+}
+
+/** 问卷完成/跳过都放行去选餐别；完成后同步落 onboarding 标记（老逻辑不再补查） */
+function onOnboardingDone(result: { completed: boolean }) {
+  showOnboarding.value = false
+  funnel(result.completed ? 'onboarding_completed' : 'onboarding_skipped', {})
+  if (result.completed) uni.setStorageSync('mrc_preference_onboarded', '1')
   showMealSheet.value = true
 }
 
 /** 心情+餐别都齐了才跳推荐页；mood 走 query（params 不进 URL，推荐页读的是 query.mood） */
-function onPickMeal(type: 'BREAKFAST' | 'LUNCH' | 'DINNER') {
-  funnel('meal_sheet_pick', { meal: type, from: 'mood' })
+function onPickMeal(type: 'BREAKFAST' | 'LUNCH' | 'DINNER', options?: { quick?: boolean }) {
+  funnel('meal_sheet_pick', { meal: type, from: 'mood', quick: options?.quick ? 1 : 0 })
   const mood = pendingMood.value || '开心'
-  router.push({ name: 'recipe', params: { mood }, query: { mood, mealType: type } })
+  const quick: Record<string, string> = options?.quick ? { quick: '1' } : {}
+  router.push({ name: 'recipe', params: { mood, ...quick }, query: { mood, mealType: type, ...quick } })
 }
 </script>
 
@@ -68,6 +88,7 @@ function onPickMeal(type: 'BREAKFAST' | 'LUNCH' | 'DINNER') {
     />
 
     <MealSheet v-model="showMealSheet" @select="onPickMeal" />
+    <GuozaiOnboardingSheet v-model="showOnboarding" @done="onOnboardingDone" />
   </view>
 </template>
 
