@@ -49,6 +49,13 @@
    单 IP 桶数上限（64，超限塌缩回 IP 桶）+ 单 IP 总吞吐硬顶（general×4，轮询除外——
    伪造 token 的轮询在会话校验即 401，成本极低）。新增限流维度前先想伪造成本。
 
+## 日志与告警通道（2026-10-27 起）
+
+ERROR 级日志经 `WxPusherErrorAppender`（挂 root logger）自动推 WxPusher：10 分钟窗口聚合、
+同指纹计数、排除已有专属通道的 logger（GlobalExceptionHandler/限流/WxPusherNotifier）。
+新增告警通道前先看这个排除清单——**一个故障只允许一条告警路径**，否则就是双重推送。
+WARN 不推送（LLM 超时等属正常噪音），只有 ERROR 才值得半夜叫人。
+
 ## 定时任务（P0-1，2026-10-26 起）
 
 - 调度已改为多线程 `ThreadPoolTaskScheduler`（`SchedulingConfig`，默认 6 线程，
