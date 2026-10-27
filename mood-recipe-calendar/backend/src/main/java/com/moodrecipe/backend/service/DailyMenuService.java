@@ -296,20 +296,30 @@ public class DailyMenuService implements SwapCandidateService.SwapQueueBuilder {
                     .toList();
             if (candidates.isEmpty()) continue;
 
-            return candidates.stream()
-                    .sorted(Comparator.comparingInt((Recipe recipe) ->
-                            feedback.getOrDefault(recipe.getId(), 0)
-                                    + preferenceBonus(recipe, preference)
-                                    + quickBonus(recipe)
-                                    + profileBonus(recipe, preference)
-                                    + mealBonus(recipe, mealType)
-                                    + (favoriteIds.contains(recipe.getId()) ? 5 : 0)
-                                    + (hasRealImage(recipe) ? 2 : 0)
-                                    + ingredientDiversityBonus(recipe, recentIngredients)
-                                    + guidelineBonus(recipe, guidelineFoods)
-                                    + seasonalBonus(recipe, seasonalFoods)
-                                    + profileAffinityBonus(recipe, profile)
-                                    + ThreadLocalRandom.current().nextInt(6)).reversed())
+            // [2026-10-27] 随机扰动必须"每候选定一次"再排序：comparingInt 的 keyExtractor
+            // 在排序过程中会对同一元素多次求值，内嵌 ThreadLocalRandom 会让同一元素两次
+            // 比较结果互相矛盾，TimSort 直接抛 "Comparison method violates its general
+            // contract"——换菜队列此前对所有用户批量重建失败（日志刷屏）正是这个原因。
+            // 两阶段：先逐候选算一次总分（随机只在此刻参与一次平局打散），再按稳定分排序。
+            Map<Integer, List<Recipe>> byScore = new HashMap<>();
+            for (Recipe recipe : candidates) {
+                int score = feedback.getOrDefault(recipe.getId(), 0)
+                        + preferenceBonus(recipe, preference)
+                        + quickBonus(recipe)
+                        + profileBonus(recipe, preference)
+                        + mealBonus(recipe, mealType)
+                        + (favoriteIds.contains(recipe.getId()) ? 5 : 0)
+                        + (hasRealImage(recipe) ? 2 : 0)
+                        + ingredientDiversityBonus(recipe, recentIngredients)
+                        + guidelineBonus(recipe, guidelineFoods)
+                        + seasonalBonus(recipe, seasonalFoods)
+                        + profileAffinityBonus(recipe, profile)
+                        + ThreadLocalRandom.current().nextInt(6);
+                byScore.computeIfAbsent(score, k -> new ArrayList<>()).add(recipe);
+            }
+            return byScore.entrySet().stream()
+                    .sorted(Map.Entry.<Integer, List<Recipe>>comparingByKey(Comparator.reverseOrder()))
+                    .flatMap(entry -> entry.getValue().stream())
                     .toList();
         }
         return List.of();

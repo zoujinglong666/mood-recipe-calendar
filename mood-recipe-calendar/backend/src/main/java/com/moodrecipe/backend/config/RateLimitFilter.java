@@ -56,6 +56,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
     private final long authLimit;
     private final long pollLimit;
     private final List<Cidr> trustedProxies;
+    private static final org.slf4j.Logger log =
+            org.slf4j.LoggerFactory.getLogger(RateLimitFilter.class);
     private static final long WINDOW_MS = 60_000;
     /** /auth/ 每次登录失败（401）扣减的配额；失败窗口 60s 内未再失败即自然恢复。 */
     private static final long AUTH_FAIL_PENALTY = 8;
@@ -89,6 +91,14 @@ public class RateLimitFilter extends OncePerRequestFilter {
         this.healthMetrics = healthMetrics;
     }
 
+    /** [2026-10-27] 限流告警（WxPusher）：429 出现即主动上报（10 分钟窗口去重），可选依赖同款 setter 注入。 */
+    private com.moodrecipe.backend.service.RateLimitAlertService rateLimitAlertService;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setRateLimitAlertService(com.moodrecipe.backend.service.RateLimitAlertService rateLimitAlertService) {
+        this.rateLimitAlertService = rateLimitAlertService;
+    }
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws ServletException, IOException {
@@ -108,9 +118,26 @@ public class RateLimitFilter extends OncePerRequestFilter {
         long limit = sensitive ? effectiveAuthLimit(ip) : jobPoll ? pollLimit : generalLimit;
         // 鉴权/管理路径一律按 IP（防爆破维度不可被伪造 token 分裂）；业务路径按 token（有塌缩保护）。
         String identity = identityKey(request, sensitive, ip);
+        boolean tokenIdentity = identity.startsWith("tok:");
         Bucket bucket = buckets.computeIfAbsent(identity + "|" + bucketKind, k -> new Bucket());
-        if (!bucket.tryAcquire(limit) || (jobPoll ? false : !tryIpCap(ip))) {
+        if (!bucket.tryAcquire(limit)) {
             if (healthMetrics != null) healthMetrics.incrementRateLimited();
+            log.warn("[限流] kind={} identity={} uri={} ip={} limit={}", bucketKind, identity, uri, ip, limit);
+            if (rateLimitAlertService != null) {
+                rateLimitAlertService.onRateLimited(bucketKind, identity, uri, ip, limit);
+            }
+            rejectTooMany(response);
+            return;
+        }
+        // [2026-10-27] 单 IP 硬顶只约束"没有已验证 token"的请求（未登录/伪造 token 塌缩后）。
+        // 已登录用户的聚合由各自 token 桶约束——共享硬顶会把 NAT（校园/公司 WiFi）下的一群
+        // 真实用户连坐进同一个 720/分钟桶，这正是修复后仍出现"请求过于频繁"的元凶。
+        if (!sensitive && !jobPoll && !tokenIdentity && !tryIpCap(ip)) {
+            if (healthMetrics != null) healthMetrics.incrementRateLimited();
+            log.warn("[限流·IP硬顶] identity={} uri={} ip={} cap={}", identity, uri, ip, generalLimit * IP_CAP_MULTIPLIER);
+            if (rateLimitAlertService != null) {
+                rateLimitAlertService.onRateLimited("ipcap", identity, uri, ip, generalLimit * IP_CAP_MULTIPLIER);
+            }
             rejectTooMany(response);
             return;
         }
@@ -155,6 +182,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
      * 只有直连对端（remoteAddr）属于可信代理网段时才采信 XFF：从最右向左遍历、
      * 跳过可信代理，取第一个不可信 IP 作为客户端——nginx 追加模式与多级代理都正确。
      * 对端不可信（如应用端口被直连）时一律用 remoteAddr，伪造 XFF 不再生效。
+     * 注意：刻意不使用 X-Real-IP——若 nginx 未配置 proxy_set_header X-Real-IP $remote_addr
+     * 覆盖，客户端自带的 X-Real-IP 会透传进来，重新打开伪造绕过的口子。
+     * 部署要求：nginx 必须配置 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for。
      */
     private String clientIp(HttpServletRequest request) {
         String remote = request.getRemoteAddr();

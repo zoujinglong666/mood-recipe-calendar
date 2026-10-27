@@ -338,19 +338,26 @@ public class DailyMealPlanService implements SwapCandidateService.SwapQueueBuild
         blocked.addAll(profile.avoidDishes());
         Set<String> loved = new HashSet<>(profile.lovedDishes());
         Set<String> recent = new HashSet<>(profile.recentDishes());
-        return recipePool.all().stream()
+        List<Recipe> candidates = recipePool.all().stream()
                 .filter(recipe -> !requireSeasonalIngredient
                         || inSeason.stream().anyMatch(item -> text(recipe).contains(item.getName())))
                 .filter(recipe -> !breakfastOnly || isBreakfast(recipe))
                 .filter(recipe -> !blocked.contains(recipe.getName()))
                 .filter(recipe -> recipe.getName() == null || !excludeNames.contains(recipe.getName().trim()))
-                // 优先有真实菜品图（避免卡片空图），再考虑爱吃的菜，最后错开最近吃过的；
-                // 末位随机决胜：前三档相同的绝大多数菜每天顺序不同，组合才不会天天一样。
+                .toList();
+        // [2026-10-27] 末位随机决胜必须"每候选定一次"再排序：comparator 的 keyExtractor
+        // 会对同一元素多次求值，内嵌 ThreadLocalRandom 让同一元素两次比较互相矛盾，
+        // TimSort 抛契约异常（与 DailyMenuService 换菜队列批量失败同根因）。
+        // 优先有真实菜品图（避免卡片空图），再考虑爱吃的菜，最后错开最近吃过的；
+        // 前三档相同者按预生成的随机序打散，组合才不会天天一样。
+        Map<Recipe, Integer> tieBreak = new java.util.IdentityHashMap<>();
+        candidates.forEach(recipe -> tieBreak.put(recipe, ThreadLocalRandom.current().nextInt()));
+        return candidates.stream()
                 .sorted(Comparator
                         .comparing((Recipe recipe) -> !hasRealImage(recipe))
                         .thenComparing(recipe -> !loved.contains(recipe.getName()))
                         .thenComparing(recipe -> recent.contains(recipe.getName()))
-                        .thenComparing(recipe -> ThreadLocalRandom.current().nextInt()))
+                        .thenComparing(recipe -> tieBreak.get(recipe)))
                 .toList();
     }
 
