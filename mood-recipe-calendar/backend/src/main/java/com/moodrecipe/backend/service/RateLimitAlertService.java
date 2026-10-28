@@ -57,15 +57,21 @@ public class RateLimitAlertService {
     /**
      * 限流器每次 429 调用。热路径只做无锁聚合与一次 CAS 判断；
      * WxPusher 推送丢到虚拟线程异步执行，推送耗时不会拖慢被拒绝的请求。
+     *
+     * @param tokenPresent 请求是否带了会话 token——敏感路径（登录/管理端）按设计一律按 IP 计数，
+     *                     即使带了 token；告警文案必须区分"真的没登录"和"登录了但按 IP 计"，
+     *                     否则会像 2026-10-28 那样把管理员误导成"未登录异常"。
      */
-    public void onRateLimited(String kind, String identity, String uri, String ip, long limit) {
+    public void onRateLimited(String kind, String identity, boolean tokenPresent, String uri, String ip, long limit) {
         try {
             long now = System.currentTimeMillis();
             rollWindowIfNeeded(now);
             countInWindow.incrementAndGet();
             uriCounts.computeIfAbsent(shortUri(uri), k -> new AtomicLong()).incrementAndGet();
-            kindCounts.computeIfAbsent(identity.startsWith("tok:") ? "已登录会话" : "IP（未登录/无有效会话）",
-                    k -> new AtomicLong()).incrementAndGet();
+            String kindLabel = tokenPresent
+                    ? "已登录会话（此路径按 IP 计数）"
+                    : "IP（未登录/无有效会话）";
+            kindCounts.computeIfAbsent(kindLabel, k -> new AtomicLong()).incrementAndGet();
             if (sampleIp.isBlank()) sampleIp = ip;
 
             long last = lastAlertAt.get();
@@ -121,14 +127,32 @@ public class RateLimitAlertService {
                 .sorted(byCount)
                 .map(e -> "%s ×%d".formatted(e.getKey(), e.getValue().get()))
                 .collect(Collectors.joining("，"));
+        // [2026-10-28] 样本 IP 是内网/容器地址 = nginx 未配 X-Forwarded-For，
+        // 全体用户共享这一个桶——这是"正常使用就触发限流"的头号环境性根因，直接写进告警。
+        String ipHint = looksLikeInternalIp(ip)
+                ? "⚠️ 样本 IP 是内网/容器地址：通常意味着 nginx 未配置 X-Forwarded-For，"
+                        + "全体用户共享此桶。修复：nginx 加 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;"
+                : "";
         return String.format(
                 "[锅仔限流告警] %s%n"
                         + "10 分钟内触发限流 %d 次（设计红线≈0）%n"
                         + "高发接口：%s%n"
                         + "请求身份：%s%n"
-                        + "样本 IP：%s（桶上限 %d/分钟）%n"
+                        + "样本 IP：%s（桶上限 %d/分钟）%n%s"
                         + "请核对高发接口的调用频率与限流配置（AGENTS.md 限流红线）",
-                TIME.format(AppClock.now()), total, topUris, kindsSummary, ip, limit);
+                TIME.format(AppClock.now()), total, topUris, kindsSummary, ip, limit, ipHint);
+    }
+
+    /** 内网/容器地址启发式：命中即在告警里给出 XFF 配置修复指引。 */
+    private boolean looksLikeInternalIp(String ip) {
+        if (ip == null) return false;
+        return ip.startsWith("10.")
+                || ip.startsWith("192.168.")
+                || ip.startsWith("127.")
+                || ip.startsWith("172.16.") || ip.startsWith("172.17.") || ip.startsWith("172.18.")
+                || ip.startsWith("172.19.") || ip.startsWith("172.2") || ip.startsWith("172.30.")
+                || ip.startsWith("172.31.")
+                || "0:0:0:0:0:0:0:1".equals(ip) || "::1".equals(ip);
     }
 
     /** 去掉查询串并截断，保留方法语义由调用方的 kind 区分；路径变量保留原样（可读性优先）。 */

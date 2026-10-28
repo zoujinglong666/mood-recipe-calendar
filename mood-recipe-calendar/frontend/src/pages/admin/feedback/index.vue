@@ -114,11 +114,18 @@ async function setStatus(item: AdminFeedback, status: string) {
   pendingId.value = item.id
   try {
     const updated = await adminFeedbackSetStatus(item.id, status)
+    const previous = item.status
     Object.assign(item, updated)
+    // [2026-10-28] 计数本地更新，不再每次操作重拉列表——此前每次点击发 2 个请求，
+    // 连续快速操作会撞敏感桶（/api/admin 按防爆破配额计数，生产环境曾配 20/分钟），
+    // 触发"请求过于频繁"。ALL 计数不变（状态流转不增减总数）。
+    if (previous !== status) {
+      const next = { ...counts.value }
+      next[previous] = Math.max(0, (next[previous] || 0) - 1)
+      next[status] = (next[status] || 0) + 1
+      counts.value = next
+    }
     toast(`已标记为「${statusLabel(status)}」`)
-    // 计数刷新：重新拉一次当前筛选（轻量，20 条封顶）
-    const res = await adminFeedbackList({ status: activeFilter.value || undefined, page: 1, size: PAGE_SIZE })
-    counts.value = res.counts || {}
   }
   catch (e: any) {
     toastError(e, '状态更新失败')

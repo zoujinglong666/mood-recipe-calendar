@@ -109,6 +109,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
         }
         String ip = clientIp(request);
         boolean sensitive = uri.contains("/auth/") || uri.startsWith("/api/admin/");
+        // 告警标注用：敏感路径即使带了 token 也按 IP 计数（防爆破维度），文案必须区分两种情况
+        boolean tokenPresent = request.getHeader("X-Session-Token") != null
+                && !request.getHeader("X-Session-Token").isBlank();
         // [2026-10-27] 推荐任务状态轮询是幂等 GET 且前端 900ms 一次（≈66 次/分），
         // 若计入用户 general 预算，轮询 + 详情/反馈/分享卡请求会蹭爆 120/min 造成误伤。
         // 独立大桶：既保护后端，又不挤占用户正常请求配额。
@@ -124,7 +127,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             if (healthMetrics != null) healthMetrics.incrementRateLimited();
             log.warn("[限流] kind={} identity={} uri={} ip={} limit={}", bucketKind, identity, uri, ip, limit);
             if (rateLimitAlertService != null) {
-                rateLimitAlertService.onRateLimited(bucketKind, identity, uri, ip, limit);
+                rateLimitAlertService.onRateLimited(bucketKind, identity, tokenPresent, uri, ip, limit);
             }
             rejectTooMany(response);
             return;
@@ -136,7 +139,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
             if (healthMetrics != null) healthMetrics.incrementRateLimited();
             log.warn("[限流·IP硬顶] identity={} uri={} ip={} cap={}", identity, uri, ip, generalLimit * IP_CAP_MULTIPLIER);
             if (rateLimitAlertService != null) {
-                rateLimitAlertService.onRateLimited("ipcap", identity, uri, ip, generalLimit * IP_CAP_MULTIPLIER);
+                rateLimitAlertService.onRateLimited("ipcap", identity, tokenPresent, uri, ip, generalLimit * IP_CAP_MULTIPLIER);
             }
             rejectTooMany(response);
             return;
