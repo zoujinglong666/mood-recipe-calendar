@@ -81,7 +81,7 @@ public class WeeklyMealPlanService {
 
     /** 带进度回调的生成版本，供异步任务（WeeklyPlanJobService）上报阶段，避免前端长连接超时。 */
     public PlanView generate(String openid, GenerateRequest request, WeeklyPlanJobService.Progress progress) {
-        progress.update(WeeklyPlanJobService.Stage.MEMORY, WeeklyPlanJobService.StepStatus.RUNNING, "读取你的口味记忆");
+        progress.update(WeeklyPlanJobService.Stage.MEMORY, WeeklyPlanJobService.StepStatus.RUNNING, "正在翻翻你的口味笔记");
         List<Integer> cookingDays = cookingDays(request);
         int dishesPerDay = request.dishesPerDay() > 0
                 ? Math.max(1, Math.min(request.dishesPerDay(), 20))
@@ -137,7 +137,7 @@ public class WeeklyMealPlanService {
         // 喂锅仔：生成周菜单 +15（养成失败静默，不影响生成主流程）
         if (growth != null) growth.award(openid, GrowthService.Event.WEEKLY_PLAN);
         if (request.sendNotification()) subscriptions.sendWeeklyPlanCompleted(openid, view.id());
-        progress.update(WeeklyPlanJobService.Stage.FINALIZE, WeeklyPlanJobService.StepStatus.COMPLETED, "整理生成结果");
+        progress.update(WeeklyPlanJobService.Stage.FINALIZE, WeeklyPlanJobService.StepStatus.COMPLETED, "计划排好啦");
         return view;
     }
 

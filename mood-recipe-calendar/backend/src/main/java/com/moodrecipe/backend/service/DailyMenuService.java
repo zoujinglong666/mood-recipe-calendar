@@ -18,7 +18,10 @@ import com.moodrecipe.backend.repository.RecipeRepository;
 import com.moodrecipe.backend.repository.UserFoodPreferenceRepository;
 import com.moodrecipe.backend.repository.UserRecordRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.moodrecipe.backend.service.RecipePool;
 
@@ -70,6 +73,9 @@ public class DailyMenuService implements SwapCandidateService.SwapQueueBuilder {
     private SeasonalIngredientRepository seasonalIngredients;
     /** [2026-10-20] 学习引擎：把用户行为聚合成随用随进化的动态画像，今日卡据此"越推越懂"。可选依赖。 */
     private FeedbackLearningService learning;
+
+    /** 自注入：markShown 降级捕获需要调用带 REQUIRES_NEW 事务的代理方法（同 GrowthService 惯例）。 */
+    @Autowired @Lazy private DailyMenuService self;
 
     public DailyMenuService(DailyMenuRepository dailyMenus, RecipeRepository recipes,
                             RecipeInteractionRepository interactions, UserRecordRepository records,
@@ -695,14 +701,21 @@ public class DailyMenuService implements SwapCandidateService.SwapQueueBuilder {
     /** 今日卡也算一次曝光，普通推荐会自动避开它，避免一天内重复出现。 */
     private void markShown(String openid, Long recipeId) {
         try {
-            RecipeInteraction shown = new RecipeInteraction();
-            shown.setOpenid(openid);
-            shown.setRecipeId(recipeId);
-            shown.setAction("SHOWN");
-            interactions.save(shown);
+            self.markShownTx(openid, recipeId);
         } catch (RuntimeException ignored) {
-            // 曝光记录失败不能影响今日卡返回。
+            // 曝光记录失败不能影响今日卡返回；markShownTx 为 REQUIRES_NEW 独立事务，
+            // 失败不会污染请求共享的持久化上下文（AGENTS.md 铁律 1）。
         }
+    }
+
+    /** 事务内写曝光记录：REQUIRES_NEW 独立事务，失败由外层降级捕获（铁律 1：catch 必须在事务边界之外）。 */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void markShownTx(String openid, Long recipeId) {
+        RecipeInteraction shown = new RecipeInteraction();
+        shown.setOpenid(openid);
+        shown.setRecipeId(recipeId);
+        shown.setAction("SHOWN");
+        interactions.save(shown);
     }
 
     private String safe(String value) {

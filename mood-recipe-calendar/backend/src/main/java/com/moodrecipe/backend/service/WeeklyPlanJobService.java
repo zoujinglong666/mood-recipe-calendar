@@ -40,10 +40,10 @@ public class WeeklyPlanJobService {
     }
 
     private static final Map<Stage, String> LABELS = Map.of(
-            Stage.MEMORY, "读取你的口味记忆",
-            Stage.PLAN, "调用锅仔规划这一周",
-            Stage.SAVE, "保存周菜单",
-            Stage.FINALIZE, "整理生成结果");
+            Stage.MEMORY, "翻翻你的口味笔记",
+            Stage.PLAN, "替你把这一周排好",
+            Stage.SAVE, "把菜单记进小本本",
+            Stage.FINALIZE, "把计划端上桌");
     private static final Map<Stage, Integer> ORDER = Map.of(
             Stage.MEMORY, 0, Stage.PLAN, 1, Stage.SAVE, 2, Stage.FINALIZE, 3);
 
@@ -117,7 +117,7 @@ public class WeeklyPlanJobService {
             this.id = id;
             this.openid = openid;
             for (Stage stage : List.of(Stage.MEMORY, Stage.PLAN, Stage.SAVE, Stage.FINALIZE)) {
-                steps.put(stage, new StepView(stage, StepStatus.WAITING, LABELS.get(stage), "等待开始"));
+                steps.put(stage, new StepView(stage, StepStatus.WAITING, LABELS.get(stage), "还没轮到"));
             }
         }
 

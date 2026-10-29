@@ -202,11 +202,11 @@ const toolTrace = computed(() => recommendationJob.value?.steps.filter(step => s
 
 function stepStatusText(step: RecommendationStep) {
   return {
-    WAITING: '等待中',
-    RUNNING: '进行中',
-    COMPLETED: '已完成',
-    DEGRADED: '已简化',
-    FAILED: '未完成',
+    WAITING: '还没到',
+    RUNNING: '正忙着',
+    COMPLETED: '搞定啦',
+    DEGRADED: '换了路子',
+    FAILED: '这步没成',
   }[step.status]
 }
 
@@ -752,13 +752,13 @@ async function waitForDelivery(orderNo: string) {
         <image class="thinking-card__guozai" :src="`${STATIC_BASE_URL}/static/guozai/action_10_thinking.png`" mode="aspectFit" />
         <view class="thinking-card__copy">
           <text class="thinking-card__eyebrow">
-            锅仔正在工作
+            锅仔在厨房里忙
           </text>
           <text class="thinking-card__title">
-            {{ recommendationJob?.message || '正在连接锅仔厨房…' }}
+            {{ recommendationJob?.message || '锅仔刚进厨房，正在想今天吃什么…' }}
           </text>
           <text class="thinking-card__subtitle">
-            只展示真实进度，慢一点时锅仔也不会假装完成。
+            锅仔从不糊弄，每一步真做完了才点勾——值得等一口热乎的。
           </text>
         </view>
       </view>

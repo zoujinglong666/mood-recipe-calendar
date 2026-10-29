@@ -39,6 +39,19 @@ const spiceLevel = ref<SpiceLevel>('NORMAL')
 const healthGoal = ref<HealthGoal>('BALANCED')
 const hometown = ref('')
 const cookingSkill = ref<CookingSkill>('HOME')
+// [2026-10-28] 身体数据（选填）：性别/三项数字/活动量/力量训练
+const gender = ref<'MALE' | 'FEMALE' | ''>('')
+const age = ref('')
+const heightCm = ref('')
+const weightKg = ref('')
+const activityLevel = ref<'' | 'INACTIVE' | 'LOW_ACTIVE' | 'ACTIVE' | 'VERY_ACTIVE'>('')
+const resistanceTraining = ref<boolean | null>(null)
+const ACTIVITY_LEVEL_OPTIONS = [
+  { value: 'INACTIVE', label: '久坐少动' },
+  { value: 'LOW_ACTIVE', label: '每周动几次' },
+  { value: 'ACTIVE', label: '几乎每天动' },
+  { value: 'VERY_ACTIVE', label: '高强度训练' },
+] as const
 const avoidIngredients = ref('')
 const allergens = ref('')
 const behavior = ref<FoodMemoryBehavior | null>(null)
@@ -98,6 +111,12 @@ onLoad(async () => {
     healthGoal.value = data.healthGoal || 'BALANCED'
     hometown.value = data.hometown || ''
     cookingSkill.value = data.cookingSkill || 'HOME'
+    gender.value = data.gender || ''
+    age.value = data.age != null ? String(data.age) : ''
+    heightCm.value = data.heightCm != null ? String(data.heightCm) : ''
+    weightKg.value = data.weightKg != null ? String(data.weightKg) : ''
+    activityLevel.value = data.activityLevel || ''
+    resistanceTraining.value = data.resistanceTraining === true ? true : null
     avoidIngredients.value = data.avoidIngredients || ''
     allergens.value = data.allergens || ''
   }
@@ -161,6 +180,13 @@ async function save() {
       healthGoal: healthGoal.value,
       hometown: hometown.value.trim(),
       cookingSkill: cookingSkill.value,
+      // 身体数据：留空的项传 undefined，后端不覆盖
+      gender: gender.value || undefined,
+      age: Number(age.value) > 0 ? Number(age.value) : undefined,
+      heightCm: Number(heightCm.value) > 0 ? Number(heightCm.value) : undefined,
+      weightKg: Number(weightKg.value) > 0 ? Number(weightKg.value) : undefined,
+      activityLevel: activityLevel.value || undefined,
+      resistanceTraining: resistanceTraining.value === true ? true : undefined,
     })
     uni.removeStorageSync('mrc_companion_message')
     uni.setStorageSync('mrc_preference_onboarded', '1')
@@ -395,6 +421,30 @@ function clearMemory() {
       </view>
 
       <view class="memory-section">
+        <text class="memory-section__title">身体数据（选填）</text>
+        <text class="memory-section__hint">补上它，营养师才能算出你每天需要的能量与蛋白质</text>
+        <view class="body-chips">
+          <view class="choice-chip choice-chip--cuisine" :class="{ 'choice-chip--selected': gender === 'FEMALE' }" role="radio" :aria-checked="gender === 'FEMALE'" @click="gender = gender === 'FEMALE' ? '' : 'FEMALE'">女</view>
+          <view class="choice-chip choice-chip--cuisine" :class="{ 'choice-chip--selected': gender === 'MALE' }" role="radio" :aria-checked="gender === 'MALE'" @click="gender = gender === 'MALE' ? '' : 'MALE'">男</view>
+        </view>
+        <view class="body-metrics">
+          <view class="body-metric"><text class="body-metric__label">年龄</text><input v-model="age" class="body-metric__input" type="number" placeholder="30" :maxlength="3"></view>
+          <view class="body-metric"><text class="body-metric__label">身高cm</text><input v-model="heightCm" class="body-metric__input" type="digit" placeholder="165" :maxlength="5"></view>
+          <view class="body-metric"><text class="body-metric__label">体重kg</text><input v-model="weightKg" class="body-metric__input" type="digit" placeholder="55" :maxlength="5"></view>
+        </view>
+        <view class="body-chips">
+          <view v-for="a in ACTIVITY_LEVEL_OPTIONS" :key="a.value" class="choice-chip choice-chip--cuisine" :class="{ 'choice-chip--selected': activityLevel === a.value }" role="radio" :aria-checked="activityLevel === a.value" @click="activityLevel = activityLevel === a.value ? '' : a.value">{{ a.label }}</view>
+        </view>
+        <view class="body-resistance" role="switch" :aria-checked="resistanceTraining === true" @click="resistanceTraining = resistanceTraining === true ? null : true">
+          <view class="body-resistance__copy">
+            <text class="body-resistance__text">规律力量训练</text>
+            <text class="body-resistance__hint">{{ resistanceTraining === true ? '蛋白质按训练人群标准算' : '蛋白质按日常人群标准算' }}</text>
+          </view>
+          <view class="body-resistance__mark" :class="{ 'is-on': resistanceTraining === true }">✓</view>
+        </view>
+      </view>
+
+      <view class="memory-section">
         <text class="memory-section__title">
           做菜水平怎么样？
         </text>
@@ -608,4 +658,16 @@ function clearMemory() {
 .memory-clear { background: transparent; color: var(--mrc-danger, #a54235); font-weight: 600; }
 .memory-save[disabled], .memory-skip[disabled], .memory-clear[disabled] { opacity: .45; }
 .memory-save::after, .memory-skip::after, .memory-clear::after { border: 0; }
+/* [2026-10-28] 身体数据编辑区 */
+.body-chips { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 18rpx; }
+.body-metrics { display: flex; gap: 12rpx; margin-top: 16rpx; }
+.body-metric { flex: 1; display: flex; flex-direction: column; gap: 8rpx; padding: 14rpx 18rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 20rpx; background: var(--mrc-bg); }
+.body-metric__label { color: var(--mrc-text-sub); font-size: 20rpx; font-weight: 600; }
+.body-metric__input { color: var(--mrc-text-deep); font-size: 27rpx; font-weight: 700; min-height: 44rpx; }
+.body-resistance { display: flex; align-items: center; gap: 16rpx; margin-top: 16rpx; padding: 18rpx 22rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 20rpx; background: var(--mrc-bg); }
+.body-resistance__copy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 4rpx; }
+.body-resistance__text { color: var(--mrc-text-deep); font-size: 25rpx; font-weight: 700; }
+.body-resistance__hint { color: var(--mrc-text-sub); font-size: 20rpx; }
+.body-resistance__mark { display: flex; align-items: center; justify-content: center; width: 48rpx; height: 48rpx; border: 2rpx solid var(--mrc-border); border-radius: 50%; color: transparent; font-size: 24rpx; font-weight: 800; }
+.body-resistance__mark.is-on { border-color: var(--mrc-primary-deep); background: var(--mrc-primary-deep); color: #fff; }
 </style>

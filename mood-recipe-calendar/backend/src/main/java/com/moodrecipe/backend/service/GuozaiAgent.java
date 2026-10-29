@@ -13,7 +13,10 @@ import com.moodrecipe.backend.repository.RecipeRepository;
 import com.moodrecipe.backend.repository.UserFoodPreferenceRepository;
 import com.moodrecipe.backend.service.RecipePool;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -1174,7 +1177,20 @@ public class GuozaiAgent {
                 .toList();
     }
 
+    /** 自注入：recordInteraction 需要 REQUIRES_NEW 独立事务，Spring 代理对内部直接调用不生效。 */
+    @Autowired @Lazy private GuozaiAgent self;
+
     private void recordInteraction(String openid, Long recipeId, String action) {
+        self.recordInteractionTx(openid, recipeId, action);
+    }
+
+    /**
+     * 事务内写交互：REQUIRES_NEW 独立事务——失败随调用方 catch 走本地兜底，
+     * 但不会污染请求共享的持久化上下文，兜底路径的再次写交互也不会撞上
+     * AssertionFailure "null identifier / session flushed after an exception"（AGENTS.md 铁律 1）。
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void recordInteractionTx(String openid, Long recipeId, String action) {
         RecipeInteraction interaction = new RecipeInteraction();
         interaction.setOpenid(openid);
         interaction.setRecipeId(recipeId);

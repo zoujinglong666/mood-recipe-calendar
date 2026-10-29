@@ -40,17 +40,23 @@ public class CookingKnowledgeService {
         String normalized = normalize(query);
         int score = contains(normalized, chunk.getTitle()) ? 5 : 0;
         for (String keyword : split(chunk.getKeywords())) {
-            if (normalized.contains(normalize(keyword))) score += 3;
+            // 空归一化（如全是 '?' 的损坏关键词被剥成空串）会导致恒命中，必须跳过
+            String keywordNorm = normalize(keyword);
+            if (!keywordNorm.isEmpty() && normalized.contains(keywordNorm)) score += 3;
         }
         if (contains(normalized, chunk.getCategory())) score += 1;
         return score;
     }
 
-    private static boolean auditable(CookingKnowledgeChunk chunk) {
+    /** 数据质量门禁：乱码行（'?' / U+FFFD）绝不作为「可靠依据」外露或喂给模型（口径同 RecipeTextGuard）。 */
+    static boolean auditable(CookingKnowledgeChunk chunk) {
         return chunk != null && Boolean.TRUE.equals(chunk.getEnabled())
                 && notBlank(chunk.getTitle()) && notBlank(chunk.getContent())
                 && notBlank(chunk.getSourceName()) && notBlank(chunk.getSourceUrl())
-                && chunk.getReviewedAt() != null;
+                && chunk.getReviewedAt() != null
+                && !RecipeTextGuard.corrupted(chunk.getTitle())
+                && !RecipeTextGuard.corrupted(chunk.getContent())
+                && !RecipeTextGuard.corrupted(chunk.getSourceName());
     }
 
     private static String expand(String query) {
@@ -60,7 +66,10 @@ public class CookingKnowledgeService {
     }
 
     private static boolean contains(String query, String value) {
-        return value != null && !value.isBlank() && query.contains(normalize(value));
+        if (value == null || value.isBlank()) return false;
+        String normalized = normalize(value);
+        // 乱码文本归一化后可能变成空串，query.contains("") 恒为 true，必须排除
+        return !normalized.isEmpty() && query.contains(normalized);
     }
 
     private static List<String> split(String value) {

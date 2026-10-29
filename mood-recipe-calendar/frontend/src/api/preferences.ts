@@ -17,6 +17,14 @@ export interface FoodPreference {
   healthGoal?: HealthGoal
   hometown?: string
   cookingSkill?: CookingSkill
+  /** [2026-10-28] 身体数据（EER 目标计算输入） */
+  gender?: 'MALE' | 'FEMALE'
+  age?: number
+  heightCm?: number
+  weightKg?: number
+  activityLevel?: 'INACTIVE' | 'LOW_ACTIVE' | 'ACTIVE' | 'VERY_ACTIVE'
+  resistanceTraining?: boolean | null
+  mealTiming?: 'REGULAR' | 'NO_BREAKFAST' | 'LATE_NIGHT' | 'INTERMITTENT'
   onboardingCompleted: boolean
   updatedAt?: string
 }
@@ -66,9 +74,42 @@ export interface OnboardingAnswers {
   allergens?: string[]
   /** 家里几口人：写入 KEY_PEOPLE（为周计划人数缩放埋点） */
   people?: number
+  /** [2026-10-28] 生理性别：MALE/FEMALE（EER 方程系数组用） */
+  gender?: 'MALE' | 'FEMALE'
+  /** 年龄（岁），EER 支持 19-64 */
+  age?: number
+  /** 身高 cm */
+  heightCm?: number
+  /** 体重 kg */
+  weightKg?: number
+  /** 活动水平 */
+  activityLevel?: 'INACTIVE' | 'LOW_ACTIVE' | 'ACTIVE' | 'VERY_ACTIVE'
+  /** 是否规律力量训练（决定蛋白质范围 1.4-2.0 vs 1.2-1.6 g/kg） */
+  resistanceTraining?: boolean
+  /** 进食节奏 */
+  mealTiming?: 'REGULAR' | 'NO_BREAKFAST' | 'LATE_NIGHT' | 'INTERMITTENT'
 }
 
 /** 提交冷启动问卷：后端双轨写入显式偏好（onboardingCompleted=true）+ 记忆库（EXPLICIT/0.9）。 */
 export function saveOnboarding(answers: OnboardingAnswers) {
   return post<FoodPreference>('/preferences/onboarding', answers)
+}
+
+/** [2026-10-28] 营养目标（NASEM 2023 EER）：状态 OK/NEEDS_INPUT/NOT_ELIGIBLE。 */
+export interface NutritionRange { min: number, target: number, max: number }
+
+export interface NutritionTarget {
+  status: 'OK' | 'NEEDS_INPUT' | 'NOT_ELIGIBLE'
+  missingFields?: string[]
+  issues?: string[]
+  bmi?: number
+  maintenanceKcal?: number
+  energyKcal?: NutritionRange
+  proteinG?: NutritionRange
+  energyOffsetPercent?: string
+}
+
+/** 获取个体营养目标：数据不足返回 NEEDS_INPUT（不猜测），不合适则 NOT_ELIGIBLE（issues 为机器码）。 */
+export function fetchNutritionTarget() {
+  return get<NutritionTarget>('/preferences/nutrition-target')
 }

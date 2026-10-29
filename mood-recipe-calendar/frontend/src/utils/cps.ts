@@ -1,16 +1,17 @@
 import { toast, toastSuccess } from './toast'
 
 /**
- * 电商导购（CPS）跳转封装——当前为占位版。
+ * 电商导购（CPS）跳转封装。
  *
- * 当前小程序是个人主体，微信不允许 wx.navigateToMiniProgram 跳第三方小程序，
- * 所以这里只做复制清单 + 引导去 App 搜索。
+ * [2026-10-28 更正] 个人主体小程序可以跳转第三方小程序：wx.navigateToMiniProgram
+ * 只要拿到目标 appid + path 即可用（需用户点击触发，跳转前有系统确认弹窗）。
+ * 之前注释里「个人主体不允许跳转」是误区，真正的个人主体限制是 web-view 组件不可用。
  *
- * 未来升级企业/个体户主体后，把下面 PDD_APP_ID / PDD_DEFAULT_PATH 填上，
- * 并放开 #ifdef MP-WEIXIN 里的跳转块即可，采购清单页无需改动。
+ * 当前没跳的真正原因：还没有填 PDD_APP_ID / PDD_DEFAULT_PATH（拼多多推广位信息）。
+ * 填上即生效，采购清单页无需改动。审核风险在类目/内容，不在跳转能力本身。
  */
 
-/** 拼多多主小程序 appId（预留，升级主体后填入即生效） */
+/** 拼多多主小程序 appId（预留，填入即生效——个人主体可直接跳转第三方小程序） */
 const PDD_APP_ID = ''
 
 /**

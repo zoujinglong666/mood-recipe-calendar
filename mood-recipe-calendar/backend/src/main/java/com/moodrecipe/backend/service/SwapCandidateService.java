@@ -9,8 +9,9 @@ import com.moodrecipe.backend.repository.UserFoodPreferenceRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -195,8 +196,10 @@ public class SwapCandidateService {
         }
     }
 
-    /** 有意义的交互 → 签名失效 + 队列废弃 + 当前餐别立即预重建，下一次换菜恢复毫秒级。 */
-    @EventListener
+    /** 有意义的交互 → 签名失效 + 队列废弃 + 当前餐别立即预重建，下一次换菜恢复毫秒级。
+     * [2026-10-29] 由 @EventListener 改为 AFTER_COMMIT：预重建会查库，不能在 @PostPersist 回调内
+     * 同事务执行——失败被吞会污染交互主写事务，提交时抛 AssertionFailure（AGENTS.md 铁律 1）。 */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onInteraction(InteractionRecordedEvent e) {
         if (NON_PROFILE_ACTIONS.contains(e.action())) return;
         signatures.remove(e.openid());

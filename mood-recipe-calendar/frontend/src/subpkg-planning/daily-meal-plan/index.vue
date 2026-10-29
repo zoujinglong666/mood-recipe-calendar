@@ -39,6 +39,34 @@
           </view>
         </view>
 
+        <!-- [2026-10-28] AI 营养师点评：逐餐方案 + 整日对照 -->
+        <view v-if="coach && coach.status !== 'NO_PLAN'" class="coach-card">
+          <view class="coach-head">
+            <text class="coach-title">营养师点评</text>
+            <text v-if="coach.status === 'OK'" class="coach-source">{{ coach.source === 'LLM' ? 'AI 解读' : '规则速算' }}</text>
+          </view>
+          <template v-if="coach.status === 'OK'">
+            <view v-for="meal in coach.meals" :key="meal.index" class="coach-meal">
+              <view class="coach-meal__row">
+                <text class="coach-meal__name">{{ meal.name }}</text>
+                <text v-if="meal.kcal" class="coach-meal__kcal">约 {{ meal.kcal }} 千卡</text>
+              </view>
+              <text class="coach-meal__portion">{{ meal.portion }}</text>
+              <text class="coach-meal__reason">{{ meal.reason }}</text>
+              <text v-if="meal.goalTip" class="coach-meal__tip">{{ meal.goalTip }}</text>
+            </view>
+            <view v-if="coach.daily" class="coach-daily">
+              <text class="coach-daily__line">{{ dailySummary }}</text>
+              <text class="coach-daily__balance">{{ coach.daily.balance }}</text>
+              <text class="coach-daily__gap">{{ coach.daily.gapTip }}</text>
+            </view>
+          </template>
+          <template v-else>
+            <text class="coach-need">{{ coach.message }}</text>
+            <view class="coach-need__btn" role="button" aria-label="去补充身体数据" @click="goFillBody">去补充</view>
+          </template>
+        </view>
+
         <!-- 三餐卡片：通栏大图 + 餐别语义色徽章 + 图上换菜 + 信息区 -->
         <view
           v-for="(meal, i) in plan.meals"
@@ -132,6 +160,8 @@ import type { QuotaView } from '@/api/dailyMealPlan'
 import { watchAdReward } from '@/api/ad'
 import { AD_UNITS } from '@/config/ads'
 import NutritionCard from '@/components/guozai/NutritionCard.vue'
+import { fetchNutritionCoach } from '@/api/nutrition'
+import type { NutritionCoachView } from '@/api/nutrition'
 import LoadingState from '@/components/guozai/LoadingState.vue'
 import ErrorState from '@/components/guozai/ErrorState.vue'
 import { splitComboDishName } from '@/api/dailyMenu'
@@ -154,6 +184,26 @@ const planWeek = computed(() => {
   return `周${WEEK[d.getDay()]}`
 })
 
+// ---------- [2026-10-28] AI 营养师点评：附加能力，失败静默 ----------
+const coach = ref<NutritionCoachView>()
+const coachLoading = ref(false)
+
+async function loadCoach() {
+  if (coachLoading.value) return
+  coachLoading.value = true
+  try {
+    coach.value = await fetchNutritionCoach()
+  }
+  catch {
+    // 503/断网都不打扰主流程
+  }
+  finally {
+    coachLoading.value = false
+  }
+}
+function goFillBody() {
+  uni.navigateTo({ url: '/subpkg-settings/preferences/index' })
+}
 const plan = ref<{
   date: string
   meals: RecipeItem[]
@@ -189,6 +239,12 @@ const CHECK_ITEMS = [
   { key: '蔬菜', label: '深色蔬菜上桌了' },
   { key: '奶类', label: '奶或豆浆安排了' },
 ]
+const dailySummary = computed(() => {
+  const daily = coach.value?.daily
+  if (!daily?.totalKcal) return ''
+  const base = daily.targetKcal ? `，目标约 ${daily.targetKcal} 千卡` : ''
+  return `全天约 ${daily.totalKcal} 千卡${base}`
+})
 const nutritionChecklist = computed(() => {
   const tags = plan.value?.nutrition?.tags || []
   const rows = CHECK_ITEMS.map(item => ({ key: item.key, label: item.label, done: tags.includes(item.key) }))
@@ -251,6 +307,7 @@ async function load() {
     }
     plan.value = data
     expanded[0] = expanded[1] = expanded[2] = false
+    void loadCoach()
     backfillCovers()
     await refreshQuota()
   }
@@ -303,6 +360,7 @@ async function replaceMeal(i: number) {
     const res = await replaceDailyMealPlanMeal(i, plan.value.date)
     if (res?.meals?.length) {
       plan.value = res
+    void loadCoach() // 菜换了，点评跟着换
       pulseSwap(i)
       toast('已为你换一道')
       backfillCovers()
@@ -349,6 +407,7 @@ async function doReshuffle() {
     const { plan: newPlan, quota: q } = await reshuffleDailyMealPlan(plan.value.date)
     if (newPlan?.meals?.length) {
       plan.value = newPlan
+    void loadCoach() // 整天重排，点评跟着换
       quota.value = q
       for (let i = 0; i < 3; i++) pulseSwap(i)
       toastSuccess('已换一整天的搭配')
@@ -913,4 +972,22 @@ onShareTimeline(() => ({
     animation: none !important;
   }
 }
+/* [2026-10-28] 营养师点评卡 */
+.coach-card { margin-top: 20rpx; padding: 26rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 30rpx; background: var(--mrc-surface); }
+.coach-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14rpx; }
+.coach-title { color: var(--mrc-text-strong); font-size: 27rpx; font-weight: 800; }
+.coach-source { padding: 4rpx 14rpx; border-radius: 999rpx; background: var(--mrc-surface-2); color: var(--mrc-text-sub); font-size: 19rpx; }
+.coach-meal { display: flex; flex-direction: column; gap: 6rpx; padding: 14rpx 0; border-bottom: 2rpx solid var(--mrc-border-light); }
+.coach-meal:last-of-type { border-bottom: none; }
+.coach-meal__row { display: flex; align-items: baseline; gap: 12rpx; }
+.coach-meal__name { color: var(--mrc-text-deep); font-size: 25rpx; font-weight: 700; }
+.coach-meal__kcal { color: var(--mrc-primary-deep); font-size: 21rpx; font-weight: 700; }
+.coach-meal__portion { color: var(--mrc-text-sub); font-size: 21rpx; }
+.coach-meal__reason { color: var(--mrc-text-deep); font-size: 22rpx; line-height: 1.5; }
+.coach-meal__tip { color: var(--mrc-text-sub); font-size: 21rpx; }
+.coach-daily { display: flex; flex-direction: column; gap: 6rpx; margin-top: 14rpx; padding: 16rpx; border-radius: 22rpx; background: var(--mrc-surface-2); }
+.coach-daily__line { color: var(--mrc-text-strong); font-size: 23rpx; font-weight: 700; }
+.coach-daily__balance, .coach-daily__gap { color: var(--mrc-text-sub); font-size: 21rpx; line-height: 1.5; }
+.coach-need { display: block; color: var(--mrc-text-sub); font-size: 22rpx; line-height: 1.5; }
+.coach-need__btn { display: flex; align-items: center; justify-content: center; margin-top: 14rpx; min-height: 72rpx; border-radius: 999rpx; background: var(--mrc-primary); color: #fff; font-size: 24rpx; font-weight: 800; }
 </style>

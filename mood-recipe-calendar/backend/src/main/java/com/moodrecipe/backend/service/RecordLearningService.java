@@ -8,7 +8,10 @@ import com.moodrecipe.backend.model.LearningReceiptItem;
 import com.moodrecipe.backend.repository.RecipeInteractionRepository;
 import com.moodrecipe.backend.repository.RecipeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -32,6 +35,9 @@ public class RecordLearningService {
         this.exposures = exposures;
         this.memories = memories;
     }
+
+    /** 自注入：recordAction 降级捕获需要调用带 REQUIRES_NEW 事务的代理方法（同 GrowthService 惯例）。 */
+    @Autowired @Lazy private RecordLearningService self;
 
     @Autowired(required = false)
     void setRecipes(RecipeRepository recipes) {
@@ -102,16 +108,24 @@ public class RecordLearningService {
     private boolean recordAction(String openid, Long recipeId, String action) {
         if (recipeId == null) return false;
         try {
-            if (interactions.existsByOpenidAndRecipeIdAndAction(openid, recipeId, action)) return false;
-            RecipeInteraction interaction = new RecipeInteraction();
-            interaction.setOpenid(openid);
-            interaction.setRecipeId(recipeId);
-            interaction.setAction(action);
-            interactions.save(interaction);
-            return true;
+            return self.recordActionTx(openid, recipeId, action);
         } catch (RuntimeException ignored) {
+            // 记录失败不能影响主流程；recordActionTx 为 REQUIRES_NEW 独立事务，
+            // 失败只回滚本次记录，不会污染请求共享的持久化上下文（AGENTS.md 铁律 1）。
             return false;
         }
+    }
+
+    /** 事务内写交互记录：REQUIRES_NEW 独立事务，失败由外层降级捕获（铁律 1：catch 必须在事务边界之外）。 */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean recordActionTx(String openid, Long recipeId, String action) {
+        if (interactions.existsByOpenidAndRecipeIdAndAction(openid, recipeId, action)) return false;
+        RecipeInteraction interaction = new RecipeInteraction();
+        interaction.setOpenid(openid);
+        interaction.setRecipeId(recipeId);
+        interaction.setAction(action);
+        interactions.save(interaction);
+        return true;
     }
 
     private boolean recordExposure(String openid, String exposureId, String action) {

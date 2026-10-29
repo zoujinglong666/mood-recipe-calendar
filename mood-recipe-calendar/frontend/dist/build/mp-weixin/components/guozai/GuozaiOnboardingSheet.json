@@ -2,6 +2,7 @@
   "component": true,
   "usingComponents": {
     "wd-popup": "../../node-modules/@wot-ui/ui/components/wd-popup/wd-popup",
-    "guozai-choice-chips": "./GuozaiChoiceChips"
+    "guozai-choice-chips": "./GuozaiChoiceChips",
+    "guozai-button": "./GuozaiButton"
   }
 }

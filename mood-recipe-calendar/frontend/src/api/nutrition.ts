@@ -36,3 +36,41 @@ export function analyzeNutrition(name: string, ingredients: string) {
     .then(res => res?.advice)
     .catch(() => undefined)
 }
+
+// ===== [2026-10-28] AI 营养师：逐餐营养方案与整日对照 =====
+
+/**
+ * status: OK / NEEDS_INPUT（身体数据不全，引导补问卷）/ NO_PLAN（今日三餐未生成）。
+ * source: LLM（模型解读）/ RULE（规则估算）；宏量数字均为估算值，展示需带「约」。
+ */
+export interface CoachMealAnalysis {
+  index: number
+  name: string
+  portion: string
+  kcal?: number | null
+  proteinG?: number | null
+  carbsG?: number | null
+  fatG?: number | null
+  reason: string
+  goalTip: string
+  estimated: boolean
+}
+
+export interface CoachDailyAnalysis {
+  totalKcal?: number | null
+  targetKcal?: number | null
+  balance: string
+  gapTip: string
+}
+
+export interface NutritionCoachView {
+  status: 'OK' | 'NEEDS_INPUT' | 'NO_PLAN'
+  message: string
+  source: 'LLM' | 'RULE' | 'NONE'
+  meals: CoachMealAnalysis[]
+  daily: CoachDailyAnalysis | null
+}
+
+export function fetchNutritionCoach() {
+  return get<NutritionCoachView>('/nutrition/coach')
+}

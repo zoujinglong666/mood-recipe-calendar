@@ -350,12 +350,14 @@ public class RecipeController {
         return state != null ? ApiResponse.ok(state) : ApiResponse.error(404, "推荐记录不存在或已失效");
     }
 
+    /**
+     * 点赞/点踩写入统一走 REQUIRES_NEW 独立事务（AGENTS.md 铁律 1）：
+     * 本方法在 feedback 的 @Transactional 外层事务内被调用，若 save 加入外层事务，
+     * 一旦失败被调用方 catch 降级，共享的持久化上下文即被污染，
+     * 提交时抛 AssertionFailure "null identifier"。独立事务失败只回滚本次记录。
+     */
     private void recordInteraction(String openid, Long recipeId, String action) {
-        RecipeInteraction interaction = new RecipeInteraction();
-        interaction.setOpenid(openid);
-        interaction.setRecipeId(recipeId);
-        interaction.setAction(action);
-        interactions.save(interaction);
+        guozaiAgent.recordInteractionTx(openid, recipeId, action);
     }
 
     private FeedbackState feedbackState(String openid, Long recipeId) {

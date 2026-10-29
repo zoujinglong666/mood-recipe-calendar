@@ -4,7 +4,8 @@ import type { FoodTip } from '@/api/foodSafety'
 import { useImagePreview } from '@wot-ui/ui'
 import { computed, nextTick, ref, onUnmounted } from 'vue'
 import { resolveAssetUrl } from '@/api/request'
-import { generatePlanDishCover, getCurrentPlan, getWeeklyPlan, replacePlanDay, toggleShoppingItem } from '@/api/weeklyPlans'
+import { generatePlanDishCover, getCurrentPlan, getWeeklyPlan, replacePlanDay, toggleShoppingItem, fetchWeeklyDiversity } from '@/api/weeklyPlans'
+import type { WeeklyDiversity } from '@/api/weeklyPlans'
 import { fetchFoodTips } from '@/api/foodSafety'
 import { goToMeituanBuy } from '@/utils/cps'
 import { navBack } from '@/composables/useNavBar'
@@ -51,6 +52,27 @@ let loadSequence = 0
 let loadStarted = false
 const error = ref('')
 const weekdayNames = ['周一', '周二', '周三', '周四', '周五', '周六', '周日']
+
+// ---------- [2026-10-28] 本周多样性观察：附加能力，失败静默不打扰主流程 ----------
+const diversity = ref<WeeklyDiversity>()
+
+async function loadDiversity(planId: number) {
+  try {
+    const data = await fetchWeeklyDiversity()
+    if (data && data.planId === planId) diversity.value = data
+  }
+  catch {
+    // 多样性接口 404/503 都不阻塞看计划
+  }
+}
+
+const topShares = computed(() => (diversity.value?.distribution || []).slice(0, 8))
+
+function deltaText(share: { deltaPercent?: number | null }) {
+  const value = share.deltaPercent
+  if (value == null || Math.abs(value) < 0.1) return ''
+  return value > 0 ? ` ↑${value}` : ` ↓${Math.abs(value)}`
+}
 
 
 const groups = computed(() => ['肉蛋豆', '蔬菜', '主食', '调料']
@@ -133,6 +155,7 @@ async function load(opts: { preserveDay?: boolean } = {}) {
     if (!opts.preserveDay) activeDay.value = 0
     queueCovers(0)
     void loadSafetyTips(loaded)
+    void loadDiversity(loaded.id)
   }
   catch (err) {
     if (sequence !== loadSequence) return
@@ -480,6 +503,28 @@ async function shareDay(day: PlanDay, index: number) {
       <canvas id="weeklyRecipeShareCanvas" type="2d" class="weekly-recipe-share__canvas" />
       <wd-image-preview />
 
+      <view v-if="diversity" class="diversity-panel">
+        <view class="diversity-head">
+          <view class="diversity-head__text">
+            <text class="shopping-title">本周多样性</text>
+            <text class="shopping-copy">
+              共 {{ diversity.weeklyDistinct }} 种食材类别（建议 ≥{{ diversity.weeklyTarget }}）· 日均 {{ diversity.avgDailyDistinct }} 种
+            </text>
+          </view>
+          <text class="diversity-badge" :class="{ 'is-good': diversity.weeklyTargetMet }">
+            {{ diversity.weeklyTargetMet ? '很丰富' : '再杂一点' }}
+          </text>
+        </view>
+        <view class="diversity-tags">
+          <view v-for="share in topShares" :key="share.category" class="diversity-tag">
+            <text>{{ share.category }} {{ share.sharePercent }}%{{ deltaText(share) }}</text>
+          </view>
+        </view>
+        <view v-if="diversity.insights.length" class="diversity-insights">
+          <text v-for="(line, idx) in diversity.insights" :key="idx" class="diversity-insight">{{ line }}</text>
+        </view>
+      </view>
+
       <view class="shopping-panel">
         <view class="shopping-toggle" role="button" :aria-expanded="shoppingOpen" aria-label="展开或收起本周采购清单" @click="shoppingOpen = !shoppingOpen">
           <view>
@@ -622,6 +667,15 @@ async function shareDay(day: PlanDay, index: number) {
 .record__copy { margin-top: 4rpx; color: #fff; font-size: 21rpx; opacity: .82; }
 .record__arrow { color: #fff; font-size: 48rpx; font-weight: 300; line-height: 1; }
 /* 成果选择器改用 GuozaiChipGroup，样式由组件自身承担 */
+.diversity-panel { margin: 12rpx 2rpx 0; padding: 24rpx 26rpx; background: var(--mrc-surface); border-radius: var(--mrc-radius-lg); }
+.diversity-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16rpx; }
+.diversity-head__text { display: flex; flex-direction: column; gap: 6rpx; }
+.diversity-badge { flex-shrink: 0; padding: 6rpx 16rpx; border-radius: var(--mrc-radius-pill); background: var(--mrc-surface-2); color: var(--mrc-text-sub); font-size: 21rpx; font-weight: var(--mrc-fw-semibold); }
+.diversity-badge.is-good { background: var(--mrc-primary-soft, rgba(0, 0, 0, 0.04)); color: var(--mrc-primary-deep); }
+.diversity-tags { display: flex; flex-wrap: wrap; gap: 10rpx; margin-top: 18rpx; }
+.diversity-tag { padding: 8rpx 18rpx; border-radius: var(--mrc-radius-pill); background: var(--mrc-surface-2); color: var(--mrc-text-deep); font-size: 21rpx; }
+.diversity-insights { display: flex; flex-direction: column; gap: 8rpx; margin-top: 18rpx; }
+.diversity-insight { color: var(--mrc-text-sub); font-size: 22rpx; line-height: 1.5; }
 .shopping-panel { margin: 12rpx 2rpx 20rpx; overflow: hidden; }
 .shopping-toggle { min-height: 112rpx; padding: 16rpx 26rpx; box-sizing: border-box; transition: transform 160ms ease-out, opacity 160ms ease-out; }
 .shopping-title { color: var(--mrc-text-strong); font-size: 27rpx; font-weight: 800; }

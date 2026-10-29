@@ -72,6 +72,25 @@ export function getCurrentPlan() {
 export function getWeeklyPlan(id: number) {
   return get<WeeklyPlan>(`/weekly-plans/${id}`)
 }
+
+/** [2026-10-28] 饮食多样性观察（膳食指南：12 种/天、25 种/周）。 */
+export interface DiversityDay { day: string, categories: string[], distinctCount: number }
+export interface DiversityCategoryShare { category: string, daysPresent: number, sharePercent: number, deltaPercent?: number | null }
+export interface WeeklyDiversity {
+  planId: number
+  dailyTarget: number
+  weeklyTarget: number
+  days: DiversityDay[]
+  weeklyDistinct: number
+  weeklyTargetMet: boolean
+  avgDailyDistinct: number
+  distribution: DiversityCategoryShare[]
+  repeatedDishes: { name: string, count: number }[]
+  insights: string[]
+}
+export function fetchWeeklyDiversity() {
+  return get<WeeklyDiversity>('/weekly-plans/diversity')
+}
 export function getWeeklyPlanHistory() {
   return get<WeeklyPlanSummary[]>('/weekly-plans/history')
 }

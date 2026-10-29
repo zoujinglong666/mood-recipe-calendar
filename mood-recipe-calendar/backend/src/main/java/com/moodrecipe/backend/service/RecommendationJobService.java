@@ -42,11 +42,11 @@ public class RecommendationJobService {
     }
 
     private static final Map<Stage, String> LABELS = Map.of(
-            Stage.MEMORY, "读取口味记忆",
-            Stage.TEXT, "生成今日菜谱",
-            Stage.IMAGE, "制作菜品封面",
-            Stage.LOCAL_FALLBACK, "切换本地推荐",
-            Stage.FINALIZE, "整理推荐结果");
+            Stage.MEMORY, "翻翻你的口味笔记",
+            Stage.TEXT, "琢磨今天吃什么",
+            Stage.IMAGE, "给菜拍张封面",
+            Stage.LOCAL_FALLBACK, "从家里菜谱里挑",
+            Stage.FINALIZE, "把菜端上桌");
     private static final Map<Stage, Integer> ORDER = Map.of(
             Stage.MEMORY, 0, Stage.TEXT, 1, Stage.IMAGE, 2,
             Stage.LOCAL_FALLBACK, 3, Stage.FINALIZE, 4);
@@ -100,7 +100,7 @@ public class RecommendationJobService {
                 if (recipe == null) throw new IllegalStateException("recommendation unavailable");
                 job.succeed(recipe);
             } catch (Exception ignored) {
-                job.fail("锅仔暂时没找到合适的菜，请重新试一次");
+                job.fail("这顿没想好，再给锅仔一次机会");
             } finally {
                 activeJobs.remove(activeKey, job.id);
             }
@@ -151,7 +151,7 @@ public class RecommendationJobService {
         private final Map<Stage, StepView> steps = new LinkedHashMap<>();
         private volatile JobStatus status = JobStatus.RUNNING;
         private volatile Stage currentStage;
-        private volatile String message = "锅仔正在准备今天的推荐";
+        private volatile String message = "锅仔系上围裙，正在想今天吃什么";
         private volatile boolean usedFallback;
         private volatile Recipe recipe;
         private volatile Instant finishedAt;
@@ -163,7 +163,7 @@ public class RecommendationJobService {
             this.mood = mood;
             this.mealType = mealType;
             for (Stage stage : List.of(Stage.MEMORY, Stage.TEXT, Stage.IMAGE, Stage.FINALIZE)) {
-                steps.put(stage, new StepView(stage, StepStatus.WAITING, LABELS.get(stage), "等待开始"));
+                steps.put(stage, new StepView(stage, StepStatus.WAITING, LABELS.get(stage), "还没轮到"));
             }
         }
 
@@ -183,7 +183,7 @@ public class RecommendationJobService {
         private synchronized void succeed(Recipe result) {
             recipe = result;
             status = JobStatus.SUCCEEDED;
-            message = usedFallback ? "已从锅仔菜谱库为你挑好" : "今天的推荐准备好啦";
+            message = usedFallback ? "从家里的菜谱里挑好啦" : "今天的推荐准备好啦";
             finishedAt = Instant.now();
         }
 

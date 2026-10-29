@@ -97,6 +97,8 @@ public class AiRecipeService {
                 规则：3-7 种常见食材；4-6 个步骤；20-45 分钟；食材用量明确；不虚构功效。
                 步骤拆分硬性要求：必须把做法拆成多个独立步骤，每一步只做一件事（如「切配」「热锅倒油」分开），
                 每步 15-30 字、以动词开头、不使用分号连接多步、不把整道菜写进一个步骤里。
+                关键火候步骤必须带完成判断标准（颜色/状态/时长，如「中火煎至两面金黄、约2分钟」），
+                不要只写「炒熟」「炒至断生」这类看不出做没做成的说法。
                 """.formatted(mood, sanitizePreference(preference), mood);
 
         Optional<ChatResult> result = chatRaw(systemPrompt, userPrompt, 0.8, 1024, progress);
@@ -174,6 +176,8 @@ public class AiRecipeService {
                 {"name":"菜名","description":"20字以内搭配理由","ingredients":["食材及用量"],"steps":["步骤"],"cookingTime":30,"difficulty":"简单","moodTags":"平静","season":"四季"}
                 规则：菜名不得重复；每道3-7种常见食材、4-6步、10-60分钟；用量明确；严格遵守忌口。
                 步骤必须拆成多个独立步骤，每步只做一件事、15-30字、动词开头，不要用分号把多步合并成一句。
+                关键火候步骤必须带完成判断标准（颜色/状态/时长，如「中火煎至两面金黄、约2分钟」），
+                不要只写「炒熟」「炒至断生」这类看不出做没做成的说法。
                 """.formatted(sanitizePreference(context), safeCount);
         return chatRaw(persona.systemPrompt(), prompt, 0.85, 6000, ignored -> { })
                 .flatMap(result -> parseRecipeList(result.content(), safeCount));

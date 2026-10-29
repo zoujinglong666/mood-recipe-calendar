@@ -9,9 +9,11 @@ import com.moodrecipe.backend.repository.RecipeInteractionRepository;
 import com.moodrecipe.backend.repository.RecommendationExposureRepository;
 import com.moodrecipe.backend.service.GuozaiMemory;
 import com.moodrecipe.backend.service.AllergenNormalizationService;
+import com.moodrecipe.backend.service.nutrition.NutritionTargetService;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.Set;
 import java.time.LocalTime;
 import java.util.List;
@@ -22,11 +24,22 @@ public class UserFoodPreferenceController {
     private static final Set<String> SPICE_LEVELS = Set.of("NONE", "MILD", "NORMAL", "HOT");
     private static final Set<String> HEALTH_GOALS = Set.of("BALANCED", "FITNESS", "LEAN");
     private static final Set<String> COOKING_SKILLS = Set.of("NOVICE", "HOME", "PRO");
+    private static final Set<String> GENDERS = Set.of("MALE", "FEMALE");
+    private static final Set<String> ACTIVITY_LEVELS = Set.of("INACTIVE", "LOW_ACTIVE", "ACTIVE", "VERY_ACTIVE");
+    private static final Set<String> MEAL_TIMINGS = Set.of("REGULAR", "NO_BREAKFAST", "LATE_NIGHT", "INTERMITTENT");
     private final UserFoodPreferenceRepository repository;
     private final RecipeInteractionRepository interactions;
     private final RecommendationExposureRepository exposures;
     private final GuozaiMemory memory;
     private final AllergenNormalizationService allergenNormalizer;
+
+    /** [2026-10-28] EER 目标计算。可选依赖走 setter 注入，保持构造器（测试）签名不变。 */
+    private NutritionTargetService nutritionTargets;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setNutritionTargets(NutritionTargetService nutritionTargets) {
+        this.nutritionTargets = nutritionTargets;
+    }
 
     /** [2026-10-27] 记忆库（问卷双轨写入用）。可选依赖走 setter 注入，保持构造器（测试）签名不变。 */
     private AgentMemoryStore memoryStore;
@@ -91,6 +104,19 @@ public class UserFoodPreferenceController {
         if (!COOKING_SKILLS.contains(cookingSkill)) {
             return ApiResponse.error(400, "做菜水平选择无效");
         }
+        // [2026-10-28] 身体数据：非法值直接 400（宁可拒收不静默改写），与 onboarding 同一套校验
+        if (request.gender() != null && !GENDERS.contains(request.gender())) {
+            return ApiResponse.error(400, "性别选择无效");
+        }
+        if (request.activityLevel() != null && !ACTIVITY_LEVELS.contains(request.activityLevel())) {
+            return ApiResponse.error(400, "活动水平选择无效");
+        }
+        if (request.mealTiming() != null && !MEAL_TIMINGS.contains(request.mealTiming())) {
+            return ApiResponse.error(400, "进食节奏选择无效");
+        }
+        Integer bodyAge = clampRange(request.age(), 10, 100);
+        java.math.BigDecimal bodyHeight = clampDecimal(request.heightCm(), 80, 250);
+        java.math.BigDecimal bodyWeight = clampDecimal(request.weightKg(), 20, 300);
         UserFoodPreference preference = repository.findByOpenid(openid).orElseGet(UserFoodPreference::new);
         preference.setOpenid(openid);
         preference.setFavoriteTags(clean(request.favoriteTags()));
@@ -106,6 +132,14 @@ public class UserFoodPreferenceController {
         preference.setHealthGoal(healthGoal);
         preference.setHometown(clean(request.hometown()));
         preference.setCookingSkill(cookingSkill);
+        // 身体数据：传了才覆盖，空值不抹掉已有档案
+        if (request.gender() != null) preference.setGender(request.gender());
+        if (bodyAge != null) preference.setAge(bodyAge);
+        if (bodyHeight != null) preference.setHeightCm(bodyHeight);
+        if (bodyWeight != null) preference.setWeightKg(bodyWeight);
+        if (request.activityLevel() != null) preference.setActivityLevel(request.activityLevel());
+        if (request.resistanceTraining() != null) preference.setResistanceTraining(request.resistanceTraining());
+        if (request.mealTiming() != null) preference.setMealTiming(request.mealTiming());
         preference.setOnboardingCompleted(true);
         return ApiResponse.ok(repository.save(preference));
     }
@@ -130,8 +164,21 @@ public class UserFoodPreferenceController {
         List<String> cuisines = cleanList(request.cuisines(), 5);
         List<String> avoid = cleanList(request.avoidIngredients(), 20);
         List<String> allergens = cleanList(request.allergens(), 20);
+        // [2026-10-28] EER 身体数据 + 进食节奏：可空、非法值直接 400（宁可拒收不静默改写）
+        String gender = request.gender();
+        if (gender != null && !GENDERS.contains(gender)) return ApiResponse.error(400, "性别选择无效");
+        String activityLevel = request.activityLevel();
+        if (activityLevel != null && !ACTIVITY_LEVELS.contains(activityLevel)) return ApiResponse.error(400, "活动水平选择无效");
+        String mealTiming = request.mealTiming();
+        if (mealTiming != null && !MEAL_TIMINGS.contains(mealTiming)) return ApiResponse.error(400, "进食节奏选择无效");
+        Integer age = clampRange(request.age(), 10, 100);
+        BigDecimal heightCm = clampDecimal(request.heightCm(), 80, 250);
+        BigDecimal weightKg = clampDecimal(request.weightKg(), 20, 300);
+        Boolean resistanceTraining = request.resistanceTraining();
         if (maxMinutes == null && request.spiceLevel() == null && cuisines.isEmpty()
-                && avoid.isEmpty() && allergens.isEmpty() && people == null) {
+                && avoid.isEmpty() && allergens.isEmpty() && people == null
+                && gender == null && age == null && heightCm == null && weightKg == null
+                && activityLevel == null && resistanceTraining == null && mealTiming == null) {
             return ApiResponse.error(400, "至少回答一个问题");
         }
 
@@ -141,6 +188,14 @@ public class UserFoodPreferenceController {
         if (!avoid.isEmpty()) preference.setAvoidIngredients(String.join(",", avoid));
         if (!allergens.isEmpty()) preference.setAllergens(String.join(",", allergens));
         if (request.spiceLevel() != null) preference.setSpiceLevel(request.spiceLevel());
+        // EER 身体数据：只写用户填了的项，其余不覆盖
+        if (gender != null) preference.setGender(gender);
+        if (age != null) preference.setAge(age);
+        if (heightCm != null) preference.setHeightCm(heightCm);
+        if (weightKg != null) preference.setWeightKg(weightKg);
+        if (activityLevel != null) preference.setActivityLevel(activityLevel);
+        if (resistanceTraining != null) preference.setResistanceTraining(resistanceTraining);
+        if (mealTiming != null) preference.setMealTiming(mealTiming);
         preference.setOnboardingCompleted(true);
         UserFoodPreference saved = repository.save(preference);
         if (!avoid.isEmpty() || !allergens.isEmpty()) {
@@ -192,6 +247,39 @@ public class UserFoodPreferenceController {
         return Math.max(min, Math.min(max, value));
     }
 
+    private BigDecimal clampDecimal(BigDecimal value, double min, double max) {
+        if (value == null) return null;
+        BigDecimal lo = BigDecimal.valueOf(min), hi = BigDecimal.valueOf(max);
+        if (value.compareTo(lo) < 0) return lo;
+        if (value.compareTo(hi) > 0) return hi;
+        return value;
+    }
+
+    /**
+     * [2026-10-28] 个体营养目标（NASEM 2023 EER + 蛋白质范围，移植自 aiiqc/nutrition-skill）。
+     * 输入全部来自偏好表自报字段；缺项返回 NEEDS_INPUT + missingFields，不猜测。
+     * 观察类红线：NOT_ELIGIBLE 只返回机器码 issues，由前端映射为可读文案，不做诊断表述。
+     */
+    @org.springframework.web.bind.annotation.GetMapping("/nutrition-target")
+    public ApiResponse<NutritionTargetService.Target> nutritionTarget(
+            @RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
+        if (nutritionTargets == null) return ApiResponse.error(503, "目标计算暂不可用");
+        UserFoodPreference p = repository.findByOpenid(openid).orElseGet(UserFoodPreference::new);
+        NutritionTargetService.Goal goal = switch (p.getHealthGoal() == null ? "BALANCED" : p.getHealthGoal()) {
+            case "LEAN" -> NutritionTargetService.Goal.FAT_LOSS;
+            case "FITNESS" -> NutritionTargetService.Goal.MUSCLE_GAIN;
+            default -> NutritionTargetService.Goal.WELLBEING;
+        };
+        NutritionTargetService.Inputs inputs = new NutritionTargetService.Inputs(
+                "MALE".equals(p.getGender()) ? NutritionTargetService.Sex.MALE
+                        : "FEMALE".equals(p.getGender()) ? NutritionTargetService.Sex.FEMALE
+                        : NutritionTargetService.Sex.UNKNOWN,
+                p.getAge(), p.getHeightCm(), p.getWeightKg(),
+                p.getActivityLevel() == null ? null : NutritionTargetService.ActivityLevel.valueOf(p.getActivityLevel()),
+                p.getResistanceTraining(), goal);
+        return ApiResponse.ok(nutritionTargets.compute(inputs));
+    }
+
     private List<String> cleanList(List<String> values, int limit) {
         if (values == null) return List.of();
         return values.stream()
@@ -221,7 +309,15 @@ public class UserFoodPreferenceController {
             String spiceLevel,
             String healthGoal,
             String hometown,
-            String cookingSkill) { }
+            String cookingSkill,
+            // [2026-10-28] 身体数据（可空；未传不覆盖既有档案）
+            String gender,
+            Integer age,
+            java.math.BigDecimal heightCm,
+            java.math.BigDecimal weightKg,
+            String activityLevel,
+            Boolean resistanceTraining,
+            String mealTiming) { }
 
     /** [2026-10-27] 冷启动问卷答案：全部可空，至少答一题。 */
     public record OnboardingRequest(
@@ -230,5 +326,13 @@ public class UserFoodPreferenceController {
             List<String> cuisines,
             List<String> avoidIngredients,
             List<String> allergens,
-            Integer people) { }
+            Integer people,
+            // [2026-10-28] EER 身体数据 + 进食节奏（均可空）
+            String gender,
+            Integer age,
+            BigDecimal heightCm,
+            BigDecimal weightKg,
+            String activityLevel,
+            Boolean resistanceTraining,
+            String mealTiming) { }
 }

@@ -17,6 +17,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 
 /** 使用 Agnes Image 为 AI 菜谱生成封面；失败时不影响菜谱正文返回。 */
 @Service
@@ -51,6 +52,11 @@ public class AgnesRecipeImageService {
         this.model = model;
         this.size = size;
         this.ratio = ratio;
+    }
+
+    /** 仅供同包测试检视 prompt 拼装结果。 */
+    String promptForTest(Recipe recipe) {
+        return prompt(recipe);
     }
 
     public Optional<String> generateCover(Recipe recipe) {
@@ -153,12 +159,20 @@ public class AgnesRecipeImageService {
     private String prompt(Recipe recipe) {
         String raw = clip(recipe.getName(), 60);
         java.util.List<String> parts = comboParts(raw);
+        // [2026-10-28] 场景档位按菜谱哈希稳定轮换（同菜不漂移、不同菜自然分散），
+        // 动作特写档按次随机（10%，质检不过重拍时会换档）。
+        boolean actionShot = parts.isEmpty() && ThreadLocalRandom.current().nextInt(10) == 0;
         StringBuilder p = new StringBuilder(
-                "真实食物摄影，RAW photo，85mm 镜头 f/2.8 浅景深，自然侧逆窗光，暖白色调，"
-                        + "哑光陶瓷餐具与原木桌面，背景柔化成暖色散景，食物前景锐利清晰，约 40 度俯拍视角。");
+                "真实食物摄影，RAW photo，85mm 镜头 f/2.8 浅景深，柯达 Portra 400 胶片色调，"
+                        + "三分法构图，食物主体落在画面焦点一侧，另一侧留白，食物前景锐利清晰。");
+        p.append(sceneFor(recipe));
+        if (actionShot) {
+            p.append("低角度动感特写：一只手正把酱汁浇淋在菜上，汤汁飞溅在空中定格，轻微动态模糊，"
+                    + "手只露出手腕以下、干净利落。");
+        }
         if (parts.size() >= 2) {
             // 组合餐：两样食物各自成碗、左右并列——不是一个盘子装所有
-            p.append("一顿刚做好的中式组合餐：木质托盘上两样食物分开盛放、左右并排——左边一碗/一笼「")
+            p.append("一顿刚做好的中式组合餐：两样食物分开盛放、左右并排——左边一碗/一笼「")
                     .append(clip(parts.get(0), 20)).append("」，右边一碗/一杯「").append(clip(parts.get(1), 20))
                     .append("」，各自独立成碗、高低错落，绝不装进同一个盘子，也不要把右边食物垫在左边下面，")
                     .append("画面对象只出现这两样完成后的食物与餐具。");
@@ -168,13 +182,102 @@ public class AgnesRecipeImageService {
         }
         // 质地微观按主菜类型取
         p.append(textureCue(parts.isEmpty() ? raw : parts.get(0))).append("。");
+        // [2026-10-28] 步骤融合：封面环境与实际烹饪法一致（砂锅炖菜就该「还咕嘟着」，而不是摆盘子里）
+        String stepCue = stepCue(recipe);
+        if (!stepCue.isEmpty()) p.append(stepCue).append("。");
+        // [2026-10-29] 来源①道具系统：1 件道具、理由写进提示词（道具不是装饰，是叙事证据）
+        String props = propsCue(recipe);
+        if (!props.isEmpty()) p.append(props).append("。");
+        // [2026-10-28] 不完美感三件套：完美才是「假」的来源
+        p.append("餐布或桌布带轻微自然褶皱，酱汁收边自然流淌，桌面散落一两粒葱花或芝麻碎，"
+                + "画面有一点点刚开饭时的生活随意感。");
         // 生肉防线：菜名里的「鲜肉/鲜虾」指馅料或已烹熟的主料，绝不是单独的生肉
         p.append("所有食材必须是烹饪完成、可直接入口的状态：肉馅与肉末必须已包入面皮或完全烹熟，"
                 + "严禁出现生肉块、生肉馅、生蛋液等未烹饪原料。");
-        // 负向合并成一条，避免否定词堆叠稀释主描述
-        p.append("严禁插画、卡通、3D 渲染、CG 感、过饱和塑料质感；不要出现生的未切配食材、调料碟瓶、包装、"
-                + "人物、文字、水印、品牌标志或多余餐具。");
+        // 负向合并成一条；动作特写档允许手部入镜，其余档禁止人物
+        p.append(actionShot
+                ? "严禁插画、卡通、3D 渲染、CG 感、塑料质感、AI 味的均匀油光、悬浮在空中的水珠、不自然的对称摆盘、重复摆放的多份同类食物、"
+                        + "过饱和的红色、卡通式蒸汽；不要出现生的未切配食材、调料碟瓶、包装、完整人脸与身体、"
+                        + "文字、水印、品牌标志或多余餐具。"
+                : "严禁插画、卡通、3D 渲染、CG 感、塑料质感、AI 味的均匀油光、悬浮在空中的水珠、不自然的对称摆盘、重复摆放的多份同类食物、"
+                        + "过饱和的红色、卡通式蒸汽；不要出现生的未切配食材、调料碟瓶、包装、"
+                        + "人物、文字、水印、品牌标志或多余餐具。");
         return p.toString();
+    }
+
+    /**
+     * [2026-10-28] 场景档位轮换（借鉴超写实美食提示词构建器的 mood 档）：
+     * 按 recipeId（无 id 退菜名）哈希稳定选取——同一道菜不漂移，不同菜自然分散到 5 种影调，
+     * 解决「每张图同一张原木桌」的统一感。
+     */
+    static String sceneFor(Recipe recipe) {
+        int hash = recipe.getId() != null ? recipe.getId().intValue()
+                : (recipe.getName() == null ? 0 : recipe.getName().hashCode());
+        String[] scenes = {
+                // ① 家常暖调
+                "哑光陶瓷餐具与原木桌面，自然侧逆窗光，暖白色调，背景柔化成暖色散景，约 40 度俯拍视角。",
+                // ② 编辑暗调（食欲感最强的影调：暗环境把视线全部收进食物）
+                "深色石板台面与哑光黑陶盘，暗背景，高对比侧光只打亮食物主体，45 度视角，美食杂志大片质感。",
+                // ③ 乡村暖调
+                "粗陶碗碟与原色亚麻餐布，木纹桌面，柔和晨光斜照，食物带手作感，42 度俯拍视角。",
+                // ④ 极简白
+                "纯白背景与白瓷浅盘，高调明亮布光，影子干净利落，平视微俯视角，极简构图。",
+                // ⑤ 市井烟火
+                "深色老木桌与青花瓷盘，画面边缘带一点竹蒸笼或铁锅的轮廓，暖黄灯光，市井小馆的烟火气，45 度视角。",
+                // ⑥ 微距质地特写（来源②Geniea 词库 close-up：让「油星/米油/焦斑」自己当主角）
+                "极限微距特写，只拍食物表面质感：热气、油星、酱汁光泽充满画面，餐具只在边缘深度虚化。",
+        };
+        return scenes[Math.floorMod(hash, scenes.length)];
+    }
+
+    /**
+     * [2026-10-29] 来源①道具系统：按菜品类型挂 1 件道具，理由直接写进提示词——
+     * 道具不是装饰，是「这道菜能马上吃」的叙事证据。
+     */
+    static String propsCue(Recipe recipe) {
+        String n = recipe.getName() == null ? "" : recipe.getName();
+        String steps = recipe.getSteps() == null ? "" : recipe.getSteps();
+        if (n.matches(".*(汤|盅|羹|粥).*") || steps.matches(".*(煮|炖|煲|汆|涮).*"))
+            return "白瓷汤勺搭在碗沿，勺窝里还挂着一滴汤汁——暗示马上可以舀起来喝";
+        if (n.matches(".*(饭|面|粉|饺子|包子|馄饨|面).*"))
+            return "一双木筷斜搁在碗盘边，筷尖微湿——暗示刚动筷";
+        if (steps.matches(".*(烤|煎|烙|炸).*"))
+            return "盘边配一小碟蘸酱或椒盐——暗示风味层次";
+        if (n.matches(".*(蒸|点心).*"))
+            return "垫屉布一角从盘边露出——暗示刚出笼";
+        return "";
+    }
+
+    /**
+     * [2026-10-28] 步骤融合：从做法步骤提取烹饪法，让封面环境与做法一致——
+     * 砂锅炖菜「还咕嘟着」远比端端正正摆盘子里有食欲。只影响环境与痕迹，画面仍只画成品。
+     */
+    static String stepCue(Recipe recipe) {
+        String steps = recipe.getSteps() == null ? "" : recipe.getSteps();
+        // 特征器物优先于泛化动作：既炒又炖时，「砂锅还在咕嘟」比铁锅更具辨识度
+        if (steps.matches(".*(炖|煨|煲|焖|卤).*"))
+            return "盛器换成砂锅，汤汁微微沸腾冒小泡，木勺搭在锅沿";
+
+
+        if (steps.matches(".*(蒸|屉).*"))
+            return "画面边缘露出竹蒸笼，白色蒸汽缭绕上升";
+
+
+        if (steps.matches(".*(烤|烘).*"))
+            return "深色烤盘入镜，表面带焦糖化网格烤纹";
+
+
+        if (steps.matches(".*(煎|烙).*"))
+            return "平底煎锅余温尚在，锅边油泡滋滋作响，食物边缘带焦壳";
+
+
+        if (steps.matches(".*(炒|爆|煸|炝).*"))
+            return "画面边缘能看到铁锅一角，锅气蒸腾，盘边留有颠勺溅出的酱汁痕迹";
+        if (steps.matches(".*(煮|汆|涮|焯).*"))
+            return "汤碗热气升腾，汤面浮着细小油星与葱花";
+        if (steps.matches(".*(拌|腌|泡).*"))
+            return "食材带刚翻拌均匀的痕迹，酱汁挂在每片食材上";
+        return "";
     }
 
     /** 按菜品类型给食欲质地描述：汤要油星与透亮的汤色，粥要米油，蒸点要半透明皮，饭要锅气。 */

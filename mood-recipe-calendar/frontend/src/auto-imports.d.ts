@@ -118,6 +118,8 @@ declare global {
   const fetchDailyBoard: typeof import('./api/dailyMenu')['fetchDailyBoard']
   const fetchDailyMealPlan: typeof import('./api/dailyMealPlan')['fetchDailyMealPlan']
   const fetchDailyMealPlanQuota: typeof import('./api/dailyMealPlan')['fetchDailyMealPlanQuota']
+  const fetchDealLink: typeof import('./api/deals')['fetchDealLink']
+  const fetchDeals: typeof import('./api/deals')['fetchDeals']
   const fetchEntitlements: typeof import('./api/virtualCommerce')['fetchEntitlements']
   const fetchFamily: typeof import('./api/family')['fetchFamily']
   const fetchFamilyMenus: typeof import('./api/family')['fetchFamilyMenus']
@@ -132,6 +134,8 @@ declare global {
   const fetchMonthAlbum: typeof import('./api/albums')['fetchMonthAlbum']
   const fetchMoodTags: typeof import('./api/recipes')['fetchMoodTags']
   const fetchMyFeedback: typeof import('./api/feedback')['fetchMyFeedback']
+  const fetchNutritionCoach: typeof import('./api/nutrition')['fetchNutritionCoach']
+  const fetchNutritionTarget: typeof import('./api/preferences')['fetchNutritionTarget']
   const fetchOrders: typeof import('./api/gallery')['fetchOrders']
   const fetchProducts: typeof import('./api/gallery')['fetchProducts']
   const fetchRecipeDetail: typeof import('./api/recipes')['fetchRecipeDetail']
@@ -154,6 +158,7 @@ declare global {
   const fetchVirtualOrder: typeof import('./api/virtualCommerce')['fetchVirtualOrder']
   const fetchVirtualOrders: typeof import('./api/virtualCommerce')['fetchVirtualOrders']
   const fetchVirtualProducts: typeof import('./api/virtualCommerce')['fetchVirtualProducts']
+  const fetchWeeklyDiversity: typeof import('./api/weeklyPlans')['fetchWeeklyDiversity']
   const fetchWeeklyPlanQuota: typeof import('./api/weeklyPlans')['fetchWeeklyPlanQuota']
   const fetchWeeklyTheme: typeof import('./api/weeklyTheme')['fetchWeeklyTheme']
   const fetchWxacodeUrl: typeof import('./api/wxacode')['fetchWxacodeUrl']
@@ -677,6 +682,8 @@ declare module 'vue' {
     readonly fetchDailyBoard: UnwrapRef<typeof import('./api/dailyMenu')['fetchDailyBoard']>
     readonly fetchDailyMealPlan: UnwrapRef<typeof import('./api/dailyMealPlan')['fetchDailyMealPlan']>
     readonly fetchDailyMealPlanQuota: UnwrapRef<typeof import('./api/dailyMealPlan')['fetchDailyMealPlanQuota']>
+    readonly fetchDealLink: UnwrapRef<typeof import('./api/deals')['fetchDealLink']>
+    readonly fetchDeals: UnwrapRef<typeof import('./api/deals')['fetchDeals']>
     readonly fetchEntitlements: UnwrapRef<typeof import('./api/virtualCommerce')['fetchEntitlements']>
     readonly fetchFamily: UnwrapRef<typeof import('./api/family')['fetchFamily']>
     readonly fetchFamilyMenus: UnwrapRef<typeof import('./api/family')['fetchFamilyMenus']>
@@ -691,6 +698,8 @@ declare module 'vue' {
     readonly fetchMonthAlbum: UnwrapRef<typeof import('./api/albums')['fetchMonthAlbum']>
     readonly fetchMoodTags: UnwrapRef<typeof import('./api/recipes')['fetchMoodTags']>
     readonly fetchMyFeedback: UnwrapRef<typeof import('./api/feedback')['fetchMyFeedback']>
+    readonly fetchNutritionCoach: UnwrapRef<typeof import('./api/nutrition')['fetchNutritionCoach']>
+    readonly fetchNutritionTarget: UnwrapRef<typeof import('./api/preferences')['fetchNutritionTarget']>
     readonly fetchRecipeDetail: UnwrapRef<typeof import('./api/recipes')['fetchRecipeDetail']>
     readonly fetchRecipeFeedback: UnwrapRef<typeof import('./api/recipes')['fetchRecipeFeedback']>
     readonly fetchRecipeLibrary: UnwrapRef<typeof import('./api/recipes')['fetchRecipeLibrary']>
@@ -711,6 +720,7 @@ declare module 'vue' {
     readonly fetchVirtualOrder: UnwrapRef<typeof import('./api/virtualCommerce')['fetchVirtualOrder']>
     readonly fetchVirtualOrders: UnwrapRef<typeof import('./api/virtualCommerce')['fetchVirtualOrders']>
     readonly fetchVirtualProducts: UnwrapRef<typeof import('./api/virtualCommerce')['fetchVirtualProducts']>
+    readonly fetchWeeklyDiversity: UnwrapRef<typeof import('./api/weeklyPlans')['fetchWeeklyDiversity']>
     readonly fetchWeeklyPlanQuota: UnwrapRef<typeof import('./api/weeklyPlans')['fetchWeeklyPlanQuota']>
     readonly fetchWeeklyTheme: UnwrapRef<typeof import('./api/weeklyTheme')['fetchWeeklyTheme']>
     readonly fetchWxacodeUrl: UnwrapRef<typeof import('./api/wxacode')['fetchWxacodeUrl']>

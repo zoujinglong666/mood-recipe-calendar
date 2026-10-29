@@ -12,11 +12,16 @@ import com.moodrecipe.backend.repository.RecipeRepository;
 import com.moodrecipe.backend.repository.UserFoodPreferenceRepository;
 import com.moodrecipe.backend.repository.UserProfileSnapshotRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.context.event.EventListener;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -65,6 +70,9 @@ public class FeedbackLearningService {
         this.cacheManager = cacheManager;
         this.objectMapper = objectMapper;
     }
+
+    /** 自注入：快照降级捕获需要调用带 REQUIRES_NEW 事务的代理方法（同 AgentMemoryStore/GrowthService 惯例）。 */
+    @Autowired @Lazy private FeedbackLearningService self;
 
     /** 取当前画像（带缓存；交互事件会失效它，保证"越用越智能"即时可见）。 */
     @Cacheable(cacheNames = "userProfile", key = "#openid")
@@ -209,22 +217,31 @@ public class FeedbackLearningService {
     /**
      * [2026-10-20] 监听任意交互落库事件：失效缓存画像（下次推荐即时用上新偏好）+ 对有意义互动落快照。
      * 用 CacheManager 手动失效而非 @CacheEvict，避免事件监听方法上 AOP 代理的不确定性，行为完全确定。
+     *
+     * [2026-10-29] 由 @EventListener 改为 AFTER_COMMIT：此前本方法在 @PostPersist 回调内
+     * 同线程同事务执行，buildProfile 的查询会对处于 persist 回调中的 session 触发 auto-flush，
+     * 一旦失败被 catch 吞掉，交互主写事务提交时即抛
+     * AssertionFailure "null identifier / session flushed after an exception"（AGENTS.md 铁律 1）。
      */
-    @EventListener
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onInteraction(InteractionRecordedEvent e) {
         Cache cache = cacheManager.getCache("userProfile");
         if (cache != null) cache.evict(e.openid());
         if (MEANINGFUL.contains(e.action())) {
             try {
-                saveSnapshot(e.openid(), e.action());
+                self.saveSnapshot(e.openid(), e.action());
             } catch (RuntimeException ignored) {
-                // 快照失败不应影响主流程
+                // 快照失败不应影响主流程；AFTER_COMMIT + REQUIRES_NEW 保证失败不污染任何主写事务。
             }
         }
     }
 
-    /** 把当前画像 JSON 化落库，形成可回溯的演化时间线（requirement 4）。 */
-    private void saveSnapshot(String openid, String trigger) {
+    /**
+     * 把当前画像 JSON 化落库，形成可回溯的演化时间线（requirement 4）。
+     * REQUIRES_NEW 独立事务：失败只回滚本次快照，不污染请求共享的持久化上下文（铁律 1）。
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void saveSnapshot(String openid, String trigger) {
         UserProfile p = buildProfile(openid); // 事件已失效缓存，这里重算得到含最新互动的画像
         UserProfileSnapshot s = new UserProfileSnapshot();
         s.setOpenid(openid);

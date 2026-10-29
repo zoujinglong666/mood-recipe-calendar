@@ -10,6 +10,7 @@ import com.moodrecipe.backend.service.GuozaiAgent;
 import com.moodrecipe.backend.service.WechatContentSafetyService;
 import com.moodrecipe.backend.service.UsageQuotaService;
 import com.moodrecipe.backend.service.AgentConversationService;
+import com.moodrecipe.backend.service.DiversityService;
 import com.moodrecipe.backend.agent.AgentReflectionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -28,12 +29,27 @@ public class WeeklyMealPlanController {
     private final AgentConversationService conversations;
     private final AgentReflectionService reflection;
     private final WeeklyPlanJobService weeklyPlanJobs;
+
+    /** [2026-10-28] 饮食多样性观察。可选依赖走 setter 注入，保持既有构造器（测试）签名不变。 */
+    private DiversityService diversity;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    void setDiversity(DiversityService diversity) {
+        this.diversity = diversity;
+    }
     @Autowired public WeeklyMealPlanController(WeeklyMealPlanService plans, GuozaiAgent agent, DialogueAgent mealAgent,
                                     WechatContentSafetyService contentSafety, UsageQuotaService quotas,
                                     AgentConversationService conversations, AgentReflectionService reflection,
                                     WeeklyPlanJobService weeklyPlanJobs) { this.plans = plans; this.agent = agent; this.mealAgent = mealAgent; this.contentSafety = contentSafety; this.quotas = quotas; this.conversations = conversations; this.reflection = reflection; this.weeklyPlanJobs = weeklyPlanJobs; }
     @GetMapping("/current") public ApiResponse<?> current(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) { return plans.current(openid).map(ApiResponse::ok).orElseGet(() -> ApiResponse.error(404, "还没有本周计划")); }
     @GetMapping("/history") public ApiResponse<?> history(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) { return ApiResponse.ok(plans.history(openid)); }
+    /** [2026-10-28] 饮食多样性观察：最近一份周菜单的类别覆盖/分布/环比（膳食指南 12 种/天、25 种/周）。 */
+    @GetMapping("/diversity")
+    public ApiResponse<?> diversity(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) {
+        if (diversity == null) return ApiResponse.error(503, "多样性观察暂不可用");
+        return diversity.weekly(openid).map(ApiResponse::ok)
+                .orElseGet(() -> ApiResponse.error(404, "还没有周计划，先生成一份吧"));
+    }
     @GetMapping("/{id}") public ApiResponse<?> get(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid, @PathVariable Long id) { return plans.get(openid, id).map(ApiResponse::ok).orElseGet(() -> ApiResponse.error(404, "计划不存在")); }
     @GetMapping("/quota") public ApiResponse<UsageQuotaService.View> quota(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) { return ApiResponse.ok(quotas.view(openid, UsageQuotaService.Feature.SIMPLE_WEEKLY_PLAN)); }
     @GetMapping("/agent-quota") public ApiResponse<UsageQuotaService.View> agentQuota(@RequestAttribute(SessionAuthInterceptor.OPENID_ATTRIBUTE) String openid) { return ApiResponse.ok(quotas.view(openid, UsageQuotaService.Feature.AGENT_CONVERSATION)); }

@@ -15,7 +15,9 @@ import { haptic } from '@/utils/haptic'
 const props = withDefaults(defineProps<{
   /** 是否展示（v-model） */
   modelValue?: boolean
-}>(), { modelValue: false })
+  /** 所在页面带原生 tabBar：弹层底部要额外让出 tabBar 高度，否则取消按钮会被 tabBar 盖住 */
+  withTabbar?: boolean
+}>(), { modelValue: false, withTabbar: false })
 
 const emit = defineEmits<{
   (e: 'update:modelValue', v: boolean): void
@@ -49,11 +51,14 @@ function pick(type: 'BREAKFAST' | 'LUNCH' | 'DINNER') {
 </script>
 
 <template>
-  <wd-popup v-model="show" position="bottom" :safe-area-inset-bottom="true" custom-style="border-radius: 40rpx 40rpx 0 0; overflow: hidden; background: var(--mrc-surface);">
-    <view class="meal-sheet">
+  <wd-popup v-model="show" position="bottom" :safe-area-inset-bottom="false" custom-style="border-radius: 40rpx 40rpx 0 0; overflow: hidden; background: var(--mrc-surface);">
+    <view class="meal-sheet" :style="{ '--meal-sheet-tabbar': withTabbar ? '120rpx' : '0rpx' }">
       <view class="meal-sheet__head">
-        <text class="meal-sheet__title">今天吃什么</text>
-        <text class="meal-sheet__sub">选一顿，锅仔按《中国居民膳食指南》帮你搭配</text>
+        <view class="meal-sheet__head-text">
+          <text class="meal-sheet__title">今天吃什么</text>
+          <text class="meal-sheet__sub">选一顿，锅仔按《中国居民膳食指南》帮你搭配</text>
+        </view>
+        <view class="meal-sheet__close" role="button" aria-label="关闭" @click="close">✕</view>
       </view>
       <view class="meal-sheet__options">
         <button class="meal-option" @click="pick('BREAKFAST')">
@@ -71,11 +76,11 @@ function pick(type: 'BREAKFAST' | 'LUNCH' | 'DINNER') {
           <text class="meal-option__name">晚餐</text>
           <text class="meal-option__desc">好好收尾这一天</text>
         </button>
-        <button class="meal-option meal-option--quick" :class="{ 'is-on': quick }" role="switch" :aria-checked="quick" aria-label="今晚想快一点，优先 20 分钟内的菜" @click="toggleQuick">
+        <button class="meal-option meal-option--quick" :class="{ 'is-on': quick }" role="switch" :aria-checked="quick" aria-label="今晚想快一点，二十分钟内开饭" @click="toggleQuick">
           <text class="meal-option__emoji">⚡</text>
           <view class="meal-option__copy">
             <text class="meal-option__name">今晚想快一点</text>
-            <text class="meal-option__desc">锅仔只挑 20 分钟内能做好的</text>
+            <text class="meal-option__desc">二十分钟就能开饭</text>
           </view>
           <view class="meal-option__switch" :class="{ 'is-on': quick }">
             <view class="meal-option__switch-dot" />
@@ -88,8 +93,10 @@ function pick(type: 'BREAKFAST' | 'LUNCH' | 'DINNER') {
 </template>
 
 <style lang="scss" scoped>
-.meal-sheet { padding: 28rpx 28rpx calc(28rpx + env(safe-area-inset-bottom)); }
-.meal-sheet__head { padding: 8rpx 8rpx 20rpx; }
+.meal-sheet { padding: 28rpx 28rpx calc(28rpx + env(safe-area-inset-bottom) + var(--meal-sheet-tabbar, 0rpx)); }
+.meal-sheet__head { display: flex; align-items: flex-start; gap: 16rpx; padding: 8rpx 8rpx 20rpx; }
+.meal-sheet__head-text { flex: 1; min-width: 0; }
+.meal-sheet__close { flex-shrink: 0; width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: var(--mrc-surface-2); color: var(--mrc-text-sub); font-size: 26rpx; font-weight: 700; }
 .meal-sheet__title { display: block; color: var(--mrc-text-strong); font-size: 30rpx; font-weight: 800; }
 .meal-sheet__sub { display: block; margin-top: 6rpx; color: var(--mrc-text-sub); font-size: 22rpx; }
 .meal-sheet__options { display: flex; flex-direction: column; gap: 14rpx; }

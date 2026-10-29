@@ -16,8 +16,10 @@
  */
 import { computed, reactive, ref, watch } from 'vue'
 import GuozaiChoiceChips, { type GuozaiChoiceOption } from './GuozaiChoiceChips.vue'
+import GuozaiButton from './GuozaiButton.vue'
 import { saveOnboarding } from '@/api/preferences'
 import { haptic } from '@/utils/haptic'
+import { funnel } from '@/utils/funnel'
 
 const emit = defineEmits<{
   (e: 'update:modelValue', v: boolean): void
@@ -27,19 +29,27 @@ const emit = defineEmits<{
 
 const props = withDefaults(defineProps<{
   modelValue?: boolean
-}>(), { modelValue: false })
+  /** 所在页面带原生 tabBar：弹层底部要额外让出 tabBar 高度，否则底部按钮会被 tabBar 盖住 */
+  withTabbar?: boolean
+}>(), { modelValue: false, withTabbar: false })
+
+// [2026-10-28] 第 6 步漏斗：可选步骤是否造成流失
+watch(() => stepIndex.value, (idx) => {
+  if (STEPS[idx]?.key === 'body') funnel('onboarding_body_reached')
+})
 
 const show = computed({
   get: () => props.modelValue,
   set: (v: boolean) => emit('update:modelValue', v),
 })
 
-const STEPS: Array<{ key: 'time' | 'spice' | 'cuisine' | 'avoid' | 'people', title: string, hint: string, required: boolean }> = [
+const STEPS: Array<{ key: 'time' | 'spice' | 'cuisine' | 'avoid' | 'people' | 'body', title: string, hint: string, required: boolean }> = [
   { key: 'time', title: '平时做一顿饭，想花多久？', hint: '锅仔只推你做得完的菜', required: true },
   { key: 'spice', title: '口味上，你能吃多辣？', hint: '按你的度来，不放纵也不敷衍', required: true },
   { key: 'cuisine', title: '喜欢哪些菜系？', hint: '可多选，最多 3 个', required: false },
   { key: 'avoid', title: '有什么不吃或过敏的吗？', hint: '过敏的东西锅仔会永远帮你避开', required: false },
   { key: 'people', title: '家里几口人一起吃？', hint: '份量按人头算，不浪费', required: false },
+  { key: 'body', title: '想算得更准的话，说下身体情况？', hint: '可选。用来估算你每天需要的能量与蛋白质（NASEM 2023）', required: false },
 ]
 
 const TIME_OPTIONS: GuozaiChoiceOption[] = [
@@ -91,6 +101,24 @@ const PEOPLE_OPTIONS: GuozaiChoiceOption[] = [
   { value: '4', label: '四口及以上' },
 ]
 
+// [2026-10-28] 身体数据步骤（可选）：EER 目标计算输入
+const GENDER_OPTIONS: GuozaiChoiceOption[] = [
+  { value: 'FEMALE', label: '女' },
+  { value: 'MALE', label: '男' },
+]
+const ACTIVITY_OPTIONS: GuozaiChoiceOption[] = [
+  { value: 'INACTIVE', label: '久坐少动' },
+  { value: 'LOW_ACTIVE', label: '每周动几次' },
+  { value: 'ACTIVE', label: '几乎每天动' },
+  { value: 'VERY_ACTIVE', label: '高强度训练' },
+]
+const MEAL_TIMING_OPTIONS: GuozaiChoiceOption[] = [
+  { value: 'REGULAR', label: '三餐规律' },
+  { value: 'NO_BREAKFAST', label: '常不吃早餐' },
+  { value: 'LATE_NIGHT', label: '夜宵比较多' },
+  { value: 'INTERMITTENT', label: '轻断食' },
+]
+
 const stepIndex = ref(0)
 const step = computed(() => STEPS[stepIndex.value])
 const isLast = computed(() => stepIndex.value === STEPS.length - 1)
@@ -99,9 +127,16 @@ const submitting = ref(false)
 const finished = ref(false)
 
 const selections = reactive<Record<string, string[]>>({
-  time: [], spice: [], cuisine: [], avoid: [], allergen: [], people: [],
+  time: [], spice: [], cuisine: [], avoid: [], allergen: [], people: [], activity: [], mealTiming: [],
 })
 
+/** [2026-10-28] 身体数据输入（可选步骤）：性别用 chips，三项数字用输入框 */
+const body = reactive({ gender: '', age: '', heightCm: '', weightKg: '' })
+
+function pickBodyGender(value: string) {
+  haptic('light')
+  body.gender = body.gender === value ? '' : value
+}
 const canGoNext = computed(() => {
   if (!step.value.required) return true
   return selections[step.value.key].length > 0
@@ -152,7 +187,17 @@ async function submit() {
       avoidIngredients: selections.avoid.length ? selections.avoid : undefined,
       allergens: selections.allergen.length ? selections.allergen : undefined,
       people: selections.people[0] ? Number(selections.people[0]) : undefined,
+      // [2026-10-28] 身体数据（可选）：只传有效值，空着就不影响目标计算
+      gender: body.gender ? (body.gender as 'MALE' | 'FEMALE') : undefined,
+      age: Number(body.age) > 0 ? Number(body.age) : undefined,
+      heightCm: Number(body.heightCm) > 0 ? Number(body.heightCm) : undefined,
+      weightKg: Number(body.weightKg) > 0 ? Number(body.weightKg) : undefined,
+      activityLevel: selections.activity[0] as never,
+      mealTiming: selections.mealTiming[0] as never,
     })
+    funnel(body.gender || Number(body.age) > 0 || Number(body.heightCm) > 0 || Number(body.weightKg) > 0
+      || selections.activity[0] || selections.mealTiming[0]
+      ? 'onboarding_body_filled' : 'onboarding_body_skipped')
     finished.value = true
     show.value = false
     emit('done', { completed: true })
@@ -175,8 +220,8 @@ watch(show, (value) => {
 </script>
 
 <template>
-  <wd-popup v-model="show" position="bottom" :safe-area-inset-bottom="true" custom-style="border-radius: 40rpx 40rpx 0 0; overflow: hidden; background: var(--mrc-surface);">
-    <view class="onboard">
+  <wd-popup v-model="show" position="bottom" :safe-area-inset-bottom="false" custom-style="border-radius: 40rpx 40rpx 0 0; overflow: hidden; background: var(--mrc-surface);">
+    <view class="onboard" :style="{ '--onboard-tabbar': withTabbar ? '120rpx' : '0rpx' }">
       <view class="onboard__head">
         <text class="onboard__eyebrow">锅仔想先认识你一下 · {{ stepIndex + 1 }}/{{ STEPS.length }}</text>
         <text class="onboard__title">{{ step.title }}</text>
@@ -208,6 +253,44 @@ watch(show, (value) => {
           @select="toggleCuisine"
         />
 
+        <template v-else-if="step.key === 'body'">
+          <text class="onboard__group-label">性别</text>
+          <GuozaiChoiceChips
+            :model-value="body.gender ? [body.gender] : []"
+            :options="GENDER_OPTIONS"
+            aria-label="性别，单选"
+            @select="pickBodyGender"
+          />
+          <view class="onboard__metrics">
+            <view class="onboard__metric">
+              <text class="onboard__metric-label">年龄</text>
+              <input v-model="body.age" class="onboard__metric-input" type="number" placeholder="30" :maxlength="3" />
+            </view>
+            <view class="onboard__metric">
+              <text class="onboard__metric-label">身高cm</text>
+              <input v-model="body.heightCm" class="onboard__metric-input" type="digit" placeholder="165" :maxlength="5" />
+            </view>
+            <view class="onboard__metric">
+              <text class="onboard__metric-label">体重kg</text>
+              <input v-model="body.weightKg" class="onboard__metric-input" type="digit" placeholder="55" :maxlength="5" />
+            </view>
+          </view>
+          <text class="onboard__group-label onboard__group-label--gap">平时活动量</text>
+          <GuozaiChoiceChips
+            :model-value="selections.activity"
+            :options="ACTIVITY_OPTIONS"
+            aria-label="平时活动量，单选"
+            @select="value => pickSingle('activity', value)"
+          />
+          <text class="onboard__group-label onboard__group-label--gap">进食节奏</text>
+          <GuozaiChoiceChips
+            :model-value="selections.mealTiming"
+            :options="MEAL_TIMING_OPTIONS"
+            aria-label="进食节奏，单选"
+            @select="value => pickSingle('mealTiming', value)"
+          />
+        </template>
+
         <template v-else>
           <text class="onboard__group-label">不吃的</text>
           <GuozaiChoiceChips
@@ -227,17 +310,16 @@ watch(show, (value) => {
       </view>
 
       <view class="onboard__foot">
-        <button class="onboard__skip" :disabled="submitting" @click="skip">跳过，之后再聊</button>
+        <GuozaiButton variant="ghost" block aria-label="跳过问卷" :disabled="submitting" @click="skip">跳过，之后再聊</GuozaiButton>
         <view class="onboard__actions">
-          <button v-if="stepIndex > 0" class="onboard__back" :disabled="submitting" @click="back">上一步</button>
-          <button
-            class="onboard__next"
-            :class="{ 'is-disabled': !canGoNext }"
-            :disabled="submitting"
-            @click="next"
-          >
-            {{ submitting ? '正在记下…' : isLast ? '就这些，开饭！' : '下一步' }}
-          </button>
+          <view v-if="stepIndex > 0" class="onboard__back-wrap">
+            <GuozaiButton variant="secondary" block :disabled="submitting" @click="back">上一步</GuozaiButton>
+          </view>
+          <view class="onboard__next-wrap">
+            <GuozaiButton variant="primary" block :disabled="!canGoNext" :loading="submitting" aria-label="下一步" @click="next">
+              {{ submitting ? '正在记下…' : isLast ? '就这些，开饭！' : '下一步' }}
+            </GuozaiButton>
+          </view>
         </view>
       </view>
     </view>
@@ -245,7 +327,7 @@ watch(show, (value) => {
 </template>
 
 <style lang="scss" scoped>
-.onboard { padding: 32rpx 28rpx calc(32rpx + env(safe-area-inset-bottom)); }
+.onboard { padding: 32rpx 28rpx calc(32rpx + env(safe-area-inset-bottom) + var(--onboard-tabbar, 0rpx)); }
 .onboard__head { display: flex; flex-direction: column; gap: 8rpx; padding: 0 4rpx 24rpx; }
 .onboard__eyebrow { color: var(--mrc-text-sub); font-size: 21rpx; font-weight: var(--mrc-fw-semibold); }
 .onboard__title { color: var(--mrc-text-strong); font-size: 32rpx; font-weight: var(--mrc-fw-heavy); }
@@ -258,12 +340,13 @@ watch(show, (value) => {
 .onboard__body { display: flex; flex-direction: column; gap: var(--mrc-space-sm); padding: 8rpx 4rpx; min-height: 220rpx; }
 .onboard__group-label { color: var(--mrc-text-sub); font-size: 22rpx; font-weight: var(--mrc-fw-semibold); }
 .onboard__group-label--gap { margin-top: var(--mrc-space-sm); }
+.onboard__metrics { display: flex; gap: 12rpx; }
+.onboard__metric { flex: 1; display: flex; flex-direction: column; gap: 6rpx; background: var(--mrc-surface-2); border: 2rpx solid var(--mrc-border-light); border-radius: var(--mrc-radius-lg); padding: 12rpx 16rpx; }
+.onboard__metric-label { color: var(--mrc-text-sub); font-size: 20rpx; font-weight: var(--mrc-fw-semibold); }
+.onboard__metric-input { color: var(--mrc-text-strong); font-size: 27rpx; font-weight: var(--mrc-fw-bold); min-height: 44rpx; }
 
 .onboard__foot { display: flex; flex-direction: column; gap: 16rpx; padding-top: 24rpx; }
-.onboard__skip { width: 100%; min-height: 72rpx; border-radius: var(--mrc-radius-lg); color: var(--mrc-text-sub); background: transparent; font-size: 23rpx; font-weight: var(--mrc-fw-semibold); }
 .onboard__actions { display: flex; gap: 16rpx; }
-.onboard__back { flex: 1; min-height: 92rpx; border: 2rpx solid var(--mrc-border-light); border-radius: var(--mrc-radius-lg); color: var(--mrc-text-deep); background: var(--mrc-surface-2); font-size: 27rpx; font-weight: var(--mrc-fw-bold); }
-.onboard__next { flex: 2; min-height: 92rpx; border-radius: var(--mrc-radius-lg); color: var(--mrc-on-primary); background: var(--mrc-primary); font-size: 28rpx; font-weight: var(--mrc-fw-bold); }
-.onboard__next.is-disabled { opacity: 0.55; }
-.onboard__back[disabled], .onboard__next[disabled], .onboard__skip[disabled] { opacity: 0.55; }
+.onboard__back-wrap { flex: 1; }
+.onboard__next-wrap { flex: 2; }
 </style>

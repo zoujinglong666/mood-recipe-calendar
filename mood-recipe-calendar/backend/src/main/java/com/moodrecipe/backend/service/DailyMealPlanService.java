@@ -164,7 +164,7 @@ public class DailyMealPlanService implements SwapCandidateService.SwapQueueBuild
             List<Recipe> breakfastPool = breakfastPool(allPool);
             if (breakfastPool.isEmpty()) breakfastPool = allPool;
             Optional<List<Recipe>> strict = findThree(breakfastPool, allPool,
-                    meals -> validator.validate(meals, preference, knowledge).valid());
+                    meals -> validator.validate(meals, preference, knowledge).valid(), true);
             if (strict.isPresent()) return save(openid, date, strict.get(), knowledge.get(0).getVersion());
         }
 
@@ -175,7 +175,13 @@ public class DailyMealPlanService implements SwapCandidateService.SwapQueueBuild
         if (fallbackAll.isEmpty()) fallbackAll = topCandidates(rankedCandidates(profile, inSeason, false));
         Optional<List<Recipe>> fallback = findThree(
                 fallbackBreakfast.isEmpty() ? fallbackAll : fallbackBreakfast, fallbackAll,
-                meals -> validator.isSafe(meals, preference));
+                meals -> validator.isSafe(meals, preference), true);
+        if (fallback.isEmpty()) {
+            // 菜谱池太小、连多样性约束都凑不出三餐时，退回无约束枚举保证不空手
+            fallback = findThree(
+                    fallbackBreakfast.isEmpty() ? fallbackAll : fallbackBreakfast, fallbackAll,
+                    meals -> validator.isSafe(meals, preference), false);
+        }
         return fallback.flatMap(meals -> save(openid, date, meals,
                 knowledge.isEmpty() ? "fallback" : knowledge.get(0).getVersion()));
     }
@@ -227,6 +233,12 @@ public class DailyMealPlanService implements SwapCandidateService.SwapQueueBuild
             }
             for (Recipe candidate : candidates) {
                 if (existingNames.contains(candidate.getName())) continue;
+                // [2026-10-28] 跨餐食材多样性：候选与另两餐都共享同一食材时才拦（避免凑出三餐同食材）
+                int overlaps = 0;
+                for (int i = 0; i < meals.size(); i++) {
+                    if (i != mealIndex && sharesIngredient(candidate, meals.get(i)) && ++overlaps > 1) break;
+                }
+                if (overlaps > 1) continue;
                 meals.set(mealIndex, candidate);
                 if (validator.isSafe(meals, validationPreference)
                         && (knowledge.isEmpty() || validator.validate(meals, validationPreference, knowledge).valid())) {
@@ -246,6 +258,10 @@ public class DailyMealPlanService implements SwapCandidateService.SwapQueueBuild
                                UserFoodPreference preference, List<NutritionKnowledgePack> knowledge,
                                Recipe candidate) {
         if (candidate.getName() == null || existingNames.contains(candidate.getName())) return false;
+        int overlaps = 0;
+        for (int i = 0; i < meals.size(); i++) {
+            if (i != mealIndex && sharesIngredient(candidate, meals.get(i)) && ++overlaps > 1) return false;
+        }
         meals.set(mealIndex, candidate);
         return validator.isSafe(meals, preference)
                 && (knowledge.isEmpty() || validator.validate(meals, preference, knowledge).valid());
@@ -407,6 +423,23 @@ public class DailyMealPlanService implements SwapCandidateService.SwapQueueBuild
      */
     private Optional<List<Recipe>> findThree(List<Recipe> breakfastPool, List<Recipe> candidates,
                                              java.util.function.Predicate<List<Recipe>> valid) {
+        return findThree(breakfastPool, candidates, valid, false);
+    }
+
+    /**
+     * [2026-10-28] 三餐枚举加「跨餐食材多样性」：菜名去重挡不住“三餐都有西兰花”——
+     * 排序前列的菜常共享同一明星食材，各槽独立取最高分就撞车。requireIngredientDiversity=true 时
+     * 两两配对不允许共享显著食材（调味辅料豁免）；菜谱池太小凑不出时由调用方降级重试。
+     * token 预计算进 IdentityHashMap，O(n³) 枚举内零重复解析。
+     */
+    private Optional<List<Recipe>> findThree(List<Recipe> breakfastPool, List<Recipe> candidates,
+                                             java.util.function.Predicate<List<Recipe>> valid,
+                                             boolean requireIngredientDiversity) {
+        Map<Recipe, Set<String>> tokens = new java.util.IdentityHashMap<>();
+        if (requireIngredientDiversity) {
+            breakfastPool.forEach(recipe -> tokens.put(recipe, significantIngredients(recipe)));
+            candidates.forEach(recipe -> tokens.putIfAbsent(recipe, significantIngredients(recipe)));
+        }
         for (Recipe first : breakfastPool) {
             for (int second = 0; second < candidates.size(); second++) {
                 Recipe secondRecipe = candidates.get(second);
@@ -414,12 +447,66 @@ public class DailyMealPlanService implements SwapCandidateService.SwapQueueBuild
                 for (int third = second + 1; third < candidates.size(); third++) {
                     Recipe thirdRecipe = candidates.get(third);
                     if (sameDish(first, thirdRecipe) || sameDish(secondRecipe, thirdRecipe)) continue;
+                    // [2026-10-28] 多样性口径：同一食材最多出现在两餐——三对里共享对 >1 即弃
+                    // （三餐全见西兰花 = 3 对全共享，必拦；两餐同用番茄 = 1 对，放过）
+                    if (requireIngredientDiversity
+                            && (boolToInt(sharesIngredient(first, secondRecipe, tokens))
+                                + boolToInt(sharesIngredient(first, thirdRecipe, tokens))
+                                + boolToInt(sharesIngredient(secondRecipe, thirdRecipe, tokens))) > 1) continue;
                     List<Recipe> meals = List.of(first, secondRecipe, thirdRecipe);
                     if (valid.test(meals)) return Optional.of(meals);
                 }
             }
         }
         return Optional.empty();
+    }
+
+    private static int boolToInt(boolean value) {
+        return value ? 1 : 0;
+    }
+
+    /** 调味/辅料不算「重复食材」：葱姜蒜酱油各餐都合理。 */
+    private static final Set<String> SHARED_INGREDIENT_IGNORE = Set.of(
+            "盐", "油", "糖", "水", "食用油", "生抽", "老抽", "酱油", "醋", "料酒", "蚝油", "香油", "芝麻油", "橄榄油",
+            "淀粉", "鸡精", "味精", "葱", "姜", "蒜", "葱花", "姜末", "蒜末", "葱段", "姜片", "葱丝", "姜丝",
+            "胡椒粉", "花椒粉", "辣椒粉", "五香粉", "八角", "桂皮", "香叶", "芝麻", "白芝麻", "熟芝麻",
+            "高汤", "清水", "开水", "热水", "温水", "冰水");
+
+    /**
+     * 提取显著食材 token：按分隔符切分 → 去掉用量数字/单位 → 过滤调味辅料与单字。
+     * 只做保守下界（识别不出就不约束），不会误伤正常搭配。
+     */
+    private Set<String> significantIngredients(Recipe recipe) {
+        Set<String> tokens = new HashSet<>();
+        String raw = recipe.getIngredients();
+        if (raw == null || raw.isBlank()) return tokens;
+        for (String part : raw.split("[,，、;；\n]")) {
+            String token = part.replaceAll("[0-9０-９.．\\s克毫升升mlMLgG只个根颗片块把勺滴罐盒包碗适量少许半]", "");
+            if (token.length() >= 2 && !SHARED_INGREDIENT_IGNORE.contains(token)) tokens.add(token);
+        }
+        return tokens;
+    }
+
+    /** 两餐是否共享显著食材：token 集合相交，或一方 token 出现在另一方菜名+食材全文里（防「只在菜名里写西兰花」漏网）。 */
+    private boolean sharesIngredient(Recipe a, Recipe b) {
+        return sharesIngredient(a, significantIngredients(a), b, significantIngredients(b));
+    }
+
+    private boolean sharesIngredient(Recipe a, Recipe b, Map<Recipe, Set<String>> tokens) {
+        return sharesIngredient(a, tokens.get(a), b, tokens.get(b));
+    }
+
+    private boolean sharesIngredient(Recipe a, Set<String> aTokens, Recipe b, Set<String> bTokens) {
+        if (aTokens == null || bTokens == null) return false;
+        String bText = text(b);
+        String aText = text(a);
+        for (String token : aTokens) {
+            if (bTokens.contains(token) || bText.contains(token)) return true;
+        }
+        for (String token : bTokens) {
+            if (aText.contains(token)) return true;
+        }
+        return false;
     }
 
     private boolean sameDish(Recipe a, Recipe b) {

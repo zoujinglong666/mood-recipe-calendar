@@ -80,6 +80,7 @@ import { imgThumb, imgList, imgHero } from '../../utils/imageUrl'
 import GuozaiFlip from '../../components/guozai/GuozaiFlip.vue'
 import MealSheet from '../../components/guozai/MealSheet.vue'
 import GuozaiOnboardingSheet from '../../components/guozai/GuozaiOnboardingSheet.vue'
+import { fetchFoodPreference } from '../../api/preferences'
 import PlanModeSheet from '../../components/guozai/PlanModeSheet.vue'
 import { useUserStore } from '../../stores/user'
 import { funnel } from '../../utils/funnel'
@@ -846,7 +847,19 @@ const MOODS = ['开心', '平静', '疲惫', '焦虑', '难过', '嘴馋', '低�
 const showMealSheet = ref(false)
 /** 冷启动画像问卷：与 mood 页共享同一份 asked 标记，两个入口合计只弹一次（展示时落标记） */
 const showOnboarding = ref(false)
-function openMealSheet() {
+async function openMealSheet() {
+  // [问卷契约] 弹出条件 = 新用户且没填写过。本地标记缺失时先静默向服务端核实
+  // onboardingCompleted（换设备/清缓存/调试提交过的场景），填写过就同步标记、绝不弹问卷。
+  // 与 mood 页 onConfirm 同一套契约；非阻塞，查询失败按未填写走原判定。
+  if (!uni.getStorageSync('mrc_preference_onboarded') && userStore.isLoggedIn) {
+    try {
+      const preference = await fetchFoodPreference()
+      if (preference?.onboardingCompleted) uni.setStorageSync('mrc_preference_onboarded', '1')
+    }
+    catch {
+      // 核实失败不拦截：按未填写继续走本地标记判定
+    }
+  }
   if (!uni.getStorageSync('mrc_preference_onboarded') && !uni.getStorageSync('mrc_onboarding_asked')) {
     uni.setStorageSync('mrc_onboarding_asked', '1')
     funnel('onboarding_shown', { from: 'home' })
@@ -861,6 +874,7 @@ function onOnboardingDone(result: { completed: boolean }) {
   if (result.completed) uni.setStorageSync('mrc_preference_onboarded', '1')
   showMealSheet.value = true
 }
+
 
 /** 锅仔管饭单一入口：弹层里选排菜方式（智能体对话式 / 普通填口味自动排） */
 const showPlanMode = ref(false)
@@ -1117,8 +1131,10 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
         </view>
       </view>
 
-      <MealSheet v-model="showMealSheet" @select="pickMeal" />
-      <GuozaiOnboardingSheet v-model="showOnboarding" @done="onOnboardingDone" />
+      <MealSheet v-model="showMealSheet" :with-tabbar="true" @select="pickMeal" />
+      <GuozaiOnboardingSheet v-model="showOnboarding" :with-tabbar="true" @done="onOnboardingDone" />
+
+
       <PlanModeSheet v-model="showPlanMode" @select="onPlanModePick" />
 
       <view class="home-cal">
@@ -1535,4 +1551,5 @@ function openCalendarCell(cell: { d: number; records: RecordItem[] }) {
 .home-cal__cta text:last-child { font-size: 40rpx; font-weight: 400; }
 .home-cal__cta:active { opacity: 0.68; }
 .home-slogan { display: flex; align-items: center; gap: 16rpx; padding: 36rpx 12rpx 44rpx; }.home-slogan__text { flex: 0 0 auto; color: var(--mrc-text-light); font-size: 24rpx; letter-spacing: 2rpx; }.home-slogan__line { flex: 1; height: 2rpx; background: var(--mrc-border); }.home-lucky:active, .home-actions__item:active, .home-hero:active { transform: scale(0.985); }
+
 </style>

@@ -18,6 +18,7 @@ type _LocationUrl =
   "/pages/admin/recipes/index" |
   "/subpkg-content/album/index" |
   "/subpkg-content/calendar/index" |
+  "/subpkg-content/deals/index" |
   "/subpkg-content/gallery/index" |
   "/subpkg-content/report/index" |
   "/subpkg-content/timeline/index" |

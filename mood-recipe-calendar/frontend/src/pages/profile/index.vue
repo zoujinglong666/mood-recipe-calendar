@@ -8,6 +8,7 @@ import {refreshUserInfo, navigateToLogin} from '../../utils/login'
 import {toast, toastError} from '../../utils/toast'
 import SuccessModal from '../../components/guozai/SuccessModal.vue'
 import {fetchShareStatus, type ShareStatus} from '@/api/share'
+import {fetchNutritionTarget, type NutritionTarget} from '../../api/preferences'
 import {fetchCheckinStatus, doCheckin, type CheckinStatus} from '@/api/checkin'
 import {fetchFridgeSummary, type FridgeSummary} from '@/api/fridge'
 import {uploadFile} from '@/api/request'
@@ -25,6 +26,24 @@ definePage({
 
 const router = useRouter()
 const userStore = useUserStore()
+// ---------- [2026-10-28] 营养目标卡：问卷身体数据 → EER 结果 ----------
+const targetView = ref<NutritionTarget>()
+// 优惠入口图标：外链聚推客 CDN，加载失败回退渐变徽章（转存 COS 后可去掉兜底）
+const dealsIconBroken = ref(false)
+async function loadTarget() {
+  if (!userStore.isLoggedIn) { targetView.value = undefined; return }
+  try { targetView.value = await fetchNutritionTarget() }
+  catch { /* 目标卡是附加能力，失败静默 */ }
+}
+const targetNote = computed(() => {
+  const offset = targetView.value?.energyOffsetPercent || ''
+  if (offset.includes('-')) return '正按减脂节奏安排三餐，主食与油盐会收着放'
+  if (offset.includes('+')) return '正按增肌节奏安排三餐，蛋白质会给足'
+  return '按均衡饮食安排，好好吃完整顿比什么都重要'
+})
+function goBodySettings() {
+  router.push({ name: 'preferences' })
+}
 /** 转发给好友/群：必须定义 onShareAppMessage 胶囊「···」里的转发才可用 */
 onShareAppMessage(() => {
   const sharer = userStore.openid
@@ -206,6 +225,10 @@ function goFridge() {
 function goFeedback() {
   router.push({ name: 'feedback' })
 }
+/** [2026-10-28] 天天优惠（聚推客 CPS）：外卖红包/打车券，领券再下单 */
+function goDeals() {
+  router.push({ name: 'deals' })
+}
 
 /** 「我的」页内联签到：签到随机领对话券或三餐券，弹窗确认后直达对应功能页。 */
 const checkinGiftType = computed(() => checkinStatus.value?.giftType || 'CONVERSATION')
@@ -311,7 +334,31 @@ async function quickCheckin() {
       </view>
     </view>
 
-    <view class="profile-section-head">
+            <!-- [2026-10-28] 我的目标卡：问卷身体数据 → 每日能量/蛋白质目标；未补全时引导 -->
+        <view v-if="userStore.isLoggedIn && targetView" class="target-card">
+          <template v-if="targetView.status === 'OK' && targetView.energyKcal">
+            <view class="target-card__row">
+              <view class="target-card__item">
+                <text class="target-card__num">{{ Math.round(targetView.maintenanceKcal || 0) }}</text>
+                <text class="target-card__label">维持热量·约</text>
+              </view>
+              <view class="target-card__item target-card__item--main">
+                <text class="target-card__num">{{ Math.round(targetView.energyKcal.target) }}</text>
+                <text class="target-card__label">今日目标·约千卡</text>
+              </view>
+              <view class="target-card__item">
+                <text class="target-card__num">{{ targetView.proteinG?.target ?? '-' }}</text>
+                <text class="target-card__label">蛋白质·约克</text>
+              </view>
+            </view>
+            <text class="target-card__note">{{ targetNote }}</text>
+          </template>
+          <template v-else-if="targetView.status === 'NEEDS_INPUT'">
+            <text class="target-card__need">补全身高体重，锅仔营养师帮你算出每天需要的能量与蛋白质</text>
+            <view class="target-card__btn" role="button" aria-label="去补充身体数据" @click="goBodySettings">去补充</view>
+          </template>
+        </view>
+<view class="profile-section-head">
       <view>
         <text class="profile-section-head__eyebrow">
           锅仔陪你
@@ -382,6 +429,18 @@ async function quickCheckin() {
       :confirm-text="checkinGiftBtn"
       @confirm="onCheckinGiftConfirm"
     />
+
+    <!-- 天天优惠：聚推客 CPS（外卖红包/打车券）；后端未配置时页面内会显示「优惠休息中」 -->
+    <view class="profile-row" role="button" aria-label="打开天天优惠" @click="goDeals">
+      <image v-if="!dealsIconBroken" src="https://www.jutuike.com/static/new/img/platform/open_activity.png" class="profile-row__img" mode="aspectFit" @error="dealsIconBroken = true"/>
+            <view v-else class="profile-row__img profile-row__img--fallback" aria-hidden="true">惠</view>
+      <view class="profile-row__main">
+        <text class="profile-row__eyebrow">省一点是一点</text>
+        <text class="profile-row__title">天天优惠</text>
+        <text class="profile-row__sub">外卖红包 · 打车券 · 领券再下单</text>
+      </view>
+      <view class="profile-row__arrow">›</view>
+    </view>
 
     <!-- 年度报告：同一行卡系统，不再是缩一圈的小格 -->
     <view class="profile-row" role="button" aria-label="打开我的年度报告" @click="goReport">
@@ -618,4 +677,15 @@ button.edit-sheet__btn--primary::after { border: 0; }
 .pressable { transition: transform 180ms ease, opacity 180ms ease; }
 .pressable:active { transform: scale(.97); }
 @media (prefers-reduced-motion: reduce) { .pressable { transition: none; } .pressable:active { transform: none; } }
+/* [2026-10-28] 营养目标卡 */
+.target-card { margin: 20rpx 24rpx 0; padding: 26rpx; border: 2rpx solid var(--mrc-border-light); border-radius: 30rpx; background: var(--mrc-surface); }
+.target-card__row { display: flex; }
+.target-card__item { display: flex; flex: 1; flex-direction: column; align-items: center; gap: 6rpx; }
+.target-card__item--main .target-card__num { color: var(--mrc-primary-deep); }
+.target-card__num { color: var(--mrc-text-strong); font-size: 34rpx; font-weight: 800; }
+.target-card__label { color: var(--mrc-text-sub); font-size: 20rpx; }
+.target-card__note { display: block; margin-top: 16rpx; color: var(--mrc-text-sub); font-size: 21rpx; line-height: 1.5; }
+.target-card__need { display: block; color: var(--mrc-text-sub); font-size: 22rpx; line-height: 1.5; }
+.target-card__btn { display: flex; align-items: center; justify-content: center; margin-top: 14rpx; min-height: 68rpx; border-radius: 999rpx; background: var(--mrc-primary); color: #fff; font-size: 23rpx; font-weight: 800; }
+.profile-row__img--fallback { display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 26rpx; background: linear-gradient(135deg, var(--mrc-surface-sun), var(--mrc-surface-peach)); color: var(--mrc-primary-deep); font-size: 44rpx; font-weight: 800; }
 </style>
