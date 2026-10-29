@@ -438,7 +438,14 @@ async function switchBoardDish(direction: 1 | -1) {
   catch (e: any) {
     boardSkeleton.value = false
     boardLeaving.value = false
-    toastError(e, '今天没有别的菜可换啦')
+    // 文案口径（2026-10-29 修复）：只有服务端 404（真没菜可换，自带完整文案）才谈「没菜」；
+    // 看门狗超时与 request:fail 是网络问题，必须给「再试一次」指引——
+    // 此前超时裸透出「换菜超时」、断网被映射成「今天没有别的菜可换啦」，双重误导。
+    if (e?.message === '换菜超时') {
+      toast('网络有点慢，再滑一次试试')
+    } else {
+      toastError(e, '换菜没成功，再滑一次试试')
+    }
   }
   finally {
     setTimeout(() => { boardSwitching.value = false }, 420)
