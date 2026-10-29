@@ -33,11 +33,6 @@ const props = withDefaults(defineProps<{
   withTabbar?: boolean
 }>(), { modelValue: false, withTabbar: false })
 
-// [2026-10-28] 第 6 步漏斗：可选步骤是否造成流失
-watch(() => stepIndex.value, (idx) => {
-  if (STEPS[idx]?.key === 'body') funnel('onboarding_body_reached')
-})
-
 const show = computed({
   get: () => props.modelValue,
   set: (v: boolean) => emit('update:modelValue', v),
@@ -125,6 +120,13 @@ const isLast = computed(() => stepIndex.value === STEPS.length - 1)
 const submitting = ref(false)
 /** 防止「提交完成」与「下滑关闭」双触发 done */
 const finished = ref(false)
+
+// [2026-10-28] 第 6 步漏斗：可选步骤是否造成流失。
+// 注意必须放在 stepIndex 声明之后：watch 的 getter 会立即执行一次取初始值，
+// 声明前引用在小程序编译产物里表现为 undefined.value（2026-10-29 首页 TypeError 修复）。
+watch(() => stepIndex.value, (idx) => {
+  if (STEPS[idx]?.key === 'body') funnel('onboarding_body_reached')
+})
 
 const selections = reactive<Record<string, string[]>>({
   time: [], spice: [], cuisine: [], avoid: [], allergen: [], people: [], activity: [], mealTiming: [],
