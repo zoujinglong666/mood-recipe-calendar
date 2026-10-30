@@ -55,7 +55,9 @@ public class JutuikeService {
     public JutuikeService(
             ObjectMapper objectMapper,
             WxPusherNotifier notifier,
-            @Value("${cps.jutuike.api-key:}") String apiKey,
+            // 默认值即聚推客 apikey（写死兜底）；若部署环境的 .env 设了 CPS_JUTUIKE_API_KEY 则以其为准。
+            // 注意：docker-compose 的 env_file 会覆盖此默认值，故 .env 里要么填正确 key、要么不设这个变量。
+            @Value("${cps.jutuike.api-key:AccG3iZurximntsdODbBwjJcpCcScTF5}") String apiKey,
             @Value("${cps.jutuike.base-url:http://api.jutuike.com}") String baseUrl
     ) {
         this.objectMapper = objectMapper;
