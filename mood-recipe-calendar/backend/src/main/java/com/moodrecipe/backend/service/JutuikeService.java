@@ -15,7 +15,9 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -51,7 +53,8 @@ public class JutuikeService {
     ) {
         this.objectMapper = objectMapper;
         this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(8)).build();
-        this.apiKey = apiKey;
+        // 去掉 .env 复制时可能带入的尾部空白/换行，避免鉴权失败（聚推客 code!=1 → 静默空数据）
+        this.apiKey = apiKey == null ? "" : apiKey.trim();
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
     }
 
@@ -75,15 +78,9 @@ public class JutuikeService {
     private record CachedGroups(long fetchedAt, List<DealGroup> groups) { }
 
     /**
-     * [2026-10-28] 分组口径：act_list 接口本身不返回分类字段，只能按 cate_name 筛选拉取。
-     * 这组分类对应「吃饭的人顺路会用」的场景，顺序即展示顺序；漏拉只影响分组展示，不影响转链。
-     */
-    private static final List<String> GROUP_CATEGORIES = List.of(
-            "美团", "饿了么", "连锁餐饮", "打车出行", "电影票", "特惠酒店", "快递优惠");
-
-    /**
-     * 按分类分组的活动列表（30 分钟缓存，分类间并行拉取）。
-     * 单个分类失败跳过该分类，不影响其它分组——优惠是附加能力，不阻塞主流程。
+     * [2026-10-30] 分组口径修正：act_list 不认「按中文 cate_name 请求过滤」，
+     * 分类是返回数据里每个活动自带的字段。旧逻辑按猜测的 cate_name 当参数拉 → 每类都空 → data:[]。
+     * 改为单次拉全量、本地按真实 cate_name 分组（展示顺序即接口返回顺序）。
      */
     public List<DealGroup> groupedActivities() {
         if (!isEnabled()) return List.of();
@@ -91,23 +88,61 @@ public class JutuikeService {
         if (cached != null && System.currentTimeMillis() - cached.fetchedAt() < LIST_CACHE_MS) {
             return cached.groups();
         }
-        List<DealGroup> groups = GROUP_CATEGORIES.parallelStream()
-                .map(this::activitiesOfCategory)
-                .filter(group -> !group.activities().isEmpty())
-                .toList();
+        // 单次拉全量后在本地按 cate_name 分组；单个请求失败 → 返回空（已在 fetchAndGroup 内记日志）。
+        List<DealGroup> groups = fetchAndGroup();
         if (!groups.isEmpty()) groupsCache.set(new CachedGroups(System.currentTimeMillis(), groups));
         return groups.isEmpty() && cached != null ? cached.groups() : groups;
     }
 
-    private DealGroup activitiesOfCategory(String category) {
+    /**
+     * [2026-10-30] 单次拉全量活动列表，按返回数据的 cate_name 在本地分组。
+     * 不再用 cate_name 当请求参数（接口不支持按中文分类过滤），避免每类都返回空。
+     * 任何失败（网络异常 / code!=1）都记日志后返回空，便于在日志里区分「apikey 无效」与「账号未激活」。
+     */
+    private List<DealGroup> fetchAndGroup() {
+        Map<String, List<DealActivity>> byCat = new LinkedHashMap<>();
         try {
-            String body = httpGet(baseUrl + "/union/act_list?apikey=" + enc(apiKey)
-                    + "&pageSize=100&cate_name=" + enc(category));
-            return new DealGroup(category, parseActivities(body));
+            int page = 1;
+            while (page <= 10) {
+                String body = httpGet(baseUrl + "/union/act_list?apikey=" + enc(apiKey)
+                        + "&page=" + page + "&pageSize=100");
+                JsonNode root = objectMapper.readTree(body);
+                if (root.path("code").asInt(0) != 1) {
+                    log.warn("聚推客活动列表返回失败 code={} msg={}",
+                            root.path("code").asInt(0), root.path("msg").asText(""));
+                    return List.of();
+                }
+                JsonNode rows = root.path("data").path("data");
+                if (!rows.isArray() || rows.isEmpty()) break;
+                for (JsonNode row : rows) {
+                    long actId = row.path("act_id").asLong(0);
+                    String name = row.path("act_name").asText("").trim();
+                    if (actId <= 0 || name.isEmpty()) continue;
+                    String cat = row.path("cate_name").asText("").trim();
+                    if (cat.isEmpty()) cat = "其他";
+                    byCat.computeIfAbsent(cat, k -> new ArrayList<>())
+                            .add(new DealActivity(actId, name,
+                                    row.path("desc").asText("").trim(),
+                                    row.path("icon").asText("").trim()));
+                }
+                JsonNode data = root.path("data");
+                int total = data.path("total").asInt(0);
+                int current = data.path("current_page").asInt(page);
+                int pageSize = data.path("per_page").asInt(100);
+                if (total > 0 && current * pageSize >= total) break;
+                page++;
+            }
         } catch (Exception exception) {
-            log.warn("聚推客活动列表请求失败 cate={}: {}", category, exception.getClass().getSimpleName());
-            return new DealGroup(category, List.of());
+            log.warn("聚推客活动列表请求失败: {}", exception.getClass().getSimpleName());
+            return List.of();
         }
+        if (byCat.isEmpty()) {
+            log.warn("聚推客活动列表返回成功但无活动数据：请确认 apikey 是否有效、聚推客账号是否已通过审核/激活");
+            return List.of();
+        }
+        List<DealGroup> groups = new ArrayList<>();
+        byCat.forEach((cat, list) -> groups.add(new DealGroup(cat, list)));
+        return groups;
     }
 
     /**
@@ -143,23 +178,6 @@ public class JutuikeService {
     }
 
     // ==== 内部 ====
-
-    private List<DealActivity> parseActivities(String body) throws Exception {
-        JsonNode root = objectMapper.readTree(body);
-        if (root.path("code").asInt(0) != 1) return List.of();
-        JsonNode rows = root.path("data").path("data");
-        List<DealActivity> list = new ArrayList<>();
-        if (!rows.isArray()) return list;
-        for (JsonNode row : rows) {
-            long actId = row.path("act_id").asLong(0);
-            String name = row.path("act_name").asText("").trim();
-            if (actId <= 0 || name.isEmpty()) continue;
-            list.add(new DealActivity(actId, name,
-                    row.path("desc").asText("").trim(),
-                    row.path("icon").asText("").trim()));
-        }
-        return list;
-    }
 
     private String httpGet(String url) throws Exception {
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))
