@@ -16,7 +16,9 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -42,19 +44,29 @@ public class JutuikeService {
     private final HttpClient httpClient;
     private final String apiKey;
     private final String baseUrl;
+    private final WxPusherNotifier notifier;
+
+    /** 优惠列表拉空告警节流：冷却期内（30 分钟）最多推一次，避免每个请求都推。 */
+    private static final long EMPTY_ALERT_COOLDOWN_MS = 30 * 60 * 1000L;
+    private final AtomicLong lastEmptyAlertAt = new AtomicLong(0);
 
     private final AtomicReference<CachedGroups> groupsCache = new AtomicReference<>();
 
     public JutuikeService(
             ObjectMapper objectMapper,
+            WxPusherNotifier notifier,
             @Value("${cps.jutuike.api-key:}") String apiKey,
             @Value("${cps.jutuike.base-url:http://api.jutuike.com}") String baseUrl
     ) {
         this.objectMapper = objectMapper;
+        this.notifier = notifier;
         this.httpClient = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(8)).build();
         // 去掉 .env 复制时可能带入的尾部空白/换行，避免鉴权失败（聚推客 code!=1 → 静默空数据）
         this.apiKey = apiKey == null ? "" : apiKey.trim();
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+        // 启动即确认 key 真的注入了（非空白），并暴露长度便于发现「复制时被截断」的 key；
+        // 不打印 key 原文，避免泄露。
+        if (isEnabled()) log.info("聚推客 CPS 已启用，apikey 长度={}", apiKey.length());
     }
 
     /** apikey 未配置时整个优惠功能静默降级为不可用，不报错。 */
@@ -99,39 +111,51 @@ public class JutuikeService {
         if (cached != null && System.currentTimeMillis() - cached.fetchedAt() < LIST_CACHE_MS) {
             return cached.groups();
         }
-        List<DealGroup> groups = GROUP_CATEGORIES.parallelStream()
+        // 顺序拉取（9 个分类、请求很快），同时收集每类失败原因用于空数据告警
+        List<CatResult> results = GROUP_CATEGORIES.stream()
                 .map(this::activitiesOfCategory)
-                .filter(group -> !group.activities().isEmpty())
                 .toList();
-        if (!groups.isEmpty()) groupsCache.set(new CachedGroups(System.currentTimeMillis(), groups));
+        List<DealGroup> groups = results.stream()
+                .filter(r -> !r.activities().isEmpty())
+                .map(r -> new DealGroup(r.category(), r.activities()))
+                .toList();
+        if (!groups.isEmpty()) {
+            groupsCache.set(new CachedGroups(System.currentTimeMillis(), groups));
+        } else if (cached == null) {
+            // 首次拉取（无旧缓存兜底）就空 → 推 WxPusher 告警并附各分类失败原因，便于排查
+            alertEmpty(results);
+        }
         return groups.isEmpty() && cached != null ? cached.groups() : groups;
     }
 
+    /** 单分类拉取结果：成功带活动列表，失败带原因（供空数据时推 WxPusher 排查）。 */
+    private record CatResult(String category, List<DealActivity> activities, String error) { }
+
     /** 单个分类：按官方 cate_name 过滤拉取，请求的分类名即分组名。 */
-    private DealGroup activitiesOfCategory(String category) {
+    private CatResult activitiesOfCategory(String category) {
         try {
             String body = httpGet(baseUrl + "/union/act_list?apikey=" + enc(apiKey)
                     + "&pageSize=100&cate_name=" + enc(category));
-            return new DealGroup(category, parseActivities(body, category));
+            return new CatResult(category, parseActivities(body, category), null);
         } catch (Exception exception) {
-            log.warn("聚推客活动列表请求失败 cate={}: {}", category, exception.getClass().getSimpleName());
-            return new DealGroup(category, List.of());
+            String reason = exception.getMessage() == null
+                    ? exception.getClass().getSimpleName() : exception.getMessage();
+            log.warn("聚推客活动列表请求失败 cate={}: {}", category, reason);
+            return new CatResult(category, List.of(), category + " → " + reason);
         }
     }
 
-    /** 解析单分类响应。code!=1（apikey 无效/账号未激活）记日志后返回空，避免静默丢数据。 */
+    /** 解析单分类响应。code!=1（apikey 无效/账号未激活）或结构异常时抛异常，由上层捕获并告警。 */
     private List<DealActivity> parseActivities(String body, String category) throws Exception {
         JsonNode root = objectMapper.readTree(body);
         if (root.path("code").asInt(0) != 1) {
-            log.warn("聚推客活动列表返回失败 cate={} code={} msg={}",
-                    category, root.path("code").asInt(0), root.path("msg").asText(""));
-            return List.of();
+            throw new IllegalStateException("code=" + root.path("code").asInt(0)
+                    + " msg=" + root.path("msg").asText(""));
         }
         JsonNode rows = root.path("data").path("data");
         List<DealActivity> list = new ArrayList<>();
         if (!rows.isArray()) {
-            log.warn("聚推客活动列表 cate={} 的 data.data 非数组", category);
-            return list;
+            throw new IllegalStateException("data.data 非数组");
         }
         for (JsonNode row : rows) {
             long actId = row.path("act_id").asLong(0);
@@ -142,6 +166,34 @@ public class JutuikeService {
                     row.path("icon").asText("").trim()));
         }
         return list;
+    }
+
+    /**
+     * [2026-10-30] 优惠列表拉空告警：把「为什么没数据」推到 WxPusher，方便排查。
+     * 仅在距上次推送超过冷却期时发送，避免每个请求都推（刷屏）。
+     */
+    private void alertEmpty(List<CatResult> results) {
+        long now = System.currentTimeMillis();
+        long last = lastEmptyAlertAt.get();
+        if (now - last < EMPTY_ALERT_COOLDOWN_MS || !lastEmptyAlertAt.compareAndSet(last, now)) {
+            return;
+        }
+        List<String> errs = results.stream()
+                .map(CatResult::error)
+                .filter(Objects::nonNull)
+                .toList();
+        StringBuilder sb = new StringBuilder("【聚推客优惠拉取为空】apikey 已配置但无活动返回，请排查： ");
+        if (errs.isEmpty()) {
+            sb.append("所有分类均返回成功(code=1)但无活动数据——多半是聚推客账号未通过审核/激活，");
+            sb.append("或活动列表接口当前无数据。可用 curl 直连 ");
+            sb.append("http://api.jutuike.com/union/act_list?apikey=你的KEY&cate_name=美团 验证 key/账号。");
+        } else {
+            sb.append("各分类失败原因： ");
+            for (String e : errs) sb.append(e).append("； ");
+            sb.append("若为 code!=1：核对 .env 的 CPS_JUTUIKE_API_KEY（别带空格/换行）；");
+            sb.append("若为网络异常：检查服务器到 api.jutuike.com 的连通性。");
+        }
+        notifier.send(sb.toString());
     }
 
     /**
@@ -189,7 +241,10 @@ public class JutuikeService {
                 .build();
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
-            throw new IllegalStateException("HTTP " + response.statusCode());
+            // 把状态码和响应前 200 字符带进异常，便于在日志里直接看到聚推客原始报错（不含 apikey）
+            String snippet = response.body() == null ? "" : response.body();
+            if (snippet.length() > 200) snippet = snippet.substring(0, 200);
+            throw new IllegalStateException("HTTP " + response.statusCode() + " body=" + snippet);
         }
         return response.body();
     }
